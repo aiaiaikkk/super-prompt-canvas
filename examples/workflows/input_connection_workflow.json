@@ -1,0 +1,66 @@
+{
+  "last_node_id": 3,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [100, 100],
+      "size": {"0": 315, "1": 314},
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "shape": 3}
+      ],
+      "properties": {},
+      "widgets_values": ["example.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "AnnotationDataNode", 
+      "pos": [100, 450],
+      "size": {"0": 400, "1": 200},
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "annotation_data", "type": "STRING", "links": [2], "shape": 3}
+      ],
+      "properties": {},
+      "widgets_values": ["[]"]
+    },
+    {
+      "id": 3,
+      "type": "VisualPromptEditor",
+      "pos": [550, 100],
+      "size": {"0": 400, "1": 600},
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 1},
+        {"name": "annotation_data", "type": "STRING", "link": 2}
+      ],
+      "outputs": [
+        {"name": "processed_image", "type": "IMAGE", "links": null},
+        {"name": "edited_layers_json", "type": "STRING", "links": null},
+        {"name": "selected_layer_ids", "type": "STRING", "links": null},
+        {"name": "conditioning_positive", "type": "CONDITIONING", "links": null},
+        {"name": "conditioning_negative", "type": "CONDITIONING", "links": null},
+        {"name": "positive_prompt", "type": "STRING", "links": null},
+        {"name": "editing_metadata", "type": "STRING", "links": null}
+      ],
+      "properties": {}
+    }
+  ],
+  "links": [
+    [1, 1, 0, 3, 0, "IMAGE"],
+    [2, 2, 0, 3, 1, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

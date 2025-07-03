@@ -1,0 +1,186 @@
+{
+  "workflow_name": "Complete Image Processing Workflow",
+  "description": "Complete workflow combining global image processing and local annotation editing",
+  "version": "2.2.7",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "LoadImage",
+      "pos": [100, 100],
+      "size": [320, 314],
+      "properties": {},
+      "widgets_values": ["example_image.jpg", "image"]
+    },
+    {
+      "id": "2", 
+      "type": "GlobalImageProcessor",
+      "pos": [480, 100],
+      "size": [400, 300],
+      "properties": {},
+      "widgets_values": [
+        "enhance_quality",
+        1.2,
+        "",
+        true,
+        7.5
+      ],
+      "inputs": {
+        "image": {"link": 1, "name": "image"}
+      },
+      "outputs": {
+        "processed_image": {"links": [2], "name": "processed_image"},
+        "processing_metadata": {"links": [], "name": "processing_metadata"},
+        "suggested_prompt": {"links": [3], "name": "suggested_prompt"},
+        "conditioning": {"links": [4], "name": "conditioning"},
+        "processing_log": {"links": [], "name": "processing_log"}
+      }
+    },
+    {
+      "id": "3",
+      "type": "VisualPromptEditor", 
+      "pos": [960, 100],
+      "size": [400, 350],
+      "properties": {},
+      "widgets_values": [
+        "",
+        "",
+        true,
+        true,
+        "object_edit",
+        3.5,
+        1.0,
+        1.0,
+        ""
+      ],
+      "inputs": {
+        "image": {"link": 2, "name": "image"},
+        "text_prompt": {"link": 3, "name": "text_prompt"}
+      },
+      "outputs": {
+        "processed_image": {"links": [5], "name": "processed_image"},
+        "edited_layers_json": {"links": [], "name": "edited_layers_json"},
+        "selected_layer_ids": {"links": [], "name": "selected_layer_ids"},
+        "conditioning_positive": {"links": [6], "name": "conditioning_positive"},
+        "conditioning_negative": {"links": [7], "name": "conditioning_negative"},
+        "positive_prompt": {"links": [], "name": "positive_prompt"},
+        "editing_metadata": {"links": [], "name": "editing_metadata"}
+      }
+    },
+    {
+      "id": "4",
+      "type": "LayerToMaskNode",
+      "pos": [1440, 100], 
+      "size": [300, 200],
+      "properties": {},
+      "widgets_values": [
+        "selected_layers",
+        0,
+        false
+      ],
+      "inputs": {
+        "image": {"link": 5, "name": "image"},
+        "layers_json": {"link": null, "name": "layers_json"}
+      },
+      "outputs": {
+        "mask": {"links": [8], "name": "mask"},
+        "mask_preview": {"links": [], "name": "mask_preview"}
+      }
+    },
+    {
+      "id": "5",
+      "type": "PreviewImage",
+      "pos": [1800, 100],
+      "size": [400, 300],
+      "properties": {},
+      "inputs": {
+        "images": {"link": 5, "name": "images"}
+      }
+    },
+    {
+      "id": "6",
+      "type": "SaveImage", 
+      "pos": [1800, 450],
+      "size": [400, 200],
+      "properties": {},
+      "widgets_values": ["processed_kontext"],
+      "inputs": {
+        "images": {"link": 5, "name": "images"}
+      }
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [2, 2, 0, 3, 0, "IMAGE"], 
+    [3, 2, 2, 3, 1, "STRING"],
+    [4, 2, 3, null, 0, "CONDITIONING"],
+    [5, 3, 0, 4, 0, "IMAGE"],
+    [6, 3, 3, null, 0, "CONDITIONING"],
+    [7, 3, 4, null, 0, "CONDITIONING"],
+    [8, 4, 0, null, 0, "MASK"]
+  ],
+  "workflow_steps": [
+    {
+      "step": 1,
+      "description": "Load source image",
+      "node": "LoadImage",
+      "action": "Load the image file to be processed"
+    },
+    {
+      "step": 2, 
+      "description": "Global image processing",
+      "node": "GlobalImageProcessor",
+      "action": "Apply global effects like quality enhancement, upscaling, color adjustments, or artistic filters"
+    },
+    {
+      "step": 3,
+      "description": "Local annotation editing", 
+      "node": "VisualPromptEditor",
+      "action": "Double-click to open editor, draw annotations on specific areas, generate targeted prompts"
+    },
+    {
+      "step": 4,
+      "description": "Convert to masks",
+      "node": "LayerToMaskNode", 
+      "action": "Convert annotation layers to ComfyUI-compatible masks for further processing"
+    },
+    {
+      "step": 5,
+      "description": "Preview and save",
+      "node": "PreviewImage + SaveImage",
+      "action": "Preview the final result and save to disk"
+    }
+  ],
+  "use_cases": [
+    {
+      "name": "Photo Enhancement + Object Editing",
+      "description": "Enhance photo quality globally, then edit specific objects or areas",
+      "global_mode": "enhance_quality",
+      "local_editing": "object_edit"
+    },
+    {
+      "name": "Artistic Style + Selective Adjustments", 
+      "description": "Apply artistic filters globally, then make selective color or style adjustments",
+      "global_mode": "vintage_film",
+      "local_editing": "style_transfer"
+    },
+    {
+      "name": "Upscaling + Detail Enhancement",
+      "description": "Upscale image resolution, then enhance specific details or fix artifacts",
+      "global_mode": "upscale_2x",
+      "local_editing": "enhance_details"
+    },
+    {
+      "name": "Monochrome + Color Splash",
+      "description": "Convert to monochrome globally, then restore color to specific areas",
+      "global_mode": "desaturate", 
+      "local_editing": "color_restoration"
+    }
+  ],
+  "tips": [
+    "Use Global Image Processor first for overall image adjustments",
+    "Apply Visual Prompt Editor for precise local edits and annotations", 
+    "Combine different global modes with targeted local editing for creative effects",
+    "Use Layer to Mask for integrating with other ComfyUI workflows",
+    "Save processing metadata and logs for reproducible results"
+  ]
+}
