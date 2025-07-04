@@ -1,6 +1,6 @@
 # Kontext 可视化提示词窗口
 
-绘制标注区域（红色矩形）————选择对象————选择操作类型（Add Object）————输入参数（bridge）生成结构化提示提(Add bridge near the red rectangular marked area (annotation 0))
+绘制标注区域（红色矩形）——选择对象——选择操作类型（Add Object）——输入参数（bridge）生成结构化提示提(Add bridge near the red rectangular marked area (annotation 0))
 before
 ![before](https://github.com/user-attachments/assets/640f9eb0-50c4-4940-8008-08665406d8e4)
 after
