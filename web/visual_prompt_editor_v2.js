@@ -940,6 +940,7 @@ app.registerExtension({
                     type: annotation.type || 'rectangle',
                     color: annotation.color || '#ff0000',
                     fillMode: annotation.fillMode || 'filled',
+                    opacity: annotation.opacity || 50,  // 🔧 修复：添加不透明度字段
                     number: annotation.number
                 };
                 
