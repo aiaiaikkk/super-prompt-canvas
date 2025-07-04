@@ -15,6 +15,7 @@
   - 实心/空心样式切换
   - 多颜色支持和多选功能
   - 完整的编辑、撤销、清空功能
+  - 🏷️ **编号控制**: 可选择是否在标注和提示词中显示编号
 
 - **📝 结构化提示词输出**
   - 基于标注区域的基础提示词模板
@@ -83,6 +84,7 @@
 - **颜色选择**: 红、绿、黄、蓝四种颜色
 - **填充模式**: 实心/空心切换
 - **多选支持**: 同时选择多个标注对象
+- **🏷️ 编号控制**: 勾选框控制编号显示（前端标注编号和后端图像编号同步）
 
 ### 📝 提示词模板
 - **颜色变换**: 改变选中区域的颜色
@@ -165,8 +167,19 @@ Kontext专用的结构化提示词遵循五个核心维度，确保精确、可�
 ## 安装使用
 
 ### 📦 安装
-1. 将整个`KontextVisualPromptWindow`文件夹复制到`ComfyUI/custom_nodes/`目录
-2. 重启ComfyUI
+
+#### 方式一：Git安装（推荐）
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/your-username/KontextVisualPromptWindow.git
+```
+
+#### 方式二：手动安装
+1. 下载并解压项目文件
+2. 将整个`KontextVisualPromptWindow`文件夹复制到`ComfyUI/custom_nodes/`目录
+
+#### 完成安装
+重启ComfyUI即可使用
 
 ### 🚀 使用方法
 
@@ -218,8 +231,9 @@ LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLigh
 2. **选择工具**: 点击工具栏中的绘制工具
 3. **选择颜色**: 点击颜色按钮选择标注颜色
 4. **切换样式**: 点击"Fill"按钮切换实心/空心
-5. **绘制标注**: 在图像上拖拽或点击绘制
-6. **保存应用**: 点击"Save & Apply"保存数据
+5. **编号控制**: 勾选/取消"Include annotation numbers"控制编号显示
+6. **绘制标注**: 在图像上拖拽或点击绘制
+7. **保存应用**: 点击"Save & Apply"保存数据
 
 #### 快捷键
 - **Ctrl + 滚轮**: 缩放图像
@@ -279,6 +293,7 @@ MIT License - 详见LICENSE文件
   - Toggle between filled/outline styles
   - Multi-color support and multi-selection
   - Complete editing, undo, clear functionality
+  - 🏷️ **Number Control**: Optional display of annotation numbers in annotations and prompts
 
 - **📝 Structured Prompt Output**
   - Basic prompt templates based on annotated regions
@@ -347,6 +362,7 @@ MIT License - 详见LICENSE文件
 - **Color Selection**: Red, green, yellow, blue colors
 - **Fill Mode**: Toggle between filled/outline styles
 - **Multi-selection**: Select multiple annotation objects simultaneously
+- **🏷️ Number Control**: Checkbox to control number display (frontend annotation numbers and backend image numbers synchronized)
 
 ### 📝 Prompt Templates
 - **Color Change**: Change color of selected area
@@ -365,8 +381,19 @@ MIT License - 详见LICENSE文件
 ## Installation & Usage
 
 ### 📦 Installation
-1. Copy the entire `KontextVisualPromptWindow` folder to `ComfyUI/custom_nodes/` directory
-2. Restart ComfyUI
+
+#### Method 1: Git Installation (Recommended)
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/your-username/KontextVisualPromptWindow.git
+```
+
+#### Method 2: Manual Installation
+1. Download and extract the project files
+2. Copy the entire `KontextVisualPromptWindow` folder to `ComfyUI/custom_nodes/` directory
+
+#### Complete Installation
+Restart ComfyUI to use the plugin
 
 ### 🚀 Usage
 
@@ -418,8 +445,9 @@ LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLigh
 2. **Select Tool**: Click drawing tools in toolbar
 3. **Select Color**: Click color buttons to select annotation color
 4. **Toggle Style**: Click "Fill" button to toggle filled/outline
-5. **Draw Annotation**: Drag or click on image to draw
-6. **Save & Apply**: Click "Save & Apply" to save data
+5. **Number Control**: Check/uncheck "Include annotation numbers" to control number display
+6. **Draw Annotation**: Drag or click on image to draw
+7. **Save & Apply**: Click "Save & Apply" to save data
 
 #### Keyboard Shortcuts
 - **Ctrl + Scroll**: Zoom image
