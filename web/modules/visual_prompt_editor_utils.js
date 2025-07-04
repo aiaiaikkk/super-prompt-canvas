@@ -11,12 +11,12 @@ export const TOOL_NAMES = {
     'freehand': { name: 'Polygon', icon: '🔗' }
 };
 
-// 颜色映射
+// 颜色映射 - 使用标准纯色
 export const COLOR_NAMES = {
-    '#f44336': { name: 'Red', icon: '🔴' },
-    '#4caf50': { name: 'Green', icon: '🟢' }, 
-    '#ffeb3b': { name: 'Yellow', icon: '🟡' },
-    '#2196f3': { name: 'Blue', icon: '🔵' }
+    '#ff0000': { name: 'Red', icon: '🔴' },
+    '#00ff00': { name: 'Green', icon: '🟢' }, 
+    '#ffff00': { name: 'Yellow', icon: '🟡' },
+    '#0000ff': { name: 'Blue', icon: '🔵' }
 };
 
 // 操作类型模板 - 简化版本，只保留核心结构化描述

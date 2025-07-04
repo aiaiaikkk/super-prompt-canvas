@@ -165,10 +165,10 @@ function generateSingleAnnotationPrompt(annotation, operation, inputText, modal,
  */
 function generateAnnotationDescription(annotation, includeNumbers = true) {
     const colorMap = {
-        '#f44336': 'red',
-        '#4caf50': 'green', 
-        '#ffeb3b': 'yellow',
-        '#2196f3': 'blue'
+        '#ff0000': 'red',
+        '#00ff00': 'green', 
+        '#ffff00': 'yellow',
+        '#0000ff': 'blue'
     };
     
     const shapeMap = {
@@ -239,10 +239,10 @@ function generateMultimodalPrompt(selectedObject, operation, inputText, modal, g
         if (annotation) {
             // 构建具体的区域描述
             const colorMap = {
-                '#f44336': 'red',
-                '#4caf50': 'green', 
-                '#ffeb3b': 'yellow',
-                '#2196f3': 'blue'
+                '#ff0000': 'red',
+                '#00ff00': 'green', 
+                '#ffff00': 'yellow',
+                '#0000ff': 'blue'
             };
             
             const shapeMap = {

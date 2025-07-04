@@ -65,7 +65,7 @@ export function initCanvasDrawing(modal) {
         svg.appendChild(defs);
         
         // 为每种颜色创建箭头标记
-        const colors = ['#f44336', '#4caf50', '#ffeb3b', '#2196f3'];
+        const colors = ['#ff0000', '#00ff00', '#ffff00', '#0000ff'];
         colors.forEach(color => {
             const marker = createSVGElement('marker', {
                 id: `arrowhead-${color.replace('#', '')}`,

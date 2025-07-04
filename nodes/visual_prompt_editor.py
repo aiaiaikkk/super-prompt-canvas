@@ -142,14 +142,14 @@ class VisualPromptEditor:
         for layer in layers_data:
             if layer.get("id") in selected_ids:
                 layer_type = layer.get("type", "object")
-                color = layer.get("color", "#f44336")
+                color = layer.get("color", "#ff0000")
                 
                 # Color mapping for structured description
                 color_map = {
-                    '#f44336': 'red',
-                    '#4caf50': 'green', 
-                    '#ffeb3b': 'yellow',
-                    '#2196f3': 'blue'
+                    '#ff0000': 'red',
+                    '#00ff00': 'green', 
+                    '#ffff00': 'yellow',
+                    '#0000ff': 'blue'
                 }
                 
                 # Shape mapping for structured description
@@ -310,12 +310,12 @@ class VisualPromptEditor:
             # Create drawing object
             draw = ImageDraw.Draw(pil_image, 'RGBA')
             
-            # Color mapping
+            # Color mapping (base RGB values, alpha will be calculated per annotation) - 标准纯色
             color_map = {
-                '#f44336': (244, 67, 54, 128),    # Red, 50% transparency
-                '#4caf50': (76, 175, 80, 128),    # Green, 50% transparency  
-                '#ffeb3b': (255, 235, 59, 128),   # Yellow, 50% transparency
-                '#2196f3': (33, 150, 243, 128)    # Blue, 50% transparency
+                '#ff0000': (255, 0, 0),      # Standard Red
+                '#00ff00': (0, 255, 0),      # Standard Green  
+                '#ffff00': (255, 255, 0),    # Standard Yellow
+                '#0000ff': (0, 0, 255)       # Standard Blue
             }
             
             # Get image dimensions
@@ -325,31 +325,34 @@ class VisualPromptEditor:
             print(f"🖼️ 后端图像渲染 - 图像尺寸: {img_width}x{img_height}")
             
             # 定义填充样式应用函数
-            def apply_fill_style(draw, coords, color_rgba, fill_mode, shape_type):
-                """根据填充模式绘制形状"""
+            def apply_fill_style(draw, coords, color_rgb, fill_mode, shape_type, opacity=50):
+                """根据填充模式和不透明度绘制形状"""
+                # 计算不透明度值 (0-255)
+                fill_alpha = int(opacity * 255 / 100)
+                stroke_alpha = min(int((opacity + 30) * 255 / 100), 255)  # 边框稍微更不透明一些
+                
                 if fill_mode == 'outline':
                     # 空心样式 - 只绘制边框
+                    outline_color = (color_rgb[0], color_rgb[1], color_rgb[2], stroke_alpha)
                     if shape_type == 'rectangle':
                         x1, y1, x2, y2 = coords
-                        outline_color = (color_rgba[0], color_rgba[1], color_rgba[2], 255)  # 不透明边框
                         draw.rectangle([x1, y1, x2, y2], outline=outline_color, width=3)
                     elif shape_type == 'ellipse':
                         x1, y1, x2, y2 = coords  
-                        outline_color = (color_rgba[0], color_rgba[1], color_rgba[2], 255)  # 不透明边框
                         draw.ellipse([x1, y1, x2, y2], outline=outline_color, width=3)
                     elif shape_type == 'polygon':
-                        outline_color = (color_rgba[0], color_rgba[1], color_rgba[2], 255)  # 不透明边框
                         draw.polygon(coords, outline=outline_color, width=3)
                 else:
                     # 实心样式 - 填充 (默认)
+                    fill_color = (color_rgb[0], color_rgb[1], color_rgb[2], fill_alpha)
                     if shape_type == 'rectangle':
                         x1, y1, x2, y2 = coords
-                        draw.rectangle([x1, y1, x2, y2], fill=color_rgba)
+                        draw.rectangle([x1, y1, x2, y2], fill=fill_color)
                     elif shape_type == 'ellipse':
                         x1, y1, x2, y2 = coords
-                        draw.ellipse([x1, y1, x2, y2], fill=color_rgba)
+                        draw.ellipse([x1, y1, x2, y2], fill=fill_color)
                     elif shape_type == 'polygon':
-                        draw.polygon(coords, fill=color_rgba)
+                        draw.polygon(coords, fill=fill_color)
             
             # 检查是否所有标注都使用相同的坐标基准
             # 如果坐标值都在图像尺寸范围内，则直接使用；否则进行比例转换
@@ -388,9 +391,10 @@ class VisualPromptEditor:
             # Render each annotation
             rendered_count = 0
             for i, layer in enumerate(layers_data):
-                color_hex = layer.get('color', '#f44336')
-                color_rgba = color_map.get(color_hex, (255, 0, 0, 128))
+                color_hex = layer.get('color', '#ff0000')
+                color_rgb = color_map.get(color_hex, (255, 0, 0))  # 获取RGB值
                 layer_type = layer.get('type', 'rectangle')
+                opacity = layer.get('opacity', 50)  # 获取不透明度，默认50%
                 
                 # Check if coordinates exist and are valid
                 # Support multiple coordinate formats: 1) start/end, 2) geometry.coordinates
@@ -440,11 +444,12 @@ class VisualPromptEditor:
                     x1, x2 = min(x1, x2), max(x1, x2)
                     y1, y2 = min(y1, y2), max(y1, y2)
                     
-                    print(f"🔴 矩形标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}")
-                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgba, fill_mode, 'rectangle')
+                    print(f"🔴 矩形标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
+                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'rectangle', opacity)
                     
                     # Draw annotation number at top-left corner
                     annotation_number = layer.get('number', i + 1)
+                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
                     draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
@@ -461,11 +466,12 @@ class VisualPromptEditor:
                     x1, x2 = min(x1, x2), max(x1, x2)
                     y1, y2 = min(y1, y2), max(y1, y2)
                     
-                    print(f"🟡 椭圆标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}")
-                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgba, fill_mode, 'ellipse')
+                    print(f"🟡 椭圆标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
+                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'ellipse', opacity)
                     
                     # Draw annotation number at top-left corner
                     annotation_number = layer.get('number', i + 1)
+                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
                     draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
@@ -481,12 +487,13 @@ class VisualPromptEditor:
                             y = int(point['y'] * scale_y)
                             polygon_points.append((x, y))
                         
-                        print(f"🔗 多边形标注 {i}: {len(points)}个点, 缩放比例({scale_x:.3f}, {scale_y:.3f}), 填充模式: {fill_mode}")
-                        apply_fill_style(draw, polygon_points, color_rgba, fill_mode, 'polygon')
+                        print(f"🔗 多边形标注 {i}: {len(points)}个点, 缩放比例({scale_x:.3f}, {scale_y:.3f}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
+                        apply_fill_style(draw, polygon_points, color_rgb, fill_mode, 'polygon', opacity)
                         
                         # Draw annotation number at first point
                         annotation_number = layer.get('number', i + 1)
                         first_point = points[0]
+                        color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
                         draw_annotation_number(draw, first_point, annotation_number, color_rgba, scale_x, scale_y)
                         
                         rendered_count += 1
@@ -499,8 +506,9 @@ class VisualPromptEditor:
                     x2 = int(end_point['x'] * scale_x)
                     y2 = int(end_point['y'] * scale_y)
                     
-                    # Draw arrow line
-                    line_color = (color_rgba[0], color_rgba[1], color_rgba[2], 255)  # Use opaque color for line
+                    # Draw arrow line with opacity
+                    arrow_alpha = int(opacity * 255 / 100)
+                    line_color = (*color_rgb, arrow_alpha)
                     draw.line([x1, y1, x2, y2], fill=line_color, width=6)
                     
                     # Calculate arrow head
@@ -529,6 +537,7 @@ class VisualPromptEditor:
                     
                     # Draw annotation number at start point
                     annotation_number = layer.get('number', i + 1)
+                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
                     draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1

@@ -108,10 +108,10 @@ export function createToolbar() {
             <!-- 颜色选择组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;">Colors:</span>
-                <button class="vpe-color" data-color="#f44336" style="background: linear-gradient(135deg, #f44336, #d32f2f); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(244,67,54,0.3);"></button>
-                <button class="vpe-color" data-color="#4caf50" style="background: linear-gradient(135deg, #4caf50, #388e3c); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(76,175,80,0.3);"></button>
-                <button class="vpe-color" data-color="#ffeb3b" style="background: linear-gradient(135deg, #ffeb3b, #fbc02d); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,235,59,0.3);"></button>
-                <button class="vpe-color" data-color="#2196f3" style="background: linear-gradient(135deg, #2196f3, #1976d2); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(33,150,243,0.3);"></button>
+                <button class="vpe-color" data-color="#ff0000" style="background: linear-gradient(135deg, #ff0000, #cc0000); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,0,0,0.3);"></button>
+                <button class="vpe-color" data-color="#00ff00" style="background: linear-gradient(135deg, #00ff00, #00cc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,255,0,0.3);"></button>
+                <button class="vpe-color" data-color="#ffff00" style="background: linear-gradient(135deg, #ffff00, #cccc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,255,0,0.3);"></button>
+                <button class="vpe-color" data-color="#0000ff" style="background: linear-gradient(135deg, #0000ff, #0000cc); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,255,0.3);"></button>
             </div>
             
             <!-- 编辑操作组 -->
@@ -125,6 +125,15 @@ export function createToolbar() {
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;">Fill:</span>
                 <button id="vpe-fill-toggle" style="font-size: 11px; padding: 4px 8px;" title="Toggle between filled and outline annotations">🔴 Filled</button>
+            </div>
+            
+            <!-- 不透明度控制组 -->
+            <div style="display: flex; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;">Opacity:</span>
+                <input type="range" id="vpe-opacity-slider" min="10" max="100" value="50" 
+                       style="width: 80px; height: 20px; background: #333; outline: none; cursor: pointer;" 
+                       title="Adjust annotation opacity (10-100%)">
+                <span id="vpe-opacity-value" style="color: #aaa; font-size: 10px; min-width: 30px; text-align: center;">50%</span>
             </div>
             
             <!-- 视图控制组 -->
@@ -216,6 +225,47 @@ export function createToolbar() {
         #vpe-fill-toggle.outline {
             background: #FF9800 !important;
             box-shadow: 0 0 4px rgba(255, 152, 0, 0.5) !important;
+        }
+        
+        /* 不透明度滑块样式 */
+        #vpe-opacity-slider {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            background: #444 !important;
+            border-radius: 10px !important;
+            height: 4px !important;
+            width: 80px !important;
+            outline: none !important;
+            cursor: pointer !important;
+        }
+        
+        #vpe-opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 14px !important;
+            height: 14px !important;
+            border-radius: 50% !important;
+            background: #4CAF50 !important;
+            cursor: pointer !important;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5) !important;
+        }
+        
+        #vpe-opacity-slider::-moz-range-thumb {
+            width: 14px !important;
+            height: 14px !important;
+            border-radius: 50% !important;
+            background: #4CAF50 !important;
+            cursor: pointer !important;
+            border: none !important;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5) !important;
+        }
+        
+        #vpe-opacity-value {
+            color: #aaa !important;
+            font-size: 10px !important;
+            min-width: 30px !important;
+            text-align: center !important;
+            font-weight: 500 !important;
         }
         
         .vpe-color.active {

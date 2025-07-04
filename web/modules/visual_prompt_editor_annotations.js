@@ -9,17 +9,21 @@ import { initCanvasDrawing, setActiveTool } from './visual_prompt_editor_canvas.
 /**
  * 应用填充样式到SVG形状
  */
-function applyFillStyle(shape, color, fillMode) {
+function applyFillStyle(shape, color, fillMode, opacity = 50) {
+    // 计算不透明度值 (0-1)
+    const fillOpacity = opacity / 100;
+    const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0); // 边框稍微更不透明一些
+    
     if (fillMode === 'outline') {
         // 空心样式
         shape.setAttribute('fill', 'none');
         shape.setAttribute('stroke', color);
         shape.setAttribute('stroke-width', '3');
-        shape.setAttribute('stroke-opacity', '0.8');
+        shape.setAttribute('stroke-opacity', strokeOpacity);
     } else {
         // 实心样式 (默认)
         shape.setAttribute('fill', color);
-        shape.setAttribute('fill-opacity', '0.5');
+        shape.setAttribute('fill-opacity', fillOpacity);
         shape.setAttribute('stroke', 'none');
     }
 }
@@ -27,18 +31,22 @@ function applyFillStyle(shape, color, fillMode) {
 /**
  * 应用预览样式到SVG形状
  */
-function applyPreviewStyle(shape, color, fillMode) {
+function applyPreviewStyle(shape, color, fillMode, opacity = 50) {
+    // 预览时使用完全不透明
+    const previewOpacity = 1.0; // 预览时完全不透明
+    const strokeOpacity = 1.0;   // 边框也完全不透明
+    
     if (fillMode === 'outline') {
         // 空心预览样式
         shape.setAttribute('fill', 'none');
         shape.setAttribute('stroke', color);
         shape.setAttribute('stroke-width', '2');
-        shape.setAttribute('stroke-opacity', '0.6');
+        shape.setAttribute('stroke-opacity', strokeOpacity);
         shape.setAttribute('stroke-dasharray', '5,5');
     } else {
         // 实心预览样式 (默认)
         shape.setAttribute('fill', color);
-        shape.setAttribute('fill-opacity', '0.3');
+        shape.setAttribute('fill-opacity', previewOpacity);
         shape.setAttribute('stroke', color);
         shape.setAttribute('stroke-width', '2');
         shape.setAttribute('stroke-dasharray', '5,5');
@@ -84,7 +92,7 @@ export function bindCanvasInteractionEvents(modal) {
     const zoomContainer = modal.querySelector('#zoom-container');
     const zoomLevel = modal.querySelector('#vpe-zoom-level');
     let currentZoom = modal.currentZoom || 1.0;
-    let currentColor = '#f44336';
+    let currentColor = '#ff0000';
     let annotationHistory = [];
     
     if (!canvasContainer) {
@@ -527,7 +535,7 @@ function finishFreehandDrawing(modal) {
     });
     
     // 应用填充样式
-    applyFillStyle(polygon, modal.currentColor, modal.fillMode);
+    applyFillStyle(polygon, modal.currentColor, modal.fillMode, modal.currentOpacity || 50);
     
     svg.appendChild(polygon);
     
@@ -546,6 +554,7 @@ function finishFreehandDrawing(modal) {
         points: modal.freehandPoints,
         color: modal.currentColor,
         fillMode: modal.fillMode,
+        opacity: modal.currentOpacity || 50,
         number: annotationNumber,
         centerPoint: centerPoint
     });
@@ -594,7 +603,7 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用预览样式
-        applyPreviewStyle(shape, color, modal.fillMode);
+        applyPreviewStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
         const cy = (startPoint.y + endPoint.y) / 2;
@@ -617,7 +626,7 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用预览样式
-        applyPreviewStyle(shape, color, modal.fillMode);
+        applyPreviewStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {
             'x1': startPoint.x,
@@ -676,7 +685,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用填充样式
-        applyFillStyle(shape, color, modal.fillMode);
+        applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
         
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
@@ -709,7 +718,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用填充样式
-        applyFillStyle(shape, color, modal.fillMode);
+        applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
         
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {
@@ -747,6 +756,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             end: endPoint,
             color: color,
             fillMode: modal.fillMode,
+            opacity: modal.currentOpacity || 50,
             number: annotationNumber
         });
         

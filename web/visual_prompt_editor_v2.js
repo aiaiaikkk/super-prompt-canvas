@@ -503,7 +503,7 @@ app.registerExtension({
                         
                         // 添加箭头标记定义容器 (确保箭头可见)
                         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                        const colors = ['#f44336', '#4caf50', '#ffeb3b', '#2196f3'];
+                        const colors = ['#ff0000', '#00ff00', '#ffff00', '#0000ff'];
                         colors.forEach(color => {
                             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
                             marker.setAttribute('id', `arrowhead-${color.replace('#', '')}`);
@@ -938,7 +938,7 @@ app.registerExtension({
                 const normalized = {
                     id: annotation.id,
                     type: annotation.type || 'rectangle',
-                    color: annotation.color || '#f44336',
+                    color: annotation.color || '#ff0000',
                     fillMode: annotation.fillMode || 'filled',
                     number: annotation.number
                 };
@@ -1514,6 +1514,49 @@ app.registerExtension({
                         this.clearAllAnnotations(modal);
                     };
                 }
+                
+                // 不透明度滑块
+                const opacitySlider = modal.querySelector('#vpe-opacity-slider');
+                const opacityValue = modal.querySelector('#vpe-opacity-value');
+                if (opacitySlider && opacityValue) {
+                    // 初始化不透明度值
+                    modal.currentOpacity = parseInt(opacitySlider.value);
+                    
+                    opacitySlider.oninput = () => {
+                        const opacityPercent = parseInt(opacitySlider.value);
+                        modal.currentOpacity = opacityPercent;
+                        opacityValue.textContent = opacityPercent + '%';
+                        
+                        // 更新所有现有标注的不透明度
+                        this.updateAllAnnotationsOpacity(modal, opacityPercent);
+                        
+                        console.log('🎨 不透明度调整为:', opacityPercent + '%');
+                    };
+                }
+            };
+            
+            // 更新所有标注的不透明度
+            nodeType.prototype.updateAllAnnotationsOpacity = function(modal, opacityPercent) {
+                const svg = modal.querySelector('#drawing-layer svg');
+                if (!svg) return;
+                
+                // 计算不透明度值 (0-1)
+                const opacity = opacityPercent / 100;
+                
+                // 更新所有SVG形状的不透明度
+                const shapes = svg.querySelectorAll('.annotation-shape');
+                shapes.forEach(shape => {
+                    shape.style.opacity = opacity;
+                });
+                
+                // 更新annotations数据中的不透明度
+                if (modal.annotations) {
+                    modal.annotations.forEach(annotation => {
+                        annotation.opacity = opacityPercent;
+                    });
+                }
+                
+                console.log('🎨 已更新', shapes.length, '个标注的不透明度为', opacityPercent + '%');
             };
             
             // 获取对象信息（从annotations模块获取）
