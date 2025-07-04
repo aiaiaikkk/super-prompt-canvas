@@ -1,6 +1,11 @@
 # Kontext 可视化提示词窗口
 
-![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
+绘制标注区域（红色矩形）————选择对象————选择操作类型（Add Object）————输入参数（bridge）生成结构化提示提(Add bridge near the red rectangular marked area (annotation 0))
+before
+![before](https://github.com/user-attachments/assets/640f9eb0-50c4-4940-8008-08665406d8e4)
+after
+![after](https://github.com/user-attachments/assets/5b7d86e9-d66e-40a9-a869-5ee444ae88c5)
+
 
 🎨 渐进式智能图像编辑系统，通过三个发展阶段逐步实现从**手动标注**到**智能分割**再到**专业调色**的完整工作流。
 
