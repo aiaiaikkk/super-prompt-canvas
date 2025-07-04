@@ -1,341 +1,461 @@
-# Kontext Visual Prompt Window / Kontext 可视化提示词窗口
+# Kontext 可视化提示词窗口
 
-**English** | [中文](#中文版本)
+![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
 
-An intelligent visual prompt generation system for ComfyUI that automatically transforms simple user inputs into professional, structured prompts for AI image editing. No prompt engineering knowledge required.
+🎨 渐进式智能图像编辑系统，通过三个发展阶段逐步实现从**手动标注**到**智能分割**再到**专业调色**的完整工作流。
 
-一个智能的ComfyUI可视化提示词生成系统，自动将用户的简单输入转换为专业的结构化AI图像编辑提示词。无需提示词工程知识。
+## 产品发展路线图
 
-## 🎯 Core Concept / 核心概念
+### 🚀 第一阶段：手动标注与基础提示词
+**当前实现状态**: ✅ **已完成**
 
-**English**: Transform simple visual selections into professional, structured prompts for multimodal AI models. Users only need to click and select - the system automatically generates precise, technical prompts optimized for AI image editing.
+#### 核心功能
+- **🎨 自由手动标注**
+  - 矩形、圆形、箭头、多边形绘制工具
+  - 实心/空心样式切换
+  - 多颜色支持和多选功能
+  - 完整的编辑、撤销、清空功能
 
-**中文**: 将简单的视觉选择转换为专业的结构化提示词。用户只需点击选择，系统自动生成精确的、针对AI图像编辑优化的技术提示词。
+- **📝 结构化提示词输出**
+  - 基于标注区域的基础提示词模板
+  - 12种操作类型支持（颜色变换、风格转换等）
+  - 自定义编辑描述输入
+  - 质量分析和优化建议
 
-## ⭐ **Key Innovation: Structured Prompt Automation / 核心创新：结构化提示词自动化**
+- **🎯 掩码数据输出**
+  - 标注转ComfyUI掩码格式
+  - 多种掩码模式（选中图层、全部图层、反选）
+  - 羽化边缘处理
 
-![Visual Prompt Editor Interface](./images/visual_prompts_editor.png)
+### 🔮 第二阶段：智能分割与AI提示词
+**开发状态**: 🚧 **规划中**
 
-**English**: 
-- 🎯 **Simple Input**: Click objects, choose operation type, add basic description
-- 🤖 **AI Enhancement**: Large language models automatically expand into professional prompts  
-- 📝 **Structured Output**: Complete technical prompts with constraints, quality markers, and context
-- ⚡ **Zero Learning Curve**: No prompt engineering knowledge required
+#### 计划功能
+- **🤖 语义分割自动标注**
+  - 集成先进的分割模型（SAM、GroundingDINO等）
+  - 自动识别并生成可选图层标注
+  - 智能物体识别和分类
+  - 一键全图语义分割
 
-**中文**:
-- 🎯 **简单输入**: 点击物体，选择操作类型，添加基础描述
-- 🤖 **AI增强**: 大语言模型自动扩展为专业提示词
-- 📝 **结构化输出**: 完整的技术提示词，包含约束、质量标记和上下文
-- ⚡ **零学习成本**: 无需提示词工程知识
+- **🧠 大语言模型提示词生成**
+  - 集成ChatGPT/DeepSeek等大模型
+  - 基于图像内容的智能提示词生成
+  - 上下文感知的编辑建议
+  - 多语言提示词支持
 
-## 📋 Intended Functionality / 预期功能
+- **📝 结构化提示词优化与调试**
+  - 深度优化Kontext专用提示词模板
+  - 五维结构化提示词体系：对象+操作+参数+修饰+约束
+  - 智能提示词质量评估和优化建议
+  - A/B测试框架，寻找最适合的提示词模式
 
-### 🤖 **Smart Annotation System / 智能标注系统**
-**English**:
-- **Auto-detection**: Intelligent object detection using ComfyUI's built-in models (YOLO, SAM)
-- **Manual annotation**: Rectangle, circle, arrow, and freehand polygon tools
-- **Hybrid workflow**: AI pre-annotation + manual refinement for maximum accuracy
+### ✨ 第三阶段：专业调色与环境调整
+**开发状态**: 📋 **概念设计**
 
-**中文**:
-- **自动检测**: 使用ComfyUI内置模型(YOLO, SAM)进行智能物体检测
-- **手动标注**: 矩形、圆形、箭头和自由多边形绘制工具
-- **混合工作流**: AI预标注 + 手动精修，确保最高准确度
+#### 愿景功能
+- **🎨 专业调色系统**
+  - 色温调节（冷暖色调平衡）
+  - 色调映射和颜色校正
+  - 亮度、对比度、饱和度精细控制
+  - HSL颜色空间专业调节
 
-### 🎨 **Visual Editing Interface / 可视化编辑界面**
-**English**:
-- **Double-click activation**: Open visual editor by double-clicking any VisualPromptEditor node
-- **Universal image support**: Works with LoadImage, Router, Reroute, Preview Bridge, and any processing chain
-- **Multi-layer management**: Select single or multiple annotation objects
-- **Real-time preview**: Live annotation rendering with zoom and pan controls
+- **🌅 环境光线系统**
+  - 智能光线分析和重建
+  - 环境光、主光、补光独立调节
+  - 阴影和高光细节恢复
+  - 真实感光线效果模拟
 
-**中文**:
-- **双击激活**: 双击任意VisualPromptEditor节点打开可视化编辑器
-- **通用图像支持**: 兼容LoadImage、Router、Reroute、Preview Bridge等所有处理链
-- **多图层管理**: 支持单选或多选标注对象
-- **实时预览**: 带缩放和平移控制的实时标注渲染
+- **🎭 风格转换引擎**
+  - 艺术风格迁移（油画、水彩、素描等）
+  - 摄影风格模拟（胶片、数码、黑白等）
+  - 自定义风格训练和应用
 
-### 📝 **Structured Prompt Generation / 结构化提示词自动生成**
-**English**:
-- **Simple User Input**: Users provide basic instructions like "change color to red" or "make it bigger"
-- **Automatic Expansion**: System automatically generates professional prompts with technical details
-- **LLM Enhancement**: Large language models refine prompts for optimal AI model performance
-- **Template Intelligence**: Smart template selection and customization based on context
-- **Quality Optimization**: Automatic addition of quality markers, constraints, and best practices
-- **Multi-object Coordination**: Intelligently handle complex multi-object editing scenarios
+## 第一阶段功能详情
 
-**中文**:
-- **简单用户输入**: 用户只需提供基础指令如"改成红色"或"变大一些"
-- **自动扩展**: 系统自动生成包含技术细节的专业提示词
-- **LLM增强**: 大语言模型优化提示词以获得最佳AI模型性能
-- **智能模板**: 基于上下文的智能模板选择和定制
-- **质量优化**: 自动添加质量标记、约束条件和最佳实践
-- **多对象协调**: 智能处理复杂的多对象编辑场景
+### 🔧 绘制工具
+- **矩形**: 拖拽绘制矩形标注
+- **圆形**: 拖拽绘制椭圆，Shift键绘制正圆
+- **箭头**: 拖拽绘制指向箭头
+- **自由绘制**: 左击添加锚点，右击闭合多边形
+- **橡皮擦**: 点击删除标注
 
-## ✅ Currently Implemented / 已实现功能
+### 🎨 样式选项
+- **颜色选择**: 红、绿、黄、蓝四种颜色
+- **填充模式**: 实心/空心切换
+- **多选支持**: 同时选择多个标注对象
 
-### **Core Features (100% Complete) / 核心功能 (100% 完成)**
-**English**:
-- ✅ **Universal Image Acquisition**: Supports all ComfyUI image node types
-- ✅ **Visual Annotation Tools**: Rectangle, circle, arrow, freehand polygon drawing
-- ✅ **Multi-selection Support**: Select and combine multiple annotation objects
-- ✅ **Canvas Controls**: Zoom, pan, fit-to-screen functionality
-- ✅ **Real-time Rendering**: Live annotation display with transparency and colors
-- ✅ **Data Persistence**: Save/load annotation data between sessions
+### 📝 提示词模板
+- **颜色变换**: 改变选中区域的颜色
+- **风格转换**: 应用艺术风格到选中区域
+- **背景替换**: 替换选中区域的背景
+- **物体替换**: 替换选中的物体
+- **物体移除**: 移除选中的物体
+- **质感修改**: 改变表面质感
+- **姿态调整**: 调整人物姿态
+- **表情修改**: 修改面部表情
+- **服装更换**: 更换服装样式
+- **环境修改**: 修改环境设定
+- **质量增强**: 提升图像质量
+- **自定义操作**: 用户自定义编辑指令
 
-**中文**:
-- ✅ **通用图像获取**: 支持所有ComfyUI图像节点类型
-- ✅ **可视化标注工具**: 矩形、圆形、箭头、自由多边形绘制
-- ✅ **多选支持**: 选择和组合多个标注对象
-- ✅ **画布控制**: 缩放、平移、适应屏幕功能
-- ✅ **实时渲染**: 带透明度和颜色的实时标注显示
-- ✅ **数据持久化**: 会话间保存/加载标注数据
+## 结构化提示词体系（第二阶段预览）
 
-### **Architecture (Fully Modular) / 架构设计 (完全模块化)**
-**English**:
-- ✅ **Modular Frontend**: 5 specialized modules for UI, canvas, annotations, prompts, utils
-- ✅ **Clean Backend**: 3 core nodes - annotation, editing, mask conversion
-- ✅ **Zero Dependencies**: Pure JavaScript frontend, internal ComfyUI integration
-- ✅ **Debug System**: Comprehensive logging and error handling
+### 🏗️ 五维提示词结构
+Kontext专用的结构化提示词遵循五个核心维度，确保精确、可控的图像编辑效果：
 
-**中文**:
-- ✅ **模块化前端**: 5个专门模块负责UI、画布、标注、提示词、工具
-- ✅ **简洁后端**: 3个核心节点 - 标注、编辑、掩码转换
-- ✅ **零依赖**: 纯JavaScript前端，内部ComfyUI集成
-- ✅ **调试系统**: 全面的日志记录和错误处理
+#### 📍 1. 对象（Object）
+- **定义**: 明确指定要编辑的区域或对象
+- **格式**: `the [颜色] [形状] marked area (annotation [编号])`
+- **示例**: `the red rectangular marked area (annotation 1)`
 
-### **Workflow Integration / 工作流集成**
-**English**:
-- ✅ **Node Compatibility**: Works with LoadImage → Router → VisualPromptEditor chains
-- ✅ **Mask Generation**: Convert annotations to ComfyUI-compatible masks
-- ✅ **Template System**: 12 operation types with structured prompt templates
+#### ⚙️ 2. 操作类型（Operation）
+- **定义**: 具体的编辑动作类型
+- **类型**: 
+  - `change_color` - 颜色变换
+  - `replace_object` - 物体替换
+  - `remove_object` - 物体移除
+  - `change_style` - 风格转换
+  - `change_texture` - 质感修改
 
-**中文**:
-- ✅ **节点兼容性**: 支持LoadImage → Router → VisualPromptEditor链条
-- ✅ **掩码生成**: 将标注转换为ComfyUI兼容的掩码
-- ✅ **模板系统**: 12种操作类型和结构化提示词模板
+#### 🎯 3. 参数（Parameters）
+- **定义**: 操作的具体目标值或描述
+- **格式**: 用户输入的目标描述
+- **示例**: `"red color"`, `"cartoon style"`, `"smooth texture"`
 
-## 🔧 Basic Usage (Current) / 基本使用方法 (当前版本)
+#### ✨ 4. 修饰（Modifiers）
+- **定义**: 可选的质量增强词汇（用户控制）
+- **类型**: 
+  - 质量修饰: `high quality`, `8k resolution`, `professional`
+  - 风格修饰: `realistic`, `artistic`, `photorealistic`
+  - 技术修饰: `sharp focus`, `detailed`, `masterpiece`
 
-### **Interface Preview / 界面预览**
-![Visual Prompt Editor Interface](./images/visual_prompts_editor.png)
-*The visual annotation interface with drawing tools, canvas controls, and structured prompt generation*
+#### 🔒 5. 约束（Constraints）
+- **定义**: 可选的限制条件（用户控制）
+- **类型**:
+  - 保持约束: `maintaining lighting`, `preserving composition`
+  - 集成约束: `natural integration`, `seamless blending`
+  - 一致性约束: `consistent style`, `matching perspective`
 
-### **Simple Workflow / 简单工作流**
+### 📝 提示词生成示例
+
+#### 基础版本（第一阶段，当前实现）
+```
+输入: 对象="红色矩形区域", 操作="变色", 参数="蓝色"
+输出: "Change the color of the red marked area to blue"
+```
+
+#### 优化版本（第二阶段，规划中）
+```
+输入: 
+- 对象="红色矩形区域" 
+- 操作="变色" 
+- 参数="蓝色"
+- 修饰="高质量，专业"
+- 约束="保持光照，自然融合"
+
+输出: "Change the color of the red rectangular marked area to blue, high quality, professional, maintaining lighting, natural integration"
+```
+
+### 🎯 用户控制原则
+- **默认简洁**: 系统默认只生成核心结构（对象+操作+参数）
+- **用户选择**: 修饰词和约束词完全由用户决定是否添加
+- **模板优化**: 通过AI测试找到最适合不同模型的提示词模板
+- **质量评估**: 自动分析提示词质量并提供优化建议
+
+## 安装使用
+
+### 📦 安装
+1. 将整个`KontextVisualPromptWindow`文件夹复制到`ComfyUI/custom_nodes/`目录
+2. 重启ComfyUI
+
+### 🚀 使用方法
+
+#### 第一阶段工作流（当前版本）
+
+##### 基础模式（推荐）
 ```
 LoadImage → VisualPromptEditor
 ```
+- **功能**: 手动标注 + 基础提示词生成
+- **适用**: 精确控制标注，适合专业用户
 
-### **Advanced Workflow / 高级工作流**
+##### 完整模式
 ```
-LoadImage → Router → VisualPromptEditor → LayerToMask → [Your AI Model]
+LoadImage → VisualPromptEditor → LayerToMaskNode
 ```
+- **功能**: 手动标注 + 提示词 + 掩码输出
+- **适用**: 需要掩码数据用于后续ComfyUI工作流
 
-### **Operation Steps / 操作步骤**
-**English**:
-1. Connect an image source to VisualPromptEditor node
-2. Double-click the node to open visual editor
-3. Use annotation tools to mark areas of interest
-4. Select objects and choose operation type
-5. Generate structured prompts for your editing task
-6. Save annotations and apply to workflow
+#### 第二阶段工作流（规划中）
 
-**中文**:
-1. 将图像源连接到VisualPromptEditor节点
-2. 双击节点打开可视化编辑器
-3. 使用标注工具标记感兴趣的区域
-4. 选择对象并选择操作类型
-5. 为编辑任务生成结构化提示词
-6. 保存标注并应用到工作流
+##### 智能分割模式
+```
+LoadImage → SemanticSegmentationNode → VisualPromptEditor → AIPromptGenerator
+```
+- **功能**: 自动分割 + 手动调整 + AI提示词
+- **适用**: 快速处理，适合批量编辑
 
-## 🚀 Next Steps: LLM Integration / 下一步计划：LLM集成
+##### 提示词优化模式
+```
+LoadImage → VisualPromptEditor → PromptOptimizer → QualityAnalyzer
+```
+- **功能**: 手动标注 + 结构化提示词优化 + 质量评估
+- **适用**: 专业用户，追求最佳提示词效果
 
-### **Planned LLM Features / 计划中的LLM功能**
+#### 第三阶段工作流（概念中）
 
-#### **🧠 Intelligent Prompt Enhancement / 智能提示词自动增强**
-**English**:
-- **Simple to Professional**: Transform basic user input "make it red" → "Change the selected object's color to vibrant red while maintaining original lighting, shadows, and material properties. Ensure seamless integration with surrounding environment and preserve natural appearance."
-- **Context Understanding**: LLM analyzes image content, object relationships, and spatial context
-- **Technical Expansion**: Automatically add professional constraints, quality markers, and best practices
-- **Model Optimization**: Auto-adapt prompts for specific AI models (FLUX, SDXL, Midjourney, etc.)
-- **Error Prevention**: Include negative prompts and constraints to prevent common generation issues
+##### 专业调色模式
+```
+LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLightingAdjustment
+```
+- **功能**: 全图调色 + 局部编辑 + 光线调整
+- **适用**: 专业摄影师和设计师
 
-**中文**:
-- **简单变专业**: 将基础输入"变成红色"→"将选中物体的颜色改为鲜艳的红色，同时保持原有的光照、阴影和材质属性。确保与周围环境无缝融合，保持自然外观。"
-- **上下文理解**: LLM分析图像内容、物体关系和空间上下文
-- **技术扩展**: 自动添加专业约束、质量标记和最佳实践
-- **模型优化**: 自动适配特定AI模型的提示词(FLUX, SDXL, Midjourney等)
-- **错误预防**: 包含负面提示词和约束以防止常见生成问题
+### 🎯 操作指南
 
-#### **📝 Advanced Prompt Generation / 高级结构化提示词自动生成**
-**English**:
-- **One-Click Professional Prompts**: Click object + simple instruction → Complete professional editing prompt
-- **Smart Template System**: Auto-select optimal prompt templates based on operation type and context
-- **Multi-object Intelligence**: Automatically coordinate prompts for complex multi-object scenarios
-- **Quality Assurance**: Built-in quality markers, technical constraints, and error prevention
-- **Model-Specific Optimization**: Generate optimized prompts for FLUX, SDXL, Midjourney, and other models
-- **Workflow Integration**: Seamlessly integrate generated prompts into ComfyUI workflows
+#### 基本操作
+1. **打开编辑器**: 双击`VisualPromptEditor`节点
+2. **选择工具**: 点击工具栏中的绘制工具
+3. **选择颜色**: 点击颜色按钮选择标注颜色
+4. **切换样式**: 点击"Fill"按钮切换实心/空心
+5. **绘制标注**: 在图像上拖拽或点击绘制
+6. **保存应用**: 点击"Save & Apply"保存数据
 
-**中文**:
-- **一键专业提示词**: 点击物体 + 简单指令 → 完整的专业编辑提示词
-- **智能模板系统**: 基于操作类型和上下文自动选择最优提示词模板
-- **多对象智能**: 自动协调复杂多对象场景的提示词
-- **质量保证**: 内置质量标记、技术约束和错误预防
-- **模型专用优化**: 为FLUX、SDXL、Midjourney等模型生成优化提示词
-- **工作流集成**: 生成的提示词无缝集成到ComfyUI工作流
+#### 快捷键
+- **Ctrl + 滚轮**: 缩放图像
+- **中键拖拽**: 平移图像
+- **Shift + 圆形**: 绘制正圆
+- **右键**: 结束自由绘制
 
-#### **🎯 Smart Suggestions / 智能建议**
-**English**:
-- **Operation Recommendations**: Suggest optimal editing operations based on annotations
-- **Quality Optimization**: Real-time prompt refinement for better results
-- **Workflow Insights**: Provide editing workflow recommendations
+## 节点说明
 
-**中文**:
-- **操作建议**: 基于标注建议最优编辑操作
-- **质量优化**: 实时提示词优化以获得更好结果
-- **工作流洞察**: 提供编辑工作流建议
+### 🎨 VisualPromptEditor
+**主要节点**
+- **输入**: IMAGE
+- **输出**: 处理后图像、提示词、掩码数据等
+- **功能**: 可视化标注编辑和提示词生成
 
-#### **🤖 Automatic Annotation & Semantic Segmentation / 自动标注与语义分割**
-**English**:
-- **Intelligent Object Detection**: Automatically identify and segment objects in images
-- **Semantic Understanding**: Recognize object categories, relationships, and spatial context
-- **Multi-level Segmentation**: Support for object-level, part-level, and pixel-level segmentation
-- **Auto-tagging System**: Automatically generate semantic labels for detected objects
-- **Smart Region Grouping**: Intelligently group related objects and regions
+### 🤖 IntelligentAnnotationNode
+**智能标注节点**
+- **输入**: IMAGE
+- **输出**: 检测到的图层数据JSON
+- **功能**: 自动对象检测和区域分割
 
-**中文**:
-- **智能物体检测**: 自动识别并分割图像中的物体
-- **语义理解**: 识别物体类别、关系和空间上下文
-- **多层次分割**: 支持物体级、部件级和像素级分割
-- **自动标签系统**: 为检测到的物体自动生成语义标签
-- **智能区域分组**: 智能地组合相关物体和区域
+### 🎭 LayerToMaskNode
+**图层转掩码节点**
+- **输入**: 图层数据JSON
+- **输出**: ComfyUI掩码格式
+- **功能**: 标注数据转换为掩码
 
-### **Technical Implementation Plan / 技术实现计划**
 
-#### **Phase 1: Automatic Annotation System / 第一阶段：自动标注系统**
-**English**:
-1. **Vision Model Integration**: Integrate YOLO, SAM, GroundingDINO for object detection
-2. **Semantic Segmentation**: Add support for semantic segmentation models (Segment Anything, etc.)
-3. **Auto-labeling Pipeline**: Build automatic object recognition and labeling system
-4. **Multi-model Ensemble**: Combine multiple vision models for better accuracy
-5. **Real-time Processing**: Optimize for real-time annotation generation
+## 许可证
 
-**中文**:
-1. **视觉模型集成**: 集成YOLO、SAM、GroundingDINO进行物体检测
-2. **语义分割**: 添加语义分割模型支持(Segment Anything等)
-3. **自动标签管道**: 构建自动物体识别和标记系统
-4. **多模型集成**: 结合多个视觉模型提高准确性
-5. **实时处理**: 优化实时标注生成
+MIT License - 详见LICENSE文件
 
-#### **Phase 2: LLM Intelligence Layer / 第二阶段：LLM智能层**
-**English**:
-1. **LLM Service Integration**: Add support for local/cloud LLM endpoints
-2. **Context Pipeline**: Build annotation → context → prompt generation pipeline  
-3. **Model Adapters**: Create adapters for different LLM models (GPT, Claude, local models)
-4. **Smart Templates**: Replace static templates with dynamic LLM-generated prompts
-5. **Feedback Loop**: Implement result evaluation and prompt iteration
+## 支持
 
-**中文**:
-1. **LLM服务集成**: 添加本地/云端LLM端点支持
-2. **上下文管道**: 构建 标注 → 上下文 → 提示词生成 管道
-3. **模型适配器**: 为不同LLM模型创建适配器(GPT、Claude、本地模型)
-4. **智能模板**: 用动态LLM生成的提示词替换静态模板
-5. **反馈循环**: 实现结果评估和提示词迭代
+如有问题或建议，请在GitHub仓库中提交Issue。
 
-#### **Phase 3: Advanced Features / 第三阶段：高级功能**
-**English**:
-1. **Multi-modal Understanding**: Combine vision and language understanding
-2. **Scene Graph Generation**: Build relationships between detected objects
-3. **Contextual Reasoning**: Advanced spatial and semantic reasoning
-4. **Workflow Automation**: Auto-suggest complete editing workflows
-5. **Quality Enhancement**: Advanced prompt optimization and validation
+---
 
-**中文**:
-1. **多模态理解**: 结合视觉和语言理解
-2. **场景图生成**: 构建检测物体间的关系
-3. **上下文推理**: 高级空间和语义推理
-4. **工作流自动化**: 自动建议完整的编辑工作流
-5. **质量增强**: 高级提示词优化和验证
+🌟 **Kontext Visual Prompt Window** - 让图像编辑更智能、更直观！
 
-## 🛠 Installation / 安装方法
+---
 
-**English**:
-1. Copy the entire `KontextVisualPromptWindow` folder to `ComfyUI/custom_nodes/`
+# Kontext Visual Prompt Window
+
+![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
+
+🎨 A progressive intelligent image editing system that evolves through three development stages from **manual annotation** to **intelligent segmentation** to **professional color grading**.
+
+## Product Development Roadmap
+
+### 🚀 Stage 1: Manual Annotation & Basic Prompts
+**Current Implementation Status**: ✅ **Completed**
+
+#### Core Features
+- **🎨 Free Manual Annotation**
+  - Rectangle, circle, arrow, polygon drawing tools
+  - Toggle between filled/outline styles
+  - Multi-color support and multi-selection
+  - Complete editing, undo, clear functionality
+
+- **📝 Structured Prompt Output**
+  - Basic prompt templates based on annotated regions
+  - 12 operation types (color transformation, style transfer, etc.)
+  - Custom editing description input
+  - Quality analysis and optimization suggestions
+
+- **🎯 Mask Data Output**
+  - Convert annotations to ComfyUI mask format
+  - Multiple mask modes (selected layers, all layers, inverted)
+  - Feathered edge processing
+
+### 🔮 Stage 2: Intelligent Segmentation & AI Prompts
+**Development Status**: 🚧 **In Planning**
+
+#### Planned Features
+- **🤖 Semantic Segmentation Auto-annotation**
+  - Integrate advanced segmentation models (SAM, GroundingDINO, etc.)
+  - Automatically identify and generate selectable layer annotations
+  - Intelligent object recognition and classification
+  - One-click full image semantic segmentation
+
+- **🧠 LLM-powered Prompt Generation**
+  - Integrate ChatGPT/DeepSeek and other LLMs
+  - Intelligent prompt generation based on image content
+  - Context-aware editing suggestions
+  - Multi-language prompt support
+
+- **📝 Structured Prompt Optimization & Debugging**
+  - Deep optimization of Kontext-specific prompt templates
+  - Five-dimensional structured prompt system: Object + Operation + Parameters + Modifiers + Constraints
+  - Intelligent prompt quality assessment and optimization suggestions
+  - A/B testing framework to find optimal prompt patterns
+
+### ✨ Stage 3: Professional Color Grading & Environmental Adjustment
+**Development Status**: 📋 **Conceptual Design**
+
+#### Vision Features
+- **🎨 Professional Color Grading System**
+  - Color temperature adjustment (cool/warm balance)
+  - Tone mapping and color correction
+  - Fine control of brightness, contrast, saturation
+  - Professional HSL color space adjustment
+
+- **🌅 Environmental Lighting System**
+  - Intelligent lighting analysis and reconstruction
+  - Independent control of ambient, key, and fill lighting
+  - Shadow and highlight detail recovery
+  - Realistic lighting effect simulation
+
+- **🎭 Style Transfer Engine**
+  - Artistic style transfer (oil painting, watercolor, sketch, etc.)
+  - Photography style simulation (film, digital, black & white, etc.)
+  - Custom style training and application
+
+## Stage 1 Feature Details
+
+### 🔧 Drawing Tools
+- **Rectangle**: Drag to draw rectangular annotations
+- **Circle**: Drag to draw ellipse, Shift for perfect circle
+- **Arrow**: Drag to draw directional arrows
+- **Freehand**: Left-click to add anchor points, right-click to close polygon
+- **Eraser**: Click to delete annotations
+
+### 🎨 Style Options
+- **Color Selection**: Red, green, yellow, blue colors
+- **Fill Mode**: Toggle between filled/outline styles
+- **Multi-selection**: Select multiple annotation objects simultaneously
+
+### 📝 Prompt Templates
+- **Color Change**: Change color of selected area
+- **Style Transfer**: Apply artistic style to selected area
+- **Background Replace**: Replace background of selected area
+- **Object Replace**: Replace selected object
+- **Object Remove**: Remove selected object
+- **Texture Change**: Change surface texture
+- **Pose Change**: Adjust character pose
+- **Expression Change**: Modify facial expression
+- **Clothing Change**: Change clothing style
+- **Environment Change**: Modify environment setting
+- **Quality Enhancement**: Enhance image quality
+- **Custom Operation**: User-defined editing instructions
+
+## Installation & Usage
+
+### 📦 Installation
+1. Copy the entire `KontextVisualPromptWindow` folder to `ComfyUI/custom_nodes/` directory
 2. Restart ComfyUI
-3. Add VisualPromptEditor node to your workflow
-4. Connect any image source and double-click to start annotating
 
-**中文**:
-1. 将整个`KontextVisualPromptWindow`文件夹复制到`ComfyUI/custom_nodes/`
-2. 重启ComfyUI
-3. 在工作流中添加VisualPromptEditor节点
-4. 连接任意图像源，双击开始标注
+### 🚀 Usage
 
-## 📊 Project Status / 项目状态
+#### Stage 1 Workflow (Current Version)
 
-**English**:
-- **Current Version**: v2.2.6 (Universal Image Acquisition System)
-- **Stability**: Production Ready
-- **Core Features**: ✅ Complete
-- **LLM Integration**: 🔄 Next Phase
-- **Documentation**: ✅ Up to Date
+##### Basic Mode (Recommended)
+```
+LoadImage → VisualPromptEditor
+```
+- **Features**: Manual annotation + basic prompt generation
+- **Suitable for**: Precise annotation control, suitable for professional users
 
-**中文**:
-- **当前版本**: v2.2.6 (通用图像获取系统)
-- **稳定性**: 生产就绪
-- **核心功能**: ✅ 完成
-- **LLM集成**: 🔄 下一阶段
-- **文档**: ✅ 最新
+##### Complete Mode
+```
+LoadImage → VisualPromptEditor → LayerToMaskNode
+```
+- **Features**: Manual annotation + prompts + mask output
+- **Suitable for**: Requires mask data for subsequent ComfyUI workflow
 
-## 🎯 Vision / 愿景
+#### Stage 2 Workflow (Planned)
 
-**English**: Transform ComfyUI into an intelligent visual editing platform where users can naturally communicate their editing intentions through visual annotations, powered by advanced language models that understand both visual context and user intent.
+##### Intelligent Segmentation Mode
+```
+LoadImage → SemanticSegmentationNode → VisualPromptEditor → AIPromptGenerator
+```
+- **Features**: Auto segmentation + manual adjustment + AI prompts
+- **Suitable for**: Rapid processing, suitable for batch editing
 
-**中文**: 将ComfyUI转变为智能的可视化编辑平台，用户可以通过视觉标注自然地表达编辑意图，由理解视觉上下文和用户意图的先进语言模型提供支持。
+##### Prompt Optimization Mode
+```
+LoadImage → VisualPromptEditor → PromptOptimizer → QualityAnalyzer
+```
+- **Features**: Manual annotation + structured prompt optimization + quality assessment
+- **Suitable for**: Professional users seeking optimal prompt effectiveness
+
+#### Stage 3 Workflow (Conceptual)
+
+##### Professional Grading Mode
+```
+LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLightingAdjustment
+```
+- **Features**: Global grading + local editing + lighting adjustment
+- **Suitable for**: Professional photographers and designers
+
+### 🎯 Operation Guide
+
+#### Basic Operations
+1. **Open Editor**: Double-click the `VisualPromptEditor` node
+2. **Select Tool**: Click drawing tools in toolbar
+3. **Select Color**: Click color buttons to select annotation color
+4. **Toggle Style**: Click "Fill" button to toggle filled/outline
+5. **Draw Annotation**: Drag or click on image to draw
+6. **Save & Apply**: Click "Save & Apply" to save data
+
+#### Keyboard Shortcuts
+- **Ctrl + Scroll**: Zoom image
+- **Middle-click drag**: Pan image
+- **Shift + Circle**: Draw perfect circle
+- **Right-click**: Finish freehand drawing
+
+## Node Description
+
+### 🎨 VisualPromptEditor
+**Main Node**
+- **Input**: IMAGE
+- **Output**: Processed image, prompts, mask data, etc.
+- **Function**: Visual annotation editing and prompt generation
+
+### 🤖 IntelligentAnnotationNode
+**Intelligent Annotation Node**
+- **Input**: IMAGE
+- **Output**: Detected layer data JSON
+- **Function**: Automatic object detection and region segmentation
+
+### 🎭 LayerToMaskNode
+**Layer to Mask Node**
+- **Input**: Layer data JSON
+- **Output**: ComfyUI mask format
+- **Function**: Convert annotation data to masks
+
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+For issues or suggestions, please submit an Issue in the GitHub repository.
 
 ---
 
-# 中文版本
-
-## 📝 快速开始
-
-### 界面展示
-![可视化提示词编辑器界面](./images/visual_prompts_editor.png)
-*包含绘制工具、画布控制和结构化提示词生成的可视化标注界面*
-
-### 基本工作流
-1. **加载图像**: 使用LoadImage节点或任何图像处理节点
-2. **连接编辑器**: 将图像输出连接到VisualPromptEditor节点
-3. **打开编辑器**: 双击VisualPromptEditor节点
-4. **创建标注**: 使用绘制工具标记需要编辑的区域
-5. **生成提示词**: 选择操作类型，自动生成结构化提示词
-
-### 支持的节点类型
-- ✅ LoadImage (ComfyUI官方)
-- ✅ Load Image (from Outputs) (ComfyUI官方)
-- ✅ Router / Reroute (路由节点)
-- ✅ Preview Bridge (预览桥接)
-- ✅ 任何图像处理链节点
-
-### 下一步开发重点
-
-#### 🤖 **第一阶段：智能自动标注**
-- **自动物体检测**: 集成YOLO、SAM等模型自动识别图像中的物体
-- **语义分割**: 自动进行像素级别的精确分割
-- **智能标签**: 自动为检测到的物体生成语义标签
-- **多模型融合**: 结合多个视觉模型提高检测准确性
-
-#### 🧠 **第二阶段：结构化提示词AI自动生成**
-- **简单输入智能扩展**: 用户输入"变红色" → AI生成"将选中物体颜色改为鲜艳红色，保持原有光照和材质，确保自然融合"
-- **专业提示词自动化**: LLM自动添加技术约束、质量标记和最佳实践
-- **模型专用优化**: 为不同AI模型(FLUX/SDXL/Midjourney)自动生成最优提示词
-- **零学习成本**: 用户无需学习提示词工程，系统自动处理所有技术细节
-- **一键生成**: 点击+简单描述 → 完整专业提示词
-
-#### 🎯 **最终目标：零门槛AI图像编辑**
-**用户体验流程**: 点击物体 → 说出简单需求 → AI自动生成专业结构化提示词 → 完美编辑效果
-
-**技术流程**: **自动检测 → 智能标注 → 简单指令 → 结构化提示词AI生成 → 模型优化输出**
-
----
-
-*为ComfyUI社区用❤️构建*
+🌟 **Kontext Visual Prompt Window** - Making image editing smarter and more intuitive!

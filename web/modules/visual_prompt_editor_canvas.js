@@ -39,10 +39,23 @@ export function initCanvasDrawing(modal) {
     // 创建SVG容器
     let svg = drawingLayer.querySelector('svg');
     if (!svg) {
+        // 获取图像尺寸来设置正确的viewBox
+        const image = modal.querySelector('#vpe-main-image');
+        let viewBoxWidth = 1000;
+        let viewBoxHeight = 1000;
+        
+        if (image && image.complete && image.naturalWidth > 0) {
+            viewBoxWidth = image.naturalWidth;
+            viewBoxHeight = image.naturalHeight;
+            console.log('🖼️ 使用图像实际尺寸设置SVG viewBox:', viewBoxWidth + 'x' + viewBoxHeight);
+        } else {
+            console.log('⚠️ 图像未加载，使用默认viewBox: 1000x1000');
+        }
+        
         svg = createSVGElement('svg', {
             width: '100%',
             height: '100%',
-            viewBox: '0 0 1000 1000',
+            viewBox: `0 0 ${viewBoxWidth} ${viewBoxHeight}`,
             preserveAspectRatio: 'xMidYMid meet'
         });
         svg.style.cssText = 'width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: auto; z-index: 1000;';
@@ -76,6 +89,28 @@ export function initCanvasDrawing(modal) {
     }
     
     console.log('✅ VPE画布绘制初始化完成');
+}
+
+/**
+ * 更新SVG viewBox以匹配图像尺寸
+ */
+export function updateSVGViewBox(modal) {
+    const svg = modal.querySelector('#drawing-layer svg');
+    const image = modal.querySelector('#vpe-main-image');
+    
+    if (!svg || !image) return;
+    
+    if (image.complete && image.naturalWidth > 0) {
+        const viewBoxWidth = image.naturalWidth;
+        const viewBoxHeight = image.naturalHeight;
+        
+        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${viewBoxHeight}`);
+        console.log('🔄 SVG viewBox已更新为图像实际尺寸:', viewBoxWidth + 'x' + viewBoxHeight);
+        
+        return { width: viewBoxWidth, height: viewBoxHeight };
+    }
+    
+    return null;
 }
 
 /**
@@ -335,7 +370,7 @@ export function renderImageCanvas(imageCanvas, imageData) {
     
     if (imageSrc) {
         imageCanvas.innerHTML = `
-            <div style="position: relative; display: inline-block;">
+            <div id="image-container" style="position: relative; display: inline-block;">
                 <img id="vpe-main-image" src="${imageSrc}" 
                      style="display: block; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); max-width: none; max-height: none;"
                      onload="console.log('✅ VPE图像加载成功', this.naturalWidth + 'x' + this.naturalHeight)"
@@ -355,6 +390,9 @@ export function renderImageCanvas(imageCanvas, imageData) {
                 // 查找最近的modal容器
                 let modalContainer = imageCanvas.closest('#unified-editor-modal');
                 if (modalContainer) {
+                    // 更新SVG viewBox以匹配图像尺寸
+                    updateSVGViewBox(modalContainer);
+                    
                     const fitBtn = modalContainer.querySelector('#vpe-zoom-fit');
                     if (fitBtn) {
                         setTimeout(() => fitBtn.click(), 100);
@@ -363,7 +401,7 @@ export function renderImageCanvas(imageCanvas, imageData) {
             };
         }
         
-        // 创建绘制层
+        // 创建绘制层覆盖整个画布容器
         const drawingLayer = document.createElement('div');
         drawingLayer.id = 'drawing-layer';
         drawingLayer.style.cssText = `

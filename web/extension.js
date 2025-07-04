@@ -7,11 +7,11 @@
 
 import { app } from "../../scripts/app.js";
 
-// 导入各个节点的前端扩展 - 使用working版本
+// 导入各个节点的前端扩展 - 使用模块化版本
 // import "./intelligent_annotation.js";
-// import "./visual_prompt_editor_v2.js";  // 原版本
+import "./visual_prompt_editor_v2.js";  // 模块化版本 (原始架构)
 // import "./visual_prompt_editor_v2_fixed.js";  // 基础版本
-import "./visual_prompt_editor_working.js";  // 完整工作版本
+// import "./visual_prompt_editor_working.js";  // 错误创建的文件
 import "./global_image_processor.js";  // 全图处理扩展
 // import "./layer_to_mask.js";
 

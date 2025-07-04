@@ -19,55 +19,55 @@ export const COLOR_NAMES = {
     '#2196f3': { name: 'Blue', icon: '🔵' }
 };
 
-// 操作类型模板
+// 操作类型模板 - 简化版本，只保留核心结构化描述
 export const OPERATION_TEMPLATES = {
     'change_color': {
         template: 'Change the color of {object} to {target}',
-        description: (target) => `Change the color of {object} to ${target || 'red'}, maintaining the same shape, texture, and lighting. Keep all other aspects of the image unchanged.`
+        description: (target) => `Change the color of {object} to ${target || 'red'}`
     },
     'change_style': {
         template: 'Transform {object} to {target} style',
-        description: (target) => `Transform {object} to ${target || 'cartoon style'}, maintaining the original composition and proportions. Apply artistic style transformation while preserving the essential characteristics.`
+        description: (target) => `Transform {object} to ${target || 'cartoon style'}`
     },
     'replace_object': {
         template: 'Replace {object} with {target}',
-        description: (target) => `Replace {object} with ${target || 'a different object'}, maintaining realistic lighting, shadows, and perspective that fits naturally with the surrounding environment.`
+        description: (target) => `Replace {object} with ${target || 'a different object'}`
     },
     'add_object': {
         template: 'Add {target} near {object}',
-        description: (target) => `Add ${target || 'a new object'} near {object}, ensuring it integrates naturally with proper lighting, shadows, and perspective. Maintain the existing composition balance.`
+        description: (target) => `Add ${target || 'a new object'} near {object}`
     },
     'remove_object': {
         template: 'Remove {object} from the image',
-        description: () => `Seamlessly remove {object} from the image, intelligently filling the area with appropriate background content that matches the surrounding environment naturally.`
+        description: () => `Remove {object} from the image`
     },
     'change_texture': {
         template: 'Change {object} texture to {target}',
-        description: (target) => `Change the texture of {object} to ${target || 'smooth texture'}, maintaining the original shape, color balance, and lighting conditions.`
+        description: (target) => `Change the texture of {object} to ${target || 'smooth texture'}`
     },
     'change_pose': {
         template: 'Change {object} pose to {target}',
-        description: (target) => `Modify the pose of {object} to ${target || 'a different pose'}, maintaining realistic proportions, anatomy, and natural movement while preserving the overall scene composition.`
+        description: (target) => `Change the pose of {object} to ${target || 'a different pose'}`
     },
     'change_expression': {
         template: 'Change {object} expression to {target}',
-        description: (target) => `Change the facial expression of {object} to ${target || 'happy expression'}, maintaining natural facial features and realistic emotional representation.`
+        description: (target) => `Change the facial expression of {object} to ${target || 'happy expression'}`
     },
     'change_clothing': {
         template: 'Change {object} clothing to {target}',
-        description: (target) => `Replace the clothing in {object} with ${target || 'different outfit'}, ensuring proper fit, realistic fabric behavior, and appropriate lighting and shadows.`
+        description: (target) => `Change the clothing of {object} to ${target || 'different outfit'}`
     },
     'change_background': {
         template: 'Change background around {object} to {target}',
-        description: (target) => `Replace the background with ${target || 'a new environment'}, maintaining {object} in its exact position with proper lighting integration and realistic perspective.`
+        description: (target) => `Change the background to ${target || 'a new environment'}`
     },
     'enhance_quality': {
         template: 'Enhance quality of {object}',
-        description: () => `Enhance the quality and detail of {object}, improving sharpness, clarity, and visual fidelity while maintaining the original appearance and characteristics.`
+        description: () => `Enhance the quality of {object}`
     },
     'custom': {
         template: '{target}',
-        description: (target) => target || 'Apply custom modification to the selected region as specified.'
+        description: (target) => target || 'Apply custom modification to the selected region'
     }
 };
 
@@ -149,4 +149,60 @@ export function clamp(value, min, max) {
 export function isPointInRect(point, rect) {
     return point.x >= rect.x && point.x <= rect.x + rect.width &&
            point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+/**
+ * 将鼠标坐标转换为SVG viewBox坐标 - 避免transform累积问题
+ */
+export function mouseToSVGCoordinates(e, modal) {
+    const drawingLayer = modal.querySelector('#drawing-layer');
+    const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
+    
+    if (!svg) return { x: 0, y: 0 };
+    
+    // 获取多个容器的位置信息进行对比
+    const canvasContainer = modal.querySelector('#canvas-container');
+    const zoomContainer = modal.querySelector('#zoom-container');
+    const imageCanvas = modal.querySelector('#image-canvas');
+    const image = modal.querySelector('#vpe-main-image');
+    
+    if (!canvasContainer) return { x: 0, y: 0 };
+    
+    // 获取各个容器的边界框
+    const canvasContainerRect = canvasContainer.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    const drawingLayerRect = drawingLayer.getBoundingClientRect();
+    
+    console.log('🔍 容器位置对比:', {
+        mouse: { x: e.clientX, y: e.clientY },
+        canvasContainer: { left: canvasContainerRect.left, top: canvasContainerRect.top, width: canvasContainerRect.width, height: canvasContainerRect.height },
+        svgRect: { left: svgRect.left, top: svgRect.top, width: svgRect.width, height: svgRect.height },
+        drawingLayer: { left: drawingLayerRect.left, top: drawingLayerRect.top, width: drawingLayerRect.width, height: drawingLayerRect.height }
+    });
+    
+    if (image) {
+        const imageRect = image.getBoundingClientRect();
+        console.log('🖼️ 图片位置:', { left: imageRect.left, top: imageRect.top, width: imageRect.width, height: imageRect.height });
+    }
+    
+    // 使用SVG自身的边界框进行坐标转换
+    const svgRelativeX = e.clientX - svgRect.left;
+    const svgRelativeY = e.clientY - svgRect.top;
+    
+    // 计算相对位置的比例 (0-1)
+    const scaleX = svgRelativeX / svgRect.width;
+    const scaleY = svgRelativeY / svgRect.height;
+    
+    // 映射到SVG viewBox坐标系
+    const svgX = scaleX * svg.viewBox.baseVal.width;
+    const svgY = scaleY * svg.viewBox.baseVal.height;
+    
+    console.log('🖱️ SVG坐标转换:', {
+        svgRelative: { x: svgRelativeX, y: svgRelativeY },
+        scale: { x: scaleX, y: scaleY },
+        viewBox: { width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height },
+        final: { x: svgX, y: svgY }
+    });
+    
+    return { x: svgX, y: svgY };
 }

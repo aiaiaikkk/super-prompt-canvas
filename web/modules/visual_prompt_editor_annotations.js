@@ -3,8 +3,47 @@
  * 负责标注的创建、管理、选择和编辑功能
  */
 
-import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_NAMES } from './visual_prompt_editor_utils.js';
+import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_NAMES, mouseToSVGCoordinates } from './visual_prompt_editor_utils.js';
 import { initCanvasDrawing, setActiveTool } from './visual_prompt_editor_canvas.js';
+
+/**
+ * 应用填充样式到SVG形状
+ */
+function applyFillStyle(shape, color, fillMode) {
+    if (fillMode === 'outline') {
+        // 空心样式
+        shape.setAttribute('fill', 'none');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', '3');
+        shape.setAttribute('stroke-opacity', '0.8');
+    } else {
+        // 实心样式 (默认)
+        shape.setAttribute('fill', color);
+        shape.setAttribute('fill-opacity', '0.5');
+        shape.setAttribute('stroke', 'none');
+    }
+}
+
+/**
+ * 应用预览样式到SVG形状
+ */
+function applyPreviewStyle(shape, color, fillMode) {
+    if (fillMode === 'outline') {
+        // 空心预览样式
+        shape.setAttribute('fill', 'none');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', '2');
+        shape.setAttribute('stroke-opacity', '0.6');
+        shape.setAttribute('stroke-dasharray', '5,5');
+    } else {
+        // 实心预览样式 (默认)
+        shape.setAttribute('fill', color);
+        shape.setAttribute('fill-opacity', '0.3');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', '2');
+        shape.setAttribute('stroke-dasharray', '5,5');
+    }
+}
 
 /**
  * 获取下一个annotation编号
@@ -56,6 +95,7 @@ export function bindCanvasInteractionEvents(modal) {
     // 初始化工具和颜色状态
     modal.currentTool = 'rectangle';
     modal.currentColor = currentColor;
+    modal.fillMode = 'filled'; // 'filled' 或 'outline'
     
     // 设置初始状态 - 选中第一个工具和颜色
     const firstTool = modal.querySelector('.vpe-tool');
@@ -93,6 +133,27 @@ export function bindCanvasInteractionEvents(modal) {
         });
     });
     
+    // 填充模式切换事件
+    const fillToggleBtn = modal.querySelector('#vpe-fill-toggle');
+    if (fillToggleBtn) {
+        fillToggleBtn.addEventListener('click', (e) => {
+            // 切换填充模式
+            if (modal.fillMode === 'filled') {
+                modal.fillMode = 'outline';
+                fillToggleBtn.textContent = '⭕ Outline';
+                fillToggleBtn.classList.add('outline');
+                console.log('🔄 切换到空心模式');
+            } else {
+                modal.fillMode = 'filled';
+                fillToggleBtn.textContent = '🔴 Filled';
+                fillToggleBtn.classList.remove('outline');
+                console.log('🔄 切换到实心模式');
+            }
+            
+            console.log('🎯 当前填充模式:', modal.fillMode);
+        });
+    }
+    
     // 初始化绘制状态
     let isDrawing = false;
     let startPoint = null;
@@ -125,27 +186,18 @@ export function bindCanvasInteractionEvents(modal) {
             
             if (!svg) return;
             
-            const svgBBox = svg.getBoundingClientRect();
+            // 使用工具函数进行坐标转换
+            const newPoint = mouseToSVGCoordinates(e, modal);
             
-            // 计算鼠标相对于SVG元素的位置
-            const svgRelativeX = e.clientX - svgBBox.left;
-            const svgRelativeY = e.clientY - svgBBox.top;
-            
-            // 将相对位置映射到viewBox坐标系
-            const svgX = (svgRelativeX / svgBBox.width) * svg.viewBox.baseVal.width;
-            const svgY = (svgRelativeY / svgBBox.height) * svg.viewBox.baseVal.height;
-            
-            const newPoint = { x: svgX, y: svgY };
-            
-            // 检查是否在图像区域内
-            const image = modal.querySelector('#vpe-main-image');
-            if (image) {
-                const imageRect = image.getBoundingClientRect();
-                const relativeX = e.clientX - imageRect.left;
-                const relativeY = e.clientY - imageRect.top;
+            // 检查是否在画布区域内 - 与坐标转换逻辑保持一致
+            const canvasContainer = modal.querySelector('#canvas-container');
+            if (canvasContainer) {
+                const freehandContainerRect = canvasContainer.getBoundingClientRect();
+                const containerRelativeX = e.clientX - freehandContainerRect.left;
+                const containerRelativeY = e.clientY - freehandContainerRect.top;
                 
-                if (relativeX >= 0 && relativeX <= imageRect.width && 
-                    relativeY >= 0 && relativeY <= imageRect.height) {
+                if (containerRelativeX >= 0 && containerRelativeX <= freehandContainerRect.width && 
+                    containerRelativeY >= 0 && containerRelativeY <= freehandContainerRect.height) {
                     
                     // 如果是第一个点，开始绘制
                     if (!modal.isDrawingFreehand) {
@@ -188,7 +240,7 @@ export function bindCanvasInteractionEvents(modal) {
         
         // 获取SVG的实际尺寸和变换
         const svgRect = svg.getBoundingClientRect();
-        const containerRect = canvasContainer.getBoundingClientRect();
+        const mousedownContainerRect = canvasContainer.getBoundingClientRect();
         
         // 获取当前的zoom值
         const actualZoom = modal.currentZoom || 1.0;
@@ -197,7 +249,7 @@ export function bindCanvasInteractionEvents(modal) {
         // 添加详细的调试信息
         console.log('🔍 调试坐标转换:', {
             clickPoint,
-            containerRect: { width: containerRect.width, height: containerRect.height },
+            containerRect: { width: mousedownContainerRect.width, height: mousedownContainerRect.height },
             svgViewBox: { width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height },
             svgRect: { width: svgRect.width, height: svgRect.height }
         });
@@ -232,55 +284,33 @@ export function bindCanvasInteractionEvents(modal) {
             });
         }
         
-        // 计算相对于SVG的坐标
-        // 关键修正：需要考虑SVG实际显示尺寸与viewBox的比例关系
-        const svgElement = drawingLayer.querySelector('svg');
-        const svgBBox = svgElement.getBoundingClientRect();
-        
-        // 计算鼠标相对于SVG元素的位置
-        const svgRelativeX = e.clientX - svgBBox.left;
-        const svgRelativeY = e.clientY - svgBBox.top;
-        
-        // 将相对位置映射到viewBox坐标系
-        const svgX = (svgRelativeX / svgBBox.width) * svg.viewBox.baseVal.width;
-        const svgY = (svgRelativeY / svgBBox.height) * svg.viewBox.baseVal.height;
+        // 使用工具函数进行精确坐标转换
+        const svgCoords = mouseToSVGCoordinates(e, modal);
         
         console.log('📐 坐标映射:', {
             mouse: { x: e.clientX, y: e.clientY },
-            svgRelative: { x: svgRelativeX, y: svgRelativeY },
-            svgBBox: { width: svgBBox.width, height: svgBBox.height },
-            finalSVG: { x: svgX, y: svgY }
+            finalSVG: svgCoords
         });
         
-        startPoint = { x: svgX, y: svgY, shiftKey: e.shiftKey };
+        startPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey };
         
         console.log('📍 VPE开始绘制位置:', startPoint);
         
-        // 检查是否在图像区域内 - 修复缩放后的坐标判断
-        if (image) {
-            const imageRect = image.getBoundingClientRect();
-            const containerRect = canvasContainer.getBoundingClientRect();
+        // 检查是否在有效绘制区域内 - 与坐标转换逻辑保持一致
+        const validationContainerRect = canvasContainer.getBoundingClientRect();
+        const containerRelativeX = e.clientX - validationContainerRect.left;
+        const containerRelativeY = e.clientY - validationContainerRect.top;
+        
+        // 简化区域检查：只要在画布容器内就允许绘制
+        if (containerRelativeX >= 0 && containerRelativeX <= validationContainerRect.width && 
+            containerRelativeY >= 0 && containerRelativeY <= validationContainerRect.height) {
+            console.log('✅ VPE点击在画布区域内');
+            isDrawing = true;
+            console.log('🎨 VPE开始绘制');
             
-            // 计算相对于图像的点击坐标
-            const relativeX = e.clientX - imageRect.left;
-            const relativeY = e.clientY - imageRect.top;
-            
-            console.log('🔍 VPE坐标检查:', {
-                imageRect: { width: imageRect.width, height: imageRect.height },
-                relativeClick: { x: relativeX, y: relativeY },
-                inBounds: relativeX >= 0 && relativeX <= imageRect.width && relativeY >= 0 && relativeY <= imageRect.height
-            });
-            
-            if (relativeX >= 0 && relativeX <= imageRect.width && 
-                relativeY >= 0 && relativeY <= imageRect.height) {
-                console.log('✅ VPE点击在图像区域内');
-                isDrawing = true;
-                console.log('🎨 VPE开始绘制');
-                
-                startShapeDrawing(modal, startPoint, tool, color);
-            } else {
-                console.log('❌ VPE点击在图像区域外');
-            }
+            startShapeDrawing(modal, startPoint, tool, color);
+        } else {
+            console.log('❌ VPE点击在画布区域外');
         }
         
         return false;
@@ -317,17 +347,9 @@ export function bindCanvasInteractionEvents(modal) {
             
             if (!svg) return;
             
-            const svgBBox = svg.getBoundingClientRect();
-            
-            // 计算鼠标相对于SVG元素的位置
-            const svgRelativeX = e.clientX - svgBBox.left;
-            const svgRelativeY = e.clientY - svgBBox.top;
-            
-            // 将相对位置映射到viewBox坐标系
-            const svgX = (svgRelativeX / svgBBox.width) * svg.viewBox.baseVal.width;
-            const svgY = (svgRelativeY / svgBBox.height) * svg.viewBox.baseVal.height;
-            
-            const endPoint = { x: svgX, y: svgY, shiftKey: e.shiftKey || startPoint.shiftKey };
+            // 使用工具函数进行坐标转换
+            const svgCoords = mouseToSVGCoordinates(e, modal);
+            const endPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey || startPoint.shiftKey };
             
             if (currentTool !== 'freehand') {
                 updatePreview(modal, startPoint, endPoint, currentTool, modal.currentColor);
@@ -344,19 +366,12 @@ export function bindCanvasInteractionEvents(modal) {
         
         if (!svg) return;
         
-        const svgBBox = svg.getBoundingClientRect();
+        // 使用工具函数进行坐标转换
+        const svgCoords = mouseToSVGCoordinates(e, modal);
         
-        // 计算鼠标相对于SVG元素的位置
-        const svgRelativeX = e.clientX - svgBBox.left;
-        const svgRelativeY = e.clientY - svgBBox.top;
+        console.log('VPE画布坐标:', svgCoords);
         
-        // 将相对位置映射到viewBox坐标系
-        const svgX = (svgRelativeX / svgBBox.width) * svg.viewBox.baseVal.width;
-        const svgY = (svgRelativeY / svgBBox.height) * svg.viewBox.baseVal.height;
-        
-        console.log('VPE画布坐标:', { svgX, svgY });
-        
-        const endPoint = { x: svgX, y: svgY, shiftKey: e.shiftKey || startPoint.shiftKey };
+        const endPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey || startPoint.shiftKey };
         
         console.log('📍 VPE结束绘制位置:', endPoint);
         console.log('✨ VPE尝试完成绘制');
@@ -507,12 +522,12 @@ function finishFreehandDrawing(modal) {
     const points = modal.freehandPoints.map(p => `${p.x},${p.y}`).join(' ');
     const polygon = createSVGElement('polygon', {
         'points': points,
-        'fill': modal.currentColor,
-        'fill-opacity': '0.5',
-        'stroke': 'none',
         'class': 'annotation-shape',
         'data-annotation-id': annotationId
     });
+    
+    // 应用填充样式
+    applyFillStyle(polygon, modal.currentColor, modal.fillMode);
     
     svg.appendChild(polygon);
     
@@ -530,6 +545,7 @@ function finishFreehandDrawing(modal) {
         type: 'freehand',
         points: modal.freehandPoints,
         color: modal.currentColor,
+        fillMode: modal.fillMode,
         number: annotationNumber,
         centerPoint: centerPoint
     });
@@ -574,13 +590,11 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
             'y': y,
             'width': width,
             'height': height,
-            'fill': color,
-            'fill-opacity': '0.3',
-            'stroke': color,
-            'stroke-width': '2',
-            'stroke-dasharray': '5,5',
             'class': 'shape-preview'
         });
+        
+        // 应用预览样式
+        applyPreviewStyle(shape, color, modal.fillMode);
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
         const cy = (startPoint.y + endPoint.y) / 2;
@@ -599,13 +613,11 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
             'cy': cy,
             'rx': rx,
             'ry': ry,
-            'fill': color,
-            'fill-opacity': '0.3',
-            'stroke': color,
-            'stroke-width': '2',
-            'stroke-dasharray': '5,5',
             'class': 'shape-preview'
         });
+        
+        // 应用预览样式
+        applyPreviewStyle(shape, color, modal.fillMode);
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {
             'x1': startPoint.x,
@@ -659,12 +671,12 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             'y': y,
             'width': width,
             'height': height,
-            'fill': color,
-            'fill-opacity': '0.5',
-            'stroke': 'none',
             'class': 'annotation-shape',
             'data-annotation-id': annotationId
         });
+        
+        // 应用填充样式
+        applyFillStyle(shape, color, modal.fillMode);
         
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
@@ -692,12 +704,12 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             'cy': cy,
             'rx': rx,
             'ry': ry,
-            'fill': color,
-            'fill-opacity': '0.5',
-            'stroke': 'none',
             'class': 'annotation-shape',
             'data-annotation-id': annotationId
         });
+        
+        // 应用填充样式
+        applyFillStyle(shape, color, modal.fillMode);
         
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {
@@ -734,6 +746,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             start: startPoint,
             end: endPoint,
             color: color,
+            fillMode: modal.fillMode,
             number: annotationNumber
         });
         

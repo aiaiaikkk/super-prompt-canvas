@@ -87,11 +87,15 @@ function getSelectedAnnotationIds(modal) {
  * 生成多选标注的提示词
  */
 function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction) {
+    // 读取编号显示设置
+    const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
+    const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : true;
+    
     if (selectedAnnotationIds.length === 1) {
         // 单选情况，使用原有逻辑
         const annotation = modal.annotations.find(ann => ann.id === selectedAnnotationIds[0]);
         if (annotation) {
-            return generateSingleAnnotationPrompt(annotation, operation, inputText, modal);
+            return generateSingleAnnotationPrompt(annotation, operation, inputText, modal, includeNumbers);
         }
     }
     
@@ -99,7 +103,7 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
     const annotationDescriptions = selectedAnnotationIds.map(id => {
         const annotation = modal.annotations.find(ann => ann.id === id);
         if (annotation) {
-            return generateAnnotationDescription(annotation);
+            return generateAnnotationDescription(annotation, includeNumbers);
         }
         return null;
     }).filter(desc => desc);
@@ -141,8 +145,8 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
 /**
  * 生成单个标注的提示词
  */
-function generateSingleAnnotationPrompt(annotation, operation, inputText, modal) {
-    const objectDescription = generateAnnotationDescription(annotation);
+function generateSingleAnnotationPrompt(annotation, operation, inputText, modal, includeNumbers = true) {
+    const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
     
     // 获取操作模板
     const template = OPERATION_TEMPLATES[operation];
@@ -159,7 +163,7 @@ function generateSingleAnnotationPrompt(annotation, operation, inputText, modal)
 /**
  * 生成标注的描述文本
  */
-function generateAnnotationDescription(annotation) {
+function generateAnnotationDescription(annotation, includeNumbers = true) {
     const colorMap = {
         '#f44336': 'red',
         '#4caf50': 'green', 
@@ -179,7 +183,12 @@ function generateAnnotationDescription(annotation) {
     const number = annotation.number;
     
     // 构建基础描述
-    let description = `the ${color} ${shape} marked area (annotation ${number})`;
+    let description;
+    if (includeNumbers) {
+        description = `the ${color} ${shape} marked area (annotation ${number})`;
+    } else {
+        description = `the ${color} ${shape} marked area`;
+    }
     
     // 添加位置信息
     let positionInfo = '';
@@ -429,25 +438,8 @@ export function showPromptQualityAnalysis(modal, prompt) {
  * 生成负面提示词
  */
 export function generateNegativePrompt(operation, inputText) {
-    const negativeTemplates = {
-        'change_color': 'wrong colors, unnatural coloring, color bleeding, inconsistent lighting',
-        'change_style': 'loss of original structure, distorted proportions, style inconsistency',
-        'replace_object': 'floating objects, unrealistic placement, inconsistent lighting, poor integration',
-        'add_object': 'overlapping objects, unnatural positioning, scale mismatch, lighting inconsistency',
-        'remove_object': 'visible removal artifacts, unnatural background, incomplete removal, edge artifacts',
-        'change_texture': 'unrealistic texture, texture tiling, inconsistent surface properties',
-        'change_pose': 'anatomical errors, unnatural pose, joint distortion, balance issues',
-        'change_expression': 'unnatural facial features, expression inconsistency, facial distortion',
-        'change_clothing': 'poor clothing fit, fabric clipping, unrealistic draping, texture mismatch',
-        'change_background': 'background-subject mismatch, lighting inconsistency, depth issues',
-        'enhance_quality': 'over-sharpening, noise artifacts, loss of natural appearance',
-        'custom': 'artifacts, distortion, unnatural appearance, poor quality'
-    };
-    
-    const baseNegative = 'blurry, low quality, distorted, artifacts, watermark, text, signature';
-    const operationSpecific = negativeTemplates[operation] || negativeTemplates['custom'];
-    
-    return `${baseNegative}, ${operationSpecific}`;
+    // 简化负面提示词，默认为空，让用户自己决定
+    return "";
 }
 
 /**
@@ -458,6 +450,7 @@ export function exportPromptData(modal) {
     const objectSelector = modal.querySelector('#object-selector');
     const operationType = modal.querySelector('#operation-type');
     const targetInput = modal.querySelector('#target-input');
+    const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
     
     if (!generatedDescription) return null;
     
@@ -467,6 +460,7 @@ export function exportPromptData(modal) {
         selected_object: objectSelector?.value || '',
         operation_type: operationType?.value || 'custom',
         target_description: targetInput?.value || '',
+        include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : true,
         annotations: modal.annotations || [],
         quality_analysis: analyzePromptQuality(generatedDescription.value),
         timestamp: new Date().toISOString()

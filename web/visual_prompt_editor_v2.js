@@ -23,7 +23,8 @@ import {
     initCanvasDrawing, 
     initZoomAndPanControls, 
     renderImageCanvas, 
-    setActiveTool 
+    setActiveTool,
+    updateSVGViewBox
 } from './modules/visual_prompt_editor_canvas.js';
 import { 
     bindCanvasInteractionEvents 
@@ -36,17 +37,27 @@ import {
 
 console.log("🌐 Loading Visual Prompt Editor extension (Modular Version)...");
 
+// 测试模块导入
+console.log("🔍 Testing module imports:");
+console.log("KontextUtils:", typeof KontextUtils);
+console.log("createMainModal:", typeof createMainModal);
+console.log("initCanvasDrawing:", typeof initCanvasDrawing);
+console.log("bindCanvasInteractionEvents:", typeof bindCanvasInteractionEvents);
+
 app.registerExtension({
     name: "Kontext.VisualPromptEditor.V2",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        console.log("🔍 Checking node:", nodeData.name);
+        console.log("🔍 Checking node:", nodeData.name, "Type:", typeof nodeType);
         if (nodeData.name === "VisualPromptEditor") {
             console.log("🎨 Registering Visual Prompt Editor Node (V2)");
+            console.log("🎨 NodeType prototype:", nodeType.prototype);
+            console.log("🎨 Original onDblClick:", typeof nodeType.prototype.onDblClick);
             
             // 添加节点创建时的回调
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
+                console.log("🎨 VisualPromptEditor node created!");
                 const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
                 
                 // 设置节点样式
@@ -69,7 +80,10 @@ app.registerExtension({
                 });
                 
                 // 监听双击事件
+                console.log("🎨 Setting up double-click handler for node:", this.id);
                 const originalOnDblClick = this.onDblClick;
+                console.log("🎨 Original onDblClick:", typeof originalOnDblClick);
+                
                 this.onDblClick = function(event) {
                     console.log("🎨 Visual Prompt Editor V2 double-clicked!");
                     console.log("🎨 Node type:", this.constructor.name);
@@ -548,6 +562,25 @@ app.registerExtension({
                         }
                     }, 1000);
                     
+                    // 定义恢复时的填充样式应用函数
+                    const applyRestoredFillStyle = (shape, color, fillMode) => {
+                        console.log('🎨 恢复时应用填充样式:', { color, fillMode });
+                        if (fillMode === 'outline') {
+                            // 空心样式
+                            shape.setAttribute('fill', 'none');
+                            shape.setAttribute('stroke', color);
+                            shape.setAttribute('stroke-width', '3');
+                            shape.setAttribute('stroke-opacity', '0.8');
+                            console.log('✅ 应用空心样式');
+                        } else {
+                            // 实心样式 (默认)
+                            shape.setAttribute('fill', color);
+                            shape.setAttribute('fill-opacity', '0.5');
+                            shape.setAttribute('stroke', 'none');
+                            console.log('✅ 应用实心样式');
+                        }
+                    };
+                    
                     // 恢复每个annotation - 使用简化的直接方法
                     console.log('🔄 开始逐个恢复annotations...');
                     savedAnnotations.forEach((annotation, index) => {
@@ -576,12 +609,13 @@ app.registerExtension({
                             rect.setAttribute('y', Math.min(coords[1], coords[3]));
                             rect.setAttribute('width', Math.abs(coords[2] - coords[0]));
                             rect.setAttribute('height', Math.abs(coords[3] - coords[1]));
-                            rect.setAttribute('fill', color);
-                            rect.setAttribute('fill-opacity', '0.5'); // 与新annotation一致
-                            rect.setAttribute('stroke', 'none'); // 与新annotation一致
                             rect.setAttribute('data-annotation-id', annotation.id);
                             rect.setAttribute('data-annotation-number', annotation.number || '');
                             rect.setAttribute('class', 'annotation-shape');
+                            
+                            // 应用填充样式
+                            const fillMode = annotation.fillMode || 'filled';
+                            applyRestoredFillStyle(rect, color, fillMode);
                             
                             // 立即添加到SVG
                             svg.appendChild(rect);
@@ -602,9 +636,112 @@ app.registerExtension({
                             }
                         }
                         
-                        // 其他类型的annotation可以稍后添加
+                        // 椭圆/圆形类型
+                        else if (annotation.type === 'circle' && annotation.geometry && annotation.geometry.coordinates) {
+                            console.log('⭕ 开始创建椭圆...');
+                            
+                            const coords = annotation.geometry.coordinates;
+                            const color = annotation.color || '#ff0000';
+                            
+                            console.log('⭕ 椭圆数据:', { coords, color });
+                            
+                            const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                            const cx = (coords[0] + coords[2]) / 2;
+                            const cy = (coords[1] + coords[3]) / 2;
+                            const rx = Math.abs(coords[2] - coords[0]) / 2;
+                            const ry = Math.abs(coords[3] - coords[1]) / 2;
+                            
+                            ellipse.setAttribute('cx', cx);
+                            ellipse.setAttribute('cy', cy);
+                            ellipse.setAttribute('rx', rx);
+                            ellipse.setAttribute('ry', ry);
+                            ellipse.setAttribute('data-annotation-id', annotation.id);
+                            ellipse.setAttribute('data-annotation-number', annotation.number || '');
+                            ellipse.setAttribute('class', 'annotation-shape');
+                            
+                            // 应用填充样式
+                            const fillMode = annotation.fillMode || 'filled';
+                            applyRestoredFillStyle(ellipse, color, fillMode);
+                            
+                            svg.appendChild(ellipse);
+                            console.log('✅ 椭圆已添加到SVG');
+                            
+                            // 添加编号标签
+                            if (annotation.number !== undefined) {
+                                console.log('🔢 为恢复的椭圆添加编号标签:', annotation.number);
+                                this.addRestoredNumberLabel(svg, coords, annotation.number, color);
+                            }
+                        }
+                        
+                        // 箭头类型
+                        else if (annotation.type === 'arrow' && annotation.geometry && annotation.geometry.coordinates) {
+                            console.log('➡️ 开始创建箭头...');
+                            
+                            const coords = annotation.geometry.coordinates;
+                            const color = annotation.color || '#ff0000';
+                            
+                            console.log('➡️ 箭头数据:', { coords, color });
+                            
+                            // 创建箭头线
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', coords[0]);
+                            line.setAttribute('y1', coords[1]);
+                            line.setAttribute('x2', coords[2]);
+                            line.setAttribute('y2', coords[3]);
+                            line.setAttribute('stroke', color);
+                            line.setAttribute('stroke-width', '6');
+                            line.setAttribute('stroke-opacity', '1');
+                            line.setAttribute('marker-end', `url(#arrowhead-${color.replace('#', '')})`);
+                            line.setAttribute('data-annotation-id', annotation.id);
+                            line.setAttribute('data-annotation-number', annotation.number || '');
+                            line.setAttribute('class', 'annotation-shape');
+                            
+                            svg.appendChild(line);
+                            console.log('✅ 箭头已添加到SVG');
+                            
+                            // 添加编号标签
+                            if (annotation.number !== undefined) {
+                                console.log('🔢 为恢复的箭头添加编号标签:', annotation.number);
+                                this.addRestoredNumberLabel(svg, coords, annotation.number, color);
+                            }
+                        }
+                        
+                        // 多边形/自由绘制类型
+                        else if (annotation.type === 'freehand' && annotation.points && annotation.points.length > 0) {
+                            console.log('🔗 开始创建多边形...');
+                            
+                            const points = annotation.points;
+                            const color = annotation.color || '#ff0000';
+                            
+                            console.log('🔗 多边形数据:', { pointsCount: points.length, color });
+                            
+                            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                            const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+                            
+                            polygon.setAttribute('points', pointsStr);
+                            polygon.setAttribute('data-annotation-id', annotation.id);
+                            polygon.setAttribute('data-annotation-number', annotation.number || '');
+                            polygon.setAttribute('class', 'annotation-shape');
+                            
+                            // 应用填充样式
+                            const fillMode = annotation.fillMode || 'filled';
+                            applyRestoredFillStyle(polygon, color, fillMode);
+                            
+                            svg.appendChild(polygon);
+                            console.log('✅ 多边形已添加到SVG');
+                            
+                            // 添加编号标签（使用第一个点作为位置）
+                            if (annotation.number !== undefined && points.length > 0) {
+                                console.log('🔢 为恢复的多边形添加编号标签:', annotation.number);
+                                const firstPoint = points[0];
+                                const labelCoords = [firstPoint.x, firstPoint.y, firstPoint.x + 10, firstPoint.y + 10];
+                                this.addRestoredNumberLabel(svg, labelCoords, annotation.number, color);
+                            }
+                        }
+                        
+                        // 未知类型
                         else {
-                            console.log('⚠️ 暂时跳过非矩形annotation类型:', annotation.type);
+                            console.log('⚠️ 跳过未知annotation类型:', annotation.type, annotation);
                         }
                     });
                     
@@ -802,6 +939,7 @@ app.registerExtension({
                     id: annotation.id,
                     type: annotation.type || 'rectangle',
                     color: annotation.color || '#f44336',
+                    fillMode: annotation.fillMode || 'filled',
                     number: annotation.number
                 };
                 
@@ -887,6 +1025,12 @@ app.registerExtension({
                     normalized.start = { x: coords[0], y: coords[1] };
                     normalized.end = { x: coords[2], y: coords[3] };
                     console.log('✅ 为恢复的annotation添加start/end属性:', { start: normalized.start, end: normalized.end });
+                }
+                
+                // 处理多边形的points字段
+                if (annotation.type === 'freehand' && annotation.points) {
+                    normalized.points = annotation.points;
+                    console.log('✅ 保存多边形points数据:', annotation.points.length, '个点');
                 }
                 
                 // 保留其他可能有用的字段

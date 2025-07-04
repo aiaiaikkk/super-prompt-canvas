@@ -121,6 +121,12 @@ export function createToolbar() {
                 <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All">🗂️ Clear</button>
             </div>
             
+            <!-- 填充样式组 -->
+            <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;">Fill:</span>
+                <button id="vpe-fill-toggle" style="font-size: 11px; padding: 4px 8px;" title="Toggle between filled and outline annotations">🔴 Filled</button>
+            </div>
+            
             <!-- 视图控制组 -->
             <div style="display: flex; gap: 4px; align-items: center;">
                 <span style="color: #ccc; font-size: 11px;">View:</span>
@@ -137,7 +143,7 @@ export function createToolbar() {
     const style = document.createElement('style');
     style.textContent = `
         /* 基础按钮样式 */
-        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out {
+        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-fill-toggle, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out {
             background: #555 !important;
             border: none !important;
             color: white !important;
@@ -155,7 +161,7 @@ export function createToolbar() {
         }
         
         /* 编辑操作按钮 */
-        #vpe-undo, #vpe-clear {
+        #vpe-undo, #vpe-clear, #vpe-fill-toggle {
             padding: 4px 8px !important;
             font-size: 11px !important;
             height: 26px !important;
@@ -190,7 +196,7 @@ export function createToolbar() {
         }
         
         /* 悬停效果 */
-        .vpe-tool:hover, #vpe-undo:hover, #vpe-clear:hover, #vpe-zoom-fit:hover, #vpe-zoom-100:hover, #vpe-zoom-in:hover, #vpe-zoom-out:hover {
+        .vpe-tool:hover, #vpe-undo:hover, #vpe-clear:hover, #vpe-fill-toggle:hover, #vpe-zoom-fit:hover, #vpe-zoom-100:hover, #vpe-zoom-in:hover, #vpe-zoom-out:hover {
             background: #666 !important;
             transform: translateY(-1px) !important;
         }
@@ -204,6 +210,12 @@ export function createToolbar() {
         .vpe-tool.active {
             background: #673AB7 !important;
             box-shadow: 0 0 4px rgba(103, 58, 183, 0.5) !important;
+        }
+        
+        /* 填充切换按钮激活状态 */
+        #vpe-fill-toggle.outline {
+            background: #FF9800 !important;
+            box-shadow: 0 0 4px rgba(255, 152, 0, 0.5) !important;
         }
         
         .vpe-color.active {
@@ -342,6 +354,17 @@ export function createPromptArea() {
                 <textarea id="target-input" 
                           style="width: 100%; height: 80px; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4;" 
                           placeholder="Please enter editing instructions for this object..."></textarea>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" id="include-annotation-numbers" checked 
+                           style="width: 14px; height: 14px; accent-color: #4CAF50; cursor: pointer;">
+                    <span>Include annotation numbers in description</span>
+                </label>
+                <div style="font-size: 11px; color: #777; margin-top: 2px; margin-left: 22px;">
+                    🏷️ Show annotation numbers (e.g., "annotation 1") in generated prompts
+                </div>
             </div>
             
             <button id="generate-prompt" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
