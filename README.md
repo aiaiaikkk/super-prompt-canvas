@@ -171,7 +171,7 @@ Kontext专用的结构化提示词遵循五个核心维度，确保精确、可�
 #### 方式一：Git安装（推荐）
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/your-username/KontextVisualPromptWindow.git
+git clone https://github.com/aiaiaikkk/KontextVisualPromptWindow.git
 ```
 
 #### 方式二：手动安装
@@ -385,7 +385,7 @@ MIT License - 详见LICENSE文件
 #### Method 1: Git Installation (Recommended)
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/your-username/KontextVisualPromptWindow.git
+git clone https://github.com/aiaiaikkk/KontextVisualPromptWindow.git
 ```
 
 #### Method 2: Manual Installation
