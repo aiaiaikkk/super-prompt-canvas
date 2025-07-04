@@ -34,15 +34,19 @@ class VisualPromptEditor:
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
                 "text_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Additional text instructions for the edit"}),
                 "prompt_template": ([
-                    "object_edit", 
-                    "style_transfer", 
-                    "background_replace", 
-                    "character_consistency", 
-                    "lighting_enhancement",
-                    "remove_object",
+                    "change_color",
+                    "change_style", 
+                    "replace_object",
                     "add_object",
+                    "remove_object",
+                    "change_texture",
+                    "change_pose",
+                    "change_expression", 
+                    "change_clothing",
+                    "change_background",
+                    "enhance_quality",
                     "custom"
-                ], {"default": "object_edit"}),
+                ], {"default": "change_color"}),
             }
         }
     
@@ -79,6 +83,19 @@ class VisualPromptEditor:
                         
                         # Extract include_annotation_numbers setting
                         include_annotation_numbers = parsed_data.get("include_annotation_numbers", True)
+                        
+                        # Extract synced operation type and text from frontend
+                        synced_operation_type = parsed_data.get("operation_type")
+                        synced_target_description = parsed_data.get("target_description")
+                        
+                        # Use synced values if available (frontend takes priority)
+                        if synced_operation_type and synced_operation_type != "custom":
+                            prompt_template = synced_operation_type
+                            print(f"🔄 Using synced operation type from frontend: {synced_operation_type}")
+                        
+                        if synced_target_description:
+                            text_prompt = synced_target_description
+                            print(f"🔄 Using synced text prompt from frontend: {synced_target_description}")
                         
                     elif isinstance(parsed_data, list):
                         layers_data = parsed_data
@@ -165,7 +182,7 @@ class VisualPromptEditor:
         else:
             objects_str = "the selected marked areas"
         
-        # 2. Use the same template system as frontend
+        # 2. Use the same template system as frontend (exact match)
         operation_templates = {
             'change_color': lambda target: f"Change the color of {{object}} to {target or 'red'}",
             'change_style': lambda target: f"Transform {{object}} to {target or 'cartoon style'}",
@@ -181,23 +198,8 @@ class VisualPromptEditor:
             'custom': lambda target: target or "Apply custom modification to the selected region"
         }
         
-        # Map old template names to new ones for backward compatibility
-        template_mapping = {
-            "object_edit": "change_color",
-            "style_transfer": "change_style", 
-            "background_replace": "change_background",
-            "character_consistency": "change_pose",
-            "lighting_enhancement": "enhance_quality",
-            "remove_object": "remove_object",
-            "add_object": "add_object",
-            "custom": "custom"
-        }
-        
-        # Get the mapped template
-        mapped_template = template_mapping.get(template, "custom")
-        
-        # Get template function
-        template_func = operation_templates.get(mapped_template, operation_templates['custom'])
+        # Get template function (direct match, no mapping needed)
+        template_func = operation_templates.get(template, operation_templates['custom'])
         
         # Generate prompt using template
         target_text = text_prompt.strip() if text_prompt.strip() else None

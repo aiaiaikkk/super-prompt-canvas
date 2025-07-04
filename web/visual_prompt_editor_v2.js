@@ -1401,6 +1401,23 @@ app.registerExtension({
             
             // 绑定基础事件
             nodeType.prototype.bindBasicEvents = function(modal) {
+                // 🔗 初始化时同步后端节点参数到前端UI
+                const textPromptWidget = this.widgets?.find(w => w.name === "text_prompt");
+                const promptTemplateWidget = this.widgets?.find(w => w.name === "prompt_template");
+                
+                const operationType = modal.querySelector('#operation-type');
+                const targetInput = modal.querySelector('#target-input');
+                
+                if (promptTemplateWidget && operationType && promptTemplateWidget.value) {
+                    operationType.value = promptTemplateWidget.value;
+                    console.log('🔄 已从后端同步操作类型到前端:', promptTemplateWidget.value);
+                }
+                
+                if (textPromptWidget && targetInput && textPromptWidget.value) {
+                    targetInput.value = textPromptWidget.value;
+                    console.log('🔄 已从后端同步文本提示到前端:', textPromptWidget.value);
+                }
+                
                 // 关闭按钮
                 const closeBtn = modal.querySelector('#vpe-close');
                 if (closeBtn) {
@@ -1417,9 +1434,12 @@ app.registerExtension({
                         if (promptData) {
                             console.log('💾 保存提示词数据:', promptData);
                             
-                            // 实际保存逻辑：保存到节点的annotation_data widget
+                            // 实际保存逻辑：保存到节点的annotation_data widget并同步到后端节点参数
                             try {
                                 const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
+                                const textPromptWidget = this.widgets?.find(w => w.name === "text_prompt");
+                                const promptTemplateWidget = this.widgets?.find(w => w.name === "prompt_template");
+                                
                                 if (annotationDataWidget) {
                                     // 确保保存的annotations有正确的数据结构
                                     if (promptData.annotations) {
@@ -1440,6 +1460,20 @@ app.registerExtension({
                                     console.log('✅ 已保存annotation_data到widget:', dataToSave.length, '字符');
                                     console.log('💾 保存的数据预览:', dataToSave.substring(0, 200) + '...');
                                     
+                                    // 🔗 自动同步前端选择的操作类型和文本到后端节点参数
+                                    const operationType = modal.querySelector('#operation-type');
+                                    const targetInput = modal.querySelector('#target-input');
+                                    
+                                    if (operationType && promptTemplateWidget && operationType.value !== promptTemplateWidget.value) {
+                                        promptTemplateWidget.value = operationType.value;
+                                        console.log('🔄 已同步操作类型到后端:', operationType.value);
+                                    }
+                                    
+                                    if (targetInput && textPromptWidget && targetInput.value !== textPromptWidget.value) {
+                                        textPromptWidget.value = targetInput.value;
+                                        console.log('🔄 已同步文本提示到后端:', targetInput.value);
+                                    }
+                                    
                                     // 标记节点为已修改，触发重新计算
                                     if (app.graph) {
                                         app.graph.setDirtyCanvas(true);
@@ -1448,7 +1482,7 @@ app.registerExtension({
                                     console.error('❌ 未找到annotation_data widget');
                                 }
                                 
-                                KontextUtils.showNotification('提示词数据已保存', 'success');
+                                KontextUtils.showNotification('数据已保存并同步到后端节点', 'success');
                             } catch (error) {
                                 console.error('❌ 保存数据失败:', error);
                                 KontextUtils.showNotification('保存失败: ' + error.message, 'error');
