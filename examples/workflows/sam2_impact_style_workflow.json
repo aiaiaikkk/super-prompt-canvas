@@ -1,0 +1,481 @@
+{
+  "last_node_id": 12,
+  "last_link_id": 15,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [100, 100],
+      "size": [315, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [1, 5],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example_image.jpg",
+        "image"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "📷 Load Image"
+    },
+    {
+      "id": 2,
+      "type": "SAM2LoaderImpactStyle",
+      "pos": [500, 100],
+      "size": [300, 200],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "links": [2],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "model_info",
+          "type": "STRING",
+          "links": [3],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM2LoaderImpactStyle"
+      },
+      "widgets_values": [
+        "auto",
+        "AUTO",
+        "auto"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "📦 SAM2 Loader (Impact Style)"
+    },
+    {
+      "id": 3,
+      "type": "ShowText",
+      "pos": [850, 100],
+      "size": [400, 200],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "📋 Model Info"
+    },
+    {
+      "id": 4,
+      "type": "SAM2DetectorImpactStyle",
+      "pos": [500, 350],
+      "size": [350, 400],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "link": 2
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [4, 8],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM2DetectorImpactStyle"
+      },
+      "widgets_values": [
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🎯 SAM2 Detector (Impact Style)"
+    },
+    {
+      "id": 5,
+      "type": "PreviewMask",
+      "pos": [900, 350],
+      "size": [300, 200],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 4
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewMask"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "👁️ Preview Mask"
+    },
+    {
+      "id": 6,
+      "type": "VisualPromptEditor",
+      "pos": [100, 500],
+      "size": [400, 300],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 5
+        },
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_with_annotations",
+          "type": "IMAGE",
+          "links": [7],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "positive_prompt",
+          "type": "STRING",
+          "links": [9],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "links": [10],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VisualPromptEditor"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🎨 Visual Prompt Editor"
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [550, 800],
+      "size": [300, 300],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 7
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "🖼️ Preview Result"
+    },
+    {
+      "id": 8,
+      "type": "MaskToLayerConverter",
+      "pos": [100, 850],
+      "size": [300, 150],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "links": [6],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MaskToLayerConverter"
+      },
+      "widgets_values": [
+        "SAM2_Detection",
+        0.9,
+        "#00ff00"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🔄 Mask to Layer Converter"
+    },
+    {
+      "id": 9,
+      "type": "ShowText",
+      "pos": [900, 600],
+      "size": [400, 150],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 9
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "✅ Positive Prompt"
+    },
+    {
+      "id": 10,
+      "type": "ShowText",
+      "pos": [900, 800],
+      "size": [400, 150],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 10
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "❌ Negative Prompt"
+    },
+    {
+      "id": 11,
+      "type": "SAM2DetectorImpactStyle",
+      "pos": [1350, 350],
+      "size": [350, 400],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "link": 2
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [11],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM2DetectorImpactStyle"
+      },
+      "widgets_values": [
+        "rect-4",
+        5,
+        0.85,
+        10,
+        0.6,
+        "Small"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🎯 SAM2 Detector (Rect-4 Mode)"
+    },
+    {
+      "id": 12,
+      "type": "PreviewMask",
+      "pos": [1750, 350],
+      "size": [300, 200],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 11
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewMask"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "👁️ Preview Mask (Rect-4)"
+    }
+  ],
+  "links": [
+    [1, 1, 0, 4, 1, "IMAGE"],
+    [2, 2, 0, 4, 0, "SAM_MODEL"],
+    [3, 2, 1, 3, 0, "STRING"],
+    [4, 4, 0, 5, 0, "MASK"],
+    [5, 1, 0, 6, 0, "IMAGE"],
+    [6, 8, 0, 6, 1, "STRING"],
+    [7, 6, 0, 7, 0, "IMAGE"],
+    [8, 4, 0, 8, 0, "MASK"],
+    [9, 6, 1, 9, 0, "STRING"],
+    [10, 6, 2, 10, 0, "STRING"],
+    [11, 11, 0, 12, 0, "MASK"],
+    [2, 2, 0, 11, 0, "SAM_MODEL"],
+    [1, 1, 0, 11, 1, "IMAGE"]
+  ],
+  "groups": [
+    {
+      "title": "📦 SAM2 Impact Pack Style 工作流",
+      "bounding": [50, 50, 2050, 1100],
+      "color": "#3f789e",
+      "font_size": 24
+    },
+    {
+      "title": "🎯 输入阶段",
+      "bounding": [80, 80, 380, 350],
+      "color": "#8A8",
+      "font_size": 16
+    },
+    {
+      "title": "🔧 模型加载",
+      "bounding": [480, 80, 800, 250],
+      "color": "#A88",
+      "font_size": 16
+    },
+    {
+      "title": "🎯 SAM2检测",
+      "bounding": [480, 330, 1600, 450],
+      "color": "#88A",
+      "font_size": 16
+    },
+    {
+      "title": "🎨 可视化编辑",
+      "bounding": [80, 480, 800, 550],
+      "color": "#8AA",
+      "font_size": 16
+    },
+    {
+      "title": "📤 输出结果",
+      "bounding": [880, 580, 450, 400],
+      "color": "#AA8",
+      "font_size": 16
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7,
+      "offset": [-50, -20]
+    },
+    "workflow_info": {
+      "title": "SAM2 Impact Pack Style 工作流",
+      "description": "使用Impact Pack风格的SAM2加载器和检测器进行智能分割",
+      "version": "1.0.0",
+      "features": [
+        "📦 Impact Pack风格的模型加载器",
+        "🎯 多种检测提示模式 (center-1, rect-4, diamond-4等)",
+        "🔧 灵活的设备管理 (AUTO, GPU, CPU)",
+        "🎨 完整的可视化编辑支持",
+        "📊 详细的模型信息显示",
+        "🔄 mask到layer的无缝转换"
+      ],
+      "detection_modes": [
+        "center-1: 中心点检测",
+        "horizontal-2: 水平双点检测", 
+        "vertical-2: 垂直双点检测",
+        "rect-4: 矩形四角检测",
+        "diamond-4: 菱形四点检测",
+        "mask-area: 基于mask区域检测",
+        "mask-points: mask点集检测",
+        "none: 自动检测"
+      ],
+      "model_types": [
+        "ComfyUI SAM2: 使用ComfyUI内置模型",
+        "Local SAM2: 本地标准SAM2模型",
+        "FastSAM: 快速分割模型",
+        "Download: 自动下载官方模型"
+      ]
+    }
+  },
+  "version": 0.4
+}

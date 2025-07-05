@@ -196,26 +196,26 @@ export function bindCanvasInteractionEvents(modal) {
         });
     });
     
-    // 填充模式切换事件
-    const fillToggleBtn = modal.querySelector('#vpe-fill-toggle');
-    if (fillToggleBtn) {
-        fillToggleBtn.addEventListener('click', (e) => {
-            // 切换填充模式
-            if (modal.fillMode === 'filled') {
-                modal.fillMode = 'outline';
-                fillToggleBtn.textContent = '⭕ Outline';
-                fillToggleBtn.classList.add('outline');
-                console.log('🔄 切换到空心模式');
-            } else {
-                modal.fillMode = 'filled';
-                fillToggleBtn.textContent = '🔴 Filled';
-                fillToggleBtn.classList.remove('outline');
-                console.log('🔄 切换到实心模式');
-            }
-            
-            console.log('🎯 当前填充模式:', modal.fillMode);
-        });
-    }
+    // 填充模式切换事件 - 注释掉，由main文件处理
+    // const fillToggleBtn = modal.querySelector('#vpe-fill-toggle');
+    // if (fillToggleBtn) {
+    //     fillToggleBtn.addEventListener('click', (e) => {
+    //         // 切换填充模式
+    //         if (modal.fillMode === 'filled') {
+    //             modal.fillMode = 'outline';
+    //             fillToggleBtn.textContent = '⭕ Outline';
+    //             fillToggleBtn.classList.add('outline');
+    //             console.log('🔄 切换到空心模式');
+    //         } else {
+    //             modal.fillMode = 'filled';
+    //             fillToggleBtn.textContent = '🔴 Filled';
+    //             fillToggleBtn.classList.remove('outline');
+    //             console.log('🔄 切换到实心模式');
+    //         }
+    //         
+    //         console.log('🎯 当前填充模式:', modal.fillMode);
+    //     });
+    // }
     
     // 初始化绘制状态
     let isDrawing = false;
@@ -601,7 +601,10 @@ function finishFreehandDrawing(modal) {
     });
     
     // 应用填充样式
-    applyFillStyle(polygon, modal.currentColor, modal.fillMode, modal.currentOpacity || 50);
+    const fillMode = modal.fillMode || 'filled';
+    const opacity = modal.currentOpacity || 50;
+    console.log('🎨 多边形应用填充样式:', { color: modal.currentColor, fillMode, opacity });
+    applyFillStyle(polygon, modal.currentColor, fillMode, opacity);
     
     svg.appendChild(polygon);
     
@@ -619,8 +622,8 @@ function finishFreehandDrawing(modal) {
         type: 'freehand',
         points: modal.freehandPoints,
         color: modal.currentColor,
-        fillMode: modal.fillMode,
-        opacity: modal.currentOpacity || 50,
+        fillMode: fillMode,
+        opacity: opacity,
         number: annotationNumber,
         centerPoint: centerPoint
     });
@@ -669,7 +672,10 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用预览样式
-        applyPreviewStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
+        const fillMode = modal.fillMode || 'filled';
+        const opacity = modal.currentOpacity || 50;
+        console.log('🎨 矩形预览应用填充样式:', { color, fillMode, opacity });
+        applyPreviewStyle(shape, color, fillMode, opacity);
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
         const cy = (startPoint.y + endPoint.y) / 2;
@@ -692,7 +698,10 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用预览样式
-        applyPreviewStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
+        const fillMode = modal.fillMode || 'filled';
+        const opacity = modal.currentOpacity || 50;
+        console.log('🎨 椭圆预览应用填充样式:', { color, fillMode, opacity });
+        applyPreviewStyle(shape, color, fillMode, opacity);
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {
             'x1': startPoint.x,
@@ -919,7 +928,10 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用填充样式
-        applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
+        const fillMode = modal.fillMode || 'filled';
+        const opacity = modal.currentOpacity || 50;
+        console.log('🎨 矩形应用填充样式:', { color, fillMode, opacity });
+        applyFillStyle(shape, color, fillMode, opacity);
         
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
@@ -952,7 +964,10 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         });
         
         // 应用填充样式
-        applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
+        const fillMode = modal.fillMode || 'filled';
+        const opacity = modal.currentOpacity || 50;
+        console.log('🎨 椭圆应用填充样式:', { color, fillMode, opacity });
+        applyFillStyle(shape, color, fillMode, opacity);
         
     } else if (tool === 'arrow') {
         shape = createSVGElement('line', {

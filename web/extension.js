@@ -17,6 +17,7 @@ import "./visual_prompt_editor_v2.js";  // 模块化版本 (恢复完整功能)
 // import "./visual_prompt_editor_working.js";  // 错误创建的文件
 // import "./global_image_processor.js";  // 全图处理扩展 (暂时禁用)
 // import "./layer_to_mask.js";
+// import "./sam2_interface.js";  // SAM2智能分割界面 (暂时禁用 - 位置挡住按钮)
 
 // 测试扩展 - 暂时禁用
 // import "./test_double_click.js";

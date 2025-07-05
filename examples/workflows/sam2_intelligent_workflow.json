@@ -1,0 +1,426 @@
+{
+  "last_node_id": 15,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [100, 100],
+      "size": [315, 314],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [1],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example_image.jpg",
+        "image"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "📷 Load Image"
+    },
+    {
+      "id": 2,
+      "type": "SAM2IntelligentAnnotation",
+      "pos": [500, 100],
+      "size": [400, 320],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "links": [2, 10],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "performance_stats",
+          "type": "STRING",
+          "links": [3],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "debug_info",
+          "type": "STRING",
+          "links": [4],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAM2IntelligentAnnotation"
+      },
+      "widgets_values": [
+        "auto",
+        "[]",
+        0.4,
+        false
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "title": "🤖 SAM2 Intelligent Annotation"
+    },
+    {
+      "id": 3,
+      "type": "VisualPromptEditor",
+      "pos": [1000, 100],
+      "size": [400, 300],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 5
+        },
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_with_annotations",
+          "type": "IMAGE",
+          "links": [6],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "positive_prompt",
+          "type": "STRING",
+          "links": [7],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "links": [8],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VisualPromptEditor"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🎨 Visual Prompt Editor"
+    },
+    {
+      "id": 4,
+      "type": "ShowText",
+      "pos": [500, 480],
+      "size": [400, 200],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "📊 Performance Stats"
+    },
+    {
+      "id": 5,
+      "type": "ShowText",
+      "pos": [500, 720],
+      "size": [400, 200],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 4
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "🐛 Debug Info"
+    },
+    {
+      "id": 6,
+      "type": "PreviewImage",
+      "pos": [1500, 100],
+      "size": [300, 300],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "🖼️ Preview Result"
+    },
+    {
+      "id": 7,
+      "type": "ShowText",
+      "pos": [1000, 480],
+      "size": [400, 150],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 7
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "✅ Positive Prompt"
+    },
+    {
+      "id": 8,
+      "type": "ShowText",
+      "pos": [1000, 680],
+      "size": [400, 150],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 8
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "❌ Negative Prompt"
+    },
+    {
+      "id": 9,
+      "type": "DuplicateImage",
+      "pos": [300, 300],
+      "size": [140, 46],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [5],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DuplicateImage"
+      },
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "🔗 Duplicate"
+    },
+    {
+      "id": 10,
+      "type": "LayerToMaskNode",
+      "pos": [100, 500],
+      "size": [300, 200],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "layers_json",
+          "type": "STRING",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [11],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerToMaskNode"
+      },
+      "widgets_values": [
+        512,
+        512,
+        0,
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "title": "🎭 Layer to Mask"
+    },
+    {
+      "id": 11,
+      "type": "PreviewMask",
+      "pos": [100, 750],
+      "size": [300, 200],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 11
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewMask"
+      },
+      "color": "#323",
+      "bgcolor": "#535",
+      "title": "👁️ Preview Mask"
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [1, 1, 0, 9, 0, "IMAGE"],
+    [2, 2, 0, 3, 1, "STRING"],
+    [3, 2, 1, 4, 0, "STRING"],
+    [4, 2, 2, 5, 0, "STRING"],
+    [5, 9, 0, 3, 0, "IMAGE"],
+    [6, 3, 0, 6, 0, "IMAGE"],
+    [7, 3, 1, 7, 0, "STRING"],
+    [8, 3, 2, 8, 0, "STRING"],
+    [10, 2, 0, 10, 0, "STRING"],
+    [11, 10, 0, 11, 0, "MASK"]
+  ],
+  "groups": [
+    {
+      "title": "📊 SAM2 智能标注流程",
+      "bounding": [50, 50, 1800, 900],
+      "color": "#3f789e",
+      "font_size": 24
+    },
+    {
+      "title": "🎯 输入阶段",
+      "bounding": [80, 80, 380, 350],
+      "color": "#8A8",
+      "font_size": 16
+    },
+    {
+      "title": "🤖 智能分析",
+      "bounding": [480, 80, 440, 860],
+      "color": "#A88",
+      "font_size": 16
+    },
+    {
+      "title": "🎨 可视化编辑",
+      "bounding": [980, 80, 440, 760],
+      "color": "#88A",
+      "font_size": 16
+    },
+    {
+      "title": "📤 输出结果",
+      "bounding": [1480, 80, 340, 320],
+      "color": "#8AA",
+      "font_size": 16
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [-50, -20]
+    },
+    "workflow_info": {
+      "title": "SAM2+FastSAM 智能标注工作流",
+      "description": "使用SAM2和FastSAM进行双模式智能标注，支持实时预览和精确分割",
+      "version": "1.0.0",
+      "features": [
+        "🚀 FastSAM实时预览 (50-100ms)",
+        "🎯 SAM2精确分割 (1-2s)",
+        "🔄 自动模式切换",
+        "🎨 可视化编辑界面",
+        "📊 性能统计监控",
+        "🎭 掩码输出支持"
+      ],
+      "use_cases": [
+        "快速对象检测和分割",
+        "高精度图像标注",
+        "交互式图像编辑",
+        "批量图像处理",
+        "AI辅助创作"
+      ]
+    }
+  },
+  "version": 0.4
+}
