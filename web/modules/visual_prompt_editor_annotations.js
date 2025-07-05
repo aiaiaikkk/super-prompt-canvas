@@ -7,6 +7,51 @@ import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_N
 import { initCanvasDrawing, setActiveTool } from './visual_prompt_editor_canvas.js';
 
 /**
+ * 同步创建箭头marker
+ */
+function createArrowheadMarkerSync(modal, color, opacity) {
+    const svg = modal.querySelector('#drawing-layer svg');
+    const defs = svg ? svg.querySelector('defs') : null;
+    
+    if (!defs) {
+        console.warn('⚠️ 未找到defs容器，使用默认箭头marker');
+        return `arrowhead-${color.replace('#', '')}`;
+    }
+    
+    // 生成唯一的marker ID
+    const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
+    
+    // 检查是否已存在
+    const existingMarker = defs.querySelector(`#${markerId}`);
+    if (existingMarker) {
+        return markerId;
+    }
+    
+    // 创建新的marker
+    const marker = createSVGElement('marker', {
+        id: markerId,
+        markerWidth: '10',
+        markerHeight: '7',
+        refX: '9',
+        refY: '3.5',
+        orient: 'auto'
+    });
+    
+    const fillOpacity = Math.min((opacity + 30) / 100, 1.0); // 与箭身不透明度保持一致
+    const polygon = createSVGElement('polygon', {
+        points: '0 0, 10 3.5, 0 7',
+        fill: color,
+        'fill-opacity': fillOpacity.toString()
+    });
+    
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    
+    console.log(`🏹 创建箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
+    return markerId;
+}
+
+/**
  * 应用填充样式到SVG形状
  */
 function applyFillStyle(shape, color, fillMode, opacity = 50) {
@@ -121,6 +166,16 @@ export function bindCanvasInteractionEvents(modal) {
             const toolName = tool.dataset.tool;
             modal.currentTool = toolName;
             setActiveTool(modal, toolName);
+            
+            // 显示/隐藏画笔控制面板
+            const brushControls = modal.querySelector('#vpe-brush-controls');
+            if (brushControls) {
+                if (toolName === 'brush') {
+                    brushControls.style.display = 'flex';
+                } else {
+                    brushControls.style.display = 'none';
+                }
+            }
             
             console.log('🛠️ 工具切换:', toolName);
         });
@@ -636,9 +691,41 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
             'stroke': color,
             'stroke-width': '4',
             'stroke-dasharray': '5,5',
-            'marker-end': `url(#arrowhead-${color.replace('#', '')})`,
+            'marker-end': `url(#${createArrowheadMarkerSync(modal, color, modal.currentOpacity || 50)})`,
             'class': 'shape-preview'
         });
+    } else if (tool === 'brush') {
+        // 画笔工具预览
+        const brushSize = modal.currentBrushSize || 20;
+        const brushFeather = modal.currentBrushFeather || 5;
+        
+        shape = createSVGElement('circle', {
+            'cx': endPoint.x,
+            'cy': endPoint.y,
+            'r': brushSize / 2,
+            'fill': color,
+            'fill-opacity': '0.3',
+            'stroke': color,
+            'stroke-width': '2',
+            'stroke-dasharray': '3,3',
+            'class': 'shape-preview brush-preview'
+        });
+        
+        // 如果有羽化，添加羽化预览
+        if (brushFeather > 0) {
+            const featherShape = createSVGElement('circle', {
+                'cx': endPoint.x,
+                'cy': endPoint.y,
+                'r': (brushSize + brushFeather) / 2,
+                'fill': 'none',
+                'stroke': color,
+                'stroke-width': '1',
+                'stroke-opacity': '0.3',
+                'stroke-dasharray': '2,2',
+                'class': 'shape-preview brush-feather-preview'
+            });
+            svg.appendChild(featherShape);
+        }
     }
     
     if (shape) {
@@ -728,10 +815,71 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             'y2': endPoint.y,
             'stroke': color,
             'stroke-width': '6',
-            'marker-end': `url(#arrowhead-${color.replace('#', '')})`,
+            'marker-end': `url(#${createArrowheadMarkerSync(modal, color, modal.currentOpacity || 50)})`,
             'class': 'annotation-shape',
             'data-annotation-id': annotationId
         });
+    } else if (tool === 'brush') {
+        // 画笔工具：创建带有羽化效果的圆形
+        const brushSize = modal.currentBrushSize || 20;
+        const brushFeather = modal.currentBrushFeather || 5;
+        
+        // 如果有羽化，创建渐变定义
+        if (brushFeather > 0) {
+            const defs = svg.querySelector('defs') || (() => {
+                const defsElement = createSVGElement('defs');
+                svg.appendChild(defsElement);
+                return defsElement;
+            })();
+            
+            const gradientId = `brush-gradient-${annotationId}`;
+            const gradient = createSVGElement('radialGradient', {
+                'id': gradientId,
+                'cx': '50%',
+                'cy': '50%',
+                'r': '50%'
+            });
+            
+            // 内部实心
+            const stopInner = createSVGElement('stop', {
+                'offset': `${(brushSize / (brushSize + brushFeather)) * 100}%`,
+                'stop-color': color,
+                'stop-opacity': (modal.currentOpacity || 50) / 100
+            });
+            
+            // 外部羽化到透明
+            const stopOuter = createSVGElement('stop', {
+                'offset': '100%',
+                'stop-color': color,
+                'stop-opacity': '0'
+            });
+            
+            gradient.appendChild(stopInner);
+            gradient.appendChild(stopOuter);
+            defs.appendChild(gradient);
+            
+            // 创建使用渐变的圆形
+            shape = createSVGElement('circle', {
+                'cx': endPoint.x,
+                'cy': endPoint.y,
+                'r': (brushSize + brushFeather) / 2,
+                'fill': `url(#${gradientId})`,
+                'class': 'annotation-shape brush-shape',
+                'data-annotation-id': annotationId
+            });
+        } else {
+            // 无羽化的实心圆形
+            shape = createSVGElement('circle', {
+                'cx': endPoint.x,
+                'cy': endPoint.y,
+                'r': brushSize / 2,
+                'class': 'annotation-shape brush-shape',
+                'data-annotation-id': annotationId
+            });
+            
+            // 应用填充样式
+            applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
+        }
     }
     
     if (shape) {
@@ -749,7 +897,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         addNumberLabel(svg, startPoint, annotationNumber, color);
         
         // 添加到annotations数组
-        modal.annotations.push({
+        const annotationData = {
             id: annotationId,
             type: tool,
             start: startPoint,
@@ -758,7 +906,15 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             fillMode: modal.fillMode,
             opacity: modal.currentOpacity || 50,
             number: annotationNumber
-        });
+        };
+        
+        // 画笔工具的额外属性
+        if (tool === 'brush') {
+            annotationData.brushSize = modal.currentBrushSize || 20;
+            annotationData.brushFeather = modal.currentBrushFeather || 5;
+        }
+        
+        modal.annotations.push(annotationData);
         
         console.log('✅ VPE标注已添加:', annotationId, '编号:', annotationNumber);
         console.log('📋 VPE当前标注数量:', modal.annotations.length);

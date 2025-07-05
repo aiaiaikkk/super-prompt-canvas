@@ -396,6 +396,9 @@ class VisualPromptEditor:
                 layer_type = layer.get('type', 'rectangle')
                 opacity = layer.get('opacity', 50)  # 获取不透明度，默认50%
                 
+                # 🔍 调试：输出每个标注的不透明度信息
+                print(f"🎨 标注{i+1}渲染信息: 类型={layer_type}, 颜色={color_hex}, 不透明度={opacity}%")
+                
                 # Check if coordinates exist and are valid
                 # Support multiple coordinate formats: 1) start/end, 2) geometry.coordinates
                 has_coordinates = False

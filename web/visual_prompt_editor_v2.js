@@ -563,21 +563,25 @@ app.registerExtension({
                     }, 1000);
                     
                     // 定义恢复时的填充样式应用函数
-                    const applyRestoredFillStyle = (shape, color, fillMode) => {
-                        console.log('🎨 恢复时应用填充样式:', { color, fillMode });
+                    const applyRestoredFillStyle = (shape, color, fillMode, opacity = 50) => {
+                        console.log('🎨 恢复时应用填充样式:', { color, fillMode, opacity });
+                        // 计算不透明度值 (0-1)
+                        const fillOpacity = opacity / 100;
+                        const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0);
+                        
                         if (fillMode === 'outline') {
                             // 空心样式
                             shape.setAttribute('fill', 'none');
                             shape.setAttribute('stroke', color);
                             shape.setAttribute('stroke-width', '3');
-                            shape.setAttribute('stroke-opacity', '0.8');
-                            console.log('✅ 应用空心样式');
+                            shape.setAttribute('stroke-opacity', strokeOpacity);
+                            console.log('✅ 应用空心样式, 不透明度:', strokeOpacity);
                         } else {
                             // 实心样式 (默认)
                             shape.setAttribute('fill', color);
-                            shape.setAttribute('fill-opacity', '0.5');
+                            shape.setAttribute('fill-opacity', fillOpacity);
                             shape.setAttribute('stroke', 'none');
-                            console.log('✅ 应用实心样式');
+                            console.log('✅ 应用实心样式, 不透明度:', fillOpacity);
                         }
                     };
                     
@@ -615,7 +619,8 @@ app.registerExtension({
                             
                             // 应用填充样式
                             const fillMode = annotation.fillMode || 'filled';
-                            applyRestoredFillStyle(rect, color, fillMode);
+                            const opacity = annotation.opacity || 50;
+                            applyRestoredFillStyle(rect, color, fillMode, opacity);
                             
                             // 立即添加到SVG
                             svg.appendChild(rect);
@@ -661,7 +666,8 @@ app.registerExtension({
                             
                             // 应用填充样式
                             const fillMode = annotation.fillMode || 'filled';
-                            applyRestoredFillStyle(ellipse, color, fillMode);
+                            const opacity = annotation.opacity || 50;
+                            applyRestoredFillStyle(ellipse, color, fillMode, opacity);
                             
                             svg.appendChild(ellipse);
                             console.log('✅ 椭圆已添加到SVG');
@@ -690,8 +696,15 @@ app.registerExtension({
                             line.setAttribute('y2', coords[3]);
                             line.setAttribute('stroke', color);
                             line.setAttribute('stroke-width', '6');
-                            line.setAttribute('stroke-opacity', '1');
-                            line.setAttribute('marker-end', `url(#arrowhead-${color.replace('#', '')})`);
+                            
+                            // 使用保存的不透明度值
+                            const opacity = annotation.opacity || 50;
+                            const strokeOpacity = Math.min((opacity + 30) / 100, 1.0);
+                            line.setAttribute('stroke-opacity', strokeOpacity);
+                            
+                            // 动态创建对应不透明度的箭头marker
+                            const markerId = this.createArrowheadMarkerInline(svg, color, opacity);
+                            line.setAttribute('marker-end', `url(#${markerId})`);
                             line.setAttribute('data-annotation-id', annotation.id);
                             line.setAttribute('data-annotation-number', annotation.number || '');
                             line.setAttribute('class', 'annotation-shape');
@@ -725,7 +738,8 @@ app.registerExtension({
                             
                             // 应用填充样式
                             const fillMode = annotation.fillMode || 'filled';
-                            applyRestoredFillStyle(polygon, color, fillMode);
+                            const opacity = annotation.opacity || 50;
+                            applyRestoredFillStyle(polygon, color, fillMode, opacity);
                             
                             svg.appendChild(polygon);
                             console.log('✅ 多边形已添加到SVG');
@@ -735,6 +749,82 @@ app.registerExtension({
                                 console.log('🔢 为恢复的多边形添加编号标签:', annotation.number);
                                 const firstPoint = points[0];
                                 const labelCoords = [firstPoint.x, firstPoint.y, firstPoint.x + 10, firstPoint.y + 10];
+                                this.addRestoredNumberLabel(svg, labelCoords, annotation.number, color);
+                            }
+                        }
+                        
+                        // 画笔类型
+                        else if (annotation.type === 'brush' && annotation.start && annotation.end) {
+                            console.log('🖌️ 开始恢复画笔...');
+                            
+                            const color = annotation.color || '#ff0000';
+                            const brushSize = annotation.brushSize || 20;
+                            const brushFeather = annotation.brushFeather || 5;
+                            const opacity = annotation.opacity || 50;
+                            
+                            console.log('🖌️ 画笔数据:', { color, brushSize, brushFeather, opacity });
+                            
+                            let shape;
+                            
+                            // 如果有羽化，创建渐变定义和使用渐变的圆形
+                            if (brushFeather > 0) {
+                                const defs = svg.querySelector('defs') || (() => {
+                                    const defsElement = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                                    svg.appendChild(defsElement);
+                                    return defsElement;
+                                })();
+                                
+                                const gradientId = `brush-gradient-restored-${annotation.id}`;
+                                const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+                                gradient.setAttribute('id', gradientId);
+                                gradient.setAttribute('cx', '50%');
+                                gradient.setAttribute('cy', '50%');
+                                gradient.setAttribute('r', '50%');
+                                
+                                // 内部实心
+                                const stopInner = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                                stopInner.setAttribute('offset', `${(brushSize / (brushSize + brushFeather)) * 100}%`);
+                                stopInner.setAttribute('stop-color', color);
+                                stopInner.setAttribute('stop-opacity', opacity / 100);
+                                
+                                // 外部羽化到透明
+                                const stopOuter = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                                stopOuter.setAttribute('offset', '100%');
+                                stopOuter.setAttribute('stop-color', color);
+                                stopOuter.setAttribute('stop-opacity', '0');
+                                
+                                gradient.appendChild(stopInner);
+                                gradient.appendChild(stopOuter);
+                                defs.appendChild(gradient);
+                                
+                                // 创建使用渐变的圆形
+                                shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                shape.setAttribute('cx', annotation.end.x);
+                                shape.setAttribute('cy', annotation.end.y);
+                                shape.setAttribute('r', (brushSize + brushFeather) / 2);
+                                shape.setAttribute('fill', `url(#${gradientId})`);
+                            } else {
+                                // 无羽化的实心圆形
+                                shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                shape.setAttribute('cx', annotation.end.x);
+                                shape.setAttribute('cy', annotation.end.y);
+                                shape.setAttribute('r', brushSize / 2);
+                                
+                                const fillMode = annotation.fillMode || 'filled';
+                                applyRestoredFillStyle(shape, color, fillMode, opacity);
+                            }
+                            
+                            shape.setAttribute('data-annotation-id', annotation.id);
+                            shape.setAttribute('data-annotation-number', annotation.number || '');
+                            shape.setAttribute('class', 'annotation-shape brush-shape');
+                            
+                            svg.appendChild(shape);
+                            console.log('✅ 画笔已添加到SVG');
+                            
+                            // 添加编号标签
+                            if (annotation.number !== undefined) {
+                                console.log('🔢 为恢复的画笔添加编号标签:', annotation.number);
+                                const labelCoords = [annotation.end.x, annotation.end.y, annotation.end.x + 10, annotation.end.y + 10];
                                 this.addRestoredNumberLabel(svg, labelCoords, annotation.number, color);
                             }
                         }
@@ -778,6 +868,9 @@ app.registerExtension({
                         shapesFound: immediateShapes.length
                     });
                     
+                    // 恢复不透明度滑块的值
+                    this.restoreOpacitySlider(modal, savedAnnotations);
+                    
                     // 短延迟后进行详细的可见性检查
                     setTimeout(() => {
                         console.log('🔍 延迟检查开始...');
@@ -785,6 +878,43 @@ app.registerExtension({
                     }, 100);
                 } catch (error) {
                     console.error('❌ 恢复annotations失败:', error);
+                }
+            };
+
+            // 恢复不透明度滑块的值
+            nodeType.prototype.restoreOpacitySlider = function(modal, savedAnnotations) {
+                try {
+                    // 查找不透明度滑块和显示元素
+                    const opacitySlider = modal.querySelector('#vpe-opacity-slider');
+                    const opacityValue = modal.querySelector('#vpe-opacity-value');
+                    
+                    if (!opacitySlider || !opacityValue) {
+                        console.log('⚠️ 未找到不透明度滑块控件');
+                        return;
+                    }
+                    
+                    // 从保存的标注中获取第一个有效的不透明度值
+                    let restoredOpacity = 50; // 默认值
+                    
+                    if (savedAnnotations && savedAnnotations.length > 0) {
+                        // 查找第一个有不透明度值的标注
+                        for (const annotation of savedAnnotations) {
+                            if (annotation.opacity !== undefined && annotation.opacity !== null) {
+                                restoredOpacity = annotation.opacity;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 更新滑块和显示值
+                    opacitySlider.value = restoredOpacity;
+                    opacityValue.textContent = restoredOpacity + '%';
+                    modal.currentOpacity = restoredOpacity;
+                    
+                    console.log('🎨 恢复不透明度滑块值:', restoredOpacity + '%');
+                    
+                } catch (error) {
+                    console.error('❌ 恢复不透明度滑块失败:', error);
                 }
             };
 
@@ -932,7 +1062,7 @@ app.registerExtension({
 
             // 标准化annotation数据结构
             nodeType.prototype.normalizeAnnotationData = function(annotation) {
-                console.log('🔧 标准化annotation数据:', annotation.id);
+                console.log('🔧 标准化annotation数据:', annotation.id, '不透明度:', annotation.opacity);
                 
                 // 创建标准化的annotation对象
                 const normalized = {
@@ -1435,6 +1565,14 @@ app.registerExtension({
                         if (promptData) {
                             console.log('💾 保存提示词数据:', promptData);
                             
+                            // 🔍 调试：检查不透明度数据
+                            if (promptData.annotations && promptData.annotations.length > 0) {
+                                console.log('🎨 不透明度调试信息:');
+                                promptData.annotations.forEach((annotation, index) => {
+                                    console.log(`📍 标注${index + 1}: ID=${annotation.id}, 类型=${annotation.type}, 不透明度=${annotation.opacity}%`);
+                                });
+                            }
+                            
                             // 实际保存逻辑：保存到节点的annotation_data widget并同步到后端节点参数
                             try {
                                 const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
@@ -1534,6 +1672,36 @@ app.registerExtension({
                         console.log('🎨 不透明度调整为:', opacityPercent + '%');
                     };
                 }
+                
+                // 画笔大小控制
+                const brushSizeSlider = modal.querySelector('#vpe-brush-size');
+                const brushSizeValue = modal.querySelector('#vpe-brush-size-value');
+                if (brushSizeSlider && brushSizeValue) {
+                    // 初始化画笔大小
+                    modal.currentBrushSize = parseInt(brushSizeSlider.value);
+                    
+                    brushSizeSlider.oninput = () => {
+                        const sizeValue = parseInt(brushSizeSlider.value);
+                        modal.currentBrushSize = sizeValue;
+                        brushSizeValue.textContent = sizeValue + 'px';
+                        console.log('🖌️ 画笔大小调整为:', sizeValue + 'px');
+                    };
+                }
+                
+                // 画笔羽化控制
+                const brushFeatherSlider = modal.querySelector('#vpe-brush-feather');
+                const brushFeatherValue = modal.querySelector('#vpe-brush-feather-value');
+                if (brushFeatherSlider && brushFeatherValue) {
+                    // 初始化画笔羽化
+                    modal.currentBrushFeather = parseInt(brushFeatherSlider.value);
+                    
+                    brushFeatherSlider.oninput = () => {
+                        const featherValue = parseInt(brushFeatherSlider.value);
+                        modal.currentBrushFeather = featherValue;
+                        brushFeatherValue.textContent = featherValue + 'px';
+                        console.log('🖌️ 画笔羽化调整为:', featherValue + 'px');
+                    };
+                }
             };
             
             // 更新所有标注的不透明度
@@ -1542,12 +1710,35 @@ app.registerExtension({
                 if (!svg) return;
                 
                 // 计算不透明度值 (0-1)
-                const opacity = opacityPercent / 100;
+                const fillOpacity = opacityPercent / 100;
+                const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0);
                 
-                // 更新所有SVG形状的不透明度
+                // 更新所有SVG形状的不透明度 - 直接更新SVG属性而不是style
                 const shapes = svg.querySelectorAll('.annotation-shape');
                 shapes.forEach(shape => {
-                    shape.style.opacity = opacity;
+                    // 清除任何可能存在的style.opacity
+                    shape.style.removeProperty('opacity');
+                    
+                    // 根据形状类型和填充模式设置正确的不透明度属性
+                    const currentFill = shape.getAttribute('fill');
+                    const currentStroke = shape.getAttribute('stroke');
+                    
+                    if (currentFill && currentFill !== 'none') {
+                        // 实心样式：更新fill-opacity
+                        shape.setAttribute('fill-opacity', fillOpacity);
+                    }
+                    
+                    if (currentStroke && currentStroke !== 'none') {
+                        // 有边框：更新stroke-opacity
+                        shape.setAttribute('stroke-opacity', strokeOpacity);
+                        
+                        // 特殊处理箭头：更新marker的不透明度
+                        const markerEnd = shape.getAttribute('marker-end');
+                        if (markerEnd && markerEnd.includes('arrowhead')) {
+                            const color = currentStroke;
+                            this.updateArrowheadMarker(shape, color, opacityPercent);
+                        }
+                    }
                 });
                 
                 // 更新annotations数据中的不透明度
@@ -1555,9 +1746,91 @@ app.registerExtension({
                     modal.annotations.forEach(annotation => {
                         annotation.opacity = opacityPercent;
                     });
+                    
+                    // 🔍 详细调试：输出更新后的annotations数据
+                    console.log('🎨 不透明度更新详情:');
+                    modal.annotations.forEach((annotation, index) => {
+                        console.log(`  📍 标注${index + 1}: ID=${annotation.id}, 不透明度=${annotation.opacity}%`);
+                    });
                 }
                 
                 console.log('🎨 已更新', shapes.length, '个标注的不透明度为', opacityPercent + '%');
+            };
+            
+            // 内联创建箭头marker（用于恢复）
+            nodeType.prototype.createArrowheadMarkerInline = function(svg, color, opacity) {
+                const defs = svg.querySelector('defs');
+                if (!defs) return `arrowhead-${color.replace('#', '')}`;
+                
+                const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
+                
+                // 检查是否已存在
+                const existingMarker = defs.querySelector(`#${markerId}`);
+                if (existingMarker) {
+                    return markerId;
+                }
+                
+                // 创建新的marker
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', markerId);
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '7');
+                marker.setAttribute('refX', '9');
+                marker.setAttribute('refY', '3.5');
+                marker.setAttribute('orient', 'auto');
+                
+                const fillOpacity = Math.min((opacity + 30) / 100, 1.0);
+                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                polygon.setAttribute('fill', color);
+                polygon.setAttribute('fill-opacity', fillOpacity.toString());
+                
+                marker.appendChild(polygon);
+                defs.appendChild(marker);
+                
+                console.log(`🏹 内联创建箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
+                return markerId;
+            };
+            
+            // 更新箭头marker的不透明度
+            nodeType.prototype.updateArrowheadMarker = function(arrowElement, color, opacity) {
+                try {
+                    const svg = arrowElement.closest('svg');
+                    const defs = svg ? svg.querySelector('defs') : null;
+                    if (!svg || !defs) return;
+                    
+                    // 生成新的marker ID
+                    const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
+                    
+                    // 检查是否已存在
+                    let existingMarker = defs.querySelector(`#${markerId}`);
+                    if (!existingMarker) {
+                        // 创建新的marker
+                        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                        marker.setAttribute('id', markerId);
+                        marker.setAttribute('markerWidth', '10');
+                        marker.setAttribute('markerHeight', '7');
+                        marker.setAttribute('refX', '9');
+                        marker.setAttribute('refY', '3.5');
+                        marker.setAttribute('orient', 'auto');
+                        
+                        const fillOpacity = Math.min((opacity + 30) / 100, 1.0);
+                        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                        polygon.setAttribute('fill', color);
+                        polygon.setAttribute('fill-opacity', fillOpacity.toString());
+                        
+                        marker.appendChild(polygon);
+                        defs.appendChild(marker);
+                        console.log(`🏹 创建新箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
+                    }
+                    
+                    // 更新箭头的marker引用
+                    arrowElement.setAttribute('marker-end', `url(#${markerId})`);
+                    console.log(`🏹 更新箭头marker: ${markerId}, 不透明度: ${opacity}%`);
+                } catch (error) {
+                    console.error('❌ 更新箭头marker失败:', error);
+                }
             };
             
             // 获取对象信息（从annotations模块获取）

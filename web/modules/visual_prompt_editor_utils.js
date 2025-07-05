@@ -8,7 +8,8 @@ export const TOOL_NAMES = {
     'rectangle': { name: 'Rectangle', icon: '▭' },
     'circle': { name: 'Circle', icon: '⭕' },
     'arrow': { name: 'Arrow', icon: '➡️' },
-    'freehand': { name: 'Polygon', icon: '🔗' }
+    'freehand': { name: 'Polygon', icon: '🔗' },
+    'brush': { name: 'Brush', icon: '🖌️' }
 };
 
 // 颜色映射 - 使用标准纯色

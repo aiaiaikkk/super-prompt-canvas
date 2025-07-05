@@ -64,7 +64,7 @@ export function initCanvasDrawing(modal) {
         const defs = createSVGElement('defs');
         svg.appendChild(defs);
         
-        // 为每种颜色创建箭头标记
+        // 为每种颜色创建基础箭头标记（50%不透明度）
         const colors = ['#ff0000', '#00ff00', '#ffff00', '#0000ff'];
         colors.forEach(color => {
             const marker = createSVGElement('marker', {
@@ -78,17 +78,64 @@ export function initCanvasDrawing(modal) {
             
             const polygon = createSVGElement('polygon', {
                 points: '0 0, 10 3.5, 0 7',
-                fill: color
+                fill: color,
+                'fill-opacity': '0.8'  // 默认80%不透明度
             });
             
             marker.appendChild(polygon);
             defs.appendChild(marker);
         });
         
+        // 存储defs引用以便后续动态创建marker
+        svg.arrowheadDefs = defs;
+        
         drawingLayer.appendChild(svg);
     }
     
     console.log('✅ VPE画布绘制初始化完成');
+}
+
+/**
+ * 创建或获取指定颜色和不透明度的箭头marker
+ */
+export function createArrowheadMarker(svg, color, opacity) {
+    const defs = svg.querySelector('defs') || svg.arrowheadDefs;
+    if (!defs) {
+        console.warn('⚠️ 未找到defs容器，无法创建箭头marker');
+        return `arrowhead-${color.replace('#', '')}`;
+    }
+    
+    // 生成唯一的marker ID
+    const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
+    
+    // 检查是否已存在
+    const existingMarker = defs.querySelector(`#${markerId}`);
+    if (existingMarker) {
+        return markerId;
+    }
+    
+    // 创建新的marker
+    const marker = createSVGElement('marker', {
+        id: markerId,
+        markerWidth: '10',
+        markerHeight: '7',
+        refX: '9',
+        refY: '3.5',
+        orient: 'auto'
+    });
+    
+    const fillOpacity = Math.min((opacity + 30) / 100, 1.0); // 与箭身不透明度保持一致
+    const polygon = createSVGElement('polygon', {
+        points: '0 0, 10 3.5, 0 7',
+        fill: color,
+        'fill-opacity': fillOpacity.toString()
+    });
+    
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    
+    console.log(`🏹 创建箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
+    return markerId;
 }
 
 /**

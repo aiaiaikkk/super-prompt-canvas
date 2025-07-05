@@ -102,6 +102,7 @@ export function createToolbar() {
                 <button class="vpe-tool" data-tool="circle" title="Circle (Shift=Perfect Circle)">⭕</button>
                 <button class="vpe-tool" data-tool="arrow" title="Arrow">➡️</button>
                 <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing (Left-click to add anchor points, right-click to close)">🔗</button>
+                <button class="vpe-tool" data-tool="brush" title="Brush (Adjustable size and feather)">🖌️</button>
                 <button class="vpe-tool" data-tool="eraser" title="Eraser">🗑️</button>
             </div>
             
@@ -134,6 +135,21 @@ export function createToolbar() {
                        style="width: 80px; height: 20px; background: #333; outline: none; cursor: pointer;" 
                        title="Adjust annotation opacity (10-100%)">
                 <span id="vpe-opacity-value" style="color: #aaa; font-size: 10px; min-width: 30px; text-align: center;">50%</span>
+            </div>
+            
+            <!-- 画笔控制组 -->
+            <div id="vpe-brush-controls" style="display: none; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;">Brush:</span>
+                <span style="color: #aaa; font-size: 10px;">Size:</span>
+                <input type="range" id="vpe-brush-size" min="5" max="50" value="20" 
+                       style="width: 60px; height: 20px; background: #333; outline: none; cursor: pointer;" 
+                       title="Adjust brush size (5-50px)">
+                <span id="vpe-brush-size-value" style="color: #aaa; font-size: 10px; min-width: 25px; text-align: center;">20px</span>
+                <span style="color: #aaa; font-size: 10px;">Feather:</span>
+                <input type="range" id="vpe-brush-feather" min="0" max="20" value="5" 
+                       style="width: 60px; height: 20px; background: #333; outline: none; cursor: pointer;" 
+                       title="Adjust brush feather/softness (0-20px)">
+                <span id="vpe-brush-feather-value" style="color: #aaa; font-size: 10px; min-width: 25px; text-align: center;">5px</span>
             </div>
             
             <!-- 视图控制组 -->
