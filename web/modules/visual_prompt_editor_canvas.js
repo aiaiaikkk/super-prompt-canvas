@@ -5,8 +5,7 @@
 
 import { createSVGElement, getCanvasCoordinates, generateId, clamp } from './visual_prompt_editor_utils.js';
 
-// Import deleteAnnotation function
-import { deleteAnnotation } from './visual_prompt_editor_annotations.js';
+// Note: deleteAnnotation will be passed as parameter to avoid circular dependency
 
 /**
  * 初始化画布绘制功能
@@ -561,8 +560,8 @@ function handleEraserClick(e) {
     // 查找并删除标注
     if (annotationId && modal.annotations) {
         const annotation = modal.annotations.find(ann => ann.id === annotationId);
-        if (annotation && deleteAnnotation) {
-            deleteAnnotation(modal, annotation);
+        if (annotation && modal.deleteAnnotation) {
+            modal.deleteAnnotation(modal, annotation);
             console.log('✅ 标注已删除:', annotationId);
             
             // 重新启用橡皮擦模式以更新事件绑定
@@ -572,8 +571,8 @@ function handleEraserClick(e) {
     } else if (annotationNumber !== undefined && modal.annotations) {
         // 按编号查找标注
         const annotation = modal.annotations.find(ann => ann.number == annotationNumber);
-        if (annotation && deleteAnnotation) {
-            deleteAnnotation(modal, annotation);
+        if (annotation && modal.deleteAnnotation) {
+            modal.deleteAnnotation(modal, annotation);
             console.log('✅ 标注已删除 (按编号):', annotationNumber);
             
             // 重新启用橡皮擦模式以更新事件绑定

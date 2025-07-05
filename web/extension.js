@@ -7,16 +7,19 @@
 
 import { app } from "../../scripts/app.js";
 
-// 导入各个节点的前端扩展 - 使用模块化版本
+// 导入各个节点的前端扩展 - 恢复完整功能
 // import "./intelligent_annotation.js";
-import "./visual_prompt_editor_v2.js";  // 模块化版本 (原始架构)
+import "./visual_prompt_editor_v2.js";  // 模块化版本 (恢复完整功能)
+// import "./visual_prompt_editor_simple.js";  // 简化调试版本
+// import "./visual_prompt_editor_debug.js";  // 模块加载调试版本 (已修复)
+// import "./test_annotations.js";  // 专门测试 annotations 模块
 // import "./visual_prompt_editor_v2_fixed.js";  // 基础版本
 // import "./visual_prompt_editor_working.js";  // 错误创建的文件
-import "./global_image_processor.js";  // 全图处理扩展
+// import "./global_image_processor.js";  // 全图处理扩展 (暂时禁用)
 // import "./layer_to_mask.js";
 
 // 测试扩展 - 暂时禁用
-// import "./test_extension.js";
+// import "./test_double_click.js";
 
 // 主扩展注册
 app.registerExtension({

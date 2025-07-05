@@ -4,7 +4,7 @@
  */
 
 import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_NAMES, mouseToSVGCoordinates } from './visual_prompt_editor_utils.js';
-import { initCanvasDrawing, setActiveTool } from './visual_prompt_editor_canvas.js';
+// Note: setActiveTool will be passed as parameter to avoid circular dependency
 
 /**
  * 同步创建箭头marker
@@ -357,6 +357,12 @@ export function bindCanvasInteractionEvents(modal) {
         
         startPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey };
         
+        // 画笔工具特殊处理：开始绘制路径
+        if (tool === 'brush') {
+            console.log('🖌️ 开始画笔绘制');
+            startBrushStroke(modal, svgCoords, color);
+        }
+        
         console.log('📍 VPE开始绘制位置:', startPoint);
         
         // 检查是否在有效绘制区域内 - 与坐标转换逻辑保持一致
@@ -414,7 +420,9 @@ export function bindCanvasInteractionEvents(modal) {
             const svgCoords = mouseToSVGCoordinates(e, modal);
             const endPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey || startPoint.shiftKey };
             
-            if (currentTool !== 'freehand') {
+            if (currentTool === 'brush') {
+                continueBrushStroke(modal, svgCoords);
+            } else if (currentTool !== 'freehand') {
                 updatePreview(modal, startPoint, endPoint, currentTool, modal.currentColor);
             }
         }
@@ -439,7 +447,10 @@ export function bindCanvasInteractionEvents(modal) {
         console.log('📍 VPE结束绘制位置:', endPoint);
         console.log('✨ VPE尝试完成绘制');
         
-        if (modal.currentTool !== 'freehand') {
+        if (modal.currentTool === 'brush') {
+            console.log('🖌️ 完成画笔绘制');
+            finishBrushStroke(modal);
+        } else if (modal.currentTool !== 'freehand') {
             finishDrawing(modal, startPoint, endPoint, modal.currentTool, modal.currentColor);
         }
         
@@ -694,43 +705,179 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
             'marker-end': `url(#${createArrowheadMarkerSync(modal, color, modal.currentOpacity || 50)})`,
             'class': 'shape-preview'
         });
-    } else if (tool === 'brush') {
-        // 画笔工具预览
-        const brushSize = modal.currentBrushSize || 20;
-        const brushFeather = modal.currentBrushFeather || 5;
-        
-        shape = createSVGElement('circle', {
-            'cx': endPoint.x,
-            'cy': endPoint.y,
-            'r': brushSize / 2,
-            'fill': color,
-            'fill-opacity': '0.3',
-            'stroke': color,
-            'stroke-width': '2',
-            'stroke-dasharray': '3,3',
-            'class': 'shape-preview brush-preview'
-        });
-        
-        // 如果有羽化，添加羽化预览
-        if (brushFeather > 0) {
-            const featherShape = createSVGElement('circle', {
-                'cx': endPoint.x,
-                'cy': endPoint.y,
-                'r': (brushSize + brushFeather) / 2,
-                'fill': 'none',
-                'stroke': color,
-                'stroke-width': '1',
-                'stroke-opacity': '0.3',
-                'stroke-dasharray': '2,2',
-                'class': 'shape-preview brush-feather-preview'
-            });
-            svg.appendChild(featherShape);
-        }
     }
     
     if (shape) {
         svg.appendChild(shape);
     }
+}
+
+/**
+ * 开始画笔绘制
+ */
+function startBrushStroke(modal, startPoint, color) {
+    console.log('🖌️ 开始画笔绘制:', startPoint);
+    
+    const drawingLayer = modal.querySelector('#drawing-layer');
+    const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
+    if (!svg) return;
+    
+    // 初始化画笔路径数据
+    modal.currentBrushStroke = {
+        points: [startPoint],
+        color: color,
+        size: modal.currentBrushSize || 20,
+        feather: modal.currentBrushFeather || 5,
+        opacity: modal.currentOpacity || 50,
+        path: null // SVG path element
+    };
+    
+    // 创建SVG路径元素
+    const path = createSVGElement('path', {
+        'stroke': color,
+        'stroke-width': modal.currentBrushSize || 20,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        'fill': 'none',
+        'class': 'brush-preview-path'
+    });
+    
+    // 应用不透明度
+    const opacity = (modal.currentOpacity || 50) / 100;
+    path.setAttribute('stroke-opacity', opacity);
+    
+    // 如果有羽化，应用滤镜
+    if (modal.currentBrushFeather > 0) {
+        const filterId = `brush-blur-${Date.now()}`;
+        const defs = svg.querySelector('defs') || (() => {
+            const defsElement = createSVGElement('defs');
+            svg.appendChild(defsElement);
+            return defsElement;
+        })();
+        
+        const filter = createSVGElement('filter', {
+            'id': filterId,
+            'x': '-50%',
+            'y': '-50%',
+            'width': '200%',
+            'height': '200%'
+        });
+        
+        const blur = createSVGElement('feGaussianBlur', {
+            'in': 'SourceGraphic',
+            'stdDeviation': modal.currentBrushFeather / 2
+        });
+        
+        filter.appendChild(blur);
+        defs.appendChild(filter);
+        path.setAttribute('filter', `url(#${filterId})`);
+    }
+    
+    // 设置初始路径
+    const pathData = `M ${startPoint.x} ${startPoint.y}`;
+    path.setAttribute('d', pathData);
+    
+    svg.appendChild(path);
+    modal.currentBrushStroke.path = path;
+    
+    console.log('🖌️ 画笔路径已创建:', pathData);
+}
+
+/**
+ * 继续画笔绘制
+ */
+function continueBrushStroke(modal, point) {
+    if (!modal.currentBrushStroke || !modal.currentBrushStroke.path) return;
+    
+    // 添加点到路径
+    modal.currentBrushStroke.points.push(point);
+    
+    // 更新SVG路径
+    const path = modal.currentBrushStroke.path;
+    const points = modal.currentBrushStroke.points;
+    
+    // 生成平滑的路径数据
+    let pathData = `M ${points[0].x} ${points[0].y}`;
+    
+    if (points.length > 2) {
+        for (let i = 1; i < points.length - 1; i++) {
+            const current = points[i];
+            const next = points[i + 1];
+            const controlX = (current.x + next.x) / 2;
+            const controlY = (current.y + next.y) / 2;
+            pathData += ` Q ${current.x} ${current.y} ${controlX} ${controlY}`;
+        }
+        // 最后一个点
+        const lastPoint = points[points.length - 1];
+        pathData += ` T ${lastPoint.x} ${lastPoint.y}`;
+    } else if (points.length === 2) {
+        pathData += ` L ${points[1].x} ${points[1].y}`;
+    }
+    
+    path.setAttribute('d', pathData);
+}
+
+/**
+ * 完成画笔绘制
+ */
+function finishBrushStroke(modal) {
+    if (!modal.currentBrushStroke) return;
+    
+    console.log('🖌️ 完成画笔绘制，点数:', modal.currentBrushStroke.points.length);
+    
+    const brushStroke = modal.currentBrushStroke;
+    const drawingLayer = modal.querySelector('#drawing-layer');
+    const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
+    
+    if (!svg || brushStroke.points.length === 0) {
+        // 清理临时路径
+        if (brushStroke.path) {
+            brushStroke.path.remove();
+        }
+        modal.currentBrushStroke = null;
+        return;
+    }
+    
+    // 移除预览路径的类名，使其成为正式标注
+    if (brushStroke.path) {
+        brushStroke.path.classList.remove('brush-preview-path');
+        brushStroke.path.classList.add('annotation-shape', 'brush-path');
+        
+        // 添加标注ID
+        const annotationId = generateId('annotation');
+        brushStroke.path.setAttribute('data-annotation-id', annotationId);
+        
+        // 获取标注编号
+        if (!modal.annotations) {
+            modal.annotations = [];
+        }
+        const annotationNumber = getNextAnnotationNumber(modal);
+        brushStroke.path.setAttribute('data-annotation-number', annotationNumber);
+        
+        // 添加到标注数组
+        modal.annotations.push({
+            id: annotationId,
+            type: 'brush',
+            points: brushStroke.points,
+            color: brushStroke.color,
+            brushSize: brushStroke.size,
+            brushFeather: brushStroke.feather,
+            opacity: brushStroke.opacity,
+            fillMode: modal.fillMode,
+            number: annotationNumber,
+            pathData: brushStroke.path.getAttribute('d')
+        });
+        
+        // 添加编号标签
+        const firstPoint = brushStroke.points[0];
+        addNumberLabel(svg, firstPoint, annotationNumber, brushStroke.color);
+        
+        console.log('✅ 画笔标注已添加:', annotationId, '编号:', annotationNumber);
+        updateObjectSelector(modal);
+    }
+    
+    // 清理
+    modal.currentBrushStroke = null;
 }
 
 /**
@@ -819,67 +966,6 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             'class': 'annotation-shape',
             'data-annotation-id': annotationId
         });
-    } else if (tool === 'brush') {
-        // 画笔工具：创建带有羽化效果的圆形
-        const brushSize = modal.currentBrushSize || 20;
-        const brushFeather = modal.currentBrushFeather || 5;
-        
-        // 如果有羽化，创建渐变定义
-        if (brushFeather > 0) {
-            const defs = svg.querySelector('defs') || (() => {
-                const defsElement = createSVGElement('defs');
-                svg.appendChild(defsElement);
-                return defsElement;
-            })();
-            
-            const gradientId = `brush-gradient-${annotationId}`;
-            const gradient = createSVGElement('radialGradient', {
-                'id': gradientId,
-                'cx': '50%',
-                'cy': '50%',
-                'r': '50%'
-            });
-            
-            // 内部实心
-            const stopInner = createSVGElement('stop', {
-                'offset': `${(brushSize / (brushSize + brushFeather)) * 100}%`,
-                'stop-color': color,
-                'stop-opacity': (modal.currentOpacity || 50) / 100
-            });
-            
-            // 外部羽化到透明
-            const stopOuter = createSVGElement('stop', {
-                'offset': '100%',
-                'stop-color': color,
-                'stop-opacity': '0'
-            });
-            
-            gradient.appendChild(stopInner);
-            gradient.appendChild(stopOuter);
-            defs.appendChild(gradient);
-            
-            // 创建使用渐变的圆形
-            shape = createSVGElement('circle', {
-                'cx': endPoint.x,
-                'cy': endPoint.y,
-                'r': (brushSize + brushFeather) / 2,
-                'fill': `url(#${gradientId})`,
-                'class': 'annotation-shape brush-shape',
-                'data-annotation-id': annotationId
-            });
-        } else {
-            // 无羽化的实心圆形
-            shape = createSVGElement('circle', {
-                'cx': endPoint.x,
-                'cy': endPoint.y,
-                'r': brushSize / 2,
-                'class': 'annotation-shape brush-shape',
-                'data-annotation-id': annotationId
-            });
-            
-            // 应用填充样式
-            applyFillStyle(shape, color, modal.fillMode, modal.currentOpacity || 50);
-        }
     }
     
     if (shape) {
@@ -908,11 +994,7 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             number: annotationNumber
         };
         
-        // 画笔工具的额外属性
-        if (tool === 'brush') {
-            annotationData.brushSize = modal.currentBrushSize || 20;
-            annotationData.brushFeather = modal.currentBrushFeather || 5;
-        }
+        // 注意：画笔工具使用独立的数据保存逻辑，不使用这个通用函数
         
         modal.annotations.push(annotationData);
         
@@ -1479,3 +1561,4 @@ function isLabelNearAnnotation(labelElement, annotation) {
         return false;
     }
 }
+

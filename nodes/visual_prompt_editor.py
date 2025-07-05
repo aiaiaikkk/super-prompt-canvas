@@ -71,15 +71,23 @@ class VisualPromptEditor:
             if annotation_data and annotation_data.strip():
                 try:
                     parsed_data = json.loads(annotation_data)
+                    print(f"🔍 后端收到annotation_data长度: {len(annotation_data)} 字符")
                     
                     # Check if the data has an "annotations" key (new format)
                     if isinstance(parsed_data, dict):
                         if "annotations" in parsed_data:
                             layers_data = parsed_data["annotations"]
+                            print(f"📊 后端解析到 {len(layers_data)} 个标注")
+                            # 详细调试每个标注
+                            for i, layer in enumerate(layers_data):
+                                print(f"📍 标注{i+1}: 类型={layer.get('type')}, ID={layer.get('id')}")
+                                if layer.get('type') == 'brush':
+                                    print(f"🖌️ 画笔数据: points={len(layer.get('points', []))}, brushSize={layer.get('brushSize')}, brushFeather={layer.get('brushFeather')}")
                         elif "layers_data" in parsed_data:  # Alternative key
                             layers_data = parsed_data["layers_data"]
                         else:
                             layers_data = []
+                            print("⚠️ 后端: 解析的数据中没有找到annotations或layers_data字段")
                         
                         # Extract include_annotation_numbers setting
                         include_annotation_numbers = parsed_data.get("include_annotation_numbers", True)
@@ -215,6 +223,29 @@ class VisualPromptEditor:
         try:
             from PIL import Image, ImageDraw, ImageFont
             
+            # Convert torch tensor to PIL Image first to get dimensions
+            if len(image.shape) == 4:
+                # Batch dimension exists, take first
+                img_array = image[0].cpu().numpy()
+            else:
+                img_array = image.cpu().numpy()
+            
+            # Ensure value range is [0, 1]
+            if img_array.max() <= 1.0:
+                img_array = (img_array * 255).astype(np.uint8)
+            else:
+                img_array = img_array.astype(np.uint8)
+                
+            # Convert to PIL Image
+            if len(img_array.shape) == 3:
+                pil_image = Image.fromarray(img_array, 'RGB')
+            else:
+                pil_image = Image.fromarray(img_array, 'L')
+                pil_image = pil_image.convert('RGB')
+            
+            # Get image dimensions
+            img_width, img_height = pil_image.size
+            
             # Helper function to draw annotation numbers
             def draw_annotation_number(draw, position, number, color_rgba, scale_x=1.0, scale_y=1.0):
                 """Draw annotation number label at specified position"""
@@ -287,26 +318,6 @@ class VisualPromptEditor:
                 except Exception as e:
                     print(f"Warning: Failed to draw annotation number {number}: {e}")
             
-            # Convert torch tensor to PIL Image
-            if len(image.shape) == 4:
-                # Batch dimension exists, take first
-                img_array = image[0].cpu().numpy()
-            else:
-                img_array = image.cpu().numpy()
-            
-            # Ensure value range is [0, 1]
-            if img_array.max() <= 1.0:
-                img_array = (img_array * 255).astype(np.uint8)
-            else:
-                img_array = img_array.astype(np.uint8)
-                
-            # Convert to PIL Image
-            if len(img_array.shape) == 3:
-                pil_image = Image.fromarray(img_array, 'RGB')
-            else:
-                pil_image = Image.fromarray(img_array, 'L')
-                pil_image = pil_image.convert('RGB')
-            
             # Create drawing object
             draw = ImageDraw.Draw(pil_image, 'RGBA')
             
@@ -317,9 +328,6 @@ class VisualPromptEditor:
                 '#ffff00': (255, 255, 0),    # Standard Yellow
                 '#0000ff': (0, 0, 255)       # Standard Blue
             }
-            
-            # Get image dimensions
-            img_width, img_height = pil_image.size
             
             # 前端SVG现在使用图像实际尺寸作为viewBox，所以坐标转换比例是1:1
             print(f"🖼️ 后端图像渲染 - 图像尺寸: {img_width}x{img_height}")
@@ -406,6 +414,8 @@ class VisualPromptEditor:
                 end_point = None
                 fill_mode = layer.get('fillMode', 'filled')  # 获取填充模式
                 
+                print(f"🔍 标注{i+1} 坐标检查: type={layer_type}, 包含keys={list(layer.keys())}")
+                
                 if layer_type in ['rectangle', 'circle', 'arrow']:
                     # Format 1: Direct start/end coordinates
                     if 'start' in layer and 'end' in layer:
@@ -431,8 +441,20 @@ class VisualPromptEditor:
                         points = layer['points']
                         if len(points) >= 3 and all(isinstance(p, dict) and 'x' in p and 'y' in p for p in points):
                             has_coordinates = True
+                            
+                elif layer_type == 'brush':
+                    # 画笔标注的坐标检查
+                    if 'points' in layer and isinstance(layer['points'], list):
+                        brush_points = layer['points']
+                        print(f"🖌️ 画笔标注{i+1}: 找到points字段，长度={len(brush_points)}")
+                        if len(brush_points) >= 1 and all(isinstance(p, dict) and 'x' in p and 'y' in p for p in brush_points):
+                            has_coordinates = True
+                            print(f"🖌️ 画笔标注{i+1}: 坐标验证通过")
+                        else:
+                            print(f"🖌️ 画笔标注{i+1}: 坐标验证失败")
                 
                 if not has_coordinates:
+                    print(f"⚠️ 标注{i+1}: 没有有效坐标，跳过渲染")
                     continue
                 
                 if layer_type == 'rectangle' and start_point and end_point:
@@ -448,7 +470,9 @@ class VisualPromptEditor:
                     y1, y2 = min(y1, y2), max(y1, y2)
                     
                     print(f"🔴 矩形标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
+                    print(f"🔴 矩形绘制前: draw对象={id(draw)}, 图像对象={id(pil_image)}, 图像模式={pil_image.mode}")
                     apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'rectangle', opacity)
+                    print(f"🔴 矩形绘制后: 完成矩形绘制")
                     
                     # Draw annotation number at top-left corner
                     annotation_number = layer.get('number', i + 1)
@@ -544,9 +568,131 @@ class VisualPromptEditor:
                     draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
+                    
+                elif layer_type == 'brush' and 'points' in layer:
+                    # Brush annotation with path data
+                    points = layer.get('points', [])
+                    path_data = layer.get('pathData', '')
+                    
+                    print(f"🖌️ 画笔标注 {i}: 开始处理，points类型={type(points)}, 长度={len(points) if points else 0}")
+                    
+                    if not points or len(points) == 0:
+                        print(f"⚠️ 画笔标注 {i}: 没有路径点，跳过渲染")
+                        continue
+                    
+                    # 检查points的第一个元素结构
+                    if len(points) > 0:
+                        print(f"🖌️ 画笔标注 {i}: 第一个点结构={points[0]}")
+                    
+                    # 验证所有点都有x,y坐标
+                    valid_points = [p for p in points if isinstance(p, dict) and 'x' in p and 'y' in p]
+                    print(f"🖌️ 画笔标注 {i}: 有效点数量={len(valid_points)}/{len(points)}")
+                    
+                    if len(valid_points) == 0:
+                        print(f"⚠️ 画笔标注 {i}: 没有有效的坐标点，跳过渲染")
+                        continue
+                    
+                    points = valid_points  # 使用验证过的点
+                    
+                    # 获取画笔参数
+                    brush_size = layer.get('brushSize', 20)
+                    brush_feather = layer.get('brushFeather', 5)
+                    
+                    # 绘制画笔路径
+                    if brush_feather > 0:
+                        # 带羽化的画笔路径
+                        from PIL import ImageFilter
+                        
+                        # 创建临时图像用于绘制路径
+                        temp_img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
+                        temp_draw = ImageDraw.Draw(temp_img)
+                        
+                        # 转换路径点并绘制
+                        scaled_points = []
+                        for point in points:
+                            scaled_x = int(point['x'] * scale_x)
+                            scaled_y = int(point['y'] * scale_y)
+                            scaled_points.append((scaled_x, scaled_y))
+                        
+                        if len(scaled_points) >= 2:
+                            # 绘制路径
+                            stroke_width = int(brush_size * max(scale_x, scale_y))
+                            stroke_alpha = int(opacity * 255 / 100)
+                            stroke_color = (*color_rgb, stroke_alpha)
+                            
+                            print(f"🖌️ 画笔渲染 {i}: 羽化路径，width={stroke_width}, alpha={stroke_alpha}, color={stroke_color}")
+                            
+                            # 绘制线段连接各点
+                            for j in range(len(scaled_points) - 1):
+                                temp_draw.line([scaled_points[j], scaled_points[j + 1]], 
+                                             fill=stroke_color, width=stroke_width)
+                            
+                            # 在每个点绘制圆形以形成连续路径
+                            radius = stroke_width // 2
+                            for point in scaled_points:
+                                temp_draw.ellipse([
+                                    point[0] - radius, point[1] - radius,
+                                    point[0] + radius, point[1] + radius
+                                ], fill=stroke_color)
+                            
+                            print(f"🖌️ 画笔渲染 {i}: 完成羽化绘制，准备合成")
+                        
+                        # 应用羽化效果
+                        feather_pixels = int(brush_feather * max(scale_x, scale_y))
+                        if feather_pixels > 0:
+                            temp_img = temp_img.filter(ImageFilter.GaussianBlur(feather_pixels))
+                        
+                        # 将羽化后的图像合成到主图像
+                        print(f"🖌️ 画笔合成: 主图像尺寸={pil_image.size}, 临时图像尺寸={temp_img.size}")
+                        # 保持RGBA模式以便后续标注绘制
+                        pil_image = Image.alpha_composite(pil_image.convert('RGBA'), temp_img)
+                        # 重要：更新draw对象到新的合成图像
+                        draw = ImageDraw.Draw(pil_image, 'RGBA')
+                        print(f"🖌️ 画笔合成完成: {i}，新draw对象={id(draw)}, 新图像对象={id(pil_image)}, 图像模式={pil_image.mode}")
+                    else:
+                        # 无羽化的实心路径
+                        scaled_points = []
+                        for point in points:
+                            scaled_x = int(point['x'] * scale_x)
+                            scaled_y = int(point['y'] * scale_y)
+                            scaled_points.append((scaled_x, scaled_y))
+                        
+                        if len(scaled_points) >= 2:
+                            stroke_width = int(brush_size * max(scale_x, scale_y))
+                            stroke_alpha = int(opacity * 255 / 100)
+                            stroke_color = (*color_rgb, stroke_alpha)
+                            
+                            # 绘制路径
+                            for j in range(len(scaled_points) - 1):
+                                draw.line([scaled_points[j], scaled_points[j + 1]], 
+                                         fill=stroke_color, width=stroke_width)
+                            
+                            # 在每个点绘制圆形以形成连续路径
+                            radius = stroke_width // 2
+                            for point in scaled_points:
+                                draw.ellipse([
+                                    point[0] - radius, point[1] - radius,
+                                    point[0] + radius, point[1] + radius
+                                ], fill=stroke_color)
+                    
+                    print(f"🖌️ 画笔路径 {i}: {len(points)}个点, 大小={brush_size}, 羽化={brush_feather}, 不透明度={opacity}%")
+                    
+                    # Draw annotation number at first point
+                    if points:
+                        annotation_number = layer.get('number', i + 1)
+                        color_rgba = (*color_rgb, 255)
+                        first_point = points[0]
+                        draw_annotation_number(draw, first_point, annotation_number, color_rgba, scale_x, scale_y)
+                    
+                    rendered_count += 1
             
             numbers_status = "包含编号" if include_annotation_numbers else "不包含编号"
             print(f"✅ 后端标注渲染完成: 总共{len(layers_data)}个标注，成功渲染{rendered_count}个 ({numbers_status})")
+            
+            # 如果图像在RGBA模式，转换为RGB模式
+            if pil_image.mode == 'RGBA':
+                print(f"🔄 转换最终图像从RGBA到RGB模式")
+                pil_image = pil_image.convert('RGB')
             
             # Convert back to torch tensor
             output_array = np.array(pil_image)

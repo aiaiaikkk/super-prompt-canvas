@@ -64,18 +64,8 @@ app.registerExtension({
                 this.color = "#673AB7";
                 this.bgcolor = "#512DA8";
                 
-                // 添加编辑状态显示
-                this.addWidget("text", "editor_status", "Ready to edit (V2)", () => {}, {
-                    serialize: false
-                });
-                
-                // 添加提示词质量显示
-                this.addWidget("text", "prompt_quality", "Quality: N/A", () => {}, {
-                    serialize: false
-                });
-                
-                // 添加选中对象计数
-                this.addWidget("text", "selected_count", "0 objects selected", () => {}, {
+                // 清理的节点状态显示
+                this.addWidget("text", "editor_status", "Visual Editor Ready", () => {}, {
                     serialize: false
                 });
                 
@@ -390,6 +380,34 @@ app.registerExtension({
                     modal.currentZoom = currentZoom();
                     
                     console.log('🔧 VPE初始化缩放值:', modal.currentZoom);
+                    
+                    // 设置删除函数到modal对象，供canvas模块使用（避免循环依赖）
+                    modal.deleteAnnotation = (modal, annotation) => {
+                        try {
+                            // 从数组中移除
+                            const index = modal.annotations.findIndex(ann => ann.id === annotation.id);
+                            if (index !== -1) {
+                                modal.annotations.splice(index, 1);
+                            }
+                            
+                            // 从SVG中移除
+                            const svg = modal.querySelector('#drawing-layer svg');
+                            if (svg) {
+                                const shapeElement = svg.querySelector(`[data-annotation-id="${annotation.id}"]`);
+                                if (shapeElement) {
+                                    shapeElement.remove();
+                                }
+                                
+                                // 移除相关标签
+                                const labels = svg.querySelectorAll(`[data-annotation-number="${annotation.number}"]`);
+                                labels.forEach(label => label.remove());
+                            }
+                            
+                            console.log('✅ 标注已删除:', annotation.id);
+                        } catch (e) {
+                            console.error('❌ 删除标注失败:', e);
+                        }
+                    };
                     
                     // 再延迟一点绑定交互事件，确保画布完全就绪
                     setTimeout(() => {
@@ -754,19 +772,48 @@ app.registerExtension({
                         }
                         
                         // 画笔类型
-                        else if (annotation.type === 'brush' && annotation.start && annotation.end) {
-                            console.log('🖌️ 开始恢复画笔...');
+                        else if (annotation.type === 'brush' && annotation.points) {
+                            console.log('🖌️ 开始恢复画笔路径...');
                             
                             const color = annotation.color || '#ff0000';
                             const brushSize = annotation.brushSize || 20;
                             const brushFeather = annotation.brushFeather || 5;
                             const opacity = annotation.opacity || 50;
+                            const points = annotation.points || [];
+                            const pathData = annotation.pathData || '';
                             
-                            console.log('🖌️ 画笔数据:', { color, brushSize, brushFeather, opacity });
+                            console.log('🖌️ 画笔数据:', { color, brushSize, brushFeather, opacity, pointsCount: points.length });
                             
-                            let shape;
+                            if (points.length === 0) {
+                                console.log('⚠️ 画笔没有路径点，跳过恢复');
+                            } else {
                             
-                            // 如果有羽化，创建渐变定义和使用渐变的圆形
+                            // 创建SVG路径元素
+                            const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            
+                            // 获取SVG的viewBox来计算缩放比例
+                            const viewBox = svg.getAttribute('viewBox');
+                            const svgRect = svg.getBoundingClientRect();
+                            let scaleAdjustment = 1;
+                            
+                            if (viewBox && svgRect.width > 0) {
+                                const [vbX, vbY, vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+                                // 计算viewBox到实际显示的缩放比例
+                                scaleAdjustment = vbWidth / svgRect.width;
+                                    console.log('🖌️ SVG缩放调整:', { viewBox, svgRect: svgRect.width, scaleAdjustment });
+                            }
+                            
+                            // 调整画笔宽度以适应SVG缩放
+                            const adjustedBrushSize = brushSize * scaleAdjustment;
+                            
+                            shape.setAttribute('stroke', color);
+                            shape.setAttribute('stroke-width', adjustedBrushSize);
+                            shape.setAttribute('stroke-linecap', 'round');
+                            shape.setAttribute('stroke-linejoin', 'round');
+                            shape.setAttribute('fill', 'none');
+                            shape.setAttribute('stroke-opacity', opacity / 100);
+                            
+                            // 如果有羽化，应用滤镜
                             if (brushFeather > 0) {
                                 const defs = svg.querySelector('defs') || (() => {
                                     const defsElement = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -774,58 +821,51 @@ app.registerExtension({
                                     return defsElement;
                                 })();
                                 
-                                const gradientId = `brush-gradient-restored-${annotation.id}`;
-                                const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
-                                gradient.setAttribute('id', gradientId);
-                                gradient.setAttribute('cx', '50%');
-                                gradient.setAttribute('cy', '50%');
-                                gradient.setAttribute('r', '50%');
+                                const filterId = `brush-blur-restored-${annotation.id}`;
+                                const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+                                filter.setAttribute('id', filterId);
+                                filter.setAttribute('x', '-50%');
+                                filter.setAttribute('y', '-50%');
+                                filter.setAttribute('width', '200%');
+                                filter.setAttribute('height', '200%');
                                 
-                                // 内部实心
-                                const stopInner = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                                stopInner.setAttribute('offset', `${(brushSize / (brushSize + brushFeather)) * 100}%`);
-                                stopInner.setAttribute('stop-color', color);
-                                stopInner.setAttribute('stop-opacity', opacity / 100);
+                                const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+                                blur.setAttribute('in', 'SourceGraphic');
+                                // 调整羽化强度以适应SVG缩放
+                                const adjustedFeather = (brushFeather / 2) * scaleAdjustment;
+                                blur.setAttribute('stdDeviation', adjustedFeather);
                                 
-                                // 外部羽化到透明
-                                const stopOuter = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                                stopOuter.setAttribute('offset', '100%');
-                                stopOuter.setAttribute('stop-color', color);
-                                stopOuter.setAttribute('stop-opacity', '0');
-                                
-                                gradient.appendChild(stopInner);
-                                gradient.appendChild(stopOuter);
-                                defs.appendChild(gradient);
-                                
-                                // 创建使用渐变的圆形
-                                shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                                shape.setAttribute('cx', annotation.end.x);
-                                shape.setAttribute('cy', annotation.end.y);
-                                shape.setAttribute('r', (brushSize + brushFeather) / 2);
-                                shape.setAttribute('fill', `url(#${gradientId})`);
+                                filter.appendChild(blur);
+                                defs.appendChild(filter);
+                                shape.setAttribute('filter', `url(#${filterId})`);
+                            }
+                            
+                            // 设置路径数据
+                            if (pathData) {
+                                shape.setAttribute('d', pathData);
                             } else {
-                                // 无羽化的实心圆形
-                                shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                                shape.setAttribute('cx', annotation.end.x);
-                                shape.setAttribute('cy', annotation.end.y);
-                                shape.setAttribute('r', brushSize / 2);
-                                
-                                const fillMode = annotation.fillMode || 'filled';
-                                applyRestoredFillStyle(shape, color, fillMode, opacity);
+                                // 从点生成路径
+                                let generatedPath = `M ${points[0].x} ${points[0].y}`;
+                                for (let i = 1; i < points.length; i++) {
+                                    generatedPath += ` L ${points[i].x} ${points[i].y}`;
+                                }
+                                shape.setAttribute('d', generatedPath);
                             }
                             
                             shape.setAttribute('data-annotation-id', annotation.id);
                             shape.setAttribute('data-annotation-number', annotation.number || '');
-                            shape.setAttribute('class', 'annotation-shape brush-shape');
+                            shape.setAttribute('class', 'annotation-shape brush-path');
                             
                             svg.appendChild(shape);
-                            console.log('✅ 画笔已添加到SVG');
+                            console.log('✅ 画笔路径已添加到SVG');
                             
                             // 添加编号标签
-                            if (annotation.number !== undefined) {
+                            if (annotation.number !== undefined && points.length > 0) {
                                 console.log('🔢 为恢复的画笔添加编号标签:', annotation.number);
-                                const labelCoords = [annotation.end.x, annotation.end.y, annotation.end.x + 10, annotation.end.y + 10];
+                                const firstPoint = points[0];
+                                const labelCoords = [firstPoint.x, firstPoint.y, firstPoint.x + 10, firstPoint.y + 10];
                                 this.addRestoredNumberLabel(svg, labelCoords, annotation.number, color);
+                            }
                             }
                         }
                         
@@ -957,13 +997,40 @@ app.registerExtension({
                     // 悬停效果
                     shape.addEventListener('mouseenter', () => {
                         shape.style.filter = 'brightness(1.2)';
-                        shape.style.strokeWidth = (parseInt(shape.getAttribute('stroke-width')) + 1).toString();
+                        
+                        // 保存原始宽度，避免硬编码
+                        if (!shape.dataset.originalStrokeWidth) {
+                            shape.dataset.originalStrokeWidth = shape.getAttribute('stroke-width');
+                        }
+                        
+                        // 对画笔类型使用特殊处理
+                        if (shape.classList.contains('brush-path')) {
+                            // 画笔悬停时只改变亮度，不改变宽度
+                            // 因为画笔宽度是精确计算的，改变会破坏效果
+                        } else {
+                            // 其他标注类型增加宽度
+                            const currentWidth = parseFloat(shape.getAttribute('stroke-width')) || 3;
+                            shape.style.strokeWidth = (currentWidth + 1).toString();
+                        }
                     });
                     
                     shape.addEventListener('mouseleave', () => {
                         shape.style.filter = 'none';
-                        const originalWidth = shape.classList.contains('highlighted') ? '4' : '3';
-                        shape.style.strokeWidth = originalWidth;
+                        
+                        // 恢复原始宽度
+                        if (shape.dataset.originalStrokeWidth) {
+                            shape.style.strokeWidth = shape.dataset.originalStrokeWidth;
+                        } else {
+                            // 回退：根据类型设置默认宽度
+                            if (shape.classList.contains('brush-path')) {
+                                // 画笔保持当前宽度
+                                shape.style.strokeWidth = shape.getAttribute('stroke-width');
+                            } else {
+                                // 其他标注的默认宽度
+                                const originalWidth = shape.classList.contains('highlighted') ? '4' : '3';
+                                shape.style.strokeWidth = originalWidth;
+                            }
+                        }
                     });
                 });
                 
@@ -1162,6 +1229,19 @@ app.registerExtension({
                 if (annotation.type === 'freehand' && annotation.points) {
                     normalized.points = annotation.points;
                     console.log('✅ 保存多边形points数据:', annotation.points.length, '个点');
+                }
+                
+                // 处理画笔的特殊字段
+                if (annotation.type === 'brush') {
+                    if (annotation.points) normalized.points = annotation.points;
+                    if (annotation.brushSize) normalized.brushSize = annotation.brushSize;
+                    if (annotation.brushFeather) normalized.brushFeather = annotation.brushFeather;
+                    if (annotation.pathData) normalized.pathData = annotation.pathData;
+                    console.log('✅ 保存画笔数据:', {
+                        points: annotation.points?.length,
+                        brushSize: annotation.brushSize,
+                        brushFeather: annotation.brushFeather
+                    });
                 }
                 
                 // 保留其他可能有用的字段
@@ -1561,16 +1641,49 @@ app.registerExtension({
                 const saveBtn = modal.querySelector('#vpe-save');
                 if (saveBtn) {
                     saveBtn.onclick = () => {
+                        // 🔍 先检查modal.annotations是否存在
+                        console.log('🔍 检查modal.annotations:', {
+                            exists: !!modal.annotations,
+                            length: modal.annotations?.length || 0,
+                            data: modal.annotations
+                        });
+                        
+                        // 🔍 检查SVG中的标注元素
+                        const svg = modal.querySelector('#drawing-layer svg');
+                        if (svg) {
+                            const shapes = svg.querySelectorAll('.annotation-shape');
+                            console.log('🔍 SVG中的标注形状数量:', shapes.length);
+                            shapes.forEach((shape, index) => {
+                                console.log(`📍 形状${index + 1}:`, {
+                                    tagName: shape.tagName,
+                                    id: shape.getAttribute('data-annotation-id'),
+                                    number: shape.getAttribute('data-annotation-number'),
+                                    class: shape.getAttribute('class')
+                                });
+                            });
+                        }
+                        
                         const promptData = exportPromptData(modal);
                         if (promptData) {
                             console.log('💾 保存提示词数据:', promptData);
                             
-                            // 🔍 调试：检查不透明度数据
+                            // 🔍 详细调试：检查所有标注数据
                             if (promptData.annotations && promptData.annotations.length > 0) {
-                                console.log('🎨 不透明度调试信息:');
+                                console.log('📊 保存的标注详情:');
                                 promptData.annotations.forEach((annotation, index) => {
-                                    console.log(`📍 标注${index + 1}: ID=${annotation.id}, 类型=${annotation.type}, 不透明度=${annotation.opacity}%`);
+                                    console.log(`📍 标注${index + 1}:`, {
+                                        id: annotation.id,
+                                        type: annotation.type,
+                                        hasPoints: !!annotation.points,
+                                        pointsCount: annotation.points?.length,
+                                        hasBrushSize: !!annotation.brushSize,
+                                        hasBrushFeather: !!annotation.brushFeather,
+                                        hasGeometry: !!annotation.geometry,
+                                        opacity: annotation.opacity
+                                    });
                                 });
+                            } else {
+                                console.warn('⚠️ 没有找到要保存的标注数据！');
                             }
                             
                             // 实际保存逻辑：保存到节点的annotation_data widget并同步到后端节点参数
@@ -1701,6 +1814,79 @@ app.registerExtension({
                         brushFeatherValue.textContent = featherValue + 'px';
                         console.log('🖌️ 画笔羽化调整为:', featherValue + 'px');
                     };
+                }
+                
+                // 工具选择按钮
+                const toolButtons = modal.querySelectorAll('.vpe-tool');
+                toolButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const toolName = button.dataset.tool;
+                        if (toolName) {
+                            // 移除所有工具的激活状态
+                            toolButtons.forEach(btn => btn.classList.remove('active'));
+                            // 激活当前工具
+                            button.classList.add('active');
+                            // 设置活动工具
+                            modal.activeTool = toolName;
+                            setActiveTool(modal, toolName);
+                            
+                            // 显示/隐藏画笔控制组
+                            const brushControls = modal.querySelector('#vpe-brush-controls');
+                            if (brushControls) {
+                                brushControls.style.display = toolName === 'brush' ? 'flex' : 'none';
+                            }
+                            
+                            console.log('🎨 选择工具:', toolName);
+                        }
+                    });
+                });
+                
+                // 颜色选择按钮
+                const colorButtons = modal.querySelectorAll('.vpe-color');
+                colorButtons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const color = button.dataset.color;
+                        if (color) {
+                            // 移除所有颜色的激活状态
+                            colorButtons.forEach(btn => btn.classList.remove('active'));
+                            // 激活当前颜色
+                            button.classList.add('active');
+                            // 设置当前颜色
+                            modal.currentColor = color;
+                            
+                            console.log('🎨 选择颜色:', color);
+                        }
+                    });
+                });
+                
+                // 填充模式切换按钮
+                const fillToggle = modal.querySelector('#vpe-fill-toggle');
+                if (fillToggle) {
+                    // 初始化填充模式
+                    modal.fillMode = 'filled';
+                    
+                    fillToggle.addEventListener('click', () => {
+                        if (modal.fillMode === 'filled') {
+                            modal.fillMode = 'outline';
+                            fillToggle.textContent = '⭕ Outline';
+                            fillToggle.classList.add('outline');
+                        } else {
+                            modal.fillMode = 'filled';
+                            fillToggle.textContent = '🔴 Filled';
+                            fillToggle.classList.remove('outline');
+                        }
+                        console.log('🎨 填充模式切换为:', modal.fillMode);
+                    });
+                }
+                
+                // 默认选择第一个工具和颜色
+                const firstTool = modal.querySelector('.vpe-tool');
+                const firstColor = modal.querySelector('.vpe-color');
+                if (firstTool) {
+                    firstTool.click();
+                }
+                if (firstColor) {
+                    firstColor.click();
                 }
             };
             
