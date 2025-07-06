@@ -68,9 +68,6 @@ export function createTitleBar() {
             </span>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button id="vpe-help" style="background: rgba(255, 255, 255, 0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
-                ❓ Help
-            </button>
             <button id="vpe-save" style="background: #4CAF50; border: none; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
                 💾 Save & Apply
             </button>
@@ -398,20 +395,18 @@ export function createPromptArea() {
             <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px;">🎯 Edit Control</div>
             
             <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Template Category</label>
+                <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
+                    <option value="local">📍 Local Edits (14 templates)</option>
+                    <option value="global">🌍 Global Adjustments (8 templates)</option>
+                    <option value="professional">🔧 Professional Operations (14 templates)</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Edit Operation Type</label>
                 <select id="operation-type" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
-                    <option value="change_color">Change Color</option>
-                    <option value="change_style">Change Style</option>
-                    <option value="replace_object">Replace Object</option>
-                    <option value="add_object">Add Object</option>
-                    <option value="remove_object">Remove Object</option>
-                    <option value="change_texture">Change Texture</option>
-                    <option value="change_pose">Change Pose</option>
-                    <option value="change_expression">Change Expression</option>
-                    <option value="change_clothing">Change Clothing</option>
-                    <option value="change_background">Change Background</option>
-                    <option value="enhance_quality">Enhance Quality</option>
-                    <option value="custom">Custom Operation</option>
+                    <!-- 动态填充选项 -->
                 </select>
             </div>
             
@@ -423,8 +418,28 @@ export function createPromptArea() {
             </div>
             
             <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🔒 Constraint Prompts</label>
+                <select id="constraint-prompts" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
+                    <option value="">Select constraint prompts...</option>
+                </select>
+                <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                    Quality control and technical constraints for better results
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🎨 Decorative Prompts</label>
+                <select id="decorative-prompts" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
+                    <option value="">Select decorative prompts...</option>
+                </select>
+                <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                    Aesthetic enhancements and visual quality improvements
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
                 <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 12px; cursor: pointer;">
-                    <input type="checkbox" id="include-annotation-numbers" checked 
+                    <input type="checkbox" id="include-annotation-numbers" 
                            style="width: 14px; height: 14px; accent-color: #4CAF50; cursor: pointer;">
                     <span>Include annotation numbers in description</span>
                 </label>

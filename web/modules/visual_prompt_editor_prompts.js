@@ -3,12 +3,15 @@
  * 负责生成适合多模态图像编辑模型的提示词
  */
 
-import { OPERATION_TEMPLATES } from './visual_prompt_editor_utils.js';
+import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
 
 /**
  * 绑定提示词相关事件
  */
 export function bindPromptEvents(modal, getObjectInfoFunction) {
+    // 初始化分类选择器
+    initializeCategorySelector(modal);
+    
     // 生成按钮
     const generateBtn = modal.querySelector('#generate-prompt');
     if (generateBtn) {
@@ -70,6 +73,9 @@ function generateDescription(modal, getObjectInfoFunction) {
     // 生成多模态编辑模型可理解的提示词
     let description = generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction);
     
+    // 添加约束性和修饰性提示词
+    description = enhanceDescriptionWithPrompts(description, modal);
+    
     generatedDescription.value = description;
     console.log('✨ VPE生成多模态提示词:', description);
     showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
@@ -89,7 +95,7 @@ function getSelectedAnnotationIds(modal) {
 function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction) {
     // 读取编号显示设置
     const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
-    const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : true;
+    const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : false;
     
     if (selectedAnnotationIds.length === 1) {
         // 单选情况，使用原有逻辑
@@ -145,7 +151,7 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
 /**
  * 生成单个标注的提示词
  */
-function generateSingleAnnotationPrompt(annotation, operation, inputText, modal, includeNumbers = true) {
+function generateSingleAnnotationPrompt(annotation, operation, inputText, modal, includeNumbers = false) {
     const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
     
     // 获取操作模板
@@ -163,7 +169,7 @@ function generateSingleAnnotationPrompt(annotation, operation, inputText, modal,
 /**
  * 生成标注的描述文本
  */
-function generateAnnotationDescription(annotation, includeNumbers = true) {
+function generateAnnotationDescription(annotation, includeNumbers = false) {
     const colorMap = {
         '#ff0000': 'red',
         '#00ff00': 'green', 
@@ -454,19 +460,180 @@ export function exportPromptData(modal) {
     
     if (!generatedDescription) return null;
     
+    // 获取约束性和修饰性提示词
+    const constraintSelect = modal.querySelector('#constraint-prompts');
+    const decorativeSelect = modal.querySelector('#decorative-prompts');
+    
     const promptData = {
         positive_prompt: generatedDescription.value,
         negative_prompt: generateNegativePrompt(operationType?.value || 'custom', targetInput?.value || ''),
         selected_object: objectSelector?.value || '',
         operation_type: operationType?.value || 'custom',
         target_description: targetInput?.value || '',
-        include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : true,
+        constraint_prompt: constraintSelect?.value || '',
+        decorative_prompt: decorativeSelect?.value || '',
+        include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
         annotations: modal.annotations || [],
         quality_analysis: analyzePromptQuality(generatedDescription.value),
         timestamp: new Date().toISOString()
     };
     
     return promptData;
+}
+
+/**
+ * 初始化分类选择器
+ */
+function initializeCategorySelector(modal) {
+    const categorySelect = modal.querySelector('#template-category');
+    const operationSelect = modal.querySelector('#operation-type');
+    
+    if (!categorySelect || !operationSelect) {
+        console.warn('⚠️ 分类选择器或操作选择器未找到');
+        return;
+    }
+    
+    // 初始化为局部编辑模板
+    updateOperationTypeSelect(operationSelect, 'local');
+    
+    // 初始化提示词选择器（默认为第一个操作类型）
+    if (operationSelect.options.length > 0) {
+        const firstOperation = operationSelect.options[0].value;
+        updatePromptSelectors(modal, firstOperation);
+    }
+    
+    // 绑定分类选择器事件
+    categorySelect.addEventListener('change', function() {
+        const selectedCategory = this.value;
+        console.log(`📂 切换模板分类: ${selectedCategory}`);
+        
+        // 更新操作类型选择器
+        updateOperationTypeSelect(operationSelect, selectedCategory);
+        
+        // 清空描述文本框（可选）
+        const targetInput = modal.querySelector('#target-input');
+        if (targetInput) {
+            targetInput.placeholder = getCategoryPlaceholder(selectedCategory);
+        }
+        
+        // 显示分类提示
+        showCategoryInfo(modal, selectedCategory);
+    });
+    
+    // 绑定操作类型选择器事件，更新约束性和修饰性提示词
+    operationSelect.addEventListener('change', function() {
+        const selectedOperation = this.value;
+        console.log(`🎯 切换操作类型: ${selectedOperation}`);
+        
+        updatePromptSelectors(modal, selectedOperation);
+    });
+    
+    console.log('🎯 分类选择器已初始化，默认显示局部编辑模板');
+}
+
+/**
+ * 获取分类对应的占位符文本
+ */
+function getCategoryPlaceholder(category) {
+    const placeholders = {
+        local: 'Enter target changes for the selected object (e.g., "red color", "casual style")...',
+        global: 'Enter global adjustment parameters (e.g., "high contrast", "warm tones")...',
+        professional: 'Enter professional operation details (e.g., "perspective correction", "smart fill")...'
+    };
+    return placeholders[category] || 'Enter editing instructions...';
+}
+
+/**
+ * 显示分类信息提示
+ */
+function showCategoryInfo(modal, category) {
+    const categoryInfo = TEMPLATE_CATEGORIES[category];
+    if (!categoryInfo) return;
+    
+    // 可以在这里添加临时提示显示
+    console.log(`📋 ${categoryInfo.name}: ${categoryInfo.description}`);
+    console.log(`📊 包含 ${categoryInfo.templates.length} 个模板`);
+}
+
+/**
+ * 更新约束性和修饰性提示词选择器
+ */
+function updatePromptSelectors(modal, operationType) {
+    const constraintSelect = modal.querySelector('#constraint-prompts');
+    const decorativeSelect = modal.querySelector('#decorative-prompts');
+    
+    if (!constraintSelect || !decorativeSelect) {
+        console.warn('⚠️ 约束性或修饰性提示词选择器未找到');
+        return;
+    }
+    
+    // 更新约束性提示词选择器
+    updateConstraintPrompts(constraintSelect, operationType);
+    
+    // 更新修饰性提示词选择器
+    updateDecorativePrompts(decorativeSelect, operationType);
+    
+    console.log(`🔄 已更新提示词选择器: ${operationType}`);
+}
+
+/**
+ * 更新约束性提示词选择器
+ */
+function updateConstraintPrompts(selectElement, operationType) {
+    // 清空现有选项
+    selectElement.innerHTML = '<option value="">Select constraint prompts...</option>';
+    
+    const constraints = CONSTRAINT_PROMPTS[operationType];
+    if (!constraints) return;
+    
+    // 添加约束性提示词选项
+    constraints.forEach(constraint => {
+        const option = document.createElement('option');
+        option.value = constraint;
+        option.textContent = constraint;
+        selectElement.appendChild(option);
+    });
+}
+
+/**
+ * 更新修饰性提示词选择器
+ */
+function updateDecorativePrompts(selectElement, operationType) {
+    // 清空现有选项
+    selectElement.innerHTML = '<option value="">Select decorative prompts...</option>';
+    
+    const decoratives = DECORATIVE_PROMPTS[operationType];
+    if (!decoratives) return;
+    
+    // 添加修饰性提示词选项
+    decoratives.forEach(decorative => {
+        const option = document.createElement('option');
+        option.value = decorative;
+        option.textContent = decorative;
+        selectElement.appendChild(option);
+    });
+}
+
+/**
+ * 使用约束性和修饰性提示词增强描述
+ */
+function enhanceDescriptionWithPrompts(baseDescription, modal) {
+    const constraintSelect = modal.querySelector('#constraint-prompts');
+    const decorativeSelect = modal.querySelector('#decorative-prompts');
+    
+    let enhancedDescription = baseDescription;
+    
+    // 添加约束性提示词
+    if (constraintSelect && constraintSelect.value) {
+        enhancedDescription += `, ${constraintSelect.value}`;
+    }
+    
+    // 添加修饰性提示词
+    if (decorativeSelect && decorativeSelect.value) {
+        enhancedDescription += `, ${decorativeSelect.value}`;
+    }
+    
+    return enhancedDescription;
 }
 
 /**

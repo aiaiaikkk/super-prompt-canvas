@@ -54,17 +54,14 @@ def try_import_from_paths():
             
         print(f"📁 Checking path: {path}")
         
-        # Find core node files (9 functional nodes including SAM2)
+        # Find core node files (3 functional nodes - simplified)
         node_files = [
-            "intelligent_annotation_node.py",  # Intelligent annotation
-            "visual_prompt_editor.py",        # Unified visual prompt editor
-            "layer_to_mask_node.py",          # Layer to mask conversion
-            "annotation_data_node.py",        # Annotation data provider (INPUT CONNECTION)
+            "visual_prompt_editor.py",        # Unified visual prompt editor (CORE)
+            "annotation_data_node.py",        # Annotation data provider
             "global_image_processor.py",      # Global image processing
-            "sam2_intelligent_annotation_node.py",  # SAM2 intelligent annotation
-            "sam2_universal_node.py",         # SAM2 universal node
-            "sam2_comfyui_native_node.py",    # SAM2 ComfyUI native node
-            "sam2_loader_impact_style.py",    # SAM2 Impact Pack style loader (NEW)
+            # Removed nodes - moved to disabled_nodes/
+            # - intelligent_annotation_node.py  # Complex intelligent annotation
+            # - layer_to_mask_node.py          # Layer to mask conversion
         ]
         
         for node_file in node_files:

@@ -911,6 +911,9 @@ app.registerExtension({
                     // 恢复不透明度滑块的值
                     this.restoreOpacitySlider(modal, savedAnnotations);
                     
+                    // 重要：更新图层选择面板，确保显示格式与新创建标注一致
+                    this.updateRestoredObjectSelector(modal);
+                    
                     // 短延迟后进行详细的可见性检查
                     setTimeout(() => {
                         console.log('🔍 延迟检查开始...');
@@ -1257,47 +1260,30 @@ app.registerExtension({
             nodeType.prototype.addRestoredNumberLabel = function(svg, coords, number, color) {
                 try {
                     // 计算标签位置（左上角）
-                    const labelX = Math.min(coords[0], coords[2]) + 5;
-                    const labelY = Math.min(coords[1], coords[3]) - 5;
+                    const labelX = Math.min(coords[0], coords[2]) + 8;
+                    const labelY = Math.min(coords[1], coords[3]) - 8;
                     
                     // 创建标签组
                     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     group.setAttribute('class', 'annotation-label');
                     group.setAttribute('data-annotation-number', number);
                     
-                    // 背景圆形
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', labelX);
-                    circle.setAttribute('cy', labelY);
-                    circle.setAttribute('r', '18');
-                    circle.setAttribute('fill', '#000');
-                    circle.setAttribute('fill-opacity', '0.8');
-                    circle.setAttribute('stroke', '#fff');
-                    circle.setAttribute('stroke-width', '3');
-                    
-                    // 内部彩色圆形
-                    const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    innerCircle.setAttribute('cx', labelX);
-                    innerCircle.setAttribute('cy', labelY);
-                    innerCircle.setAttribute('r', '14');
-                    innerCircle.setAttribute('fill', color);
-                    innerCircle.setAttribute('fill-opacity', '0.9');
-                    
-                    // 数字文本
+                    // 数字文本 - 直接显示数字，无背景圆圈
                     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     text.setAttribute('x', labelX);
                     text.setAttribute('y', labelY);
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('dominant-baseline', 'central');
                     text.setAttribute('fill', '#fff');
-                    text.setAttribute('font-size', '16');
+                    text.setAttribute('font-size', '24');
                     text.setAttribute('font-weight', 'bold');
                     text.setAttribute('font-family', 'Arial, sans-serif');
+                    text.setAttribute('stroke', '#000');
+                    text.setAttribute('stroke-width', '2');
+                    text.setAttribute('paint-order', 'stroke fill');
                     text.textContent = number;
                     
-                    // 组装标签
-                    group.appendChild(circle);
-                    group.appendChild(innerCircle);
+                    // 添加文本到组
                     group.appendChild(text);
                     
                     // 添加到SVG
@@ -1743,13 +1729,6 @@ app.registerExtension({
                     };
                 }
                 
-                // 帮助按钮
-                const helpBtn = modal.querySelector('#vpe-help');
-                if (helpBtn) {
-                    helpBtn.onclick = () => {
-                        this.showEditorHelp();
-                    };
-                }
                 
                 // 撤销按钮
                 const undoBtn = modal.querySelector('#vpe-undo');
@@ -2157,63 +2136,167 @@ app.registerExtension({
                 console.log('📊 导出提示词数据功能');
                 KontextUtils.showNotification('导出功能开发中', 'info');
             };
-            
-            // 显示编辑器帮助
-            nodeType.prototype.showEditorHelp = function() {
-                const helpModal = document.createElement("div");
-                helpModal.className = "comfy-modal";
-                helpModal.style.cssText = `
-                    position: fixed; top: 50%; left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: #2b2b2b; color: white;
-                    padding: 30px; border-radius: 12px;
-                    width: 600px; max-height: 80vh; overflow-y: auto;
-                    z-index: 30000; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-                `;
+
+            // 更新恢复后的图层选择面板 - 确保显示格式一致
+            nodeType.prototype.updateRestoredObjectSelector = function(modal) {
+                const annotationObjectsContainer = modal.querySelector('#annotation-objects');
+                console.log('🔍 更新恢复后的图层选择面板:', {
+                    annotationObjectsContainer: !!annotationObjectsContainer,
+                    annotations: modal.annotations?.length || 0
+                });
                 
-                helpModal.innerHTML = `
-                    <h2 style="margin-top: 0; color: #673AB7;">🎨 Visual Prompt Editor V2 Help</h2>
-                    
-                    <h3 style="color: #4CAF50;">📌 New in V2 - Modular Architecture</h3>
-                    <ul style="line-height: 1.6;">
-                        <li><strong>Modular Design:</strong> Code split into focused modules for better maintainability</li>
-                        <li><strong>Enhanced Performance:</strong> Optimized loading and reduced bundle size</li>
-                        <li><strong>Better Debugging:</strong> Clear separation of concerns for easier troubleshooting</li>
-                        <li><strong>Improved Quality Analysis:</strong> Advanced prompt quality scoring</li>
-                    </ul>
-                    
-                    <h3 style="color: #4CAF50;">Left Panel - Annotation Canvas</h3>
-                    <ul style="line-height: 1.6;">
-                        <li><strong>Drawing Tools:</strong> Rectangle, Circle, Arrow, Freehand polygon</li>
-                        <li><strong>Color Selection:</strong> 4 colors for different annotation types</li>
-                        <li><strong>Canvas Controls:</strong> Fit to view, 1:1 scale, zoom in/out</li>
-                        <li><strong>Interactive Features:</strong> Middle-click drag, Ctrl+scroll zoom</li>
-                        <li><strong>Smart Numbering:</strong> Automatic annotation numbering (0, 1, 2...)</li>
-                    </ul>
-                    
-                    <h3 style="color: #FF9800;">Right Panel - Prompt Generation</h3>
-                    <ul style="line-height: 1.6;">
-                        <li><strong>Object Selection:</strong> Choose from drawn annotations</li>
-                        <li><strong>Operation Types:</strong> 12 different edit operations</li>
-                        <li><strong>Smart Prompts:</strong> AI-optimized multimodal editing prompts</li>
-                        <li><strong>Quality Analysis:</strong> Real-time prompt quality scoring</li>
-                        <li><strong>Export Options:</strong> Copy, save, and export prompt data</li>
-                    </ul>
-                    
-                    <h3 style="color: #2196F3;">🎮 Keyboard Shortcuts</h3>
-                    <ul style="line-height: 1.6;">
-                        <li><strong>Tools:</strong> R=Rectangle, C=Circle, A=Arrow, F=Freehand</li>
-                        <li><strong>Canvas:</strong> Ctrl+Scroll=Zoom, Middle-click=Pan</li>
-                        <li><strong>Actions:</strong> Ctrl+Z=Undo, Delete=Clear</li>
-                    </ul>
-                    
-                    <button onclick="document.body.removeChild(this.parentElement)" 
-                            style="margin-top: 20px; padding: 10px 20px; background: #673AB7; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                        Close Help
-                    </button>
-                `;
+                if (!annotationObjectsContainer) return;
                 
-                document.body.appendChild(helpModal);
+                if (!modal.annotations || modal.annotations.length === 0) {
+                    annotationObjectsContainer.innerHTML = `
+                        <div style="color: #888; text-align: center; padding: 12px; font-size: 10px;">
+                            No annotation objects<br>
+                            <small>Annotations will appear here after creation</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 清空现有内容
+                annotationObjectsContainer.innerHTML = '';
+                
+                // 为每个标注创建复选框 - 使用与新创建标注相同的格式
+                modal.annotations.forEach((annotation, index) => {
+                    const objectInfo = this.getRestoredObjectInfo(annotation, index);
+                    
+                    const objectItem = document.createElement('div');
+                    objectItem.style.cssText = 'margin: 2px 0;';
+                    
+                    objectItem.innerHTML = `
+                        <label style="display: flex; align-items: center; cursor: pointer; color: white; font-size: 11px; padding: 4px; border-radius: 3px; transition: background 0.2s;" 
+                               onmouseover="this.style.background='rgba(255,255,255,0.1)'" 
+                               onmouseout="this.style.background='transparent'">
+                            <input type="checkbox" value="annotation_${index}" 
+                                   data-annotation-id="${annotation.id}" 
+                                   style="margin-right: 6px; transform: scale(1.1);">
+                            <span style="flex: 1;">${objectInfo.icon} ${objectInfo.description}</span>
+                        </label>
+                    `;
+                    
+                    annotationObjectsContainer.appendChild(objectItem);
+                });
+                
+                console.log('✅ 恢复后的图层选择面板已更新，使用一致的显示格式');
+            };
+
+            // 获取恢复标注的对象信息 - 与新创建标注使用相同的格式化逻辑
+            nodeType.prototype.getRestoredObjectInfo = function(annotation, index) {
+                const { type: tool, color } = annotation;
+                
+                // 颜色映射
+                const COLOR_NAMES = {
+                    '#ff0000': { name: 'Red', icon: '🔴' },
+                    '#00ff00': { name: 'Green', icon: '🟢' }, 
+                    '#ffff00': { name: 'Yellow', icon: '🟡' },
+                    '#0000ff': { name: 'Blue', icon: '🔵' }
+                };
+                
+                // 工具映射
+                const TOOL_NAMES = {
+                    'rectangle': { name: 'Rectangle', icon: '▭' },
+                    'circle': { name: 'Circle', icon: '⭕' },
+                    'arrow': { name: 'Arrow', icon: '➡️' },
+                    'freehand': { name: 'Polygon', icon: '🔗' },
+                    'brush': { name: 'Brush', icon: '🖌️' }
+                };
+                
+                const colorInfo = COLOR_NAMES[color] || { name: 'Default', icon: '⚪' };
+                const toolInfo = TOOL_NAMES[tool] || { name: tool, icon: '❓' };
+                
+                // 计算位置信息和尺寸信息
+                let centerX, centerY, sizeInfo = '';
+                
+                if (tool === 'freehand') {
+                    // 自由绘制：使用中心点和点数
+                    if (annotation.centerPoint) {
+                        centerX = Math.round(annotation.centerPoint.x);
+                        centerY = Math.round(annotation.centerPoint.y);
+                    } else if (annotation.points && annotation.points.length > 0) {
+                        centerX = Math.round(annotation.points.reduce((sum, p) => sum + p.x, 0) / annotation.points.length);
+                        centerY = Math.round(annotation.points.reduce((sum, p) => sum + p.y, 0) / annotation.points.length);
+                    }
+                    sizeInfo = ` ${annotation.points?.length || 0}点`;
+                } else {
+                    // 其他形状：使用start和end点，或从geometry获取
+                    const { start: startPoint, end: endPoint } = annotation;
+                    
+                    // 安全检查：确保startPoint和endPoint存在
+                    if (startPoint && endPoint && startPoint.x !== undefined && endPoint.x !== undefined) {
+                        centerX = Math.round((startPoint.x + endPoint.x) / 2);
+                        centerY = Math.round((startPoint.y + endPoint.y) / 2);
+                        
+                        if (tool === 'rectangle') {
+                            const width = Math.abs(endPoint.x - startPoint.x);
+                            const height = Math.abs(endPoint.y - startPoint.y);
+                            sizeInfo = ` ${Math.round(width)}×${Math.round(height)}`;
+                        }
+                    } else if (annotation.geometry && annotation.geometry.coordinates) {
+                        // 从geometry.coordinates计算中心点
+                        const coords = annotation.geometry.coordinates;
+                        if (coords.length >= 4) {
+                            centerX = Math.round((coords[0] + coords[2]) / 2);
+                            centerY = Math.round((coords[1] + coords[3]) / 2);
+                            
+                            if (tool === 'rectangle') {
+                                const width = Math.abs(coords[2] - coords[0]);
+                                const height = Math.abs(coords[3] - coords[1]);
+                                sizeInfo = ` ${Math.round(width)}×${Math.round(height)}`;
+                            }
+                        }
+                    } else {
+                        // 默认值
+                        centerX = 0;
+                        centerY = 0;
+                        sizeInfo = ' (unknown size)';
+                        console.warn('⚠️ annotation缺少位置数据:', annotation);
+                    }
+                    
+                    if (tool === 'circle') {
+                        if (startPoint && endPoint && startPoint.x !== undefined && endPoint.x !== undefined) {
+                            const radiusX = Math.abs(endPoint.x - startPoint.x) / 2;
+                            const radiusY = Math.abs(endPoint.y - startPoint.y) / 2;
+                            if (Math.abs(radiusX - radiusY) < 5) {
+                                sizeInfo = ` r=${Math.round(radiusX)}`;
+                            } else {
+                                sizeInfo = ` ${Math.round(radiusX)}×${Math.round(radiusY)}`;
+                            }
+                        } else if (annotation.geometry && annotation.geometry.coordinates) {
+                            const coords = annotation.geometry.coordinates;
+                            if (coords.length >= 4) {
+                                const radiusX = Math.abs(coords[2] - coords[0]) / 2;
+                                const radiusY = Math.abs(coords[3] - coords[1]) / 2;
+                                if (Math.abs(radiusX - radiusY) < 5) {
+                                    sizeInfo = ` r=${Math.round(radiusX)}`;
+                                } else {
+                                    sizeInfo = ` ${Math.round(radiusX)}×${Math.round(radiusY)}`;
+                                }
+                            }
+                        }
+                    } else if (tool === 'arrow') {
+                        if (startPoint && endPoint && startPoint.x !== undefined && endPoint.x !== undefined) {
+                            const length = Math.sqrt(Math.pow(endPoint.x - startPoint.x, 2) + Math.pow(endPoint.y - startPoint.y, 2));
+                            sizeInfo = ` L=${Math.round(length)}`;
+                        } else if (annotation.geometry && annotation.geometry.coordinates) {
+                            const coords = annotation.geometry.coordinates;
+                            if (coords.length >= 4) {
+                                const length = Math.sqrt(Math.pow(coords[2] - coords[0], 2) + Math.pow(coords[3] - coords[1], 2));
+                                sizeInfo = ` L=${Math.round(length)}`;
+                            }
+                        }
+                    }
+                }
+                
+                return {
+                    icon: `${colorInfo.icon}${toolInfo.icon}`,
+                    description: `[${annotation.number || index}] ${colorInfo.name}${toolInfo.name}${sizeInfo} (${centerX},${centerY})`,
+                    colorName: colorInfo.name,
+                    toolName: toolInfo.name
+                };
             };
             
             // 从LoadImage节点获取图像

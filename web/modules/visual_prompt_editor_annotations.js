@@ -1029,44 +1029,25 @@ function addNumberLabel(svg, point, number, color) {
     });
     
     // 优化位置 - 在标注左上角
-    const labelX = point.x + 5;
-    const labelY = point.y - 5;
+    const labelX = point.x + 8;
+    const labelY = point.y - 8;
     
-    // 背景圆形 - 更大更明显
-    const circle = createSVGElement('circle', {
-        'cx': labelX,
-        'cy': labelY,
-        'r': '18',
-        'fill': '#000',
-        'fill-opacity': '0.8',
-        'stroke': '#fff',
-        'stroke-width': '3'
-    });
-    
-    // 内部彩色圆形
-    const innerCircle = createSVGElement('circle', {
-        'cx': labelX,
-        'cy': labelY,
-        'r': '14',
-        'fill': color,
-        'fill-opacity': '0.9'
-    });
-    
-    // 数字文本 - 更大更显眼
+    // 数字文本 - 直接显示数字，无背景圆圈
     const text = createSVGElement('text', {
         'x': labelX,
-        'y': labelY + 5,
+        'y': labelY,
         'text-anchor': 'middle',
+        'dominant-baseline': 'central',
         'fill': '#fff',
         'font-family': 'Arial, sans-serif',
-        'font-size': '16',
+        'font-size': '24',
         'font-weight': 'bold',
-        'text-shadow': '1px 1px 2px rgba(0,0,0,0.8)'
+        'stroke': '#000',
+        'stroke-width': '2',
+        'paint-order': 'stroke fill'  // 确保描边在填充之下
     });
     text.textContent = number.toString();
     
-    group.appendChild(circle);
-    group.appendChild(innerCircle);
     group.appendChild(text);
     svg.appendChild(group);
     

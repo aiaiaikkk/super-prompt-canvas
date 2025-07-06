@@ -34,17 +34,23 @@ class VisualPromptEditor:
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
                 "text_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Additional text instructions for the edit"}),
                 "prompt_template": ([
-                    "change_color",
-                    "change_style", 
-                    "replace_object",
-                    "add_object",
-                    "remove_object",
-                    "change_texture",
-                    "change_pose",
-                    "change_expression", 
-                    "change_clothing",
-                    "change_background",
-                    "enhance_quality",
+                    # 局部编辑模板 (L01-L15)
+                    "change_color", "change_style", "replace_object", "add_object", 
+                    "remove_object", "change_texture", "change_pose", "change_expression",
+                    "change_clothing", "change_background", "enhance_quality", "blur_background",
+                    "adjust_lighting", "resize_object", "enhance_skin_texture",
+                    
+                    # 全图编辑模板 (G01-G08)
+                    "global_color_grade", "global_style_transfer", "global_brightness_contrast",
+                    "global_hue_saturation", "global_sharpen_blur", "global_noise_reduction",
+                    "global_enhance", "global_filter",
+                    
+                    # 专业操作模板 (P01-P14)
+                    "geometric_warp", "perspective_transform", "lens_distortion", "global_perspective",
+                    "content_aware_fill", "seamless_removal", "smart_patch",
+                    "style_blending", "collage_integration", "texture_mixing",
+                    "precision_cutout", "alpha_composite", "mask_feathering", "depth_composite",
+                    
                     "custom"
                 ], {"default": "change_color"}),
             }
@@ -67,6 +73,9 @@ class VisualPromptEditor:
             # Process annotation data
             layers_data = []
             include_annotation_numbers = True  # Default to including numbers
+            # Initialize enhanced prompts with defaults
+            constraint_prompt = ""
+            decorative_prompt = ""
             
             if annotation_data and annotation_data.strip():
                 try:
@@ -96,6 +105,12 @@ class VisualPromptEditor:
                         synced_operation_type = parsed_data.get("operation_type")
                         synced_target_description = parsed_data.get("target_description")
                         
+                        # Extract constraint and decorative prompts
+                        constraint_prompt = parsed_data.get("constraint_prompt", "")
+                        decorative_prompt = parsed_data.get("decorative_prompt", "")
+                        print(f"🔒 约束性提示词: {constraint_prompt}")
+                        print(f"🎨 修饰性提示词: {decorative_prompt}")
+                        
                         # Use synced values if available (frontend takes priority)
                         if synced_operation_type and synced_operation_type != "custom":
                             prompt_template = synced_operation_type
@@ -118,9 +133,14 @@ class VisualPromptEditor:
             selected_ids = [layer.get("id", f"layer_{i}") 
                           for i, layer in enumerate(layers_data[:3])]
             
-            # Generate structured prompt output
+            # Generate structured prompt output with enhanced prompts
+            enhanced_prompts = {
+                'constraint_prompt': constraint_prompt,
+                'decorative_prompt': decorative_prompt
+            }
+                
             structured_prompt = self._generate_structured_prompt(
-                layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers
+                layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts
             )
             
             # If there's layer data, render annotations on image
@@ -141,7 +161,8 @@ class VisualPromptEditor:
     def _generate_structured_prompt(self, layers_data: List[Dict], 
                                    selected_ids: List[str], 
                                    template: str, text_prompt: str = "", 
-                                   include_annotation_numbers: bool = True) -> str:
+                                   include_annotation_numbers: bool = True,
+                                   enhanced_prompts: Dict = None) -> str:
         """Generate structured prompt string using the same templates as frontend"""
         
         # 1. Object (对象) - 明确指定要编辑的区域或对象
@@ -192,17 +213,49 @@ class VisualPromptEditor:
         
         # 2. Use the same template system as frontend (exact match)
         operation_templates = {
+            # 局部编辑模板 (L01-L14)
             'change_color': lambda target: f"Change the color of {{object}} to {target or 'red'}",
-            'change_style': lambda target: f"Transform {{object}} to {target or 'cartoon style'}",
+            'change_style': lambda target: f"Transform {{object}} into {target or 'cartoon style'}",
             'replace_object': lambda target: f"Replace {{object}} with {target or 'a different object'}",
             'add_object': lambda target: f"Add {target or 'a new object'} near {{object}}",
-            'remove_object': lambda target: "Remove {object} from the image",
+            'remove_object': lambda target: "Remove {object} from the scene",
             'change_texture': lambda target: f"Change the texture of {{object}} to {target or 'smooth texture'}",
-            'change_pose': lambda target: f"Change the pose of {{object}} to {target or 'a different pose'}",
-            'change_expression': lambda target: f"Change the facial expression of {{object}} to {target or 'happy expression'}",
-            'change_clothing': lambda target: f"Change the clothing of {{object}} to {target or 'different outfit'}",
-            'change_background': lambda target: f"Change the background to {target or 'a new environment'}",
-            'enhance_quality': lambda target: "Enhance the quality of {object}",
+            'change_pose': lambda target: f"Change the pose of {{object}} to {target or 'standing pose'}",
+            'change_expression': lambda target: f"Change the expression of {{object}} to {target or 'happy expression'}",
+            'change_clothing': lambda target: f"Change the clothing of {{object}} to {target or 'casual clothes'}",
+            'change_background': lambda target: f"Change the background behind {{object}} to {target or 'natural landscape'}",
+            'enhance_quality': lambda target: f"Enhance the quality of {{object}} with {target or 'high definition improvement'}",
+            'blur_background': lambda target: f"Blur the background around {{object}} with {target or 'soft blur effect'}",
+            'adjust_lighting': lambda target: f"Adjust the lighting on {{object}} to {target or 'natural lighting'}",
+            'resize_object': lambda target: f"Resize {{object}} to {target or 'larger scale'}",
+            'enhance_skin_texture': lambda target: f"Enhance the skin texture of {{object}} with {target or 'natural enhancement'}",
+            
+            # 全图编辑模板 (G01-G08)
+            'global_color_grade': lambda target: f"Apply {target or 'cinematic color grading'} to the entire image",
+            'global_style_transfer': lambda target: f"Transform the entire image to {target or 'oil painting style'}",
+            'global_brightness_contrast': lambda target: f"Adjust the brightness and contrast of the entire image to {target or 'high contrast'}",
+            'global_hue_saturation': lambda target: f"Adjust the hue and saturation of the entire image to {target or 'vibrant colors'}",
+            'global_sharpen_blur': lambda target: f"Apply {target or 'sharpening'} to the entire image",
+            'global_noise_reduction': lambda target: f"Apply {target or 'noise reduction'} to the entire image",
+            'global_enhance': lambda target: f"Enhance the entire image with {target or 'quality improvement'}",
+            'global_filter': lambda target: f"Apply {target or 'vintage filter'} effect to the entire image",
+            
+            # 专业操作模板 (P01-P14)
+            'geometric_warp': lambda target: f"Apply {target or 'perspective warp'} geometric transformation to {{object}}",
+            'perspective_transform': lambda target: f"Transform {{object}} perspective to {target or 'frontal viewpoint'}",
+            'lens_distortion': lambda target: f"Apply {target or 'barrel distortion'} lens effect to {{object}}",
+            'global_perspective': lambda target: f"Apply {target or 'keystone correction'} perspective correction to the entire image",
+            'content_aware_fill': lambda target: f"Remove {{object}} and intelligently fill with {target or 'surrounding content'}",
+            'seamless_removal': lambda target: f"Seamlessly remove {{object}} maintaining {target or 'background continuity'}",
+            'smart_patch': lambda target: f"Patch {{object}} area with {target or 'smart content'} using content-aware technology",
+            'style_blending': lambda target: f"Blend {{object}} style with {target or 'artistic elements'}",
+            'collage_integration': lambda target: f"Integrate {{object}} into {target or 'collage composition'}",
+            'texture_mixing': lambda target: f"Mix {{object}} texture with {target or 'material properties'}",
+            'precision_cutout': lambda target: f"Precisely cut out {{object}} with {target or 'edge refinement'}",
+            'alpha_composite': lambda target: f"Composite {{object}} onto {target or 'new background'} with alpha blending",
+            'mask_feathering': lambda target: f"Apply {target or 'soft feathering'} to {{object}} mask edges",
+            'depth_composite': lambda target: f"Composite {{object}} with {target or 'depth-aware blending'}",
+            
             'custom': lambda target: target or "Apply custom modification to the selected region"
         }
         
@@ -215,6 +268,19 @@ class VisualPromptEditor:
         
         # Replace {object} placeholder with actual object description
         structured_prompt = structured_prompt.replace('{object}', objects_str)
+        
+        # Add enhanced prompts if provided
+        if enhanced_prompts:
+            constraint_prompt = enhanced_prompts.get('constraint_prompt', '')
+            decorative_prompt = enhanced_prompts.get('decorative_prompt', '')
+            
+            # Add constraint prompt
+            if constraint_prompt:
+                structured_prompt += f", {constraint_prompt}"
+                
+            # Add decorative prompt  
+            if decorative_prompt:
+                structured_prompt += f", {decorative_prompt}"
         
         return structured_prompt
     
@@ -248,13 +314,13 @@ class VisualPromptEditor:
             
             # Helper function to draw annotation numbers
             def draw_annotation_number(draw, position, number, color_rgba, scale_x=1.0, scale_y=1.0):
-                """Draw annotation number label at specified position"""
+                """Draw annotation number label at specified position - simplified style without circles"""
                 if not include_annotation_numbers:
                     return
                     
                 try:
-                    # Calculate font size based on image size
-                    font_size = max(12, int(min(img_width, img_height) * 0.03))
+                    # Calculate font size based on image size - larger for better visibility
+                    font_size = max(24, int(min(img_width, img_height) * 0.04))
                     
                     # Try to use a nice font, fallback to default
                     try:
@@ -265,55 +331,38 @@ class VisualPromptEditor:
                         except:
                             try:
                                 font = ImageFont.load_default()
+                                # Scale up the default font size if possible
+                                if hasattr(font, 'font_size'):
+                                    font.font_size = font_size
                             except:
                                 font = None
                     
-                    # Position for number label
+                    # Position for number label - already calculated as outside position
                     x = int(position['x'] * scale_x)
                     y = int(position['y'] * scale_y)
                     
                     # Text styling
                     text = str(number)
                     
-                    # Get text bounding box
+                    # Draw text with black outline for high contrast
+                    outline_width = 2
+                    text_color = (255, 255, 255, 255)  # White text
+                    outline_color = (0, 0, 0, 255)     # Black outline
+                    
+                    # Draw text outline (multiple passes for better effect)
+                    for dx in range(-outline_width, outline_width + 1):
+                        for dy in range(-outline_width, outline_width + 1):
+                            if dx != 0 or dy != 0:  # Don't draw at center position
+                                if font:
+                                    draw.text((x + dx, y + dy), text, fill=outline_color, font=font)
+                                else:
+                                    draw.text((x + dx, y + dy), text, fill=outline_color)
+                    
+                    # Draw main text
                     if font:
-                        bbox = draw.textbbox((0, 0), text, font=font)
-                        text_width = bbox[2] - bbox[0]
-                        text_height = bbox[3] - bbox[1]
+                        draw.text((x, y), text, fill=text_color, font=font)
                     else:
-                        # Fallback dimensions
-                        text_width = len(text) * 8
-                        text_height = 12
-                    
-                    # Background circle for number
-                    circle_radius = max(text_width, text_height) // 2 + 4
-                    circle_center = (x, y)
-                    
-                    # Draw background circle
-                    circle_color = (color_rgba[0], color_rgba[1], color_rgba[2], 200)  # More opaque background
-                    draw.ellipse([
-                        circle_center[0] - circle_radius,
-                        circle_center[1] - circle_radius,
-                        circle_center[0] + circle_radius,
-                        circle_center[1] + circle_radius
-                    ], fill=circle_color)
-                    
-                    # Draw white border
-                    draw.ellipse([
-                        circle_center[0] - circle_radius,
-                        circle_center[1] - circle_radius,
-                        circle_center[0] + circle_radius,
-                        circle_center[1] + circle_radius
-                    ], outline=(255, 255, 255, 255), width=2)
-                    
-                    # Draw text
-                    text_x = circle_center[0] - text_width // 2
-                    text_y = circle_center[1] - text_height // 2
-                    
-                    if font:
-                        draw.text((text_x, text_y), text, fill=(255, 255, 255, 255), font=font)
-                    else:
-                        draw.text((text_x, text_y), text, fill=(255, 255, 255, 255))
+                        draw.text((x, y), text, fill=text_color)
                     
                 except Exception as e:
                     print(f"Warning: Failed to draw annotation number {number}: {e}")
@@ -474,10 +523,15 @@ class VisualPromptEditor:
                     apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'rectangle', opacity)
                     print(f"🔴 矩形绘制后: 完成矩形绘制")
                     
-                    # Draw annotation number at top-left corner
+                    # Draw annotation number at top-left corner outside the annotation
                     annotation_number = layer.get('number', i + 1)
                     color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
+                    # Calculate position outside the rectangle (top-left corner with small offset)
+                    number_position = {
+                        'x': min(start_point['x'], end_point['x']) - 8,
+                        'y': min(start_point['y'], end_point['y']) - 8
+                    }
+                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
                     
@@ -496,10 +550,15 @@ class VisualPromptEditor:
                     print(f"🟡 椭圆标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
                     apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'ellipse', opacity)
                     
-                    # Draw annotation number at top-left corner
+                    # Draw annotation number at top-left corner outside the annotation
                     annotation_number = layer.get('number', i + 1)
                     color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
+                    # Calculate position outside the ellipse (top-left corner with small offset)
+                    number_position = {
+                        'x': min(start_point['x'], end_point['x']) - 8,
+                        'y': min(start_point['y'], end_point['y']) - 8
+                    }
+                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
                     
@@ -517,11 +576,16 @@ class VisualPromptEditor:
                         print(f"🔗 多边形标注 {i}: {len(points)}个点, 缩放比例({scale_x:.3f}, {scale_y:.3f}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
                         apply_fill_style(draw, polygon_points, color_rgb, fill_mode, 'polygon', opacity)
                         
-                        # Draw annotation number at first point
+                        # Draw annotation number outside the polygon (offset from first point)
                         annotation_number = layer.get('number', i + 1)
                         first_point = points[0]
                         color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                        draw_annotation_number(draw, first_point, annotation_number, color_rgba, scale_x, scale_y)
+                        # Calculate position outside the polygon (small offset from first point)
+                        number_position = {
+                            'x': first_point['x'] - 8,
+                            'y': first_point['y'] - 8
+                        }
+                        draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
                         
                         rendered_count += 1
                         
@@ -562,10 +626,15 @@ class VisualPromptEditor:
                     
                     print(f"➡️ 箭头标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2})")
                     
-                    # Draw annotation number at start point
+                    # Draw annotation number outside the arrow (offset from start point)
                     annotation_number = layer.get('number', i + 1)
                     color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    draw_annotation_number(draw, start_point, annotation_number, color_rgba, scale_x, scale_y)
+                    # Calculate position outside the arrow (small offset from start point)
+                    number_position = {
+                        'x': start_point['x'] - 8,
+                        'y': start_point['y'] - 8
+                    }
+                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
                     
@@ -677,12 +746,17 @@ class VisualPromptEditor:
                     
                     print(f"🖌️ 画笔路径 {i}: {len(points)}个点, 大小={brush_size}, 羽化={brush_feather}, 不透明度={opacity}%")
                     
-                    # Draw annotation number at first point
+                    # Draw annotation number outside the brush path (offset from first point)
                     if points:
                         annotation_number = layer.get('number', i + 1)
                         color_rgba = (*color_rgb, 255)
                         first_point = points[0]
-                        draw_annotation_number(draw, first_point, annotation_number, color_rgba, scale_x, scale_y)
+                        # Calculate position outside the brush path (small offset from first point)
+                        number_position = {
+                            'x': first_point['x'] - 8,
+                            'y': first_point['y'] - 8
+                        }
+                        draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
                     
                     rendered_count += 1
             
