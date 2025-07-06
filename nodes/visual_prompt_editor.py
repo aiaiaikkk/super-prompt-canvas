@@ -34,18 +34,22 @@ class VisualPromptEditor:
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
                 "text_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Additional text instructions for the edit"}),
                 "prompt_template": ([
-                    # 局部编辑模板 (L01-L15)
-                    "change_color", "change_style", "replace_object", "add_object", 
-                    "remove_object", "change_texture", "change_pose", "change_expression",
-                    "change_clothing", "change_background", "enhance_quality", "blur_background",
-                    "adjust_lighting", "resize_object", "enhance_skin_texture",
+                    # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
+                    "change_color", "change_style", "replace_object", "add_object", "remove_object",
+                    "change_texture", "change_pose", "change_expression", "change_clothing", "change_background",
+                    "enhance_quality", "blur_background", "adjust_lighting", "resize_object", "enhance_skin_texture",
+                    "character_expression", "character_hair", "character_accessories",  # 🔴 新增角色编辑
                     
-                    # 全图编辑模板 (G01-G08)
+                    # 全局编辑模板 (G01-G12) - 🔴 Flux Kontext优化
                     "global_color_grade", "global_style_transfer", "global_brightness_contrast",
                     "global_hue_saturation", "global_sharpen_blur", "global_noise_reduction",
-                    "global_enhance", "global_filter",
+                    "global_enhance", "global_filter", "character_age", "detail_enhance",
+                    "realism_enhance", "camera_operation",  # 🔴 新增全局增强
                     
-                    # 专业操作模板 (P01-P14)
+                    # 文字编辑模板 (T01-T05) - 🔴 全新类型
+                    "text_add", "text_remove", "text_edit", "text_resize", "object_combine",
+                    
+                    # 专业操作模板 (P01-P14) - 🔴 Flux Kontext优化
                     "geometric_warp", "perspective_transform", "lens_distortion", "global_perspective",
                     "content_aware_fill", "seamless_removal", "smart_patch",
                     "style_blending", "collage_integration", "texture_mixing",
@@ -73,9 +77,9 @@ class VisualPromptEditor:
             # Process annotation data
             layers_data = []
             include_annotation_numbers = True  # Default to including numbers
-            # Initialize enhanced prompts with defaults
-            constraint_prompt = ""
-            decorative_prompt = ""
+            # Initialize enhanced prompts with defaults - 🔴 支持多选格式
+            constraint_prompts = []
+            decorative_prompts = []
             
             if annotation_data and annotation_data.strip():
                 try:
@@ -105,11 +109,11 @@ class VisualPromptEditor:
                         synced_operation_type = parsed_data.get("operation_type")
                         synced_target_description = parsed_data.get("target_description")
                         
-                        # Extract constraint and decorative prompts
-                        constraint_prompt = parsed_data.get("constraint_prompt", "")
-                        decorative_prompt = parsed_data.get("decorative_prompt", "")
-                        print(f"🔒 约束性提示词: {constraint_prompt}")
-                        print(f"🎨 修饰性提示词: {decorative_prompt}")
+                        # Extract constraint and decorative prompts - 🔴 支持多选格式
+                        constraint_prompts = parsed_data.get("constraint_prompts", []) or parsed_data.get("constraint_prompt", "")
+                        decorative_prompts = parsed_data.get("decorative_prompts", []) or parsed_data.get("decorative_prompt", "")
+                        print(f"🔒 约束性提示词: {constraint_prompts}")
+                        print(f"🎨 修饰性提示词: {decorative_prompts}")
                         
                         # Use synced values if available (frontend takes priority)
                         if synced_operation_type and synced_operation_type != "custom":
@@ -133,10 +137,10 @@ class VisualPromptEditor:
             selected_ids = [layer.get("id", f"layer_{i}") 
                           for i, layer in enumerate(layers_data[:3])]
             
-            # Generate structured prompt output with enhanced prompts
+            # Generate structured prompt output with enhanced prompts - 🔴 支持多选
             enhanced_prompts = {
-                'constraint_prompt': constraint_prompt,
-                'decorative_prompt': decorative_prompt
+                'constraint_prompts': constraint_prompts,
+                'decorative_prompts': decorative_prompts
             }
                 
             structured_prompt = self._generate_structured_prompt(
@@ -211,50 +215,66 @@ class VisualPromptEditor:
         else:
             objects_str = "the selected marked areas"
         
-        # 2. Use the same template system as frontend (exact match)
+        # 2. Flux Kontext优化模板系统 - 与前端完全一致
         operation_templates = {
-            # 局部编辑模板 (L01-L14)
-            'change_color': lambda target: f"Change the color of {{object}} to {target or 'red'}",
-            'change_style': lambda target: f"Transform {{object}} into {target or 'cartoon style'}",
-            'replace_object': lambda target: f"Replace {{object}} with {target or 'a different object'}",
-            'add_object': lambda target: f"Add {target or 'a new object'} near {{object}}",
-            'remove_object': lambda target: "Remove {object} from the scene",
-            'change_texture': lambda target: f"Change the texture of {{object}} to {target or 'smooth texture'}",
-            'change_pose': lambda target: f"Change the pose of {{object}} to {target or 'standing pose'}",
-            'change_expression': lambda target: f"Change the expression of {{object}} to {target or 'happy expression'}",
-            'change_clothing': lambda target: f"Change the clothing of {{object}} to {target or 'casual clothes'}",
-            'change_background': lambda target: f"Change the background behind {{object}} to {target or 'natural landscape'}",
-            'enhance_quality': lambda target: f"Enhance the quality of {{object}} with {target or 'high definition improvement'}",
-            'blur_background': lambda target: f"Blur the background around {{object}} with {target or 'soft blur effect'}",
-            'adjust_lighting': lambda target: f"Adjust the lighting on {{object}} to {target or 'natural lighting'}",
-            'resize_object': lambda target: f"Resize {{object}} to {target or 'larger scale'}",
-            'enhance_skin_texture': lambda target: f"Enhance the skin texture of {{object}} with {target or 'natural enhancement'}",
+            # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
+            'change_color': lambda target: f"make {{object}} {target or 'red'}",  # 🔴 官方高频动词"make"
+            'change_style': lambda target: f"turn {{object}} into {target or 'cartoon'} style",  # 🔴 官方"turn into"
+            'replace_object': lambda target: f"replace {{object}} with {target or 'a different object'}",  # 🔴 官方"replace with"
+            'add_object': lambda target: f"add {target or 'a new object'} to {{object}}",  # 🔴 官方"add to"
+            'remove_object': lambda target: "remove the {object}",  # 🔴 官方"remove the"
+            'change_texture': lambda target: f"change {{object}} texture to {target or 'smooth'}",  # 🔴 官方"change to"
+            'change_pose': lambda target: f"make {{object}} {target or 'standing'} pose",  # 🔴 官方"make pose"
+            'change_expression': lambda target: f"give {{object}} {target or 'happy'} expression",  # 🔴 官方"give"
+            'change_clothing': lambda target: f"change {{object}} clothing to {target or 'casual clothes'}",
+            'change_background': lambda target: f"change the background to {target or 'natural landscape'}",
+            'enhance_quality': lambda target: f"enhance {{object}} quality",  # 🔴 官方简洁表达
+            'blur_background': lambda target: f"blur the background behind {{object}}",  # 🔴 官方模糊句式
+            'adjust_lighting': lambda target: f"adjust lighting on {{object}}",  # 🔴 官方光照调整
+            'resize_object': lambda target: f"make {{object}} {target or 'larger'} size",  # 🔴 官方尺寸调整
+            'enhance_skin_texture': lambda target: f"enhance {{object}} skin texture",  # 🔴 官方皮肤纹理
+            # 🔴 新增局部编辑模板 (L16-L18)
+            'character_expression': lambda target: f"make the person {target or 'smile'}",  # 🔴 新增角色表情
+            'character_hair': lambda target: f"give the person {target or 'blonde'} hair",  # 🔴 新增发型编辑
+            'character_accessories': lambda target: f"give the person {target or 'glasses'}",  # 🔴 新增配饰
             
-            # 全图编辑模板 (G01-G08)
-            'global_color_grade': lambda target: f"Apply {target or 'cinematic color grading'} to the entire image",
-            'global_style_transfer': lambda target: f"Transform the entire image to {target or 'oil painting style'}",
-            'global_brightness_contrast': lambda target: f"Adjust the brightness and contrast of the entire image to {target or 'high contrast'}",
-            'global_hue_saturation': lambda target: f"Adjust the hue and saturation of the entire image to {target or 'vibrant colors'}",
-            'global_sharpen_blur': lambda target: f"Apply {target or 'sharpening'} to the entire image",
-            'global_noise_reduction': lambda target: f"Apply {target or 'noise reduction'} to the entire image",
-            'global_enhance': lambda target: f"Enhance the entire image with {target or 'quality improvement'}",
-            'global_filter': lambda target: f"Apply {target or 'vintage filter'} effect to the entire image",
+            # 全局编辑模板 (G01-G12) - 🔴 Flux Kontext优化
+            'global_color_grade': lambda target: f"apply {target or 'cinematic'} color grading to entire image",
+            'global_style_transfer': lambda target: f"turn entire image into {target or 'vintage'} style",
+            'global_brightness_contrast': lambda target: f"adjust image brightness and contrast to {target or 'high'}",
+            'global_hue_saturation': lambda target: f"change image hue and saturation to {target or 'vibrant'}",
+            'global_sharpen_blur': lambda target: f"apply {target or 'strong'} sharpening to entire image",
+            'global_noise_reduction': lambda target: f"reduce noise in entire image",
+            'global_enhance': lambda target: f"enhance entire image quality",
+            'global_filter': lambda target: f"apply {target or 'sepia'} filter to entire image",
+            # 🔴 新增全局编辑模板 (G09-G12)
+            'character_age': lambda target: f"make the person look {target or 'older'}",  # 🔴 新增年龄编辑
+            'detail_enhance': lambda target: f"add more details to {target or 'the background'}",  # 🔴 新增细节增强
+            'realism_enhance': lambda target: f"make {target or 'the portrait'} more realistic",  # 🔴 新增真实感
+            'camera_operation': lambda target: f"zoom out and show {target or 'full body'}",  # 🔴 新增镜头操作
             
-            # 专业操作模板 (P01-P14)
-            'geometric_warp': lambda target: f"Apply {target or 'perspective warp'} geometric transformation to {{object}}",
-            'perspective_transform': lambda target: f"Transform {{object}} perspective to {target or 'frontal viewpoint'}",
-            'lens_distortion': lambda target: f"Apply {target or 'barrel distortion'} lens effect to {{object}}",
-            'global_perspective': lambda target: f"Apply {target or 'keystone correction'} perspective correction to the entire image",
-            'content_aware_fill': lambda target: f"Remove {{object}} and intelligently fill with {target or 'surrounding content'}",
-            'seamless_removal': lambda target: f"Seamlessly remove {{object}} maintaining {target or 'background continuity'}",
-            'smart_patch': lambda target: f"Patch {{object}} area with {target or 'smart content'} using content-aware technology",
-            'style_blending': lambda target: f"Blend {{object}} style with {target or 'artistic elements'}",
-            'collage_integration': lambda target: f"Integrate {{object}} into {target or 'collage composition'}",
-            'texture_mixing': lambda target: f"Mix {{object}} texture with {target or 'material properties'}",
-            'precision_cutout': lambda target: f"Precisely cut out {{object}} with {target or 'edge refinement'}",
-            'alpha_composite': lambda target: f"Composite {{object}} onto {target or 'new background'} with alpha blending",
-            'mask_feathering': lambda target: f"Apply {target or 'soft feathering'} to {{object}} mask edges",
-            'depth_composite': lambda target: f"Composite {{object}} with {target or 'depth-aware blending'}",
+            # 文字编辑模板 (T01-T05) - 🔴 全新类型
+            'text_add': lambda target: f'add text saying "{target or "Hello World"}"',  # 🔴 新增文字添加
+            'text_remove': lambda target: "remove the text",  # 🔴 新增文字删除
+            'text_edit': lambda target: f'change the text to "{target or "Welcome"}"',  # 🔴 新增文字编辑
+            'text_resize': lambda target: f"make the text {target or 'bigger'} size",  # 🔴 新增文字大小
+            'object_combine': lambda target: f"combine {{object}} with {target or 'the background'}",  # 🔴 新增对象组合
+            
+            # 专业操作模板 (P01-P14) - 🔴 Flux Kontext优化
+            'geometric_warp': lambda target: f"apply {target or 'perspective'} geometric transformation to {{object}}",
+            'perspective_transform': lambda target: f"transform {{object}} perspective to {target or 'frontal'}",
+            'lens_distortion': lambda target: f"apply {target or 'barrel'} lens distortion to {{object}}",
+            'global_perspective': lambda target: f"correct perspective of entire image",
+            'content_aware_fill': lambda target: f"remove {{object}} and fill with surrounding content",
+            'seamless_removal': lambda target: f"seamlessly remove {{object}}",
+            'smart_patch': lambda target: f"patch {{object}} area with smart content",
+            'style_blending': lambda target: f"blend {{object}} with {target or 'oil painting'} style",
+            'collage_integration': lambda target: f"integrate {{object}} into {target or 'artistic'} composition",
+            'texture_mixing': lambda target: f"mix {{object}} texture with {target or 'metal'}",
+            'precision_cutout': lambda target: f"precisely cut out {{object}}",
+            'alpha_composite': lambda target: f"composite {{object}} onto {target or 'new background'}",
+            'mask_feathering': lambda target: f"apply soft feathering to {{object}} edges",
+            'depth_composite': lambda target: f"composite {{object}} with depth blending",
             
             'custom': lambda target: target or "Apply custom modification to the selected region"
         }
@@ -269,18 +289,25 @@ class VisualPromptEditor:
         # Replace {object} placeholder with actual object description
         structured_prompt = structured_prompt.replace('{object}', objects_str)
         
-        # Add enhanced prompts if provided
+        # Add enhanced prompts if provided - 🔴 支持多选提示词
         if enhanced_prompts:
-            constraint_prompt = enhanced_prompts.get('constraint_prompt', '')
-            decorative_prompt = enhanced_prompts.get('decorative_prompt', '')
+            # 支持单个字符串（向后兼容）和多选数组
+            constraint_prompts = enhanced_prompts.get('constraint_prompts', []) or enhanced_prompts.get('constraint_prompt', '')
+            decorative_prompts = enhanced_prompts.get('decorative_prompts', []) or enhanced_prompts.get('decorative_prompt', '')
             
-            # Add constraint prompt
-            if constraint_prompt:
-                structured_prompt += f", {constraint_prompt}"
-                
-            # Add decorative prompt  
-            if decorative_prompt:
-                structured_prompt += f", {decorative_prompt}"
+            # 处理约束性提示词
+            if constraint_prompts:
+                if isinstance(constraint_prompts, list) and constraint_prompts:
+                    structured_prompt += f", {', '.join(constraint_prompts)}"
+                elif isinstance(constraint_prompts, str) and constraint_prompts.strip():
+                    structured_prompt += f", {constraint_prompts}"
+                    
+            # 处理修饰性提示词  
+            if decorative_prompts:
+                if isinstance(decorative_prompts, list) and decorative_prompts:
+                    structured_prompt += f", {', '.join(decorative_prompts)}"
+                elif isinstance(decorative_prompts, str) and decorative_prompts.strip():
+                    structured_prompt += f", {decorative_prompts}"
         
         return structured_prompt
     

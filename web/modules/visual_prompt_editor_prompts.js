@@ -449,7 +449,7 @@ export function generateNegativePrompt(operation, inputText) {
 }
 
 /**
- * 导出提示词数据
+ * 导出提示词数据 - 🔴 支持多选提示词
  */
 export function exportPromptData(modal) {
     const generatedDescription = modal.querySelector('#generated-description');
@@ -460,9 +460,9 @@ export function exportPromptData(modal) {
     
     if (!generatedDescription) return null;
     
-    // 获取约束性和修饰性提示词
-    const constraintSelect = modal.querySelector('#constraint-prompts');
-    const decorativeSelect = modal.querySelector('#decorative-prompts');
+    // 获取选中的约束性和修饰性提示词（支持多选）
+    const selectedConstraints = getSelectedPrompts(modal, 'constraint');
+    const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     
     const promptData = {
         positive_prompt: generatedDescription.value,
@@ -470,11 +470,12 @@ export function exportPromptData(modal) {
         selected_object: objectSelector?.value || '',
         operation_type: operationType?.value || 'custom',
         target_description: targetInput?.value || '',
-        constraint_prompt: constraintSelect?.value || '',
-        decorative_prompt: decorativeSelect?.value || '',
+        constraint_prompts: selectedConstraints,  // 🔴 改为数组
+        decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
         annotations: modal.annotations || [],
         quality_analysis: analyzePromptQuality(generatedDescription.value),
+        template_category: modal.querySelector('#template-category')?.value || 'local',  // 🔴 新增分类信息
         timestamp: new Date().toISOString()
     };
     
@@ -499,7 +500,10 @@ function initializeCategorySelector(modal) {
     // 初始化提示词选择器（默认为第一个操作类型）
     if (operationSelect.options.length > 0) {
         const firstOperation = operationSelect.options[0].value;
+        console.log(`🚀 初始化提示词选择器: ${firstOperation}`);
         updatePromptSelectors(modal, firstOperation);
+    } else {
+        console.warn('⚠️ 操作类型选择器为空，无法初始化提示词选择器');
     }
     
     // 绑定分类选择器事件
@@ -509,6 +513,14 @@ function initializeCategorySelector(modal) {
         
         // 更新操作类型选择器
         updateOperationTypeSelect(operationSelect, selectedCategory);
+        
+        // 🔴 立即更新提示词选择器（使用第一个操作类型）
+        if (operationSelect.options.length > 0) {
+            const firstOperation = operationSelect.options[0].value;
+            console.log(`🔄 自动选择第一个操作: ${firstOperation}`);
+            operationSelect.value = firstOperation;  // 设置选中值
+            updatePromptSelectors(modal, firstOperation);
+        }
         
         // 清空描述文本框（可选）
         const targetInput = modal.querySelector('#target-input');
@@ -529,15 +541,38 @@ function initializeCategorySelector(modal) {
     });
     
     console.log('🎯 分类选择器已初始化，默认显示局部编辑模板');
+    
+    // 🔴 调试信息：显示初始化结果
+    setTimeout(() => {
+        const constraintContainer = modal.querySelector('#constraint-prompts-container');
+        const decorativeContainer = modal.querySelector('#decorative-prompts-container');
+        console.log('🔍 初始化后容器状态:', {
+            constraintContainer: !!constraintContainer,
+            decorativeContainer: !!decorativeContainer,
+            operationSelectOptions: operationSelect.options.length,
+            currentOperation: operationSelect.value
+        });
+        
+        if (constraintContainer) {
+            const checkboxes = constraintContainer.querySelectorAll('input[type="checkbox"]');
+            console.log(`📝 约束性提示词复选框数量: ${checkboxes.length}`);
+        }
+        
+        if (decorativeContainer) {
+            const checkboxes = decorativeContainer.querySelectorAll('input[type="checkbox"]');
+            console.log(`🎨 修饰性提示词复选框数量: ${checkboxes.length}`);
+        }
+    }, 500);
 }
 
 /**
- * 获取分类对应的占位符文本
+ * 获取分类对应的占位符文本 - 🔴 支持文字编辑分类
  */
 function getCategoryPlaceholder(category) {
     const placeholders = {
         local: 'Enter target changes for the selected object (e.g., "red color", "casual style")...',
         global: 'Enter global adjustment parameters (e.g., "high contrast", "warm tones")...',
+        text: 'Enter text content or editing instructions (e.g., "Hello World", "bigger size")...',  // 🔴 新增文字编辑
         professional: 'Enter professional operation details (e.g., "perspective correction", "smart fill")...'
     };
     return placeholders[category] || 'Enter editing instructions...';
@@ -556,84 +591,162 @@ function showCategoryInfo(modal, category) {
 }
 
 /**
- * 更新约束性和修饰性提示词选择器
+ * 更新约束性和修饰性提示词选择器 - 🔴 支持复选框容器
  */
 function updatePromptSelectors(modal, operationType) {
-    const constraintSelect = modal.querySelector('#constraint-prompts');
-    const decorativeSelect = modal.querySelector('#decorative-prompts');
+    const constraintContainer = modal.querySelector('#constraint-prompts-container') || modal.querySelector('#constraint-prompts');
+    const decorativeContainer = modal.querySelector('#decorative-prompts-container') || modal.querySelector('#decorative-prompts');
     
-    if (!constraintSelect || !decorativeSelect) {
-        console.warn('⚠️ 约束性或修饰性提示词选择器未找到');
+    if (!constraintContainer || !decorativeContainer) {
+        console.warn('⚠️ 约束性或修饰性提示词容器未找到');
         return;
     }
     
-    // 更新约束性提示词选择器
-    updateConstraintPrompts(constraintSelect, operationType);
+    // 更新约束性提示词复选框
+    updateConstraintPrompts(constraintContainer, operationType);
     
-    // 更新修饰性提示词选择器
-    updateDecorativePrompts(decorativeSelect, operationType);
+    // 更新修饰性提示词复选框
+    updateDecorativePrompts(decorativeContainer, operationType);
     
-    console.log(`🔄 已更新提示词选择器: ${operationType}`);
+    console.log(`🔄 已更新提示词复选框: ${operationType}`);
 }
 
 /**
- * 更新约束性提示词选择器
+ * 更新约束性提示词选择器 - 🔴 改为复选框形式
  */
-function updateConstraintPrompts(selectElement, operationType) {
-    // 清空现有选项
-    selectElement.innerHTML = '<option value="">Select constraint prompts...</option>';
+function updateConstraintPrompts(containerElement, operationType) {
+    // 如果传入的是select元素，找到其父容器
+    const actualContainer = containerElement.tagName === 'SELECT' ? 
+        containerElement.parentElement : containerElement;
     
+    // 清空现有内容
+    actualContainer.innerHTML = `
+        <div style="margin-bottom: 8px;">
+            <span style="color: #ccc; font-size: 12px; font-weight: 600;">🔒 Constraint Prompts:</span>
+            <span style="color: #888; font-size: 10px; margin-left: 8px;">(Select multiple)</span>
+        </div>
+        <div id="constraint-checkboxes" style="max-height: 120px; overflow-y: auto; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; padding: 8px;"></div>
+    `;
+    
+    const checkboxContainer = actualContainer.querySelector('#constraint-checkboxes');
     const constraints = CONSTRAINT_PROMPTS[operationType];
-    if (!constraints) return;
+    if (!constraints || !checkboxContainer) return;
     
-    // 添加约束性提示词选项
-    constraints.forEach(constraint => {
-        const option = document.createElement('option');
-        option.value = constraint;
-        option.textContent = constraint;
-        selectElement.appendChild(option);
+    // 添加约束性提示词复选框
+    constraints.forEach((constraint, index) => {
+        const checkboxWrapper = document.createElement('div');
+        checkboxWrapper.style.cssText = 'margin-bottom: 4px; display: flex; align-items: flex-start; gap: 6px;';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `constraint-${operationType}-${index}`;
+        checkbox.value = constraint;
+        checkbox.style.cssText = 'margin-top: 2px; cursor: pointer;';
+        
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = constraint;
+        label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
+        
+        checkboxWrapper.appendChild(checkbox);
+        checkboxWrapper.appendChild(label);
+        checkboxContainer.appendChild(checkboxWrapper);
     });
+    
+    console.log(`🔄 约束性提示词复选框已更新: ${operationType} (${constraints.length}个选项)`);
+    
+    // 🔴 验证复选框创建状态
+    setTimeout(() => {
+        const createdCheckboxes = checkboxContainer.querySelectorAll('input[type="checkbox"]');
+        console.log(`✅ 约束性复选框创建验证: ${createdCheckboxes.length}/${constraints.length}`);
+    }, 100);
 }
 
 /**
- * 更新修饰性提示词选择器
+ * 更新修饰性提示词选择器 - 🔴 改为复选框形式
  */
-function updateDecorativePrompts(selectElement, operationType) {
-    // 清空现有选项
-    selectElement.innerHTML = '<option value="">Select decorative prompts...</option>';
+function updateDecorativePrompts(containerElement, operationType) {
+    // 如果传入的是select元素，找到其父容器
+    const actualContainer = containerElement.tagName === 'SELECT' ? 
+        containerElement.parentElement : containerElement;
     
+    // 清空现有内容
+    actualContainer.innerHTML = `
+        <div style="margin-bottom: 8px;">
+            <span style="color: #ccc; font-size: 12px; font-weight: 600;">🎨 Decorative Prompts:</span>
+            <span style="color: #888; font-size: 10px; margin-left: 8px;">(Select multiple)</span>
+        </div>
+        <div id="decorative-checkboxes" style="max-height: 120px; overflow-y: auto; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; padding: 8px;"></div>
+    `;
+    
+    const checkboxContainer = actualContainer.querySelector('#decorative-checkboxes');
     const decoratives = DECORATIVE_PROMPTS[operationType];
-    if (!decoratives) return;
+    if (!decoratives || !checkboxContainer) return;
     
-    // 添加修饰性提示词选项
-    decoratives.forEach(decorative => {
-        const option = document.createElement('option');
-        option.value = decorative;
-        option.textContent = decorative;
-        selectElement.appendChild(option);
+    // 添加修饰性提示词复选框
+    decoratives.forEach((decorative, index) => {
+        const checkboxWrapper = document.createElement('div');
+        checkboxWrapper.style.cssText = 'margin-bottom: 4px; display: flex; align-items: flex-start; gap: 6px;';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `decorative-${operationType}-${index}`;
+        checkbox.value = decorative;
+        checkbox.style.cssText = 'margin-top: 2px; cursor: pointer;';
+        
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = decorative;
+        label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
+        
+        checkboxWrapper.appendChild(checkbox);
+        checkboxWrapper.appendChild(label);
+        checkboxContainer.appendChild(checkboxWrapper);
     });
+    
+    console.log(`🔄 修饰性提示词复选框已更新: ${operationType} (${decoratives.length}个选项)`);
+    
+    // 🔴 验证复选框创建状态
+    setTimeout(() => {
+        const createdCheckboxes = checkboxContainer.querySelectorAll('input[type="checkbox"]');
+        console.log(`✅ 修饰性复选框创建验证: ${createdCheckboxes.length}/${decoratives.length}`);
+    }, 100);
 }
 
 /**
- * 使用约束性和修饰性提示词增强描述
+ * 使用约束性和修饰性提示词增强描述 - 🔴 支持多选复选框
  */
 function enhanceDescriptionWithPrompts(baseDescription, modal) {
-    const constraintSelect = modal.querySelector('#constraint-prompts');
-    const decorativeSelect = modal.querySelector('#decorative-prompts');
-    
     let enhancedDescription = baseDescription;
     
-    // 添加约束性提示词
-    if (constraintSelect && constraintSelect.value) {
-        enhancedDescription += `, ${constraintSelect.value}`;
+    // 获取选中的约束性提示词
+    const selectedConstraints = getSelectedPrompts(modal, 'constraint');
+    if (selectedConstraints.length > 0) {
+        enhancedDescription += `, ${selectedConstraints.join(', ')}`;
     }
     
-    // 添加修饰性提示词
-    if (decorativeSelect && decorativeSelect.value) {
-        enhancedDescription += `, ${decorativeSelect.value}`;
+    // 获取选中的修饰性提示词
+    const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
+    if (selectedDecoratives.length > 0) {
+        enhancedDescription += `, ${selectedDecoratives.join(', ')}`;
     }
+    
+    console.log('🎨 提示词增强:', {
+        base: baseDescription,
+        constraints: selectedConstraints,
+        decoratives: selectedDecoratives,
+        final: enhancedDescription
+    });
     
     return enhancedDescription;
+}
+
+/**
+ * 获取选中的提示词复选框 - 🔴 新增辅助函数
+ */
+function getSelectedPrompts(modal, type) {
+    const checkboxes = modal.querySelectorAll(`#${type}-checkboxes input[type="checkbox"]:checked`);
+    return Array.from(checkboxes).map(checkbox => checkbox.value);
 }
 
 /**

@@ -416,8 +416,11 @@ app.registerExtension({
                     }, 50);
                 }, 200);
                 
-                // 绑定提示词相关事件
-                bindPromptEvents(modal, this.getObjectInfo);
+                // 绑定提示词相关事件 - 延迟以确保DOM完全初始化
+                setTimeout(() => {
+                    console.log('🎨 绑定提示词事件...');
+                    bindPromptEvents(modal, this.getObjectInfo);
+                }, 100);
                 
                 // 绑定基础事件
                 this.bindBasicEvents(modal);

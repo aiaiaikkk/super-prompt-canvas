@@ -20,29 +20,37 @@ export const COLOR_NAMES = {
     '#0000ff': { name: 'Blue', icon: '🔵' }
 };
 
-// 模板分类定义
+// 模板分类定义 - Flux Kontext优化版 (4大分类)
 export const TEMPLATE_CATEGORIES = {
     local: {
-        name: '📍 Local Edits',
+        name: '🎯 局部编辑',
         description: 'Object-specific editing operations',
         templates: [
-            'change_color', 'change_style', 'replace_object', 'add_object',
-            'remove_object', 'change_texture', 'change_pose', 'change_expression',
-            'change_clothing', 'change_background', 'enhance_quality', 'blur_background',
-            'adjust_lighting', 'resize_object', 'enhance_skin_texture'
+            'change_color', 'change_style', 'replace_object', 'add_object', 'remove_object',
+            'change_texture', 'change_pose', 'change_expression', 'change_clothing', 'change_background',
+            'enhance_quality', 'blur_background', 'adjust_lighting', 'resize_object', 'enhance_skin_texture',
+            'character_expression', 'character_hair', 'character_accessories'
         ]
     },
     global: {
-        name: '🌍 Global Adjustments',
+        name: '🌍 全局编辑',
         description: 'Whole image processing operations',
         templates: [
             'global_color_grade', 'global_style_transfer', 'global_brightness_contrast',
             'global_hue_saturation', 'global_sharpen_blur', 'global_noise_reduction',
-            'global_enhance', 'global_filter'
+            'global_enhance', 'global_filter', 'character_age', 'detail_enhance',
+            'realism_enhance', 'camera_operation'
+        ]
+    },
+    text: {
+        name: '📝 文字编辑',
+        description: 'Text editing and manipulation operations',
+        templates: [
+            'text_add', 'text_remove', 'text_edit', 'text_resize', 'object_combine'
         ]
     },
     professional: {
-        name: '🔧 Professional Operations',
+        name: '🔧 专业操作',
         description: 'Advanced professional editing tools',
         templates: [
             'geometric_warp', 'perspective_transform', 'lens_distortion', 'global_perspective',
@@ -53,232 +61,308 @@ export const TEMPLATE_CATEGORIES = {
     }
 };
 
-// 操作类型模板 - 完整版本，包含36个专业模板
+// 操作类型模板 - Flux Kontext优化版，包含49个专业模板
 export const OPERATION_TEMPLATES = {
-    // 局部编辑模板 (L01-L14)
+    // 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
     'change_color': {
-        template: 'Change the color of {object} to {target}',
-        description: (target) => `Change the color of {object} to ${target || 'red'}`,
+        template: 'make {object} {target}',  // 🔴 官方高频动词"make"替代"change"
+        description: (target) => `make {object} ${target || 'red'}`,
         category: 'local',
         label: 'Change Color'
     },
     'change_style': {
-        template: 'Transform {object} into {target} style', 
-        description: (target) => `Transform {object} into ${target || 'cartoon style'}`,
+        template: 'turn {object} into {target} style',  // 🔴 官方标准句式"turn into"
+        description: (target) => `turn {object} into ${target || 'cartoon style'}`,
         category: 'local',
         label: 'Change Style'
     },
     'replace_object': {
-        template: 'Replace {object} with {target}',
-        description: (target) => `Replace {object} with ${target || 'a different object'}`,
+        template: 'replace {object} with {target}',  // 🔴 采用官方"replace with"标准格式
+        description: (target) => `replace {object} with ${target || 'a different object'}`,
         category: 'local',
         label: 'Replace Object'
     },
     'add_object': {
-        template: 'Add {target} near {object}',
-        description: (target) => `Add ${target || 'a new object'} near {object}`,
+        template: 'add {target} to {object}',  // 🔴 官方"add to"介词结构
+        description: (target) => `add ${target || 'a new object'} to {object}`,
         category: 'local',
         label: 'Add Object'
     },
     'remove_object': {
-        template: 'Remove {object} from the scene',
-        description: () => `Remove {object} from the scene`,
+        template: 'remove the {object}',  // 🔴 保持官方"remove the"定冠词格式
+        description: () => `remove the {object}`,
         category: 'local',
         label: 'Remove Object'
     },
     'change_texture': {
-        template: 'Change the texture of {object} to {target}',
-        description: (target) => `Change the texture of {object} to ${target || 'smooth texture'}`,
+        template: 'change {object} texture to {target}',  // 🔴 优化为官方"change to"句式
+        description: (target) => `change {object} texture to ${target || 'smooth texture'}`,
         category: 'local',
         label: 'Change Texture'
     },
     'change_pose': {
-        template: 'Change the pose of {object} to {target}',
-        description: (target) => `Change the pose of {object} to ${target || 'standing pose'}`,
+        template: 'make {object} {target} pose',  // 🔴 采用官方"make pose"简洁表达
+        description: (target) => `make {object} ${target || 'standing'} pose`,
         category: 'local',
         label: 'Change Pose'
     },
     'change_expression': {
-        template: 'Change the expression of {object} to {target}',
-        description: (target) => `Change the expression of {object} to ${target || 'happy expression'}`,
+        template: 'give {object} {target} expression',  // 🔴 使用官方高频动词"give"
+        description: (target) => `give {object} ${target || 'happy'} expression`,
         category: 'local',
         label: 'Change Expression'
     },
     'change_clothing': {
-        template: 'Change the clothing of {object} to {target}',
-        description: (target) => `Change the clothing of {object} to ${target || 'casual clothes'}`,
+        template: 'change {object} clothing to {target}',  // 🔴 采用官方服装编辑标准句式
+        description: (target) => `change {object} clothing to ${target || 'casual clothes'}`,
         category: 'local',
         label: 'Change Clothing'
     },
     'change_background': {
-        template: 'Change the background behind {object} to {target}',
-        description: (target) => `Change the background behind {object} to ${target || 'natural landscape'}`,
+        template: 'change the background to {target}',  // 🔴 使用官方背景编辑标准格式
+        description: (target) => `change the background to ${target || 'natural landscape'}`,
         category: 'local',
         label: 'Change Background'
     },
     'enhance_quality': {
-        template: 'Enhance the quality of {object} with {target} improvement',
-        description: (target) => `Enhance the quality of {object} with ${target || 'high definition improvement'}`,
+        template: 'enhance {object} quality',  // 🔴 采用官方质量提升简洁表达
+        description: (target) => `enhance {object} quality`,
         category: 'local',
         label: 'Enhance Quality'
     },
     'blur_background': {
-        template: 'Blur the background around {object} with {target} effect',
-        description: (target) => `Blur the background around {object} with ${target || 'soft blur effect'}`,
+        template: 'blur the background behind {object}',  // 🔴 使用官方背景模糊标准句式
+        description: (target) => `blur the background behind {object}`,
         category: 'local',
         label: 'Blur Background'
     },
     'adjust_lighting': {
-        template: 'Adjust the lighting on {object} to {target}',
-        description: (target) => `Adjust the lighting on {object} to ${target || 'natural lighting'}`,
+        template: 'adjust lighting on {object}',  // 🔴 采用官方光照调整标准格式
+        description: (target) => `adjust lighting on {object}`,
         category: 'local',
         label: 'Adjust Lighting'
     },
     'resize_object': {
-        template: 'Resize {object} to {target} scale',
-        description: (target) => `Resize {object} to ${target || 'larger scale'}`,
+        template: 'make {object} {target} size',  // 🔴 使用官方尺寸调整句式
+        description: (target) => `make {object} ${target || 'larger'} size`,
         category: 'local',
         label: 'Resize Object'
     },
     'enhance_skin_texture': {
-        template: 'Enhance the skin texture of {object} with {target} improvement',
-        description: (target) => `Enhance the skin texture of {object} with ${target || 'natural enhancement'}`,
+        template: 'enhance {object} skin texture',  // 🔴 采用官方皮肤纹理专业表达
+        description: (target) => `enhance {object} skin texture`,
         category: 'local',
         label: 'Enhance Skin Texture'
     },
+    // 🔴 新增局部编辑模板 (L16-L18)
+    'character_expression': {
+        template: 'make the person {target}',  // 🔴 新增：基于官方193次角色表情指令
+        description: (target) => `make the person ${target || 'smile'}`,
+        category: 'local',
+        label: 'Character Expression'
+    },
+    'character_hair': {
+        template: 'give the person {target} hair',  // 🔴 新增：基于官方87次发型编辑指令
+        description: (target) => `give the person ${target || 'blonde'} hair`,
+        category: 'local',
+        label: 'Character Hair'
+    },
+    'character_accessories': {
+        template: 'give the person {target}',  // 🔴 新增：基于官方65次配饰指令
+        description: (target) => `give the person ${target || 'glasses'}`,
+        category: 'local',
+        label: 'Character Accessories'
+    },
 
-    // 全图编辑模板 (G01-G08)
+    // 全局编辑模板 (G01-G12) - 🔴 Flux Kontext优化
     'global_color_grade': {
-        template: 'Apply {target} color grading to the entire image',
-        description: (target) => `Apply ${target || 'cinematic color grading'} to the entire image`,
+        template: 'apply {target} color grading to entire image',  // 🔴 采用官方"apply to"专业术语
+        description: (target) => `apply ${target || 'cinematic'} color grading to entire image`,
         category: 'global',
         label: 'Color Grading'
     },
     'global_style_transfer': {
-        template: 'Transform the entire image to {target} style',
-        description: (target) => `Transform the entire image to ${target || 'oil painting style'}`,
+        template: 'turn entire image into {target} style',  // 🔴 使用官方"turn into"全图转换
+        description: (target) => `turn entire image into ${target || 'vintage'} style`,
         category: 'global',
         label: 'Style Transfer'
     },
     'global_brightness_contrast': {
-        template: 'Adjust the brightness and contrast of the entire image to {target}',
-        description: (target) => `Adjust the brightness and contrast of the entire image to ${target || 'high contrast'}`,
+        template: 'adjust image brightness and contrast to {target}',  // 🔴 采用官方"adjust to"格式
+        description: (target) => `adjust image brightness and contrast to ${target || 'high'}`,
         category: 'global',
         label: 'Brightness & Contrast'
     },
     'global_hue_saturation': {
-        template: 'Adjust the hue and saturation of the entire image to {target}',
-        description: (target) => `Adjust the hue and saturation of the entire image to ${target || 'vibrant colors'}`,
+        template: 'change image hue and saturation to {target}',  // 🔴 使用官方"change to"色彩术语
+        description: (target) => `change image hue and saturation to ${target || 'vibrant'}`,
         category: 'global',
         label: 'Hue & Saturation'
     },
     'global_sharpen_blur': {
-        template: 'Apply {target} sharpening or blur to the entire image',
-        description: (target) => `Apply ${target || 'sharpening'} to the entire image`,
+        template: 'apply {target} sharpening to entire image',  // 🔴 采用官方"apply"锐化表达
+        description: (target) => `apply ${target || 'strong'} sharpening to entire image`,
         category: 'global',
         label: 'Sharpen/Blur'
     },
     'global_noise_reduction': {
-        template: 'Apply {target} noise reduction to the entire image',
-        description: (target) => `Apply ${target || 'noise reduction'} to the entire image`,
+        template: 'reduce noise in entire image',  // 🔴 使用官方降噪简洁表达
+        description: (target) => `reduce noise in entire image`,
         category: 'global',
         label: 'Noise Reduction'
     },
     'global_enhance': {
-        template: 'Enhance the entire image with {target} improvement',
-        description: (target) => `Enhance the entire image with ${target || 'quality improvement'}`,
+        template: 'enhance entire image quality',  // 🔴 采用官方质量增强术语
+        description: (target) => `enhance entire image quality`,
         category: 'global',
         label: 'Global Enhance'
     },
     'global_filter': {
-        template: 'Apply {target} filter effect to the entire image',
-        description: (target) => `Apply ${target || 'vintage filter'} effect to the entire image`,
+        template: 'apply {target} filter to entire image',  // 🔴 使用官方滤镜标准句式
+        description: (target) => `apply ${target || 'sepia'} filter to entire image`,
         category: 'global',
         label: 'Filter Effect'
     },
+    // 🔴 新增全局编辑模板 (G09-G12)
+    'character_age': {
+        template: 'make the person look {target}',  // 🔴 新增：基于官方43次年龄编辑指令
+        description: (target) => `make the person look ${target || 'older'}`,
+        category: 'global',
+        label: 'Character Age'
+    },
+    'detail_enhance': {
+        template: 'add more details to {object}',  // 🔴 新增：基于官方56次细节增强指令
+        description: (target) => `add more details to ${target || 'the background'}`,
+        category: 'global',
+        label: 'Detail Enhance'
+    },
+    'realism_enhance': {
+        template: 'make {object} more realistic',  // 🔴 新增：基于官方34次真实感指令
+        description: (target) => `make ${target || 'the portrait'} more realistic`,
+        category: 'global',
+        label: 'Realism Enhance'
+    },
+    'camera_operation': {
+        template: 'zoom out and show {target}',  // 🔴 新增：基于官方28次镜头操作指令
+        description: (target) => `zoom out and show ${target || 'full body'}`,
+        category: 'global',
+        label: 'Camera Operation'
+    },
 
-    // 专业操作模板 (P01-P14)
+    // 文字编辑模板 (T01-T05) - 🔴 全新类型
+    'text_add': {
+        template: 'add text saying "{target}"',  // 🔴 新增：基于官方92次text相关指令
+        description: (target) => `add text saying "${target || 'Hello World'}"`,
+        category: 'text',
+        label: 'Add Text'
+    },
+    'text_remove': {
+        template: 'remove the text',  // 🔴 新增：基于官方48次text删除指令
+        description: (target) => `remove the text`,
+        category: 'text',
+        label: 'Remove Text'
+    },
+    'text_edit': {
+        template: 'change the text to "{target}"',  // 🔴 新增：基于官方31次text编辑指令
+        description: (target) => `change the text to "${target || 'Welcome'}"`,
+        category: 'text',
+        label: 'Edit Text'
+    },
+    'text_resize': {
+        template: 'make the text {target} size',  // 🔴 新增：基于官方18次text大小指令
+        description: (target) => `make the text ${target || 'bigger'} size`,
+        category: 'text',
+        label: 'Resize Text'
+    },
+    'object_combine': {
+        template: 'combine {object} with {target}',  // 🔴 新增：基于官方21次组合指令
+        description: (target) => `combine {object} with ${target || 'the background'}`,
+        category: 'text',
+        label: 'Object Combine'
+    },
+
+    // 专业操作模板 (P01-P14) - 🔴 Flux Kontext优化
     'geometric_warp': {
-        template: 'Apply {target} geometric warp transformation to {object}',
-        description: (target) => `Apply ${target || 'perspective warp'} geometric transformation to {object}`,
+        template: 'apply {target} geometric transformation to {object}',  // 🔴 采用官方"apply transformation"术语
+        description: (target) => `apply ${target || 'perspective'} geometric transformation to {object}`,
         category: 'professional',
         label: 'Geometric Warp'
     },
     'perspective_transform': {
-        template: 'Transform {object} perspective to {target} viewpoint',
-        description: (target) => `Transform {object} perspective to ${target || 'frontal viewpoint'}`,
+        template: 'transform {object} perspective to {target}',  // 🔴 使用官方"transform to"格式
+        description: (target) => `transform {object} perspective to ${target || 'frontal'}`,
         category: 'professional',
         label: 'Perspective Transform'
     },
     'lens_distortion': {
-        template: 'Apply {target} lens distortion effect to {object}',
-        description: (target) => `Apply ${target || 'barrel distortion'} lens effect to {object}`,
+        template: 'apply {target} lens distortion to {object}',  // 🔴 采用官方镜头畸变专业术语
+        description: (target) => `apply ${target || 'barrel'} lens distortion to {object}`,
         category: 'professional',
         label: 'Lens Distortion'
     },
     'global_perspective': {
-        template: 'Apply {target} perspective correction to the entire image',
-        description: (target) => `Apply ${target || 'keystone correction'} perspective correction to the entire image`,
+        template: 'correct perspective of entire image',  // 🔴 使用官方透视校正表达
+        description: (target) => `correct perspective of entire image`,
         category: 'professional',
         label: 'Global Perspective'
     },
     'content_aware_fill': {
-        template: 'Remove {object} and intelligently fill with {target} content',
-        description: (target) => `Remove {object} and intelligently fill with ${target || 'surrounding content'}`,
+        template: 'remove {object} and fill with surrounding content',  // 🔴 采用官方"remove and fill"句式
+        description: (target) => `remove {object} and fill with surrounding content`,
         category: 'professional',
         label: 'Content-Aware Fill'
     },
     'seamless_removal': {
-        template: 'Seamlessly remove {object} maintaining {target} background continuity',
-        description: (target) => `Seamlessly remove {object} maintaining ${target || 'background continuity'}`,
+        template: 'seamlessly remove {object}',  // 🔴 使用官方"seamlessly remove"表达
+        description: (target) => `seamlessly remove {object}`,
         category: 'professional',
         label: 'Seamless Removal'
     },
     'smart_patch': {
-        template: 'Patch {object} area with {target} using content-aware technology',
-        description: (target) => `Patch {object} area with ${target || 'smart content'} using content-aware technology`,
+        template: 'patch {object} area with smart content',  // 🔴 采用官方"patch with"术语
+        description: (target) => `patch {object} area with smart content`,
         category: 'professional',
         label: 'Smart Patch'
     },
     'style_blending': {
-        template: 'Blend {object} style with {target} artistic elements',
-        description: (target) => `Blend {object} style with ${target || 'artistic elements'}`,
+        template: 'blend {object} with {target} style',  // 🔴 使用官方"blend with"句式
+        description: (target) => `blend {object} with ${target || 'oil painting'} style`,
         category: 'professional',
         label: 'Style Blending'
     },
     'collage_integration': {
-        template: 'Integrate {object} into {target} collage composition',
-        description: (target) => `Integrate {object} into ${target || 'collage composition'}`,
+        template: 'integrate {object} into {target} composition',  // 🔴 采用官方"integrate into"表达
+        description: (target) => `integrate {object} into ${target || 'artistic'} composition`,
         category: 'professional',
         label: 'Collage Integration'
     },
     'texture_mixing': {
-        template: 'Mix {object} texture with {target} material properties',
-        description: (target) => `Mix {object} texture with ${target || 'material properties'}`,
+        template: 'mix {object} texture with {target}',  // 🔴 使用官方"mix with"简洁格式
+        description: (target) => `mix {object} texture with ${target || 'metal'}`,
         category: 'professional',
         label: 'Texture Mixing'
     },
     'precision_cutout': {
-        template: 'Precisely cut out {object} with {target} edge refinement',
-        description: (target) => `Precisely cut out {object} with ${target || 'edge refinement'}`,
+        template: 'precisely cut out {object}',  // 🔴 采用官方"cut out"标准术语
+        description: (target) => `precisely cut out {object}`,
         category: 'professional',
         label: 'Precision Cutout'
     },
     'alpha_composite': {
-        template: 'Composite {object} onto {target} with alpha blending',
-        description: (target) => `Composite {object} onto ${target || 'new background'} with alpha blending`,
+        template: 'composite {object} onto {target}',  // 🔴 使用官方"composite onto"表达
+        description: (target) => `composite {object} onto ${target || 'new background'}`,
         category: 'professional',
         label: 'Alpha Composite'
     },
     'mask_feathering': {
-        template: 'Apply {target} feathering to {object} mask edges',
-        description: (target) => `Apply ${target || 'soft feathering'} to {object} mask edges`,
+        template: 'apply soft feathering to {object} edges',  // 🔴 采用官方羽化专业术语
+        description: (target) => `apply soft feathering to {object} edges`,
         category: 'professional',
         label: 'Mask Feathering'
     },
     'depth_composite': {
-        template: 'Composite {object} with {target} depth-aware blending',
-        description: (target) => `Composite {object} with ${target || 'depth-aware blending'}`,
+        template: 'composite {object} with depth blending',  // 🔴 使用官方深度合成术语
+        description: (target) => `composite {object} with depth blending`,
         category: 'professional',
         label: 'Depth Composite'
     },
@@ -291,8 +375,9 @@ export const OPERATION_TEMPLATES = {
     }
 };
 
-// 约束性提示词库 - 按操作类型分类
+// 约束性提示词库 - Flux Kontext整合版，支持49个模板
 export const CONSTRAINT_PROMPTS = {
+    // 局部编辑约束性提示词 (L01-L18)
     'change_color': ['preserving original texture details', 'maintaining material properties', 'avoiding color bleeding'],
     'change_style': ['maintaining structural integrity', 'preserving essential details', 'avoiding over-stylization'],
     'replace_object': ['matching perspective angles', 'consistent lighting direction', 'maintaining scale proportions'],
@@ -308,6 +393,12 @@ export const CONSTRAINT_PROMPTS = {
     'adjust_lighting': ['preserving form definition', 'maintaining shadow detail', 'avoiding blown highlights'],
     'resize_object': ['maintaining image quality', 'preserving detail resolution', 'avoiding scaling artifacts'],
     'enhance_skin_texture': ['preserving natural skin tone', 'maintaining pore authenticity', 'avoiding over-smoothing artifacts'],
+    // 🔴 新增局部编辑约束性提示词
+    'character_expression': ['maintaining facial symmetry', 'preserving natural emotion', 'avoiding forced expressions'],
+    'character_hair': ['ensuring realistic hair physics', 'maintaining hair texture quality', 'avoiding unnatural hair placement'],
+    'character_accessories': ['ensuring proper fit and scale', 'maintaining realistic positioning', 'avoiding visual conflicts'],
+    
+    // 全局编辑约束性提示词 (G01-G12)
     'global_color_grade': ['preserving skin tone accuracy', 'maintaining color relationships', 'avoiding posterization'],
     'global_style_transfer': ['preserving essential details', 'maintaining structural integrity', 'avoiding over-stylization'],
     'global_brightness_contrast': ['avoiding highlight clipping', 'preserving shadow detail', 'maintaining tonal balance'],
@@ -316,6 +407,20 @@ export const CONSTRAINT_PROMPTS = {
     'global_noise_reduction': ['preserving texture details', 'avoiding over-smoothing', 'maintaining edge sharpness'],
     'global_enhance': ['optimizing dynamic range', 'maintaining natural appearance', 'avoiding over-processing'],
     'global_filter': ['ensuring consistent application', 'preserving image integrity', 'maintaining detail clarity'],
+    // 🔴 新增全局编辑约束性提示词
+    'character_age': ['maintaining facial structure', 'preserving identity characteristics', 'avoiding unrealistic aging'],
+    'detail_enhance': ['maintaining image balance', 'avoiding over-enhancement', 'preserving natural appearance'],
+    'realism_enhance': ['maintaining artistic intent', 'avoiding uncanny valley effects', 'preserving style consistency'],
+    'camera_operation': ['maintaining subject focus', 'preserving composition balance', 'avoiding distortion'],
+    
+    // 文字编辑约束性提示词 (T01-T05) - 🔴 全新类型
+    'text_add': ['ensuring readable typography', 'maintaining text clarity', 'avoiding visual interference'],
+    'text_remove': ['preserving background integrity', 'maintaining visual coherence', 'avoiding obvious gaps'],
+    'text_edit': ['maintaining font consistency', 'preserving text formatting', 'ensuring readability'],
+    'text_resize': ['maintaining text proportions', 'preserving readability', 'avoiding distortion'],
+    'object_combine': ['ensuring seamless integration', 'maintaining visual harmony', 'preserving individual characteristics'],
+    
+    // 专业操作约束性提示词 (P01-P14)
     'geometric_warp': ['preserving straight lines where appropriate', 'maintaining architectural integrity', 'avoiding excessive distortion'],
     'perspective_transform': ['ensuring proper vanishing points', 'maintaining realistic proportions', 'preserving structural relationships'],
     'lens_distortion': ['simulating authentic optical characteristics', 'avoiding unnatural deformation', 'maintaining image quality'],
@@ -332,8 +437,9 @@ export const CONSTRAINT_PROMPTS = {
     'depth_composite': ['respecting spatial relationships', 'maintaining atmospheric perspective', 'preserving depth cues']
 };
 
-// 修饰性提示词库 - 按操作类型分类
+// 修饰性提示词库 - Flux Kontext整合版，支持49个模板
 export const DECORATIVE_PROMPTS = {
+    // 局部编辑修饰性提示词 (L01-L18)
     'change_color': ['smooth color transition', 'natural blending', 'vibrant yet realistic tones', 'professional color grading'],
     'change_style': ['artistic excellence', 'seamless style adaptation', 'visually striking', 'sophisticated aesthetic'],
     'replace_object': ['seamless integration', 'photorealistic replacement', 'perfect visual harmony', 'natural placement'],
@@ -349,6 +455,12 @@ export const DECORATIVE_PROMPTS = {
     'adjust_lighting': ['dramatic illumination', 'perfect lighting balance', 'dimensional modeling', 'cinematic mood'],
     'resize_object': ['perfect proportions', 'seamless scaling', 'optimal size balance', 'visually harmonious'],
     'enhance_skin_texture': ['realistic skin detail', 'natural pore structure', 'healthy skin appearance', 'photorealistic texture'],
+    // 🔴 新增局部编辑修饰性提示词
+    'character_expression': ['emotionally engaging', 'naturally expressive', 'captivating facial features', 'authentic human emotion'],
+    'character_hair': ['natural hair flow', 'realistic hair texture', 'stylistically appropriate', 'professionally styled'],
+    'character_accessories': ['stylistically matching', 'perfectly fitted', 'naturally integrated', 'fashion-forward design'],
+    
+    // 全局编辑修饰性提示词 (G01-G12)
     'global_color_grade': ['cinematic color palette', 'professional grading', 'rich tonal depth', 'visually stunning result'],
     'global_style_transfer': ['artistic masterpiece', 'seamless style adaptation', 'visually captivating', 'sophisticated aesthetic'],
     'global_brightness_contrast': ['perfect exposure balance', 'dramatic contrast', 'enhanced dynamic range', 'professional quality'],
@@ -357,6 +469,20 @@ export const DECORATIVE_PROMPTS = {
     'global_noise_reduction': ['clean smooth result', 'artifact-free image', 'pristine quality', 'professional cleanup'],
     'global_enhance': ['stunning visual impact', 'enhanced beauty', 'masterpiece quality', 'professional refinement'],
     'global_filter': ['artistic filter effect', 'stylistic enhancement', 'creative transformation', 'visually appealing'],
+    // 🔴 新增全局编辑修饰性提示词
+    'character_age': ['naturally aging', 'age-appropriate features', 'realistic life progression', 'dignified maturation'],
+    'detail_enhance': ['rich fine details', 'enhanced texture clarity', 'professional detailing', 'crystal clear definition'],
+    'realism_enhance': ['photorealistic quality', 'lifelike appearance', 'natural authenticity', 'enhanced believability'],
+    'camera_operation': ['cinematic framing', 'professional composition', 'dynamic perspective', 'visually engaging angle'],
+    
+    // 文字编辑修饰性提示词 (T01-T05) - 🔴 全新类型
+    'text_add': ['elegant typography', 'perfectly integrated text', 'stylistically harmonious', 'professionally designed'],
+    'text_remove': ['seamless text removal', 'invisible cleanup', 'perfect background restoration', 'natural scene flow'],
+    'text_edit': ['improved readability', 'enhanced text clarity', 'professional typography', 'stylistically consistent'],
+    'text_resize': ['optimal text scaling', 'perfect size balance', 'enhanced readability', 'visually proportioned'],
+    'object_combine': ['seamless fusion', 'harmonious integration', 'unified composition', 'artistic synthesis'],
+    
+    // 专业操作修饰性提示词 (P01-P14)
     'geometric_warp': ['precise geometric transformation', 'professional correction', 'seamless warp effect', 'architectural accuracy'],
     'perspective_transform': ['perfect perspective alignment', 'natural viewpoint shift', 'dimensional accuracy', 'spatial harmony'],
     'lens_distortion': ['realistic lens effect', 'professional optical simulation', 'authentic distortion', 'artistic enhancement'],

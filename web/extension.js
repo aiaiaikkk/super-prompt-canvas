@@ -10,8 +10,8 @@ import { app } from "../../scripts/app.js";
 // 导入核心前端扩展 - 极简架构
 import "./visual_prompt_editor_v2.js";  // 核心可视化编辑器 (唯一活跃扩展)
 
-// 暂时禁用的扩展
-// import "./global_image_processor.js";  // 全图处理扩展 (暂时禁用)
+// 已移除的扩展 - moved to disabled_nodes/
+// - global_image_processor.js   # 全图处理扩展 (已移除)
 
 // 已移除的扩展 - moved to disabled_nodes/
 // - intelligent_annotation.js     # 智能标注前端

@@ -417,21 +417,21 @@ export function createPromptArea() {
                           placeholder="Please enter editing instructions for this object..."></textarea>
             </div>
             
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🔒 Constraint Prompts</label>
-                <select id="constraint-prompts" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
-                    <option value="">Select constraint prompts...</option>
-                </select>
+            <div id="constraint-prompts-container" style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🔒 Constraint Prompts (Loading...)</label>
+                <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                    Please select an operation type to load constraint prompts...
+                </div>
                 <div style="font-size: 11px; color: #777; margin-top: 2px;">
                     Quality control and technical constraints for better results
                 </div>
             </div>
             
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🎨 Decorative Prompts</label>
-                <select id="decorative-prompts" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
-                    <option value="">Select decorative prompts...</option>
-                </select>
+            <div id="decorative-prompts-container" style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🎨 Decorative Prompts (Loading...)</label>
+                <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                    Please select an operation type to load decorative prompts...
+                </div>
                 <div style="font-size: 11px; color: #777; margin-top: 2px;">
                     Aesthetic enhancements and visual quality improvements
                 </div>

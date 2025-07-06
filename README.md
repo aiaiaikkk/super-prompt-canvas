@@ -1,494 +1,268 @@
-# Kontext 可视化提示词窗口
-
-绘制标注区域（红色矩形）——选择对象——选择操作类型（Add Object）——输入参数（bridge）生成结构化提示提(Add bridge near the red rectangular marked area (annotation 0))
-before
-![before](https://github.com/user-attachments/assets/640f9eb0-50c4-4940-8008-08665406d8e4)
-after
-![after](https://github.com/user-attachments/assets/5b7d86e9-d66e-40a9-a869-5ee444ae88c5)
-
-
-🎨 渐进式智能图像编辑系统，通过三个发展阶段逐步实现从**手动标注**到**智能分割**再到**专业调色**的完整工作流。
-
-## 产品发展路线图
-
-### 🚀 第一阶段：手动标注与基础提示词
-**当前实现状态**: ✅ **已完成**
-
-#### 核心功能
-- **🎨 自由手动标注**
-  - 矩形、圆形、箭头、多边形绘制工具
-  - 实心/空心样式切换
-  - 多颜色支持和多选功能
-  - 完整的编辑、撤销、清空功能
-  - 🏷️ **编号控制**: 可选择是否在标注和提示词中显示编号
-
-- **📝 结构化提示词输出**
-  - 基于标注区域的基础提示词模板
-  - 12种操作类型支持（颜色变换、风格转换等）
-  - 自定义编辑描述输入
-  - 质量分析和优化建议
-
-- **🎯 掩码数据输出**
-  - 标注转ComfyUI掩码格式
-  - 多种掩码模式（选中图层、全部图层、反选）
-  - 羽化边缘处理
-
-### 🔮 第二阶段：智能分割与AI提示词
-**开发状态**: 🚧 **规划中**
-
-#### 计划功能
-- **🤖 语义分割自动标注**
-  - 集成先进的分割模型（SAM、GroundingDINO等）
-  - 自动识别并生成可选图层标注
-  - 智能物体识别和分类
-  - 一键全图语义分割
-
-- **🧠 大语言模型提示词生成**
-  - 集成ChatGPT/DeepSeek等大模型
-  - 基于图像内容的智能提示词生成
-  - 上下文感知的编辑建议
-  - 多语言提示词支持
-
-- **📝 结构化提示词优化与调试**
-  - 深度优化Kontext专用提示词模板
-  - 五维结构化提示词体系：对象+操作+参数+修饰+约束
-  - 智能提示词质量评估和优化建议
-  - A/B测试框架，寻找最适合的提示词模式
-
-### ✨ 第三阶段：专业调色与环境调整
-**开发状态**: 📋 **概念设计**
-
-#### 愿景功能
-- **🎨 专业调色系统**
-  - 色温调节（冷暖色调平衡）
-  - 色调映射和颜色校正
-  - 亮度、对比度、饱和度精细控制
-  - HSL颜色空间专业调节
-
-- **🌅 环境光线系统**
-  - 智能光线分析和重建
-  - 环境光、主光、补光独立调节
-  - 阴影和高光细节恢复
-  - 真实感光线效果模拟
-
-- **🎭 风格转换引擎**
-  - 艺术风格迁移（油画、水彩、素描等）
-  - 摄影风格模拟（胶片、数码、黑白等）
-  - 自定义风格训练和应用
-
-## 第一阶段功能详情
-
-### 🔧 绘制工具
-- **矩形**: 拖拽绘制矩形标注
-- **圆形**: 拖拽绘制椭圆，Shift键绘制正圆
-- **箭头**: 拖拽绘制指向箭头
-- **自由绘制**: 左击添加锚点，右击闭合多边形
-- **橡皮擦**: 点击删除标注
-
-### 🎨 样式选项
-- **颜色选择**: 红、绿、黄、蓝四种颜色
-- **填充模式**: 实心/空心切换
-- **多选支持**: 同时选择多个标注对象
-- **🏷️ 编号控制**: 勾选框控制编号显示（前端标注编号和后端图像编号同步）
-
-### 📝 提示词模板
-- **颜色变换**: 改变选中区域的颜色
-- **风格转换**: 应用艺术风格到选中区域
-- **背景替换**: 替换选中区域的背景
-- **物体替换**: 替换选中的物体
-- **物体移除**: 移除选中的物体
-- **质感修改**: 改变表面质感
-- **姿态调整**: 调整人物姿态
-- **表情修改**: 修改面部表情
-- **服装更换**: 更换服装样式
-- **环境修改**: 修改环境设定
-- **质量增强**: 提升图像质量
-- **自定义操作**: 用户自定义编辑指令
-
-## 结构化提示词体系（第二阶段预览）
-
-### 🏗️ 五维提示词结构
-Kontext专用的结构化提示词遵循五个核心维度，确保精确、可控的图像编辑效果：
-
-#### 📍 1. 对象（Object）
-- **定义**: 明确指定要编辑的区域或对象
-- **格式**: `the [颜色] [形状] marked area (annotation [编号])`
-- **示例**: `the red rectangular marked area (annotation 1)`
-
-#### ⚙️ 2. 操作类型（Operation）
-- **定义**: 具体的编辑动作类型
-- **类型**: 
-  - `change_color` - 颜色变换
-  - `replace_object` - 物体替换
-  - `remove_object` - 物体移除
-  - `change_style` - 风格转换
-  - `change_texture` - 质感修改
-
-#### 🎯 3. 参数（Parameters）
-- **定义**: 操作的具体目标值或描述
-- **格式**: 用户输入的目标描述
-- **示例**: `"red color"`, `"cartoon style"`, `"smooth texture"`
-
-#### ✨ 4. 修饰（Modifiers）
-- **定义**: 可选的质量增强词汇（用户控制）
-- **类型**: 
-  - 质量修饰: `high quality`, `8k resolution`, `professional`
-  - 风格修饰: `realistic`, `artistic`, `photorealistic`
-  - 技术修饰: `sharp focus`, `detailed`, `masterpiece`
-
-#### 🔒 5. 约束（Constraints）
-- **定义**: 可选的限制条件（用户控制）
-- **类型**:
-  - 保持约束: `maintaining lighting`, `preserving composition`
-  - 集成约束: `natural integration`, `seamless blending`
-  - 一致性约束: `consistent style`, `matching perspective`
-
-### 📝 提示词生成示例
-
-#### 基础版本（第一阶段，当前实现）
-```
-输入: 对象="红色矩形区域", 操作="变色", 参数="蓝色"
-输出: "Change the color of the red marked area to blue"
-```
-
-#### 优化版本（第二阶段，规划中）
-```
-输入: 
-- 对象="红色矩形区域" 
-- 操作="变色" 
-- 参数="蓝色"
-- 修饰="高质量，专业"
-- 约束="保持光照，自然融合"
-
-输出: "Change the color of the red rectangular marked area to blue, high quality, professional, maintaining lighting, natural integration"
-```
-
-### 🎯 用户控制原则
-- **默认简洁**: 系统默认只生成核心结构（对象+操作+参数）
-- **用户选择**: 修饰词和约束词完全由用户决定是否添加
-- **模板优化**: 通过AI测试找到最适合不同模型的提示词模板
-- **质量评估**: 自动分析提示词质量并提供优化建议
-
-## 安装使用
-
-### 📦 安装
-
-#### 方式一：Git安装（推荐）
-```bash
-cd ComfyUI/custom_nodes
-git clone https://github.com/aiaiaikkk/Kontext-Visual-Prompt-Window.git
-```
-
-#### 方式二：手动安装
-1. 下载并解压项目文件
-2. 将整个`KontextVisualPromptWindow`文件夹复制到`ComfyUI/custom_nodes/`目录
-
-#### 完成安装
-重启ComfyUI即可使用
-
-### 🚀 使用方法
-
-#### 第一阶段工作流（当前版本）
-
-##### 基础模式（推荐）
-```
-LoadImage → VisualPromptEditor
-```
-- **功能**: 手动标注 + 基础提示词生成
-- **适用**: 精确控制标注，适合专业用户
-
-##### 完整模式
-```
-LoadImage → VisualPromptEditor → LayerToMaskNode
-```
-- **功能**: 手动标注 + 提示词 + 掩码输出
-- **适用**: 需要掩码数据用于后续ComfyUI工作流
-
-#### 第二阶段工作流（规划中）
-
-##### 智能分割模式
-```
-LoadImage → SemanticSegmentationNode → VisualPromptEditor → AIPromptGenerator
-```
-- **功能**: 自动分割 + 手动调整 + AI提示词
-- **适用**: 快速处理，适合批量编辑
-
-##### 提示词优化模式
-```
-LoadImage → VisualPromptEditor → PromptOptimizer → QualityAnalyzer
-```
-- **功能**: 手动标注 + 结构化提示词优化 + 质量评估
-- **适用**: 专业用户，追求最佳提示词效果
-
-#### 第三阶段工作流（概念中）
-
-##### 专业调色模式
-```
-LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLightingAdjustment
-```
-- **功能**: 全图调色 + 局部编辑 + 光线调整
-- **适用**: 专业摄影师和设计师
-
-### 🎯 操作指南
-
-#### 基本操作
-1. **打开编辑器**: 双击`VisualPromptEditor`节点
-2. **选择工具**: 点击工具栏中的绘制工具
-3. **选择颜色**: 点击颜色按钮选择标注颜色
-4. **切换样式**: 点击"Fill"按钮切换实心/空心
-5. **编号控制**: 勾选/取消"Include annotation numbers"控制编号显示
-6. **绘制标注**: 在图像上拖拽或点击绘制
-7. **保存应用**: 点击"Save & Apply"保存数据
-
-#### 快捷键
-- **Ctrl + 滚轮**: 缩放图像
-- **中键拖拽**: 平移图像
-- **Shift + 圆形**: 绘制正圆
-- **右键**: 结束自由绘制
-
-## 节点说明
-
-### 🎨 VisualPromptEditor
-**主要节点**
-- **输入**: IMAGE
-- **输出**: 处理后图像、提示词、掩码数据等
-- **功能**: 可视化标注编辑和提示词生成
-
-### 🤖 IntelligentAnnotationNode
-**智能标注节点**
-- **输入**: IMAGE
-- **输出**: 检测到的图层数据JSON
-- **功能**: 自动对象检测和区域分割
-
-### 🎭 LayerToMaskNode
-**图层转掩码节点**
-- **输入**: 图层数据JSON
-- **输出**: ComfyUI掩码格式
-- **功能**: 标注数据转换为掩码
-
-
-## 许可证
-
-MIT License - 详见LICENSE文件
-
-## 支持
-
-如有问题或建议，请在GitHub仓库中提交Issue。
-
----
-
-🌟 **Kontext Visual Prompt Window** - 让图像编辑更智能、更直观！
-
----
-
 # Kontext Visual Prompt Window
 
-![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
-
-🎨 A progressive intelligent image editing system that evolves through three development stages from **manual annotation** to **intelligent segmentation** to **professional color grading**.
-
-## Product Development Roadmap
-
-### 🚀 Stage 1: Manual Annotation & Basic Prompts
-**Current Implementation Status**: ✅ **Completed**
-
-#### Core Features
-- **🎨 Free Manual Annotation**
-  - Rectangle, circle, arrow, polygon drawing tools
-  - Toggle between filled/outline styles
-  - Multi-color support and multi-selection
-  - Complete editing, undo, clear functionality
-  - 🏷️ **Number Control**: Optional display of annotation numbers in annotations and prompts
-
-- **📝 Structured Prompt Output**
-  - Basic prompt templates based on annotated regions
-  - 12 operation types (color transformation, style transfer, etc.)
-  - Custom editing description input
-  - Quality analysis and optimization suggestions
-
-- **🎯 Mask Data Output**
-  - Convert annotations to ComfyUI mask format
-  - Multiple mask modes (selected layers, all layers, inverted)
-  - Feathered edge processing
-
-### 🔮 Stage 2: Intelligent Segmentation & AI Prompts
-**Development Status**: 🚧 **In Planning**
-
-#### Planned Features
-- **🤖 Semantic Segmentation Auto-annotation**
-  - Integrate advanced segmentation models (SAM, GroundingDINO, etc.)
-  - Automatically identify and generate selectable layer annotations
-  - Intelligent object recognition and classification
-  - One-click full image semantic segmentation
-
-- **🧠 LLM-powered Prompt Generation**
-  - Integrate ChatGPT/DeepSeek and other LLMs
-  - Intelligent prompt generation based on image content
-  - Context-aware editing suggestions
-  - Multi-language prompt support
-
-- **📝 Structured Prompt Optimization & Debugging**
-  - Deep optimization of Kontext-specific prompt templates
-  - Five-dimensional structured prompt system: Object + Operation + Parameters + Modifiers + Constraints
-  - Intelligent prompt quality assessment and optimization suggestions
-  - A/B testing framework to find optimal prompt patterns
-
-### ✨ Stage 3: Professional Color Grading & Environmental Adjustment
-**Development Status**: 📋 **Conceptual Design**
-
-#### Vision Features
-- **🎨 Professional Color Grading System**
-  - Color temperature adjustment (cool/warm balance)
-  - Tone mapping and color correction
-  - Fine control of brightness, contrast, saturation
-  - Professional HSL color space adjustment
-
-- **🌅 Environmental Lighting System**
-  - Intelligent lighting analysis and reconstruction
-  - Independent control of ambient, key, and fill lighting
-  - Shadow and highlight detail recovery
-  - Realistic lighting effect simulation
-
-- **🎭 Style Transfer Engine**
-  - Artistic style transfer (oil painting, watercolor, sketch, etc.)
-  - Photography style simulation (film, digital, black & white, etc.)
-  - Custom style training and application
-
-## Stage 1 Feature Details
-
-### 🔧 Drawing Tools
-- **Rectangle**: Drag to draw rectangular annotations
-- **Circle**: Drag to draw ellipse, Shift for perfect circle
-- **Arrow**: Drag to draw directional arrows
-- **Freehand**: Left-click to add anchor points, right-click to close polygon
-- **Eraser**: Click to delete annotations
-
-### 🎨 Style Options
-- **Color Selection**: Red, green, yellow, blue colors
-- **Fill Mode**: Toggle between filled/outline styles
-- **Multi-selection**: Select multiple annotation objects simultaneously
-- **🏷️ Number Control**: Checkbox to control number display (frontend annotation numbers and backend image numbers synchronized)
-
-### 📝 Prompt Templates
-- **Color Change**: Change color of selected area
-- **Style Transfer**: Apply artistic style to selected area
-- **Background Replace**: Replace background of selected area
-- **Object Replace**: Replace selected object
-- **Object Remove**: Remove selected object
-- **Texture Change**: Change surface texture
-- **Pose Change**: Adjust character pose
-- **Expression Change**: Modify facial expression
-- **Clothing Change**: Change clothing style
-- **Environment Change**: Modify environment setting
-- **Quality Enhancement**: Enhance image quality
-- **Custom Operation**: User-defined editing instructions
-
-## Installation & Usage
-
-### 📦 Installation
-
-#### Method 1: Git Installation (Recommended)
-```bash
-cd ComfyUI/custom_nodes
-git clone https://github.com/aiaiaikkk/Kontext-Visual-Prompt-Window.git
-```
-
-#### Method 2: Manual Installation
-1. Download and extract the project files
-2. Copy the entire `KontextVisualPromptWindow` folder to `ComfyUI/custom_nodes/` directory
-
-#### Complete Installation
-Restart ComfyUI to use the plugin
-
-### 🚀 Usage
-
-#### Stage 1 Workflow (Current Version)
-
-##### Basic Mode (Recommended)
-```
-LoadImage → VisualPromptEditor
-```
-- **Features**: Manual annotation + basic prompt generation
-- **Suitable for**: Precise annotation control, suitable for professional users
-
-##### Complete Mode
-```
-LoadImage → VisualPromptEditor → LayerToMaskNode
-```
-- **Features**: Manual annotation + prompts + mask output
-- **Suitable for**: Requires mask data for subsequent ComfyUI workflow
-
-#### Stage 2 Workflow (Planned)
-
-##### Intelligent Segmentation Mode
-```
-LoadImage → SemanticSegmentationNode → VisualPromptEditor → AIPromptGenerator
-```
-- **Features**: Auto segmentation + manual adjustment + AI prompts
-- **Suitable for**: Rapid processing, suitable for batch editing
-
-##### Prompt Optimization Mode
-```
-LoadImage → VisualPromptEditor → PromptOptimizer → QualityAnalyzer
-```
-- **Features**: Manual annotation + structured prompt optimization + quality assessment
-- **Suitable for**: Professional users seeking optimal prompt effectiveness
-
-#### Stage 3 Workflow (Conceptual)
-
-##### Professional Grading Mode
-```
-LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLightingAdjustment
-```
-- **Features**: Global grading + local editing + lighting adjustment
-- **Suitable for**: Professional photographers and designers
-
-### 🎯 Operation Guide
-
-#### Basic Operations
-1. **Open Editor**: Double-click the `VisualPromptEditor` node
-2. **Select Tool**: Click drawing tools in toolbar
-3. **Select Color**: Click color buttons to select annotation color
-4. **Toggle Style**: Click "Fill" button to toggle filled/outline
-5. **Number Control**: Check/uncheck "Include annotation numbers" to control number display
-6. **Draw Annotation**: Drag or click on image to draw
-7. **Save & Apply**: Click "Save & Apply" to save data
-
-#### Keyboard Shortcuts
-- **Ctrl + Scroll**: Zoom image
-- **Middle-click drag**: Pan image
-- **Shift + Circle**: Draw perfect circle
-- **Right-click**: Finish freehand drawing
-
-## Node Description
-
-### 🎨 VisualPromptEditor
-**Main Node**
-- **Input**: IMAGE
-- **Output**: Processed image, prompts, mask data, etc.
-- **Function**: Visual annotation editing and prompt generation
-
-### 🤖 IntelligentAnnotationNode
-**Intelligent Annotation Node**
-- **Input**: IMAGE
-- **Output**: Detected layer data JSON
-- **Function**: Automatic object detection and region segmentation
-
-### 🎭 LayerToMaskNode
-**Layer to Mask Node**
-- **Input**: Layer data JSON
-- **Output**: ComfyUI mask format
-- **Function**: Convert annotation data to masks
-
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues or suggestions, please submit an Issue in the GitHub repository.
+**[🇨🇳 中文文档](#chinese-docs) | [🇺🇸 English Docs](#english-docs)**
 
 ---
 
-🌟 **Kontext Visual Prompt Window** - Making image editing smarter and more intuitive!
+## <a id="chinese-docs"></a>🇨🇳 中文文档
+
+**多模态提示词输入框** - 智能的视觉提示词生成系统，为ComfyUI提供**可视化标注**与**结构化提示词生成**的完美结合，专为Flux Kontext工作流优化。这是一个革命性的**多模态AI提示词输入界面**，将视觉理解与文本生成无缝集成。
+
+## 🎯 效果展示
+
+| 使用前 | 使用后 |
+|--------|--------|
+| ![Before](images/before.png) | ![After](images/after.png) |
+| 传统文本提示词输入 | 多模态可视化提示词生成 |
+
+### 💫 快速上手
+
+1. **双击节点** → 打开可视化编辑器
+2. **绘制标注** → 选择工具标记目标区域  
+3. **选择模板** → 选择操作类型和增强提示词
+4. **一键生成** → 自动生成结构化提示词
+
+### 🎯 项目目标
+
+创建统一的**多模态AI提示词输入界面**，让用户能够：
+- 使用多种绘制工具对图像进行**视觉标注**
+- 基于视觉选择生成**多模态结构化提示词**
+- 利用Flux Kontext官方优化，提升**多模态AI模型**兼容性
+- 简化从**视觉理解**到**文本提示词生成**的多模态工作流程
+
+### ✨ 核心特性
+
+#### 🎨 视觉标注系统
+- **4种绘制工具**：矩形、圆形、箭头、自由绘制多边形
+- **多色彩支持**：红、绿、黄、蓝标注颜色
+- **交互式编辑**：点击、拖拽、选择、删除标注
+- **实时预览**：图像上的实时标注渲染
+
+#### 📝 多模态结构化提示词生成
+- **4个模板分类**：局部编辑、全局调整、文字编辑、专业操作
+- **49个优化模板**：基于1025条Flux Kontext官方指令
+- **多选提示词**：约束性和修饰性提示词的复选框界面
+- **智能组合**：自动将视觉标注转换为多模态AI可理解的结构化提示词
+
+
+### 🚀 已实现功能
+
+#### ✅ 核心功能
+- [x] **可视化提示词编辑器节点** - 双击打开统一界面
+- [x] **多工具标注** - 矩形、圆形、箭头、自由绘制
+- [x] **4分类模板系统** - 局部/全局/文字/专业操作
+- [x] **多选提示词增强** - 约束性/修饰性提示词复选框界面
+- [x] **实时模板切换** - 操作类型切换立即更新提示词选项
+- [x] **结构化输出生成** - 自动构建包含选中增强词的提示词
+- [x] **图像渲染** - 标注直接渲染到输出图像
+
+#### 📈 计划中的高级功能
+- [ ] **标注数据导出** - JSON格式的坐标和元数据
+- [ ] **多语言支持** - 中英文界面元素
+- [ ] **会话持久化** - 保存和恢复标注状态
+- [ ] **质量分析** - 提示词评分和优化建议
+- [ ] **大语言模型集成** - 接入大语言模型自动生成结构化提示词
+
+#### ✅ 用户体验
+- [x] **直观界面** - 左侧画布，右侧提示词面板布局
+- [x] **响应式设计** - 自动缩放和缩放控制
+
+### 📋 模板分类
+
+| 分类 | 模板数量 | 描述 |
+|------|----------|------|
+| 🎯 **局部编辑** | 18个模板 | 特定对象编辑（颜色、样式、纹理、姿势等） |
+| 🌍 **全局调整** | 12个模板 | 整体图像处理（调色、增强、滤镜） |
+| 📝 **文字编辑** | 5个模板 | 文字操作（添加、删除、编辑、调整大小、组合） |
+| 🔧 **专业操作** | 14个模板 | 高级编辑（几何变换、合成等） |
+
+### 🔮 未来规划
+
+#### 📈 计划增强
+- [ ] **AI驱动标注** - 自动对象检测和预标注
+- [ ] **自定义模板创建器** - 用户定义的提示词模板
+- [ ] **批处理** - 多图像标注工作流
+- [ ] **模板市场** - 社区共享的提示词模板
+- [ ] **高级导出格式** - 支持更多输出格式
+
+#### 🧪 实验性功能
+- [ ] **语音标注** - 音频描述转提示词转换
+- [ ] **3D对象支持** - 深度感知标注工具
+- [ ] **实时协作** - 多用户编辑会话
+- [ ] **API集成** - 外部工具连接
+
+### 📦 安装方法
+
+#### 方法一：Git克隆（推荐）
+```bash
+cd ComfyUI/custom_nodes/
+git clone https://github.com/aiaiaikkk/Kontext-Visual-Prompt-Window.git
+```
+
+#### 方法二：手动安装
+1. 将`KontextVisualPromptWindow`文件夹复制到ComfyUI的custom_nodes目录
+2. 重启ComfyUI
+3. 在`kontext/core`分类中找到`VisualPromptEditor`节点
+4. 双击节点打开可视化编辑器
+
+### 🎮 使用方法
+
+1. **添加节点**：在工作流中放置`VisualPromptEditor`
+2. **连接图像**：将图像输入连接到节点
+3. **打开编辑器**：双击节点启动界面
+4. **标注**：使用绘制工具标记感兴趣的区域
+5. **配置**：选择模板分类和操作类型
+6. **增强**：通过复选框选择约束性和修饰性提示词
+7. **生成**：点击"生成描述"获得结构化提示词
+8. **导出**：保存标注并在工作流中使用生成的提示词
+
+### 🔧 系统要求
+
+- ComfyUI（推荐最新版本）
+- Python 3.7+
+- 支持JavaScript的现代网页浏览器
+- 4GB+内存以获得最佳性能
+
+### 📊 项目统计
+
+- **模板数量**：49个Flux Kontext优化模板
+- **提示词数据库**：343个约束性和修饰性提示词
+- **语言支持**：英文/中文双语界面
+- **文件大小**：约2.5MB完整包
+- **节点数量**：2个核心节点，追求最大简洁性
+
+---
+
+## <a id="english-docs"></a>🇺🇸 English Documentation
+
+**Multimodal Prompt Input Box** - An intelligent visual prompt generation system for ComfyUI that combines **visual annotation** with **structured prompt generation**, optimized for Flux Kontext workflow. This is a revolutionary **multimodal AI prompt input interface** that seamlessly integrates visual understanding with text generation.
+
+## 🎯 Visual Demonstration
+
+| Before | After |
+|--------|-------|
+| ![Before](images/before.png) | ![After](images/after.png) |
+| Traditional text prompt input | Multimodal visual prompt generation |
+
+### 💫 Quick Start
+
+1. **Double-click node** → Open visual editor
+2. **Draw annotations** → Select tools to mark target areas
+3. **Choose templates** → Select operation type and enhancement prompts  
+4. **Generate instantly** → Auto-generate structured prompts
+
+## 🎯 Project Purpose
+
+Create a unified **multimodal AI prompt input interface** that allows users to:
+- Annotate images with multiple drawing tools for **visual understanding**
+- Generate **multimodal structured prompts** based on visual selections
+- Leverage Flux Kontext official optimization for better **multimodal AI model** compatibility
+- Streamline the workflow from **visual understanding** to **text prompt generation**
+
+## ✨ Key Features
+
+### 🎨 Visual Annotation System
+- **4 Drawing Tools**: Rectangle, Circle, Arrow, Freehand Polygon
+- **Multi-color Support**: Red, Green, Yellow, Blue annotations
+- **Interactive Editing**: Click, drag, select, delete annotations
+- **Real-time Preview**: Live annotation rendering on images
+
+### 📝 Multimodal Structured Prompt Generation
+- **4 Template Categories**: Local Edits, Global Adjustments, Text Editing, Professional Operations
+- **49 Optimized Templates**: Based on 1025 official Flux Kontext instructions
+- **Multi-select Prompts**: Checkbox interface for constraint and decorative prompts
+- **Smart Combination**: Automatically convert visual annotations into multimodal AI-comprehensible structured prompts
+
+
+## 🚀 Implemented Features
+
+### ✅ Core Functionality
+- [x] **Visual Prompt Editor Node** - Double-click to open unified interface
+- [x] **Multi-tool Annotation** - Rectangle, Circle, Arrow, Freehand drawing
+- [x] **4-category Template System** - Local/Global/Text/Professional operations
+- [x] **Multi-select Prompt Enhancement** - Checkbox interface for constraint/decorative prompts
+- [x] **Real-time Template Switching** - Operation type changes instantly update prompt options
+- [x] **Structured Output Generation** - Automatic prompt construction with selected enhancements
+- [x] **Image Rendering** - Annotations directly rendered to output images
+
+### 📈 Planned Advanced Features
+- [ ] **Annotation Data Export** - JSON format with coordinates and metadata
+- [ ] **Multi-language Support** - Chinese/English interface elements
+- [ ] **Session Persistence** - Save & restore annotation states
+- [ ] **Quality Analysis** - Prompt scoring and optimization suggestions
+- [ ] **Large Language Model Integration** - Connect to LLMs for automatic structured prompt generation
+
+### ✅ User Experience
+- [x] **Intuitive Interface** - Left canvas, right prompt panel layout
+- [x] **Responsive Design** - Auto-scaling and zoom controls
+
+## 📋 Template Categories
+
+| Category | Templates | Description |
+|----------|-----------|-------------|
+| 🎯 **Local Edits** | 18 templates | Object-specific editing (color, style, texture, pose, etc.) |
+| 🌍 **Global Adjustments** | 12 templates | Whole image processing (color grading, enhancement, filters) |
+| 📝 **Text Editing** | 5 templates | Text manipulation (add, remove, edit, resize, combine) |
+| 🔧 **Professional Operations** | 14 templates | Advanced editing (geometric transforms, compositing, etc.) |
+
+## 🔮 Future Roadmap
+
+### 📈 Planned Enhancements
+- [ ] **AI-powered Annotation** - Automatic object detection and pre-annotation
+- [ ] **Custom Template Creator** - User-defined prompt templates
+- [ ] **Batch Processing** - Multiple image annotation workflow
+- [ ] **Template Marketplace** - Community-shared prompt templates
+- [ ] **Advanced Export Formats** - Support for more output formats
+
+### 🧪 Experimental Features
+- [ ] **Voice Annotation** - Audio description to prompt conversion
+- [ ] **3D Object Support** - Depth-aware annotation tools
+- [ ] **Real-time Collaboration** - Multi-user editing sessions
+- [ ] **API Integration** - External tool connectivity
+
+## 📦 Installation
+
+### Method 1: Git Clone (Recommended)
+```bash
+cd ComfyUI/custom_nodes/
+git clone https://github.com/aiaiaikkk/Kontext-Visual-Prompt-Window.git
+```
+
+### Method 2: Manual Installation
+1. Copy the `KontextVisualPromptWindow` folder to your ComfyUI custom_nodes directory
+2. Restart ComfyUI
+3. Find the `VisualPromptEditor` node in the `kontext/core` category
+4. Double-click the node to open the visual editor
+
+## 🎮 Usage
+
+1. **Add Node**: Place `VisualPromptEditor` in your workflow
+2. **Connect Image**: Link your image input to the node
+3. **Open Editor**: Double-click the node to launch the interface
+4. **Annotate**: Use drawing tools to mark areas of interest
+5. **Configure**: Select template category and operation type
+6. **Enhance**: Choose constraint and decorative prompts via checkboxes
+7. **Generate**: Click "Generate Description" for structured prompts
+8. **Export**: Save annotations and use generated prompts in your workflow
+
+## 🔧 Requirements
+
+- ComfyUI (latest version recommended)
+- Python 3.7+
+- Modern web browser with JavaScript enabled
+- 4GB+ RAM for optimal performance
+
+## 📊 Project Stats
+
+- **Templates**: 49 Flux Kontext optimized templates
+- **Prompt Database**: 343 constraint and decorative prompts
+- **Language Support**: English/Chinese bilingual interface
+- **File Size**: ~2.5MB total package
+- **Node Count**: 2 core nodes for maximum simplicity
+
+---
+
+**Version**: v2.2.8 - Flux Kontext Optimization Edition  
+**Status**: ✅ Production Ready  
+**License**: MIT  
+**Compatibility**: ComfyUI 0.4.0+
