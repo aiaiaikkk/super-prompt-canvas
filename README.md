@@ -24,11 +24,21 @@
 
 ### 🎯 项目目标
 
-创建统一的**多模态AI提示词输入界面**，让用户能够：
-- 使用多种绘制工具对图像进行**视觉标注**
-- 基于视觉选择生成**多模态结构化提示词**
-- 利用Flux Kontext官方优化，提升**多模态AI模型**兼容性
-- 简化从**视觉理解**到**文本提示词生成**的多模态工作流程
+本项目旨在构建一个基于 **Flux Kontext 大模型** 的可视化 + 结构化图像编辑系统，通过直观的图形标注与自然语言提示的协同控制，实现对图像的精细化、多模态编辑。
+
+用户无需掌握复杂的提示词编写，仅需 **框选图像区域 + 描述意图**，系统即可自动生成结构化编辑指令，驱动 Kontext 模型完成图像局部/整体的智能修改操作。
+
+本项目力求实现：
+
+🖼️ **所见即所得的可视化交互**：支持矩形、圆形、箭头、自由绘图等多种标注方式；
+
+✍️ **结构化提示词自动拼接与补全**：帮助小白用户高效表达编辑需求；
+
+🧠 **结合大模型的语义理解能力**：精确控制图像的变换、替换、修复与增强；
+
+🔄 **编辑闭环完整打通**：从标注 → 生成掩码 → 提示生成 → 编辑执行 → 回显反馈，全流程自动联动。
+
+目标是打造一个适用于 **ComfyUI 图像创作生态** 的通用可视化指令入口，为 AI 图像编辑提供更加智能、自然、高效的交互方式。
 
 ### ✨ 核心特性
 
@@ -153,11 +163,21 @@ git clone https://github.com/aiaiaikkk/Kontext-Visual-Prompt-Window.git
 
 ## 🎯 Project Purpose
 
-Create a unified **multimodal AI prompt input interface** that allows users to:
-- Annotate images with multiple drawing tools for **visual understanding**
-- Generate **multimodal structured prompts** based on visual selections
-- Leverage Flux Kontext official optimization for better **multimodal AI model** compatibility
-- Streamline the workflow from **visual understanding** to **text prompt generation**
+This project aims to build a visual + structured image editing system based on the **Flux Kontext large model**, achieving fine-grained, multimodal image editing through the collaborative control of intuitive graphic annotation and natural language prompts.
+
+Users don't need to master complex prompt writing - they simply need to **select image regions + describe intentions**, and the system will automatically generate structured editing instructions to drive the Kontext model to complete intelligent local/global image modifications.
+
+This project strives to achieve:
+
+🖼️ **WYSIWYG Visual Interaction**: Support for multiple annotation methods including rectangles, circles, arrows, and freehand drawing;
+
+✍️ **Automated Structured Prompt Assembly and Completion**: Help novice users efficiently express editing requirements;
+
+🧠 **Integration with Large Model Semantic Understanding**: Precise control over image transformation, replacement, repair, and enhancement;
+
+🔄 **Complete Editing Loop Integration**: From annotation → mask generation → prompt generation → editing execution → feedback display, full-process automatic coordination.
+
+The goal is to create a universal visual command interface suitable for the **ComfyUI image creation ecosystem**, providing a more intelligent, natural, and efficient interaction method for AI image editing.
 
 ## ✨ Key Features
 
