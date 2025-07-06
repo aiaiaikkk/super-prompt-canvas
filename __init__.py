@@ -54,10 +54,11 @@ def try_import_from_paths():
             
         print(f"📁 Checking path: {path}")
         
-        # Find core node files (2 functional nodes - simplified)
+        # Find core node files (3 functional nodes - with Ollama integration)
         node_files = [
             "visual_prompt_editor.py",        # Unified visual prompt editor (CORE)
             "annotation_data_node.py",        # Annotation data provider
+            "ollama_flux_kontext_enhancer.py", # Ollama智能增强节点 (NEW)
             # Removed nodes - moved to disabled_nodes/
             # - global_image_processor.py      # Global image processing (REMOVED)
             # - intelligent_annotation_node.py  # Complex intelligent annotation
