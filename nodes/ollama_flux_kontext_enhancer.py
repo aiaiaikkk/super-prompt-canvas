@@ -27,11 +27,7 @@ except ImportError:
     WEB_AVAILABLE = False
 
 
-<<<<<<< HEAD
 class OllamaFluxKontextEnhancerV2:
-=======
-class OllamaFluxKontextEnhancer:
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
     """
     🤖 Ollama Flux Kontext Enhancer
     
@@ -39,7 +35,6 @@ class OllamaFluxKontextEnhancer:
     转换为Flux Kontext优化的结构化编辑指令
     """
     
-<<<<<<< HEAD
     # 类级别的缓存变量
     _cached_models = None
     _cache_timestamp = 0
@@ -208,69 +203,16 @@ class OllamaFluxKontextEnhancer:
         cls._cached_models = None
         cls._cache_timestamp = 0
         return cls.get_available_models(force_refresh=True)
-=======
-    @classmethod
-    def get_available_models(cls, url="http://127.0.0.1:11434"):
-        """动态获取可用的Ollama模型列表"""
-        try:
-            if not OLLAMA_AVAILABLE:
-                return ["qwen:0.5b"]  # 默认回退模型
-            
-            from ollama import Client
-            client = Client(host=url)
-            models_response = client.list()
-            models = models_response.get('models', [])
-            
-            # 提取模型名称
-            model_names = []
-            for model in models:
-                if isinstance(model, dict):
-                    name = model.get('model') or model.get('name')
-                    if name:
-                        model_names.append(name)
-                elif hasattr(model, 'model'):
-                    # 处理对象类型的模型
-                    model_names.append(model.model)
-                else:
-                    # 尝试转换为字符串并提取模型名
-                    model_str = str(model)
-                    if "model='" in model_str:
-                        # 从字符串中提取模型名 例: "model='qwen3:0.6b'"
-                        start = model_str.find("model='") + 7
-                        end = model_str.find("'", start)
-                        if end > start:
-                            model_names.append(model_str[start:end])
-                        else:
-                            # 如果提取失败，跳过这个模型
-                            print(f"Warning: Failed to extract model name from: {model_str[:100]}...")
-                    else:
-                        # 如果格式不匹配，跳过这个模型
-                        print(f"Warning: Unknown model format: {model_str[:100]}...")
-            
-            # 如果没有模型，返回默认模型
-            if not model_names:
-                return ["qwen:0.5b"]
-            
-            return model_names
-        except Exception as e:
-            print(f"Warning: Failed to get Ollama models: {e}")
-            # 返回常见的默认模型列表作为回退
-            return ["qwen3:0.6b", "qwen2.5:0.5b", "qwen:0.5b", "llama3.2:3b", "llama3.1:8b"]
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
 
     @classmethod
     def INPUT_TYPES(cls):
         # 动态获取模型列表
         available_models = cls.get_available_models()
-<<<<<<< HEAD
         default_model = available_models[0] if available_models else "ollama-model-not-found"
         
         # 确保default_model在available_models中
         if default_model not in available_models:
             default_model = available_models[0] if available_models else "ollama-model-not-found"
-=======
-        default_model = available_models[0] if available_models else "qwen:0.5b"
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
         
         return {
             "required": {
@@ -357,7 +299,6 @@ class OllamaFluxKontextEnhancer:
             }
         }
     
-<<<<<<< HEAD
     @classmethod
     def VALIDATE_INPUTS(cls, **kwargs):
         """验证输入参数"""
@@ -377,8 +318,6 @@ class OllamaFluxKontextEnhancer:
         
         return True
     
-=======
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = (
         "flux_edit_instructions",  # Flux Kontext格式的编辑指令
@@ -403,30 +342,20 @@ class OllamaFluxKontextEnhancer:
                                 debug_mode: bool = False):
         """通过Ollama增强标注数据，生成Flux Kontext优化的编辑指令"""
         
-<<<<<<< HEAD
         print(f"🚀 OllamaFluxKontextEnhancerV2: 开始执行enhance_flux_instructions")
         print(f"📝 annotation_data长度: {len(annotation_data) if annotation_data else 0}")
         print(f"🤖 使用模型: {model}")
         print(f"🎯 编辑策略: {edit_instruction_type}")
         print(f"📄 输出格式: {output_format}")
         
-=======
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
         self.start_time = time.time()
         self.debug_logs = []
         
         try:
-<<<<<<< HEAD
             # 检查Ollama服务可用性（通过HTTP API）
             if not self._check_ollama_service(url):
                 return self._create_fallback_output(
                     f"Ollama service not available at {url}. Please start ollama service.",
-=======
-            # 检查Ollama可用性
-            if not OLLAMA_AVAILABLE:
-                return self._create_fallback_output(
-                    "Ollama package not available. Please install with: pip install ollama",
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
                     debug_mode
                 )
             
@@ -445,18 +374,8 @@ class OllamaFluxKontextEnhancer:
                     debug_mode
                 )
             
-<<<<<<< HEAD
             # 2. Ollama服务已通过前面的检查确认可用
             self._log_debug(f"🔗 使用Ollama服务: {url}", debug_mode)
-=======
-            # 2. 连接Ollama服务
-            client = self._connect_ollama(url, debug_mode)
-            if not client:
-                return self._create_fallback_output(
-                    f"Failed to connect to Ollama at {url}",
-                    debug_mode
-                )
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
             
             # 3. 构建提示词
             system_prompt = self._build_system_prompt(edit_instruction_type, output_format)
@@ -469,11 +388,7 @@ class OllamaFluxKontextEnhancer:
             
             # 4. 调用Ollama生成增强指令
             enhanced_instructions = self._generate_with_ollama(
-<<<<<<< HEAD
                 url, model, system_prompt, user_prompt,
-=======
-                client, model, system_prompt, user_prompt,
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
                 temperature, top_p, keep_alive, debug_mode
             )
             
@@ -506,7 +421,6 @@ class OllamaFluxKontextEnhancer:
                 error_msg += f"\n{traceback.format_exc()}"
             return self._create_fallback_output(error_msg, debug_mode)
     
-<<<<<<< HEAD
     def _check_ollama_service(self, url: str) -> bool:
         """检查Ollama服务是否可用"""
         try:
@@ -516,8 +430,6 @@ class OllamaFluxKontextEnhancer:
         except:
             return False
     
-=======
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
     def _auto_detect_strategy(self, annotation_data: str, debug_mode: bool) -> str:
         """根据annotation数据自动检测最佳编辑策略"""
         try:
@@ -796,7 +708,6 @@ Rules:
         
         return "\n".join(prompt_parts)
     
-<<<<<<< HEAD
     def _generate_with_ollama(self, url: str, model: str, system_prompt: str,
                              user_prompt: str, temperature: float, top_p: float,
                              keep_alive: int, debug_mode: bool) -> Optional[str]:
@@ -806,14 +717,6 @@ Rules:
             import json
             
             self._log_debug(f"🤖 调用Ollama模型: {model} (HTTP API)", debug_mode)
-=======
-    def _generate_with_ollama(self, client: object, model: str, system_prompt: str,
-                             user_prompt: str, temperature: float, top_p: float,
-                             keep_alive: int, debug_mode: bool) -> Optional[str]:
-        """使用Ollama生成增强指令"""
-        try:
-            self._log_debug(f"🤖 调用Ollama模型: {model}", debug_mode)
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
             
             # 配置生成参数
             options = {
@@ -830,7 +733,6 @@ Rules:
                 # 在system prompt中明确要求不要thinking
                 system_prompt += "\n\nIMPORTANT: Do not include any thinking process, reasoning steps, or <think> tags in your response. Output only the final formatted instructions."
             
-<<<<<<< HEAD
             # 构建请求数据
             payload = {
                 "model": model,
@@ -865,27 +767,6 @@ Rules:
                     return None
             else:
                 self._log_debug(f"❌ Ollama API请求失败，状态码: {response.status_code}, 内容: {response.text}", debug_mode)
-=======
-            # 生成响应
-            response = client.generate(
-                model=model,
-                prompt=user_prompt,
-                system=system_prompt,
-                options=options,
-                keep_alive=keep_alive
-            )
-            
-            if response and 'response' in response:
-                generated_text = response['response'].strip()
-                
-                # 过滤掉qwen3等模型的thinking内容
-                filtered_text = self._filter_thinking_content(generated_text, debug_mode)
-                
-                self._log_debug(f"✅ Ollama生成成功，原始长度: {len(generated_text)}, 过滤后长度: {len(filtered_text)} 字符", debug_mode)
-                return filtered_text
-            else:
-                self._log_debug("❌ Ollama响应格式异常", debug_mode)
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
                 return None
                 
         except Exception as e:
@@ -1113,17 +994,9 @@ if WEB_AVAILABLE:
 
 # 节点注册
 NODE_CLASS_MAPPINGS = {
-<<<<<<< HEAD
     "OllamaFluxKontextEnhancerV2": OllamaFluxKontextEnhancerV2,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "OllamaFluxKontextEnhancerV2": "🤖 Ollama Flux Kontext Enhancer V2",
-=======
-    "OllamaFluxKontextEnhancer": OllamaFluxKontextEnhancer,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "OllamaFluxKontextEnhancer": "🤖 Ollama Flux Kontext Enhancer",
->>>>>>> 4a913eb3f263ff3c699449d4565ef677d528d946
 }
