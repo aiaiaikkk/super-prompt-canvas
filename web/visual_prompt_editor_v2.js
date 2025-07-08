@@ -132,6 +132,72 @@ app.registerExtension({
                 return r;
             };
             
+            // 从LoadImage节点获取图像 - 需要在调用前定义
+            nodeType.prototype.getImageFromLoadImageNode = function(loadImageNode) {
+                try {
+                    console.log('🔍 分析LoadImage节点:', {
+                        hasWidgets: !!loadImageNode.widgets,
+                        widgetCount: loadImageNode.widgets?.length,
+                        hasImgs: !!loadImageNode.imgs,
+                        imgCount: loadImageNode.imgs?.length
+                    });
+                    
+                    // 方法1: 从imgs属性获取
+                    if (loadImageNode.imgs && loadImageNode.imgs.length > 0) {
+                        const imgSrc = loadImageNode.imgs[0].src;
+                        console.log('✅ 从imgs获取图像源:', imgSrc?.substring(0, 50) + '...');
+                        return imgSrc;
+                    }
+                    
+                    // 方法2: 从widgets获取文件名
+                    if (loadImageNode.widgets) {
+                        for (let widget of loadImageNode.widgets) {
+                            console.log('🔍 检查widget:', widget.name, widget.type);
+                            if (widget.name === 'image' && widget.value) {
+                                // 构建正确的图像URL - 使用ComfyUI标准格式
+                                const filename = widget.value;
+                                const imageUrl = `/view?filename=${encodeURIComponent(filename)}&subfolder=&type=input`;
+                                console.log('✅ 从widget构建图像URL:', imageUrl);
+                                return imageUrl;
+                            }
+                        }
+                    }
+                    
+                    console.log('❌ 无法从LoadImage节点获取图像');
+                    return null;
+                } catch (e) {
+                    console.error('获取LoadImage图像时出错:', e);
+                    return null;
+                }
+            };
+            
+            // 从其他节点获取图像 - 需要在调用前定义  
+            nodeType.prototype.tryGetImageFromNode = function(sourceNode) {
+                try {
+                    console.log('🔍 尝试从节点获取图像:', sourceNode.type);
+                    
+                    // 检查是否有图像输出
+                    if (sourceNode.imgs && sourceNode.imgs.length > 0) {
+                        return sourceNode.imgs[0].src;
+                    }
+                    
+                    // 检查widgets
+                    if (sourceNode.widgets) {
+                        for (let widget of sourceNode.widgets) {
+                            if ((widget.name === 'image' || widget.name === 'filename') && widget.value) {
+                                return `/view?filename=${encodeURIComponent(widget.value)}`;
+                            }
+                        }
+                    }
+                    
+                    console.log('❌ 无法从节点获取图像:', sourceNode.type);
+                    return null;
+                } catch (e) {
+                    console.error('从节点获取图像时出错:', e);
+                    return null;
+                }
+            };
+            
             // 添加右键菜单选项
             const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
             nodeType.prototype.getExtraMenuOptions = function(_, options) {
@@ -346,9 +412,20 @@ app.registerExtension({
                 console.log('🖼️ 渲染图像数据:', { 
                     hasImageData: !!imageData, 
                     imageDataType: typeof imageData,
-                    imageDataLength: imageData?.length 
+                    imageDataLength: imageData?.length,
+                    imageDataValue: imageData 
                 });
-                renderImageCanvas(imageCanvas, imageData);
+                
+                // 调试：检查节点的输入连接状态
+                console.log('🔗 节点连接状态调试:', {
+                    hasInputs: !!this.inputs,
+                    inputCount: this.inputs?.length || 0,
+                    imageInputConnected: this.inputs?.[0]?.link !== null,
+                    nodeType: this.type,
+                    nodeId: this.id
+                });
+                
+                renderImageCanvas(imageCanvas, imageData, this);
                 
                 // 添加初始化标记，等待modal就绪后初始化
                 canvasContainer.dataset.needsInit = 'true';
@@ -431,6 +508,76 @@ app.registerExtension({
                     console.log('🔍 layersData:', layersData);
                     console.log('🔍 Modal elements with IDs:', Array.from(modal.querySelectorAll('*[id]')).map(el => el.id));
                     
+                    // 🔧 临时修复：直接定义函数（如果不存在）
+                    if (!this.loadLayersToPanel) {
+                        this.loadLayersToPanel = function(modal, layersData) {
+                            console.log('📊 加载图层到面板:', layersData.length, '个图层');
+                            
+                            const annotationObjects = modal.querySelector('#annotation-objects');
+                            if (!annotationObjects) {
+                                console.warn('⚠️ 未找到annotation-objects容器');
+                                return;
+                            }
+                            
+                            // 清空现有内容
+                            annotationObjects.innerHTML = '';
+                            
+                            if (!layersData || layersData.length === 0) {
+                                annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
+                                return;
+                            }
+                            
+                            // 为每个图层创建条目
+                            layersData.forEach((layer, index) => {
+                                const layerItem = document.createElement('div');
+                                layerItem.className = 'layer-item';
+                                layerItem.style.cssText = `
+                                    display: flex; align-items: center; padding: 8px; margin-bottom: 4px;
+                                    background: #2b2b2b; border-radius: 4px; cursor: pointer;
+                                    border: 1px solid #444;
+                                `;
+                                
+                                // 生成图层描述
+                                const layerInfo = this.generateLayerDescription ? this.generateLayerDescription(layer, index) : {
+                                    icon: '🔶',
+                                    description: `${layer.type} annotation ${index + 1}`
+                                };
+                                
+                                layerItem.innerHTML = `
+                                    <input type="checkbox" data-annotation-id="${layer.id}" data-layer-id="${layer.id}" 
+                                           style="margin-right: 8px; cursor: pointer;">
+                                    <span style="font-size: 12px; color: #ddd;">
+                                        ${layerInfo.icon} ${layerInfo.description}
+                                    </span>
+                                `;
+                                
+                                annotationObjects.appendChild(layerItem);
+                            });
+                            
+                            console.log('✅ 图层面板加载完成');
+                        };
+                    }
+                    
+                    if (!this.updatePromptStats) {
+                        this.updatePromptStats = function(modal, layersData) {
+                            console.log('📊 更新提示词统计:', layersData.length, '个图层');
+                            
+                            const selectionCount = modal.querySelector('#selection-count');
+                            if (selectionCount) {
+                                selectionCount.textContent = `${layersData.length} annotations`;
+                            }
+                            
+                            console.log('📊 统计信息:', {
+                                totalAnnotations: layersData.length,
+                                rectangles: layersData.filter(l => l.type === 'rectangle').length,
+                                circles: layersData.filter(l => l.type === 'circle').length,
+                                arrows: layersData.filter(l => l.type === 'arrow').length,
+                                freehand: layersData.filter(l => l.type === 'freehand').length,
+                                brush: layersData.filter(l => l.type === 'brush').length
+                            });
+                        };
+                    }
+                    
                     if (layersData) {
                         this.loadLayersToPanel(modal, layersData);
                         this.updatePromptStats(modal, layersData);
@@ -438,12 +585,12 @@ app.registerExtension({
                         // 如果有保存的annotations，需要恢复到canvas
                         if (Array.isArray(layersData) && layersData.length > 0) {
                             console.log('🎨 恢复保存的annotations到canvas...');
-                            // 延迟恢复，确保DOM和绘制系统完全初始化
+                            // 🔧 增加延迟到500ms，确保画布初始化、事件绑定都完成
                             setTimeout(() => {
                                 this.restoreAnnotationsToCanvas(modal, layersData);
                                 // 恢复后重新更新图层面板状态
                                 this.refreshLayerPanelState(modal);
-                            }, 300);
+                            }, 500);
                         }
                     } else {
                         this.loadLayersToPanel(modal, []);
@@ -475,7 +622,7 @@ app.registerExtension({
                     const allElements = modal.querySelectorAll('*[id]');
                     console.log('🔍 Modal中所有带ID的元素:', Array.from(allElements).map(el => el.id));
                     
-                    // 获取drawing layer和SVG
+                    // 🔧 改进的SVG获取逻辑 - 优先使用已存在的SVG
                     const drawingLayer = modal.querySelector('#drawing-layer');
                     console.log('🔍 Drawing layer状态:', {
                         exists: !!drawingLayer,
@@ -484,41 +631,36 @@ app.registerExtension({
                     });
                     
                     if (!drawingLayer) {
-                        console.error('❌ 未找到drawing-layer，尝试创建...');
-                        
-                        // 尝试找到image-canvas并创建drawing-layer
-                        const imageCanvas = modal.querySelector('#image-canvas');
-                        if (imageCanvas) {
-                            console.log('✅ 找到image-canvas，创建drawing-layer');
-                            const newDrawingLayer = document.createElement('div');
-                            newDrawingLayer.id = 'drawing-layer';
-                            newDrawingLayer.style.cssText = `
-                                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                                pointer-events: auto; z-index: 1000;
-                            `;
-                            imageCanvas.appendChild(newDrawingLayer);
-                            console.log('✅ Drawing layer已创建');
-                        } else {
-                            console.error('❌ 也未找到image-canvas');
-                            return;
-                        }
+                        console.error('❌ 未找到drawing-layer，这不应该发生，因为initCanvasDrawing应该已经创建了它');
+                        return;
                     }
                     
-                    // 重新获取drawing layer (可能刚创建)
-                    const finalDrawingLayer = modal.querySelector('#drawing-layer');
-                    
-                    let svg = finalDrawingLayer.querySelector('svg');
+                    // 🔧 优先使用已经存在的SVG（由initCanvasDrawing创建）
+                    let svg = drawingLayer.querySelector('svg');
                     console.log('🔍 SVG状态:', {
                         exists: !!svg,
-                        drawingLayerExists: !!finalDrawingLayer
+                        id: svg?.id,
+                        hasViewBox: !!svg?.getAttribute('viewBox'),
+                        drawingLayerExists: !!drawingLayer
                     });
                     
                     if (!svg) {
-                        console.log('🔍 创建SVG容器...');
+                        console.log('🔍 创建SVG容器 (备用方案)...');
+                        // 获取图像尺寸来设置正确的viewBox
+                        const image = modal.querySelector('#vpe-main-image');
+                        let viewBoxWidth = 1000;
+                        let viewBoxHeight = 1000;
+                        
+                        if (image && image.complete && image.naturalWidth > 0) {
+                            viewBoxWidth = image.naturalWidth;
+                            viewBoxHeight = image.naturalHeight;
+                            console.log('🖼️ 使用图像实际尺寸设置SVG viewBox:', viewBoxWidth + 'x' + viewBoxHeight);
+                        }
+                        
                         svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                         svg.setAttribute('width', '100%');
                         svg.setAttribute('height', '100%');
-                        svg.setAttribute('viewBox', '0 0 1000 1000');
+                        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${viewBoxHeight}`);
                         svg.setAttribute('id', 'annotation-svg');
                         svg.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; z-index: 1000;';
                         
@@ -543,16 +685,10 @@ app.registerExtension({
                         });
                         svg.appendChild(defs);
                         
-                        finalDrawingLayer.appendChild(svg);
+                        drawingLayer.appendChild(svg);
                         console.log('✅ SVG已创建并添加到drawing layer');
-                        
-                        // 立即验证SVG是否在DOM中
-                        const verifySvg = modal.querySelector('#annotation-svg');
-                        console.log('🔍 SVG验证:', {
-                            svgInModal: !!verifySvg,
-                            svgParent: svg.parentElement?.id,
-                            svgRect: svg.getBoundingClientRect()
-                        });
+                    } else {
+                        console.log('✅ 使用现有的SVG容器进行标注恢复');
                     }
 
                     // 确保SVG可见和可交互
@@ -650,7 +786,20 @@ app.registerExtension({
                             // 添加编号标签（如果有编号）
                             if (annotation.number !== undefined) {
                                 console.log('🔢 为恢复的annotation添加编号标签:', annotation.number);
-                                this.addRestoredNumberLabel(svg, coords, annotation.number, color);
+                                // 🔧 简化标签创建
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                const labelX = Math.min(coords[0], coords[2]) + 8;
+                                const labelY = Math.min(coords[1], coords[3]) - 8;
+                                text.setAttribute('x', labelX);
+                                text.setAttribute('y', labelY);
+                                text.setAttribute('fill', '#fff');
+                                text.setAttribute('font-size', '20');
+                                text.setAttribute('font-weight', 'bold');
+                                text.setAttribute('stroke', '#000');
+                                text.setAttribute('stroke-width', '1');
+                                text.setAttribute('data-annotation-number', annotation.number);
+                                text.textContent = annotation.number;
+                                svg.appendChild(text);
                             }
                             
                             // 立即验证
@@ -696,7 +845,20 @@ app.registerExtension({
                             // 添加编号标签
                             if (annotation.number !== undefined) {
                                 console.log('🔢 为恢复的椭圆添加编号标签:', annotation.number);
-                                this.addRestoredNumberLabel(svg, coords, annotation.number, color);
+                                // 🔧 简化标签创建
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                const labelX = Math.min(coords[0], coords[2]) + 8;
+                                const labelY = Math.min(coords[1], coords[3]) - 8;
+                                text.setAttribute('x', labelX);
+                                text.setAttribute('y', labelY);
+                                text.setAttribute('fill', '#fff');
+                                text.setAttribute('font-size', '20');
+                                text.setAttribute('font-weight', 'bold');
+                                text.setAttribute('stroke', '#000');
+                                text.setAttribute('stroke-width', '1');
+                                text.setAttribute('data-annotation-number', annotation.number);
+                                text.textContent = annotation.number;
+                                svg.appendChild(text);
                             }
                         }
                         
@@ -723,8 +885,31 @@ app.registerExtension({
                             const strokeOpacity = Math.min((opacity + 30) / 100, 1.0);
                             line.setAttribute('stroke-opacity', strokeOpacity);
                             
-                            // 动态创建对应不透明度的箭头marker
-                            const markerId = this.createArrowheadMarkerInline(svg, color, opacity);
+                            // 🔧 使用与不透明度更新一致的marker创建方式
+                            const colorHex = color.replace('#', '');
+                            const markerId = `arrowhead-${colorHex}-opacity-${Math.round(opacity)}`;
+                            
+                            // 检查是否已存在对应的marker
+                            const defs = svg.querySelector('defs');
+                            if (defs && !defs.querySelector(`#${markerId}`)) {
+                                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                                marker.setAttribute('id', markerId);
+                                marker.setAttribute('markerWidth', '10');
+                                marker.setAttribute('markerHeight', '7');
+                                marker.setAttribute('refX', '9');
+                                marker.setAttribute('refY', '3.5');
+                                marker.setAttribute('orient', 'auto');
+                                
+                                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                                polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                                polygon.setAttribute('fill', color);
+                                polygon.setAttribute('fill-opacity', strokeOpacity);
+                                
+                                marker.appendChild(polygon);
+                                defs.appendChild(marker);
+                                console.log(`🏹 创建箭头marker: ${markerId}, 不透明度: ${strokeOpacity}`);
+                            }
+                            
                             line.setAttribute('marker-end', `url(#${markerId})`);
                             line.setAttribute('data-annotation-id', annotation.id);
                             line.setAttribute('data-annotation-number', annotation.number || '');
@@ -736,7 +921,20 @@ app.registerExtension({
                             // 添加编号标签
                             if (annotation.number !== undefined) {
                                 console.log('🔢 为恢复的箭头添加编号标签:', annotation.number);
-                                this.addRestoredNumberLabel(svg, coords, annotation.number, color);
+                                // 🔧 简化标签创建
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                const labelX = coords[0] + 8;
+                                const labelY = coords[1] - 8;
+                                text.setAttribute('x', labelX);
+                                text.setAttribute('y', labelY);
+                                text.setAttribute('fill', '#fff');
+                                text.setAttribute('font-size', '20');
+                                text.setAttribute('font-weight', 'bold');
+                                text.setAttribute('stroke', '#000');
+                                text.setAttribute('stroke-width', '1');
+                                text.setAttribute('data-annotation-number', annotation.number);
+                                text.textContent = annotation.number;
+                                svg.appendChild(text);
                             }
                         }
                         
@@ -769,8 +967,18 @@ app.registerExtension({
                             if (annotation.number !== undefined && points.length > 0) {
                                 console.log('🔢 为恢复的多边形添加编号标签:', annotation.number);
                                 const firstPoint = points[0];
-                                const labelCoords = [firstPoint.x, firstPoint.y, firstPoint.x + 10, firstPoint.y + 10];
-                                this.addRestoredNumberLabel(svg, labelCoords, annotation.number, color);
+                                // 🔧 简化标签创建
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                text.setAttribute('x', firstPoint.x + 8);
+                                text.setAttribute('y', firstPoint.y - 8);
+                                text.setAttribute('fill', '#fff');
+                                text.setAttribute('font-size', '20');
+                                text.setAttribute('font-weight', 'bold');
+                                text.setAttribute('stroke', '#000');
+                                text.setAttribute('stroke-width', '1');
+                                text.setAttribute('data-annotation-number', annotation.number);
+                                text.textContent = annotation.number;
+                                svg.appendChild(text);
                             }
                         }
                         
@@ -917,10 +1125,35 @@ app.registerExtension({
                     // 重要：更新图层选择面板，确保显示格式与新创建标注一致
                     this.updateRestoredObjectSelector(modal);
                     
-                    // 短延迟后进行详细的可见性检查
+                    // 短延迟后进行详细的可见性检查和持久性验证
                     setTimeout(() => {
                         console.log('🔍 延迟检查开始...');
                         this.debugAnnotationVisibility(modal, svg);
+                        
+                        // 🔧 验证标注是否成功恢复并持久存在
+                        const finalShapes = svg.querySelectorAll('.annotation-shape');
+                        console.log('🔍 最终验证 - 标注数量:', finalShapes.length, '/ 预期:', savedAnnotations.length);
+                        
+                        if (finalShapes.length === 0 && savedAnnotations.length > 0) {
+                            console.error('❌ 标注恢复失败！尝试备用方案...');
+                            // 备用方案：手动创建
+                            this.manuallyCreateAnnotationShapes(modal, svg);
+                        } else if (finalShapes.length < savedAnnotations.length) {
+                            console.warn(`⚠️ 部分标注恢复失败: ${finalShapes.length}/${savedAnnotations.length}`);
+                        } else {
+                            console.log('✅ 标注恢复完全成功！');
+                        }
+                        
+                        // 🔧 额外的持久性检查 - 确保不会被后续操作清除
+                        setTimeout(() => {
+                            const persistentShapes = svg.querySelectorAll('.annotation-shape');
+                            if (persistentShapes.length < finalShapes.length) {
+                                console.error('❌ 检测到标注被意外清除！重新恢复中...');
+                                this.restoreAnnotationsToCanvas(modal, savedAnnotations);
+                            } else {
+                                console.log('✅ 标注持久性验证通过 - 恢复完成');
+                            }
+                        }, 300);
                     }, 100);
                 } catch (error) {
                     console.error('❌ 恢复annotations失败:', error);
@@ -1685,7 +1918,7 @@ app.registerExtension({
                                     // 确保保存的annotations有正确的数据结构
                                     if (promptData.annotations) {
                                         promptData.annotations = promptData.annotations.map(annotation => {
-                                            const normalized = this.normalizeAnnotationData(annotation);
+                                            const normalized = this.normalizeAnnotationData ? this.normalizeAnnotationData(annotation) : annotation;
                                             console.log('💾 保存时标准化annotation:', {
                                                 id: normalized.id,
                                                 hasGeometry: !!normalized.geometry,
@@ -1733,11 +1966,292 @@ app.registerExtension({
                 }
                 
                 
+                // 🔧 高亮选中的标注功能（内联版本 + 调试增强）
+                const highlightSelectedAnnotations = (modal, selectedIds) => {
+                    const svg = modal.querySelector('#drawing-layer svg');
+                    if (!svg) {
+                        console.error('❌ 未找到SVG容器');
+                        return;
+                    }
+                    
+                    console.log('🔍 SVG容器找到，开始处理高亮');
+                    
+                    // 🔍 调试：显示SVG中的所有标注元素
+                    const allShapes = svg.querySelectorAll('.annotation-shape');
+                    console.log('🔍 SVG中找到的标注形状:', allShapes.length);
+                    allShapes.forEach((shape, index) => {
+                        console.log(`📍 形状${index + 1}:`, {
+                            tagName: shape.tagName,
+                            annotationId: shape.getAttribute('data-annotation-id'),
+                            annotationNumber: shape.getAttribute('data-annotation-number'),
+                            class: shape.getAttribute('class'),
+                            currentStrokeWidth: shape.getAttribute('stroke-width')
+                        });
+                    });
+                    
+                    // 清除所有选中状态
+                    allShapes.forEach(shape => {
+                        // 🔧 恢复原始边框状态
+                        const originalStroke = shape.getAttribute('data-original-stroke');
+                        const originalStrokeWidth = shape.getAttribute('data-original-stroke-width');
+                        
+                        if (originalStrokeWidth) {
+                            shape.setAttribute('stroke-width', originalStrokeWidth);
+                        } else {
+                            shape.setAttribute('stroke-width', '3');
+                        }
+                        
+                        if (originalStroke) {
+                            if (originalStroke === 'none') {
+                                shape.setAttribute('stroke', 'none');
+                            } else {
+                                shape.setAttribute('stroke', originalStroke);
+                            }
+                        }
+                        
+                        shape.classList.remove('selected');
+                        // 🔧 清除高亮滤镜效果
+                        shape.style.filter = 'none';
+                        
+                        console.log('🔄 恢复形状原始状态:', {
+                            tagName: shape.tagName,
+                            originalStroke: originalStroke,
+                            originalStrokeWidth: originalStrokeWidth,
+                            currentStroke: shape.getAttribute('stroke'),
+                            currentStrokeWidth: shape.getAttribute('stroke-width')
+                        });
+                    });
+                    
+                    svg.querySelectorAll('.annotation-label circle').forEach(circle => {
+                        circle.setAttribute('stroke', '#fff');
+                        circle.setAttribute('stroke-width', '3');
+                    });
+                    
+                    // 高亮选中的标注
+                    let highlightedCount = 0;
+                    selectedIds.forEach(annotationId => {
+                        console.log('🎯 尝试高亮标注:', annotationId);
+                        
+                        const targetShape = svg.querySelector(`[data-annotation-id="${annotationId}"]`);
+                        if (targetShape) {
+                            console.log('✅ 找到目标形状:', targetShape.tagName);
+                            
+                            // 🔧 确保高亮效果可见 - 设置完整的stroke属性
+                            const currentStroke = targetShape.getAttribute('stroke');
+                            const currentFill = targetShape.getAttribute('fill');
+                            
+                            // 🔍 保存原始边框状态以便恢复
+                            if (!targetShape.hasAttribute('data-original-stroke')) {
+                                targetShape.setAttribute('data-original-stroke', currentStroke || 'none');
+                            }
+                            if (!targetShape.hasAttribute('data-original-stroke-width')) {
+                                targetShape.setAttribute('data-original-stroke-width', targetShape.getAttribute('stroke-width') || '3');
+                            }
+                            
+                            // 设置边框属性以确保可见
+                            targetShape.setAttribute('stroke-width', '6');
+                            if (!currentStroke || currentStroke === 'none') {
+                                // 如果没有边框，使用填充颜色或默认黄色作为边框
+                                const strokeColor = currentFill && currentFill !== 'none' ? currentFill : '#ffff00';
+                                targetShape.setAttribute('stroke', strokeColor);
+                            }
+                            targetShape.setAttribute('stroke-opacity', '1.0');
+                            targetShape.classList.add('selected');
+                            
+                            // 🔧 额外的视觉效果：添加阴影滤镜
+                            targetShape.style.filter = 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))';
+                            
+                            highlightedCount++;
+                            
+                            // 🔍 验证高亮是否生效
+                            console.log('🔍 高亮后的属性:', {
+                                strokeWidth: targetShape.getAttribute('stroke-width'),
+                                stroke: targetShape.getAttribute('stroke'),
+                                strokeOpacity: targetShape.getAttribute('stroke-opacity'),
+                                hasSelectedClass: targetShape.classList.contains('selected'),
+                                filter: targetShape.style.filter
+                            });
+                            
+                            // 高亮对应的编号标签
+                            const annotation = modal.annotations?.find(ann => ann.id === annotationId);
+                            if (annotation) {
+                                const label = svg.querySelector(`[data-annotation-number="${annotation.number}"]`);
+                                if (label) {
+                                    const circle = label.querySelector('circle');
+                                    if (circle) {
+                                        circle.setAttribute('stroke', '#ffff00');
+                                        circle.setAttribute('stroke-width', '4');
+                                        console.log('✅ 已高亮编号标签:', annotation.number);
+                                    }
+                                }
+                            }
+                        } else {
+                            console.error('❌ 未找到标注形状:', annotationId);
+                            
+                            // 🔍 尝试其他可能的选择器
+                            const altShape1 = svg.querySelector(`[data-id="${annotationId}"]`);
+                            const altShape2 = svg.querySelector(`#${annotationId}`);
+                            console.log('🔍 尝试其他选择器:', {
+                                'data-id': !!altShape1,
+                                'id': !!altShape2
+                            });
+                        }
+                    });
+                    
+                    console.log(`✅ 已高亮 ${highlightedCount}/${selectedIds.length} 个标注`);
+                };
+                
+                // 🔧 临时解决方案：直接定义函数避免时序问题
+                const undoLastAnnotation = (modal) => {
+                    console.log('↶ 尝试撤销最后一个标注...');
+                    
+                    if (!modal.annotations || modal.annotations.length === 0) {
+                        console.log('⚠️ 没有可撤销的标注');
+                        return;
+                    }
+                    
+                    const lastAnnotation = modal.annotations.pop();
+                    console.log('↶ 撤销标注:', lastAnnotation.id, '类型:', lastAnnotation.type);
+                    
+                    // 从SVG中移除标注形状
+                    const svg = modal.querySelector('#drawing-layer svg');
+                    if (svg) {
+                        // 移除主要形状
+                        const shape = svg.querySelector(`[data-annotation-id="${lastAnnotation.id}"]`);
+                        if (shape) {
+                            shape.remove();
+                            console.log('✅ 已移除标注形状');
+                        }
+                        
+                        // 移除编号标签
+                        const labels = svg.querySelectorAll(`[data-annotation-number="${lastAnnotation.number}"]`);
+                        labels.forEach(label => {
+                            label.remove();
+                            console.log('✅ 已移除编号标签');
+                        });
+                        
+                        const texts = svg.querySelectorAll(`text[data-annotation-number="${lastAnnotation.number}"]`);
+                        texts.forEach(text => text.remove());
+                    }
+                    
+                    // 更新图层面板 - 使用内联函数避免依赖问题
+                    if (this.loadLayersToPanel) {
+                        this.loadLayersToPanel(modal, modal.annotations);
+                    } else {
+                        // 简化版本的图层面板更新
+                        const annotationObjects = modal.querySelector('#annotation-objects');
+                        if (annotationObjects) {
+                            if (modal.annotations.length === 0) {
+                                annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
+                            } else {
+                                // 重新加载图层列表
+                                annotationObjects.innerHTML = '';
+                                modal.annotations.forEach((layer, index) => {
+                                    const layerItem = document.createElement('div');
+                                    layerItem.className = 'layer-item';
+                                    layerItem.style.cssText = `
+                                        display: flex; align-items: center; padding: 8px; margin-bottom: 4px;
+                                        background: #2b2b2b; border-radius: 4px; cursor: pointer;
+                                        border: 1px solid #444;
+                                    `;
+                                    
+                                    layerItem.innerHTML = `
+                                        <input type="checkbox" data-annotation-id="${layer.id}" data-layer-id="${layer.id}" 
+                                               style="margin-right: 8px; cursor: pointer;" checked>
+                                        <span style="font-size: 12px; color: #ddd;">
+                                            🔶 ${layer.type} annotation ${index + 1}
+                                        </span>
+                                    `;
+                                    
+                                    annotationObjects.appendChild(layerItem);
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 更新Select All状态和高亮
+                    const selectAllCheckbox = modal.querySelector('#select-all-objects');
+                    if (selectAllCheckbox) {
+                        const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
+                        const checkedCount = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').length;
+                        
+                        if (checkedCount === 0) {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = false;
+                        } else if (checkedCount === layerCheckboxes.length) {
+                            selectAllCheckbox.checked = true;
+                            selectAllCheckbox.indeterminate = false;
+                        } else {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = true;
+                        }
+                        
+                        // 🔧 更新高亮状态
+                        const selectedAnnotationIds = [];
+                        modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').forEach(checkbox => {
+                            const annotationId = checkbox.dataset.annotationId;
+                            if (annotationId) {
+                                selectedAnnotationIds.push(annotationId);
+                            }
+                        });
+                        highlightSelectedAnnotations(modal, selectedAnnotationIds);
+                    }
+                    
+                    console.log('✅ 撤销完成，剩余标注:', modal.annotations.length, '个');
+                };
+                
+                const clearAllAnnotations = (modal) => {
+                    console.log('🧹 开始清空所有标注...');
+                    
+                    // 清空annotations数组
+                    if (modal.annotations) {
+                        console.log('🗑️ 清空', modal.annotations.length, '个标注数据');
+                        modal.annotations = [];
+                    }
+                    
+                    // 清空SVG中的标注元素
+                    const svg = modal.querySelector('#drawing-layer svg');
+                    if (svg) {
+                        const shapes = svg.querySelectorAll('.annotation-shape');
+                        const labels = svg.querySelectorAll('.annotation-label');
+                        const texts = svg.querySelectorAll('text[data-annotation-number]');
+                        
+                        console.log('🗑️ 清空SVG元素:', {
+                            shapes: shapes.length,
+                            labels: labels.length, 
+                            texts: texts.length
+                        });
+                        
+                        // 移除所有相关元素
+                        shapes.forEach(el => el.remove());
+                        labels.forEach(el => el.remove());
+                        texts.forEach(el => el.remove());
+                    }
+                    
+                    // 更新图层面板
+                    const annotationObjects = modal.querySelector('#annotation-objects');
+                    if (annotationObjects) {
+                        annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
+                    }
+                    
+                    // 重置Select All状态和高亮
+                    const selectAllCheckbox = modal.querySelector('#select-all-objects');
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = false;
+                        selectAllCheckbox.indeterminate = false;
+                    }
+                    
+                    // 🔧 清除所有高亮
+                    highlightSelectedAnnotations(modal, []);
+                    
+                    console.log('✅ 已清空所有标注');
+                };
+                
                 // 撤销按钮
                 const undoBtn = modal.querySelector('#vpe-undo');
                 if (undoBtn) {
                     undoBtn.onclick = () => {
-                        this.undoLastAnnotation(modal);
+                        undoLastAnnotation(modal);
                     };
                 }
                 
@@ -1745,7 +2259,7 @@ app.registerExtension({
                 const clearBtn = modal.querySelector('#vpe-clear');
                 if (clearBtn) {
                     clearBtn.onclick = () => {
-                        this.clearAllAnnotations(modal);
+                        clearAllAnnotations(modal);
                     };
                 }
                 
@@ -1762,7 +2276,75 @@ app.registerExtension({
                         opacityValue.textContent = opacityPercent + '%';
                         
                         // 更新所有现有标注的不透明度
-                        this.updateAllAnnotationsOpacity(modal, opacityPercent);
+                        const svg = modal.querySelector('#drawing-layer svg');
+                        if (svg) {
+                            // 计算不透明度值 (0-1)
+                            const fillOpacity = opacityPercent / 100;
+                            const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0);
+                            
+                            // 更新所有SVG形状的不透明度
+                            const shapes = svg.querySelectorAll('.annotation-shape');
+                            console.log('🎨 更新', shapes.length, '个标注的不透明度为', opacityPercent + '%');
+                            
+                            shapes.forEach(shape => {
+                                // 清除任何可能存在的style.opacity
+                                shape.style.removeProperty('opacity');
+                                
+                                // 根据形状类型和填充模式设置正确的不透明度属性
+                                const currentFill = shape.getAttribute('fill');
+                                const currentStroke = shape.getAttribute('stroke');
+                                
+                                if (currentFill && currentFill !== 'none') {
+                                    // 实心样式：更新fill-opacity
+                                    shape.setAttribute('fill-opacity', fillOpacity);
+                                }
+                                
+                                if (currentStroke && currentStroke !== 'none') {
+                                    // 有边框：更新stroke-opacity
+                                    shape.setAttribute('stroke-opacity', strokeOpacity);
+                                    
+                                    // 特殊处理箭头：更新marker的不透明度
+                                    const markerEnd = shape.getAttribute('marker-end');
+                                    if (markerEnd && markerEnd.includes('arrowhead')) {
+                                        const color = currentStroke;
+                                        // 创建新的不透明度marker
+                                        const colorHex = color.replace('#', '');
+                                        const markerId = `arrowhead-${colorHex}-opacity-${Math.round(opacityPercent)}`;
+                                        
+                                        const defs = svg.querySelector('defs');
+                                        if (defs && !defs.querySelector(`#${markerId}`)) {
+                                            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                                            marker.setAttribute('id', markerId);
+                                            marker.setAttribute('markerWidth', '10');
+                                            marker.setAttribute('markerHeight', '7');
+                                            marker.setAttribute('refX', '9');
+                                            marker.setAttribute('refY', '3.5');
+                                            marker.setAttribute('orient', 'auto');
+                                            
+                                            const markerFillOpacity = Math.min((opacityPercent + 30) / 100, 1.0);
+                                            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                                            polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                                            polygon.setAttribute('fill', color);
+                                            polygon.setAttribute('fill-opacity', markerFillOpacity.toString());
+                                            
+                                            marker.appendChild(polygon);
+                                            defs.appendChild(marker);
+                                        }
+                                        
+                                        // 更新箭头的marker引用
+                                        shape.setAttribute('marker-end', `url(#${markerId})`);
+                                        console.log(`🏹 更新箭头不透明度: ${markerId}`);
+                                    }
+                                }
+                            });
+                            
+                            // 更新annotations数据中的不透明度
+                            if (modal.annotations) {
+                                modal.annotations.forEach(annotation => {
+                                    annotation.opacity = opacityPercent;
+                                });
+                            }
+                        }
                         
                         console.log('🎨 不透明度调整为:', opacityPercent + '%');
                     };
@@ -1823,6 +2405,107 @@ app.registerExtension({
                     });
                 });
                 
+                // 🔧 添加Select All Layers功能
+                const selectAllCheckbox = modal.querySelector('#select-all-objects');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        console.log('🔲 Select All Layers:', isChecked ? '全选' : '取消全选');
+                        
+                        // 获取所有图层复选框
+                        const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
+                        layerCheckboxes.forEach(checkbox => {
+                            checkbox.checked = isChecked;
+                        });
+                        
+                        // 🔧 触发高亮更新
+                        const selectedAnnotationIds = [];
+                        if (isChecked) {
+                            layerCheckboxes.forEach(checkbox => {
+                                const annotationId = checkbox.dataset.annotationId;
+                                if (annotationId) {
+                                    selectedAnnotationIds.push(annotationId);
+                                }
+                            });
+                        }
+                        
+                        // 调用高亮功能
+                        highlightSelectedAnnotations(modal, selectedAnnotationIds);
+                        
+                        console.log('✅ 已', isChecked ? '选中' : '取消选中', layerCheckboxes.length, '个图层');
+                    });
+                    
+                    // 监听图层复选框变化，更新Select All状态
+                    const updateSelectAllState = () => {
+                        const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
+                        const checkedCount = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').length;
+                        
+                        if (checkedCount === 0) {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = false;
+                        } else if (checkedCount === layerCheckboxes.length) {
+                            selectAllCheckbox.checked = true;
+                            selectAllCheckbox.indeterminate = false;
+                        } else {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = true;
+                        }
+                    };
+                    
+                    // 使用事件委托监听图层复选框变化
+                    const annotationObjects = modal.querySelector('#annotation-objects');
+                    if (annotationObjects) {
+                        annotationObjects.addEventListener('change', (e) => {
+                            if (e.target.type === 'checkbox') {
+                                updateSelectAllState();
+                                
+                                // 🔧 调用原始的多选高亮功能
+                                // 导入并调用annotations模块的updateMultiSelection功能
+                                try {
+                                    // 获取当前选中的标注ID列表
+                                    const selectedAnnotationIds = [];
+                                    const checkedBoxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked');
+                                    checkedBoxes.forEach(checkbox => {
+                                        const annotationId = checkbox.dataset.annotationId;
+                                        if (annotationId) {
+                                            selectedAnnotationIds.push(annotationId);
+                                        }
+                                    });
+                                    
+                                    console.log('🎯 当前选中的标注:', selectedAnnotationIds);
+                                    
+                                    // 调用高亮功能
+                                    highlightSelectedAnnotations(modal, selectedAnnotationIds);
+                                    
+                                } catch (error) {
+                                    console.error('❌ 调用高亮功能失败:', error);
+                                    // 后备方案：使用简化的高亮逻辑
+                                    const annotationId = e.target.getAttribute('data-annotation-id');
+                                    const isChecked = e.target.checked;
+                                    
+                                    if (annotationId) {
+                                        const svg = modal.querySelector('#drawing-layer svg');
+                                        if (svg) {
+                                            const shape = svg.querySelector(`[data-annotation-id="${annotationId}"]`);
+                                            if (shape) {
+                                                if (isChecked) {
+                                                    shape.setAttribute('stroke-width', '6');
+                                                    shape.classList.add('selected');
+                                                    console.log('✨ 高亮标注:', annotationId);
+                                                } else {
+                                                    shape.setAttribute('stroke-width', '3');
+                                                    shape.classList.remove('selected');
+                                                    console.log('🔹 取消高亮标注:', annotationId);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+                
                 // 颜色选择按钮
                 const colorButtons = modal.querySelectorAll('.vpe-color');
                 colorButtons.forEach(button => {
@@ -1871,6 +2554,32 @@ app.registerExtension({
                     firstColor.click();
                 }
             };
+            
+            // 监听Generated Description自动保存事件
+            modal.addEventListener('descriptionsaved', (event) => {
+                console.log('🔄 检测到Generated Description自动保存事件');
+                const promptData = event.detail.promptData;
+                
+                if (promptData) {
+                    try {
+                        // 自动保存到节点的annotation_data widget
+                        const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
+                        if (annotationDataWidget) {
+                            annotationDataWidget.value = JSON.stringify(promptData);
+                            console.log('✅ Generated Description自动保存到widget完成');
+                            
+                            // 通知ComfyUI图形需要更新
+                            if (app.graph) {
+                                app.graph.setDirtyCanvas(true);
+                            }
+                        } else {
+                            console.warn('⚠️ 未找到annotation_data widget');
+                        }
+                    } catch (error) {
+                        console.error('❌ Generated Description自动保存失败:', error);
+                    }
+                }
+            });
             
             // 更新所有标注的不透明度
             nodeType.prototype.updateAllAnnotationsOpacity = function(modal, opacityPercent) {
@@ -2011,6 +2720,7 @@ app.registerExtension({
                 };
             };
             
+            
             // 加载图层到面板
             nodeType.prototype.loadLayersToPanel = function(modal, layers) {
                 console.log('🔍 loadLayersToPanel called with layers:', layers?.length || 0);
@@ -2097,39 +2807,105 @@ app.registerExtension({
             
             // 撤销最后一个标注
             nodeType.prototype.undoLastAnnotation = function(modal) {
-                if (modal.annotations && modal.annotations.length > 0) {
-                    const lastAnnotation = modal.annotations.pop();
-                    
-                    // 从SVG中移除
-                    const svg = modal.querySelector('#drawing-layer svg');
-                    if (svg) {
-                        const shape = svg.querySelector(`[data-annotation-id="${lastAnnotation.id}"]`);
-                        if (shape) shape.remove();
-                        
-                        // 移除编号标签
-                        const label = svg.querySelector(`[data-annotation-number="${lastAnnotation.number}"]`);
-                        if (label) label.remove();
+                console.log('↶ 尝试撤销最后一个标注...');
+                
+                if (!modal.annotations || modal.annotations.length === 0) {
+                    console.log('⚠️ 没有可撤销的标注');
+                    return;
+                }
+                
+                const lastAnnotation = modal.annotations.pop();
+                console.log('↶ 撤销标注:', lastAnnotation.id, '类型:', lastAnnotation.type);
+                
+                // 从SVG中移除标注形状
+                const svg = modal.querySelector('#drawing-layer svg');
+                if (svg) {
+                    // 移除主要形状
+                    const shape = svg.querySelector(`[data-annotation-id="${lastAnnotation.id}"]`);
+                    if (shape) {
+                        shape.remove();
+                        console.log('✅ 已移除标注形状');
                     }
                     
-                    console.log('↶ 已撤销标注:', lastAnnotation.id);
-                    KontextUtils.showNotification('已撤销上一个标注', 'info');
+                    // 移除编号标签（可能有多种格式）
+                    const labels = svg.querySelectorAll(`[data-annotation-number="${lastAnnotation.number}"]`);
+                    labels.forEach(label => {
+                        label.remove();
+                        console.log('✅ 已移除编号标签');
+                    });
+                    
+                    // 移除其他相关元素
+                    const texts = svg.querySelectorAll(`text[data-annotation-number="${lastAnnotation.number}"]`);
+                    texts.forEach(text => text.remove());
                 }
+                
+                // 更新图层面板
+                this.loadLayersToPanel(modal, modal.annotations);
+                
+                // 更新Select All状态
+                const selectAllCheckbox = modal.querySelector('#select-all-objects');
+                if (selectAllCheckbox) {
+                    const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
+                    const checkedCount = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').length;
+                    
+                    if (checkedCount === 0) {
+                        selectAllCheckbox.checked = false;
+                        selectAllCheckbox.indeterminate = false;
+                    } else if (checkedCount === layerCheckboxes.length) {
+                        selectAllCheckbox.checked = true;
+                        selectAllCheckbox.indeterminate = false;
+                    } else {
+                        selectAllCheckbox.checked = false;
+                        selectAllCheckbox.indeterminate = true;
+                    }
+                }
+                
+                console.log('✅ 撤销完成，剩余标注:', modal.annotations.length, '个');
             };
             
             // 清空所有标注
             nodeType.prototype.clearAllAnnotations = function(modal) {
+                console.log('🧹 开始清空所有标注...');
+                
+                // 清空annotations数组
                 if (modal.annotations) {
+                    console.log('🗑️ 清空', modal.annotations.length, '个标注数据');
                     modal.annotations = [];
                 }
                 
-                // 清空SVG中的标注
+                // 清空SVG中的标注元素
                 const svg = modal.querySelector('#drawing-layer svg');
                 if (svg) {
-                    svg.querySelectorAll('.annotation-shape, .annotation-label').forEach(el => el.remove());
+                    const shapes = svg.querySelectorAll('.annotation-shape');
+                    const labels = svg.querySelectorAll('.annotation-label');
+                    const texts = svg.querySelectorAll('text[data-annotation-number]');
+                    
+                    console.log('🗑️ 清空SVG元素:', {
+                        shapes: shapes.length,
+                        labels: labels.length, 
+                        texts: texts.length
+                    });
+                    
+                    // 移除所有相关元素
+                    shapes.forEach(el => el.remove());
+                    labels.forEach(el => el.remove());
+                    texts.forEach(el => el.remove());
                 }
                 
-                console.log('🧹 已清空所有标注');
-                KontextUtils.showNotification('已清空所有标注', 'info');
+                // 更新图层面板
+                const annotationObjects = modal.querySelector('#annotation-objects');
+                if (annotationObjects) {
+                    annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
+                }
+                
+                // 重置Select All状态
+                const selectAllCheckbox = modal.querySelector('#select-all-objects');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                }
+                
+                console.log('✅ 已清空所有标注');
             };
             
             // 导出当前提示词数据
@@ -2302,59 +3078,71 @@ app.registerExtension({
                 };
             };
             
-            // 从LoadImage节点获取图像
-            nodeType.prototype.getImageFromLoadImageNode = function(loadImageNode) {
-                try {
-                    console.log('🔍 分析LoadImage节点:', {
-                        hasWidgets: !!loadImageNode.widgets,
-                        widgetCount: loadImageNode.widgets?.length,
-                        hasImgs: !!loadImageNode.imgs,
-                        imgCount: loadImageNode.imgs?.length
-                    });
-                    
-                    // 方法1: 从imgs属性获取
-                    if (loadImageNode.imgs && loadImageNode.imgs.length > 0) {
-                        const imgSrc = loadImageNode.imgs[0].src;
-                        console.log('✅ 从imgs获取图像源:', imgSrc?.substring(0, 50) + '...');
-                        return imgSrc;
-                    }
-                    
-                    // 方法2: 从widgets获取
-                    if (loadImageNode.widgets) {
-                        for (let widget of loadImageNode.widgets) {
-                            console.log('🔍 检查widget:', widget.name, widget.type);
-                            if (widget.name === 'image' && widget.value) {
-                                console.log('✅ 从widget获取图像:', widget.value);
-                                return widget.value;
-                            }
-                        }
-                    }
-                    
-                    console.log('❌ 无法从LoadImage节点获取图像');
-                    return null;
-                } catch (e) {
-                    console.error('获取LoadImage图像时出错:', e);
-                    return null;
+            // 🔧 添加缺失的函数 - 加载图层到面板
+            nodeType.prototype.loadLayersToPanel = function(modal, layersData) {
+                console.log('📊 加载图层到面板:', layersData.length, '个图层');
+                
+                const annotationObjects = modal.querySelector('#annotation-objects');
+                if (!annotationObjects) {
+                    console.warn('⚠️ 未找到annotation-objects容器');
+                    return;
                 }
+                
+                // 清空现有内容
+                annotationObjects.innerHTML = '';
+                
+                if (!layersData || layersData.length === 0) {
+                    annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
+                    return;
+                }
+                
+                // 为每个图层创建条目
+                layersData.forEach((layer, index) => {
+                    const layerItem = document.createElement('div');
+                    layerItem.className = 'layer-item';
+                    layerItem.style.cssText = `
+                        display: flex; align-items: center; padding: 8px; margin-bottom: 4px;
+                        background: #2b2b2b; border-radius: 4px; cursor: pointer;
+                        border: 1px solid #444;
+                    `;
+                    
+                    // 生成图层描述
+                    const layerInfo = this.generateLayerDescription(layer, index);
+                    
+                    layerItem.innerHTML = `
+                        <input type="checkbox" data-annotation-id="${layer.id}" data-layer-id="${layer.id}" 
+                               style="margin-right: 8px; cursor: pointer;">
+                        <span style="font-size: 12px; color: #ddd;">
+                            ${layerInfo.icon} ${layerInfo.description}
+                        </span>
+                    `;
+                    
+                    annotationObjects.appendChild(layerItem);
+                });
+                
+                console.log('✅ 图层面板加载完成');
             };
             
-            // 尝试从其他类型节点获取图像
-            nodeType.prototype.tryGetImageFromNode = function(node) {
-                console.log('🔍 尝试从节点获取图像:', node.type);
-                // 这里可以添加对其他节点类型的支持
-                return null;
-            };
-            
-            // 从widget获取图像（辅助函数）
-            nodeType.prototype.getImageFromWidget = function() {
-                try {
-                    // 这里需要实现从ComfyUI widget获取图像的逻辑
-                    console.log('尝试从widget获取图像');
-                    return null;
-                } catch (e) {
-                    console.log('从widget提取图像失败:', e);
+            // 🔧 添加缺失的函数 - 更新提示词统计
+            nodeType.prototype.updatePromptStats = function(modal, layersData) {
+                console.log('📊 更新提示词统计:', layersData.length, '个图层');
+                
+                const selectionCount = modal.querySelector('#selection-count');
+                if (selectionCount) {
+                    selectionCount.textContent = `${layersData.length} annotations`;
                 }
-                return null;
+                
+                // 更新其他统计信息
+                const statsInfo = {
+                    totalAnnotations: layersData.length,
+                    rectangles: layersData.filter(l => l.type === 'rectangle').length,
+                    circles: layersData.filter(l => l.type === 'circle').length,
+                    arrows: layersData.filter(l => l.type === 'arrow').length,
+                    freehand: layersData.filter(l => l.type === 'freehand').length,
+                    brush: layersData.filter(l => l.type === 'brush').length
+                };
+                
+                console.log('📊 统计信息:', statsInfo);
             };
         }
     }

@@ -42,8 +42,136 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             if (textarea) {
                 textarea.value = '';
                 console.log('🧹 清空成功');
+                // 触发实时同步
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         };
+    }
+    
+    // Generated Description 实时编辑同步
+    const generatedDescription = modal.querySelector('#generated-description');
+    const descriptionStatus = modal.querySelector('#description-status');
+    
+    if (generatedDescription) {
+        // 添加编辑状态指示
+        let isModified = false;
+        let saveTimeout = null;
+        let originalValue = generatedDescription.value; // 记录原始值
+        
+        // 实时编辑监听
+        generatedDescription.addEventListener('input', () => {
+            const currentValue = generatedDescription.value;
+            const hasChanged = currentValue !== originalValue;
+            
+            if (hasChanged && !isModified) {
+                isModified = true;
+                // 添加视觉指示表示内容已修改
+                generatedDescription.style.borderColor = '#FF9800';
+                if (descriptionStatus) {
+                    descriptionStatus.style.display = 'block';
+                    descriptionStatus.style.background = '#FF9800';
+                    descriptionStatus.style.color = 'white';
+                }
+                console.log('📝 Generated Description 内容已修改');
+            } else if (!hasChanged && isModified) {
+                // 内容恢复到原始状态
+                isModified = false;
+                generatedDescription.style.borderColor = '#555';
+                if (descriptionStatus) {
+                    descriptionStatus.style.display = 'none';
+                }
+            }
+            
+            // 清除之前的保存定时器
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            
+            // 设置延迟自动保存 (2秒后)
+            if (isModified) {
+                saveTimeout = setTimeout(() => {
+                    autoSaveDescription(modal);
+                    isModified = false;
+                    originalValue = currentValue; // 更新原始值
+                    generatedDescription.style.borderColor = '#555';
+                    if (descriptionStatus) {
+                        descriptionStatus.style.background = '#4CAF50';
+                        descriptionStatus.innerHTML = '💾 Saved';
+                        setTimeout(() => {
+                            descriptionStatus.style.display = 'none';
+                        }, 1500);
+                    }
+                }, 2000);
+            }
+        });
+        
+        // 失去焦点时立即保存
+        generatedDescription.addEventListener('blur', () => {
+            if (isModified) {
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                }
+                autoSaveDescription(modal);
+                isModified = false;
+                originalValue = generatedDescription.value;
+                generatedDescription.style.borderColor = '#555';
+                if (descriptionStatus) {
+                    descriptionStatus.style.background = '#4CAF50';
+                    descriptionStatus.innerHTML = '💾 Saved';
+                    setTimeout(() => {
+                        descriptionStatus.style.display = 'none';
+                    }, 1500);
+                }
+            }
+        });
+        
+        // 生成新内容时更新原始值
+        generatedDescription.addEventListener('descriptiongenerated', () => {
+            originalValue = generatedDescription.value;
+            isModified = false;
+            if (descriptionStatus) {
+                descriptionStatus.style.display = 'none';
+            }
+        });
+        
+        console.log('✅ Generated Description 实时编辑功能已启用');
+    }
+}
+
+/**
+ * 自动保存Generated Description的内容
+ */
+function autoSaveDescription(modal) {
+    try {
+        // 导出当前数据 (包括编辑后的Generated Description)
+        const promptData = exportPromptData(modal);
+        
+        if (promptData) {
+            // 触发数据保存事件，通知主系统数据已更新
+            const saveEvent = new CustomEvent('descriptionsaved', {
+                detail: { promptData: promptData },
+                bubbles: true
+            });
+            modal.dispatchEvent(saveEvent);
+            
+            console.log('💾 Generated Description 自动保存完成:', promptData.positive_prompt.substring(0, 50) + '...');
+            
+            // 显示保存成功的视觉反馈
+            const generatedDescription = modal.querySelector('#generated-description');
+            if (generatedDescription) {
+                const originalBg = generatedDescription.style.backgroundColor;
+                generatedDescription.style.backgroundColor = '#1B5E20'; // 绿色背景
+                setTimeout(() => {
+                    generatedDescription.style.backgroundColor = originalBg;
+                }, 500);
+            }
+            
+            // 显示简短的保存通知
+            showNotification('Description auto-saved', 'success', 1000);
+        }
+    } catch (error) {
+        console.error('❌ Generated Description 自动保存失败:', error);
+        showNotification('Auto-save failed', 'error', 2000);
     }
 }
 
@@ -77,6 +205,10 @@ function generateDescription(modal, getObjectInfoFunction) {
     description = enhanceDescriptionWithPrompts(description, modal);
     
     generatedDescription.value = description;
+    
+    // 触发生成完成事件，通知编辑监听器
+    generatedDescription.dispatchEvent(new Event('descriptiongenerated', { bubbles: true }));
+    
     console.log('✨ VPE生成多模态提示词:', description);
     showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
 }

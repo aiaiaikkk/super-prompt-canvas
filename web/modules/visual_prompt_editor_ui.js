@@ -454,9 +454,14 @@ export function createPromptArea() {
         </div>
         
         <div style="background: #333; padding: 16px; border-radius: 8px;">
-            <div style="color: #FF9800; font-weight: 600; margin-bottom: 12px;">📝 Generated Description</div>
+            <div style="color: #FF9800; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                📝 Generated Description
+                <span id="description-status" style="font-size: 12px; padding: 2px 6px; border-radius: 3px; background: #555; color: #ccc; display: none;">
+                    ✏️ Edited
+                </span>
+            </div>
             <textarea id="generated-description" 
-                      style="width: 100%; height: 120px; padding: 12px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4;" 
+                      style="width: 100%; height: 120px; padding: 12px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4; transition: border-color 0.3s ease;" 
                       placeholder="Generated description text will appear here..."></textarea>
             
             <div style="display: flex; gap: 8px; margin-top: 8px;">
