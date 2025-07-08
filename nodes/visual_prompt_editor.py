@@ -60,10 +60,11 @@ class VisualPromptEditor:
             }
         }
     
-    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = (
         "processed_image", 
-        "structured_prompt"
+        "structured_prompt",
+        "annotation_data"
     )
     FUNCTION = "visual_prompt_edit"
     CATEGORY = "kontext/core"
@@ -168,9 +169,19 @@ class VisualPromptEditor:
             else:
                 output_image = image
             
+            # Create annotation data output
+            annotation_output = json.dumps({
+                "annotations": layers_data,
+                "operation_type": prompt_template,
+                "target_description": text_prompt,
+                "constraint_prompts": constraint_prompts,
+                "decorative_prompts": decorative_prompts
+            }, ensure_ascii=False, indent=2)
+            
             return (
                 output_image,  # Image with annotations
                 structured_prompt,  # Structured prompt string
+                annotation_output  # Annotation data JSON
             )
             
         except Exception as e:
@@ -829,9 +840,19 @@ class VisualPromptEditor:
         """Create fallback output"""
         fallback_structured_prompt = "Edit the selected areas according to requirements"
         
+        # Create fallback annotation data
+        fallback_annotation_data = json.dumps({
+            "annotations": [],
+            "operation_type": "fallback",
+            "target_description": "fallback output",
+            "constraint_prompts": [],
+            "decorative_prompts": []
+        }, ensure_ascii=False, indent=2)
+        
         return (
             image,  # Image
-            fallback_structured_prompt  # Structured prompt
+            fallback_structured_prompt,  # Structured prompt
+            fallback_annotation_data  # Annotation data
         )
 
 # Node registration
