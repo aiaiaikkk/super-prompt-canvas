@@ -338,7 +338,17 @@ export function initZoomAndPanControls(modal) {
 /**
  * 渲染图像到画布
  */
-export function renderImageCanvas(imageCanvas, imageData) {
+export function renderImageCanvas(imageCanvas, imageData, nodeInstance = null) {
+    console.log('🖼️ renderImageCanvas调用调试:', {
+        hasImageCanvas: !!imageCanvas,
+        hasImageData: !!imageData,
+        imageDataType: typeof imageData,
+        imageDataValue: imageData,
+        hasNodeInstance: !!nodeInstance,
+        nodeInstanceType: nodeInstance?.type,
+        nodeInstanceId: nodeInstance?.id
+    });
+    
     // 尝试多种方式获取图像
     let imageSrc = null;
     
@@ -394,24 +404,23 @@ export function renderImageCanvas(imageCanvas, imageData) {
     
     // 如果还没有图像，尝试从输入获取
     if (!imageSrc) {
-        imageSrc = getImageFromInputs();
+        imageSrc = getImageFromInputs(nodeInstance);
     }
     
     // 如果仍然没有图像，使用占位符图像用于测试
     if (!imageSrc) {
         console.log('🖼️ 使用占位符图像用于界面测试');
-        // 生成一个简单的占位符图像
-        imageSrc = 'data:image/svg+xml;base64,' + btoa(`
-            <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-                <rect width="100%" height="100%" fill="#2a2a2a"/>
-                <text x="50%" y="45%" text-anchor="middle" fill="#888" font-size="24" font-family="Arial">
-                    No Image Connected
-                </text>
-                <text x="50%" y="55%" text-anchor="middle" fill="#666" font-size="16" font-family="Arial">
-                    Connect an image input to start annotation
-                </text>
-            </svg>
-        `);
+        // 使用URL编码的SVG，避免btoa的安全问题
+        const svgContent = `<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100%" height="100%" fill="#2a2a2a"/>
+            <text x="50%" y="45%" text-anchor="middle" fill="#888" font-size="24" font-family="Arial">
+                No Image Connected
+            </text>
+            <text x="50%" y="55%" text-anchor="middle" fill="#666" font-size="16" font-family="Arial">
+                Connect an image input to start annotation
+            </text>
+        </svg>`;
+        imageSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
     }
     
     if (imageSrc) {
@@ -626,30 +635,32 @@ function tensorToImageSrc(tensorData) {
 /**
  * 通用图像获取函数 - 支持所有图像输入类型
  */
-function getImageFromInputs() {
-    console.log('🖼️ Starting universal image acquisition...');
+function getImageFromInputs(nodeInstance = null) {
+    console.log('🖼️ Starting universal image acquisition...', { hasNodeInstance: !!nodeInstance });
     
-    // 尝试从全局上下文获取当前节点实例
-    let nodeInstance = null;
-    
-    // 方法1: 从window.currentVPENode获取（如果设置了的话）
-    if (window.currentVPENode) {
-        nodeInstance = window.currentVPENode;
-        console.log('📍 Found node from window.currentVPENode');
-    }
-    
-    // 方法2: 查找graph中的VisualPromptEditor节点
-    if (!nodeInstance && window.app && window.app.graph) {
-        nodeInstance = window.app.graph._nodes.find(node => 
-            node.type === "VisualPromptEditor"
-        );
-        if (nodeInstance) {
-            console.log('📍 Found VisualPromptEditor node in graph');
+    // 如果没有传入节点实例，尝试从全局上下文获取
+    if (!nodeInstance) {
+        // 方法1: 从window.currentVPENode获取（如果设置了的话）
+        if (window.currentVPENode) {
+            nodeInstance = window.currentVPENode;
+            console.log('📍 Found node from window.currentVPENode');
         }
+        
+        // 方法2: 查找graph中的VisualPromptEditor节点
+        if (!nodeInstance && window.app && window.app.graph) {
+            nodeInstance = window.app.graph._nodes.find(node => 
+                node.type === "VisualPromptEditor"
+            );
+            if (nodeInstance) {
+                console.log('📍 Found VisualPromptEditor node in graph');
+            }
+        }
+    } else {
+        console.log('✅ Using provided node instance:', nodeInstance.type);
     }
     
     if (!nodeInstance) {
-        console.log('⚠️ No node instance found, using placeholder');
+        console.log('⚠️ No node instance found, cannot get image from inputs');
         return null;
     }
     
@@ -750,7 +761,24 @@ function getImageFromSourceNode(sourceNode) {
         const imageWidget = sourceNode.widgets?.find(w => w.name === 'image');
         if (imageWidget && imageWidget.value) {
             console.log('✅ Found LoadImage with file:', imageWidget.value);
-            return `/view?filename=${encodeURIComponent(imageWidget.value)}`;
+            // 尝试多种ComfyUI图像URL格式
+            const filename = imageWidget.value;
+            const encodedFilename = encodeURIComponent(filename);
+            
+            // 格式1: 标准view格式
+            const url1 = `/view?filename=${encodedFilename}&type=input`;
+            console.log('🔗 Generated URL format 1:', url1);
+            
+            // 格式2: 无type参数
+            const url2 = `/view?filename=${encodedFilename}`;
+            console.log('🔗 Generated URL format 2:', url2);
+            
+            // 格式3: 添加subfolder参数
+            const url3 = `/view?filename=${encodedFilename}&subfolder=&type=input`;
+            console.log('🔗 Generated URL format 3:', url3);
+            
+            // 返回最常用的格式
+            return url3;
         }
     }
     
@@ -904,15 +932,37 @@ function findUpstreamImageSource(node, visited = new Set()) {
  * 从节点widget获取图像
  */
 function getImageFromWidget(nodeInstance) {
-    const imageWidget = nodeInstance.widgets?.find(w => 
-        w.name === 'image' || w.name === 'filename' || w.name === 'file'
-    );
-    
-    if (imageWidget && imageWidget.value) {
-        return `/view?filename=${encodeURIComponent(imageWidget.value)}`;
+    try {
+        console.log('🔍 尝试从widget获取图像', { hasNodeInstance: !!nodeInstance });
+        
+        if (!nodeInstance) {
+            console.log('⚠️ 没有节点实例，无法获取widget图像');
+            return null;
+        }
+        
+        const imageWidget = nodeInstance.widgets?.find(w => 
+            w.name === 'image' || w.name === 'filename' || w.name === 'file'
+        );
+        
+        console.log('📋 Widget搜索结果:', { 
+            hasWidgets: !!nodeInstance.widgets,
+            widgetCount: nodeInstance.widgets?.length || 0,
+            foundImageWidget: !!imageWidget,
+            widgetValue: imageWidget?.value
+        });
+        
+        if (imageWidget && imageWidget.value) {
+            const imageUrl = `/view?filename=${encodeURIComponent(imageWidget.value)}`;
+            console.log('✅ 从widget获取到图像:', imageUrl);
+            return imageUrl;
+        }
+        
+        console.log('⚠️ 未在widget中找到图像');
+        return null;
+    } catch (e) {
+        console.error('❌ 从widget获取图像失败:', e);
+        return null;
     }
-    
-    return null;
 }
 
 /**

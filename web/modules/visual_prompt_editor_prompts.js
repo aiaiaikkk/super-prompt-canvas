@@ -6,6 +6,34 @@
 import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
 
 /**
+ * 判断是否需要选择图层
+ */
+function shouldRequireLayerSelection(category, operationType) {
+    // 全局编辑 - 不需要选择图层
+    if (category === 'global') {
+        return false;
+    }
+    
+    // 专业操作 - 可选择图层（支持全局和局部）
+    if (category === 'professional') {
+        return false;
+    }
+    
+    // 局部编辑 - 需要选择图层
+    if (category === 'local') {
+        return true;
+    }
+    
+    // 文字编辑 - 需要选择图层
+    if (category === 'text') {
+        return true;
+    }
+    
+    // 默认需要选择图层
+    return true;
+}
+
+/**
  * 绑定提示词相关事件
  */
 export function bindPromptEvents(modal, getObjectInfoFunction) {
@@ -42,55 +70,310 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             if (textarea) {
                 textarea.value = '';
                 console.log('🧹 清空成功');
+                // 触发实时同步
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         };
+    }
+    
+    // Generated Description 实时编辑同步
+    const generatedDescription = modal.querySelector('#generated-description');
+    const descriptionStatus = modal.querySelector('#description-status');
+    
+    if (generatedDescription) {
+        // 添加编辑状态指示
+        let isModified = false;
+        let saveTimeout = null;
+        let originalValue = generatedDescription.value; // 记录原始值
+        
+        // 实时编辑监听
+        generatedDescription.addEventListener('input', () => {
+            const currentValue = generatedDescription.value;
+            const hasChanged = currentValue !== originalValue;
+            
+            if (hasChanged && !isModified) {
+                isModified = true;
+                // 添加视觉指示表示内容已修改
+                generatedDescription.style.borderColor = '#FF9800';
+                if (descriptionStatus) {
+                    descriptionStatus.style.display = 'block';
+                    descriptionStatus.style.background = '#FF9800';
+                    descriptionStatus.style.color = 'white';
+                }
+                console.log('📝 Generated Description 内容已修改');
+            } else if (!hasChanged && isModified) {
+                // 内容恢复到原始状态
+                isModified = false;
+                generatedDescription.style.borderColor = '#555';
+                if (descriptionStatus) {
+                    descriptionStatus.style.display = 'none';
+                }
+            }
+            
+            // 清除之前的保存定时器
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            
+            // 设置延迟自动保存 (2秒后)
+            if (isModified) {
+                saveTimeout = setTimeout(() => {
+                    autoSaveDescription(modal);
+                    isModified = false;
+                    originalValue = currentValue; // 更新原始值
+                    generatedDescription.style.borderColor = '#555';
+                    if (descriptionStatus) {
+                        descriptionStatus.style.background = '#4CAF50';
+                        descriptionStatus.innerHTML = '💾 Saved';
+                        setTimeout(() => {
+                            descriptionStatus.style.display = 'none';
+                        }, 1500);
+                    }
+                }, 2000);
+            }
+        });
+        
+        // 失去焦点时立即保存
+        generatedDescription.addEventListener('blur', () => {
+            if (isModified) {
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                }
+                autoSaveDescription(modal);
+                isModified = false;
+                originalValue = generatedDescription.value;
+                generatedDescription.style.borderColor = '#555';
+                if (descriptionStatus) {
+                    descriptionStatus.style.background = '#4CAF50';
+                    descriptionStatus.innerHTML = '💾 Saved';
+                    setTimeout(() => {
+                        descriptionStatus.style.display = 'none';
+                    }, 1500);
+                }
+            }
+        });
+        
+        // 生成新内容时更新原始值
+        generatedDescription.addEventListener('descriptiongenerated', () => {
+            originalValue = generatedDescription.value;
+            isModified = false;
+            if (descriptionStatus) {
+                descriptionStatus.style.display = 'none';
+            }
+        });
+        
+        console.log('✅ Generated Description 实时编辑功能已启用');
     }
 }
 
 /**
- * 生成描述文本
+ * 自动保存Generated Description的内容
+ */
+function autoSaveDescription(modal) {
+    try {
+        // 导出当前数据 (包括编辑后的Generated Description)
+        const promptData = exportPromptData(modal);
+        
+        if (promptData) {
+            // 触发数据保存事件，通知主系统数据已更新
+            const saveEvent = new CustomEvent('descriptionsaved', {
+                detail: { promptData: promptData },
+                bubbles: true
+            });
+            modal.dispatchEvent(saveEvent);
+            
+            console.log('💾 Generated Description 自动保存完成:', promptData.positive_prompt.substring(0, 50) + '...');
+            
+            // 显示保存成功的视觉反馈
+            const generatedDescription = modal.querySelector('#generated-description');
+            if (generatedDescription) {
+                const originalBg = generatedDescription.style.backgroundColor;
+                generatedDescription.style.backgroundColor = '#1B5E20'; // 绿色背景
+                setTimeout(() => {
+                    generatedDescription.style.backgroundColor = originalBg;
+                }, 500);
+            }
+            
+            // 显示简短的保存通知
+            showNotification('Description auto-saved', 'success', 1000);
+        }
+    } catch (error) {
+        console.error('❌ Generated Description 自动保存失败:', error);
+        showNotification('Auto-save failed', 'error', 2000);
+    }
+}
+
+/**
+ * 生成描述文本 - 支持全局和独立两种模式
  */
 function generateDescription(modal, getObjectInfoFunction) {
     const operationType = modal.querySelector('#operation-type');
     const targetInput = modal.querySelector('#target-input');
     const generatedDescription = modal.querySelector('#generated-description');
     
-    if (!operationType || !targetInput || !generatedDescription) {
+    if (!generatedDescription) {
         console.log('⚠️ VPE缺少必要元素');
         return;
     }
     
     // 获取选中的标注对象（支持多选）
     const selectedAnnotationIds = getSelectedAnnotationIds(modal);
-    const operation = operationType.value;
-    const inputText = targetInput.value.trim();
     
-    if (selectedAnnotationIds.length === 0 || !operation) {
-        showNotification('Please select annotation objects and operation type', 'error');
+    // 获取当前操作类型和分类
+    const currentCategory = modal.querySelector('#template-category')?.value;
+    const currentOperationType = operationType?.value;
+    
+    // 根据操作类型决定是否需要选择图层
+    const requiresLayerSelection = shouldRequireLayerSelection(currentCategory, currentOperationType);
+    
+    if (requiresLayerSelection && selectedAnnotationIds.length === 0) {
+        showNotification('Please select annotation objects for this operation', 'error');
         return;
     }
     
-    // 生成多模态编辑模型可理解的提示词
-    let description = generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction);
+    // 检测编辑模式
+    const globalOperation = operationType?.value;
+    const globalDescription = targetInput?.value?.trim();
+    
+    let description;
+    
+    // 如果没有选择图层（全局或专业操作）
+    if (selectedAnnotationIds.length === 0) {
+        // 全局操作：直接使用全局设置生成描述
+        if (globalOperation && globalDescription) {
+            description = generateGlobalPrompt(globalOperation, globalDescription, modal);
+            console.log('🌍 使用全局模式生成描述（无选择图层）');
+        } else {
+            showNotification('Please enter description for global operation', 'error');
+            return;
+        }
+    } else {
+        // 有选择图层的情况（原逻辑）
+        // 检查是否有任何层设置了独立操作
+        const individualOperationsInfo = selectedAnnotationIds.map(id => {
+            const annotation = modal.annotations.find(ann => ann.id === id);
+            return annotation ? {
+                id: annotation.id,
+                hasIndividualOperation: annotation.operationType !== 'add_object',
+                hasIndividualDescription: annotation.description && annotation.description.trim() !== '',
+                operationType: annotation.operationType,
+                description: annotation.description
+            } : null;
+        }).filter(info => info);
+        
+        const hasIndividualOperations = individualOperationsInfo.some(info => 
+            info.hasIndividualOperation || info.hasIndividualDescription
+        );
+        
+        if (hasIndividualOperations) {
+            // 独立模式：使用每个层的独立设置
+            description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
+            console.log('🔀 使用独立模式生成描述');
+        } else if (globalOperation && globalDescription) {
+            // 全局模式：使用全局设置
+            description = generateMultiSelectPrompt(selectedAnnotationIds, globalOperation, globalDescription, modal, getObjectInfoFunction);
+            console.log('🌍 使用全局模式生成描述');
+        } else {
+            // 混合模式：优先使用独立设置，回退到全局设置
+            description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
+            console.log('🔄 使用混合模式生成描述');
+        }
+    }
     
     // 添加约束性和修饰性提示词
     description = enhanceDescriptionWithPrompts(description, modal);
     
     generatedDescription.value = description;
-    console.log('✨ VPE生成多模态提示词:', description);
-    showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
+    
+    // 触发生成完成事件，通知编辑监听器
+    generatedDescription.dispatchEvent(new Event('descriptiongenerated', { bubbles: true }));
+    
+    console.log('✨ VPE生成提示词:', description);
+    
+    // 根据是否选择图层显示不同的通知
+    if (selectedAnnotationIds.length === 0) {
+        showNotification(`Global description generated successfully`, 'success');
+    } else {
+        showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
+    }
 }
 
 /**
- * 获取选中的标注ID列表 (从annotations模块导入)
+ * 获取选中的标注ID列表 (适应标签页系统)
  */
 function getSelectedAnnotationIds(modal) {
-    const checkedBoxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked');
+    // 标签页系统：从 selectedLayers Set 获取
+    if (modal.selectedLayers && modal.selectedLayers.size > 0) {
+        return Array.from(modal.selectedLayers);
+    }
+    
+    // 备用方案：从复选框获取
+    const checkedBoxes = modal.querySelectorAll('.layer-tab input[type="checkbox"]:checked, #annotation-objects input[type="checkbox"]:checked');
     return Array.from(checkedBoxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
 }
 
 /**
- * 生成多选标注的提示词
+ * 生成多层独立操作的提示词
+ */
+function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
+    // 读取编号显示设置
+    const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
+    const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : false;
+    
+    // 获取全局设置作为回退
+    const globalOperation = modal.querySelector('#operation-type')?.value;
+    const globalDescription = modal.querySelector('#target-input')?.value?.trim();
+    
+    // 为每个选中的标注生成独立的描述
+    const layerDescriptions = selectedAnnotationIds.map(annotationId => {
+        const annotation = modal.annotations.find(ann => ann.id === annotationId);
+        if (!annotation) return null;
+        
+        // 获取该标注的操作类型和描述（如果没有设置，使用全局设置）
+        const operationType = annotation.operationType || globalOperation || 'add_object';
+        const layerDescription = annotation.description || globalDescription || '';
+        
+        // console.log(`🔍 处理标注 ${annotationId}:`, { operationType, layerDescription });
+        
+        // 生成该层的对象描述
+        const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
+        
+        // 获取操作模板
+        const template = OPERATION_TEMPLATES[operationType];
+        if (!template) {
+            return `Apply ${operationType} to ${objectDescription}`;
+        }
+        
+        // 生成该层的完整描述
+        const layerPrompt = template.description(layerDescription).replace('{object}', objectDescription);
+        
+        // console.log(`📝 生成层描述: ${layerPrompt}`);
+        
+        return layerPrompt;
+    }).filter(desc => desc);
+    
+    if (layerDescriptions.length === 0) {
+        return 'No valid layers selected.';
+    }
+    
+    // 合并多层描述
+    let combinedDescription;
+    if (layerDescriptions.length === 1) {
+        combinedDescription = layerDescriptions[0];
+    } else if (layerDescriptions.length === 2) {
+        combinedDescription = `${layerDescriptions[0]}, and ${layerDescriptions[1]}`;
+    } else {
+        const lastDesc = layerDescriptions.pop();
+        combinedDescription = `${layerDescriptions.join(', ')}, and ${lastDesc}`;
+    }
+    
+    console.log(`🎯 生成了 ${selectedAnnotationIds.length} 个图层的独立操作提示词`);
+    
+    return combinedDescription;
+}
+
+/**
+ * 生成多选标注的提示词 (保留兼容性)
  */
 function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction) {
     // 读取编号显示设置
@@ -453,9 +736,6 @@ export function generateNegativePrompt(operation, inputText) {
  */
 export function exportPromptData(modal) {
     const generatedDescription = modal.querySelector('#generated-description');
-    const objectSelector = modal.querySelector('#object-selector');
-    const operationType = modal.querySelector('#operation-type');
-    const targetInput = modal.querySelector('#target-input');
     const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
     
     if (!generatedDescription) return null;
@@ -464,18 +744,37 @@ export function exportPromptData(modal) {
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
     const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     
+    // 获取选中的标注和它们的独立设置
+    const selectedAnnotationIds = getSelectedAnnotationIds(modal);
+    const selectedAnnotations = selectedAnnotationIds.map(id => {
+        const annotation = modal.annotations.find(ann => ann.id === id);
+        return annotation ? {
+            id: annotation.id,
+            operationType: annotation.operationType,
+            description: annotation.description,
+            type: annotation.type,
+            color: annotation.color
+        } : null;
+    }).filter(ann => ann);
+    
+    // 获取全局设置
+    const operationType = modal.querySelector('#operation-type');
+    const targetInput = modal.querySelector('#target-input');
+    const templateCategory = modal.querySelector('#template-category');
+    
     const promptData = {
         positive_prompt: generatedDescription.value,
         negative_prompt: generateNegativePrompt(operationType?.value || 'custom', targetInput?.value || ''),
-        selected_object: objectSelector?.value || '',
-        operation_type: operationType?.value || 'custom',
-        target_description: targetInput?.value || '',
+        selected_annotations: selectedAnnotations,  // 🔴 新增：选中的标注及其独立设置
+        global_operation_type: operationType?.value || 'add_object',  // 🔴 恢复：全局操作类型
+        global_description: targetInput?.value || '',  // 🔴 恢复：全局描述
+        template_category: templateCategory?.value || 'local',  // 🔴 恢复：模板分类
         constraint_prompts: selectedConstraints,  // 🔴 改为数组
         decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
         annotations: modal.annotations || [],
         quality_analysis: analyzePromptQuality(generatedDescription.value),
-        template_category: modal.querySelector('#template-category')?.value || 'local',  // 🔴 新增分类信息
+        editing_mode: 'hybrid',  // 🔴 支持混合模式
         timestamp: new Date().toISOString()
     };
     
@@ -494,17 +793,11 @@ function initializeCategorySelector(modal) {
         return;
     }
     
-    // 初始化为局部编辑模板
-    updateOperationTypeSelect(operationSelect, 'local');
+    // 初始化为全局调整模板
+    updateOperationTypeSelect(operationSelect, 'global');
     
-    // 初始化提示词选择器（默认为第一个操作类型）
-    if (operationSelect.options.length > 0) {
-        const firstOperation = operationSelect.options[0].value;
-        console.log(`🚀 初始化提示词选择器: ${firstOperation}`);
-        updatePromptSelectors(modal, firstOperation);
-    } else {
-        console.warn('⚠️ 操作类型选择器为空，无法初始化提示词选择器');
-    }
+    // Edit Control区域不再需要提示词选择器初始化
+    console.log(`🚀 Edit Control区域已简化，移除提示词选择器`);
     
     // 绑定分类选择器事件
     categorySelect.addEventListener('change', function() {
@@ -514,12 +807,14 @@ function initializeCategorySelector(modal) {
         // 更新操作类型选择器
         updateOperationTypeSelect(operationSelect, selectedCategory);
         
-        // 🔴 立即更新提示词选择器（使用第一个操作类型）
+        // 更新图层选择标签
+        updateLayerSelectionLabel(modal, selectedCategory);
+        
+        // 设置第一个操作类型为默认选中（不再更新提示词选择器）
         if (operationSelect.options.length > 0) {
             const firstOperation = operationSelect.options[0].value;
             console.log(`🔄 自动选择第一个操作: ${firstOperation}`);
             operationSelect.value = firstOperation;  // 设置选中值
-            updatePromptSelectors(modal, firstOperation);
         }
         
         // 清空描述文本框（可选）
@@ -532,37 +827,14 @@ function initializeCategorySelector(modal) {
         showCategoryInfo(modal, selectedCategory);
     });
     
-    // 绑定操作类型选择器事件，更新约束性和修饰性提示词
-    operationSelect.addEventListener('change', function() {
-        const selectedOperation = this.value;
-        console.log(`🎯 切换操作类型: ${selectedOperation}`);
-        
-        updatePromptSelectors(modal, selectedOperation);
-    });
+    // 初始化时也更新标签
+    updateLayerSelectionLabel(modal, categorySelect.value);
     
-    console.log('🎯 分类选择器已初始化，默认显示局部编辑模板');
     
-    // 🔴 调试信息：显示初始化结果
-    setTimeout(() => {
-        const constraintContainer = modal.querySelector('#constraint-prompts-container');
-        const decorativeContainer = modal.querySelector('#decorative-prompts-container');
-        console.log('🔍 初始化后容器状态:', {
-            constraintContainer: !!constraintContainer,
-            decorativeContainer: !!decorativeContainer,
-            operationSelectOptions: operationSelect.options.length,
-            currentOperation: operationSelect.value
-        });
-        
-        if (constraintContainer) {
-            const checkboxes = constraintContainer.querySelectorAll('input[type="checkbox"]');
-            console.log(`📝 约束性提示词复选框数量: ${checkboxes.length}`);
-        }
-        
-        if (decorativeContainer) {
-            const checkboxes = decorativeContainer.querySelectorAll('input[type="checkbox"]');
-            console.log(`🎨 修饰性提示词复选框数量: ${checkboxes.length}`);
-        }
-    }, 500);
+    console.log('🎯 分类选择器已初始化，默认显示全局调整模板');
+    
+    // Edit Control区域已简化，调试信息已移除
+    console.log('🔍 Edit Control区域初始化完成（已移除提示词面板）');
 }
 
 /**
@@ -594,21 +866,26 @@ function showCategoryInfo(modal, category) {
  * 更新约束性和修饰性提示词选择器 - 🔴 支持复选框容器
  */
 function updatePromptSelectors(modal, operationType) {
-    const constraintContainer = modal.querySelector('#constraint-prompts-container') || modal.querySelector('#constraint-prompts');
-    const decorativeContainer = modal.querySelector('#decorative-prompts-container') || modal.querySelector('#decorative-prompts');
+    console.log(`🔄 开始更新提示词选择器: ${operationType}`);
     
-    if (!constraintContainer || !decorativeContainer) {
-        console.warn('⚠️ 约束性或修饰性提示词容器未找到');
-        return;
+    // 只查找图层编辑区域的容器（Edit Control区域已移除提示词面板）
+    const layerConstraintContainer = modal.querySelector('#layer-constraint-prompts-container');
+    const layerDecorativeContainer = modal.querySelector('#layer-decorative-prompts-container');
+    
+    console.log(`🔍 容器查找结果:`, {
+        layerConstraintContainer: !!layerConstraintContainer,
+        layerDecorativeContainer: !!layerDecorativeContainer
+    });
+    
+    // 更新图层编辑区域的提示词
+    if (layerConstraintContainer && layerDecorativeContainer) {
+        console.log(`🔄 正在更新图层提示词复选框: ${operationType}`);
+        updateConstraintPrompts(layerConstraintContainer, operationType);
+        updateDecorativePrompts(layerDecorativeContainer, operationType);
+        console.log(`✅ 已更新图层提示词复选框: ${operationType}`);
+    } else {
+        console.warn('⚠️ 图层编辑区域的约束性或修饰性提示词容器未找到');
     }
-    
-    // 更新约束性提示词复选框
-    updateConstraintPrompts(constraintContainer, operationType);
-    
-    // 更新修饰性提示词复选框
-    updateDecorativePrompts(decorativeContainer, operationType);
-    
-    console.log(`🔄 已更新提示词复选框: ${operationType}`);
 }
 
 /**
@@ -752,7 +1029,76 @@ function getSelectedPrompts(modal, type) {
 /**
  * 简单通知函数
  */
+/**
+ * 生成全局操作的提示词（无需选择图层）
+ */
+function generateGlobalPrompt(operationType, description, modal) {
+    console.log('🌍 生成全局提示词:', { operationType, description });
+    
+    // 获取操作模板
+    const template = OPERATION_TEMPLATES[operationType];
+    if (!template) {
+        return description || `Apply ${operationType} to the entire image`;
+    }
+    
+    // 对于全局操作，直接使用描述，不需要 {object} 占位符
+    let prompt;
+    if (template.template && template.template.includes('{object}')) {
+        // 如果模板包含 {object}，替换为 "the entire image"
+        prompt = template.template
+            .replace('{object}', 'the entire image')
+            .replace('{target}', description);
+    } else {
+        // 如果模板不包含 {object}，直接使用描述函数
+        prompt = template.description(description);
+    }
+    
+    console.log('✨ 全局提示词生成:', prompt);
+    return prompt;
+}
+
+/**
+ * 更新图层选择标签文本
+ */
+function updateLayerSelectionLabel(modal, category) {
+    const label = modal.querySelector('#layer-selection-label');
+    if (!label) return;
+    
+    let labelText;
+    let labelColor = '#aaa';
+    
+    switch (category) {
+        case 'global':
+            labelText = '📋 Select Layers (Optional - Global operations work without selection)';
+            labelColor = '#4CAF50'; // 绿色表示可选
+            break;
+        case 'professional':
+            labelText = '📋 Select Layers (Optional - Can work globally or locally)';
+            labelColor = '#2196F3'; // 蓝色表示灵活
+            break;
+        case 'local':
+            labelText = '📋 Select Layers (Required for local operations)';
+            labelColor = '#FF9800'; // 橙色表示必需
+            break;
+        case 'text':
+            labelText = '📋 Select Layers (Required for text operations)';
+            labelColor = '#FF9800'; // 橙色表示必需
+            break;
+        default:
+            labelText = '📋 Select Layers';
+            labelColor = '#aaa';
+    }
+    
+    label.textContent = labelText;
+    label.style.color = labelColor;
+    
+    console.log(`🏷️ 更新图层选择标签: ${category} -> ${labelText}`);
+}
+
 function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     // 这里可以添加UI通知显示逻辑
 }
+
+// 导出需要在其他模块中使用的函数
+export { updatePromptSelectors };

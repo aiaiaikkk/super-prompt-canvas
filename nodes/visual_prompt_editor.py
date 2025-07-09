@@ -81,6 +81,7 @@ class VisualPromptEditor:
             # Initialize enhanced prompts with defaults - 🔴 支持多选格式
             constraint_prompts = []
             decorative_prompts = []
+            user_edited_prompt = ""  # 🔴 初始化用户编辑的提示词变量
             
             if annotation_data and annotation_data.strip():
                 try:
@@ -116,6 +117,13 @@ class VisualPromptEditor:
                         print(f"🔒 约束性提示词: {constraint_prompts}")
                         print(f"🎨 修饰性提示词: {decorative_prompts}")
                         
+                        # Extract user-edited positive_prompt - 🔴 新增：读取用户修改后的提示词
+                        user_edited_prompt = parsed_data.get("positive_prompt", "")
+                        if user_edited_prompt and user_edited_prompt.strip():
+                            print(f"✅ 检测到用户修改的提示词: {user_edited_prompt[:50]}...")
+                        else:
+                            print("⚠️ 未检测到用户修改的提示词，将使用自动生成")
+                        
                         # Use synced values if available (frontend takes priority)
                         if synced_operation_type and synced_operation_type != "custom":
                             prompt_template = synced_operation_type
@@ -138,15 +146,22 @@ class VisualPromptEditor:
             selected_ids = [layer.get("id", f"layer_{i}") 
                           for i, layer in enumerate(layers_data[:3])]
             
-            # Generate structured prompt output with enhanced prompts - 🔴 支持多选
-            enhanced_prompts = {
-                'constraint_prompts': constraint_prompts,
-                'decorative_prompts': decorative_prompts
-            }
-                
-            structured_prompt = self._generate_structured_prompt(
-                layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts
-            )
+            # 🔴 优先使用用户修改后的提示词，否则生成新的
+            if user_edited_prompt and user_edited_prompt.strip():
+                # 用户已经修改了提示词，直接使用
+                structured_prompt = user_edited_prompt.strip()
+                print(f"✅ 使用用户修改的提示词: {structured_prompt[:100]}...")
+            else:
+                # 用户没有修改，使用自动生成
+                enhanced_prompts = {
+                    'constraint_prompts': constraint_prompts,
+                    'decorative_prompts': decorative_prompts
+                }
+                    
+                structured_prompt = self._generate_structured_prompt(
+                    layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts
+                )
+                print(f"🤖 使用自动生成的提示词: {structured_prompt[:100]}...")
             
             # If there's layer data, render annotations on image
             if layers_data and len(layers_data) > 0:
