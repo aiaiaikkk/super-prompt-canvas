@@ -383,7 +383,7 @@ export function createPromptArea() {
             
             <!-- 图层选择下拉框 -->
             <div style="margin-bottom: 16px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📋 Select Layers</label>
+                <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📋 Select Layers (Optional for Global/Professional)</label>
                 <div style="position: relative;">
                     <div id="layer-dropdown" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
                         <span id="dropdown-text" style="color: #aaa; font-size: 12px;">Click to select layers...</span>
@@ -419,6 +419,26 @@ export function createPromptArea() {
                     </select>
                 </div>
                 
+                <div id="layer-constraint-prompts-container" style="margin-bottom: 16px;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">🔒 Constraint Prompts (Select multiple)</label>
+                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                        Please select an operation type to load constraint prompts...
+                    </div>
+                    <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                        Quality control and technical constraints for better results
+                    </div>
+                </div>
+                
+                <div id="layer-decorative-prompts-container" style="margin-bottom: 16px;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">🎨 Decorative Prompts (Select multiple)</label>
+                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                        Please select an operation type to load decorative prompts...
+                    </div>
+                    <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                        Aesthetic enhancements and visual quality improvements
+                    </div>
+                </div>
+                
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📝 Description</label>
                     <textarea id="current-layer-description" 
@@ -450,7 +470,6 @@ export function createPromptArea() {
             <div style="margin-bottom: 12px;">
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Template Category</label>
                 <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
-                    <option value="local">📍 Local Edits (14 templates)</option>
                     <option value="global">🌍 Global Adjustments (8 templates)</option>
                     <option value="professional">🔧 Professional Operations (14 templates)</option>
                 </select>
@@ -464,30 +483,10 @@ export function createPromptArea() {
             </div>
             
             <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Description Text</label>
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">📝 Description Text</label>
                 <textarea id="target-input" 
                           style="width: 100%; height: 80px; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4;" 
                           placeholder="Enter editing instructions for selected objects..."></textarea>
-            </div>
-            
-            <div id="constraint-prompts-container" style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🔒 Constraint Prompts (Loading...)</label>
-                <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
-                    Please select an operation type to load constraint prompts...
-                </div>
-                <div style="font-size: 11px; color: #777; margin-top: 2px;">
-                    Quality control and technical constraints for better results
-                </div>
-            </div>
-            
-            <div id="decorative-prompts-container" style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">🎨 Decorative Prompts (Loading...)</label>
-                <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
-                    Please select an operation type to load decorative prompts...
-                </div>
-                <div style="font-size: 11px; color: #777; margin-top: 2px;">
-                    Aesthetic enhancements and visual quality improvements
-                </div>
             </div>
             
             <div style="margin-bottom: 12px;">

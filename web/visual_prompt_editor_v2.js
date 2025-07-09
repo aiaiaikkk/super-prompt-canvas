@@ -27,7 +27,9 @@ import {
     updateSVGViewBox
 } from './modules/visual_prompt_editor_canvas.js';
 import { 
-    bindCanvasInteractionEvents 
+    bindCanvasInteractionEvents,
+    updateObjectSelector,
+    bindTabEvents
 } from './modules/visual_prompt_editor_annotations.js';
 import { 
     bindPromptEvents, 
@@ -502,6 +504,9 @@ app.registerExtension({
                 // 绑定基础事件
                 this.bindBasicEvents(modal);
                 
+                // 绑定标签页事件
+                bindTabEvents(modal);
+                
                 // 加载图层数据 - 延迟以确保DOM完全初始化
                 setTimeout(() => {
                     console.log('🔍 DEBUG: About to load layers to panel...');
@@ -842,142 +847,20 @@ app.registerExtension({
                 }
             };
             
-            // 确保下拉框事件正常工作
+            // 确保下拉框事件正常工作 - 已被annotations模块接管，此函数已废弃
             nodeType.prototype.ensureDropdownEventsWork = function(modal) {
-                console.log('🔧 确保下拉框事件正常工作...');
+                console.log('🔧 下拉框事件管理已迁移到annotations模块，跳过旧的绑定逻辑');
                 
+                // 检查新的绑定系统是否工作
                 const dropdown = modal.querySelector('#layer-dropdown');
-                const dropdownMenu = modal.querySelector('#layer-dropdown-menu');
-                const dropdownArrow = modal.querySelector('#dropdown-arrow');
-                
-                if (!dropdown || !dropdownMenu || !dropdownArrow) {
-                    console.warn('⚠️ 下拉框元素不存在');
-                    return;
-                }
-                
-                // 检查是否已经有点击事件
-                const hasClickListener = dropdown.dataset.bound === 'true' || 
-                                       dropdown.dataset.standardBound === 'true' ||
-                                       dropdown.dataset.boundForRestore === 'true';
-                                       
-                console.log('🔍 下拉框事件状态:', {
-                    bound: dropdown.dataset.bound,
-                    standardBound: dropdown.dataset.standardBound,
-                    boundForRestore: dropdown.dataset.boundForRestore,
-                    hasClickListener: hasClickListener
-                });
-                
-                if (!hasClickListener) {
-                    console.log('🔧 添加缺失的下拉框事件...');
-                    
-                    // 添加点击事件
-                    dropdown.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isOpen = dropdownMenu.style.display === 'block';
-                        
-                        console.log('📋 下拉框点击事件触发，当前状态:', isOpen ? '打开' : '关闭');
-                        
-                        if (isOpen) {
-                            dropdownMenu.style.display = 'none';
-                            dropdownArrow.style.transform = 'rotate(0deg)';
-                            console.log('📋 下拉框已关闭');
-                        } else {
-                            dropdownMenu.style.display = 'block';
-                            dropdownArrow.style.transform = 'rotate(180deg)';
-                            console.log('📋 下拉框已打开');
-                            
-                            // 详细检查下拉菜单状态
-                            console.log('🔍 下拉菜单详细状态:', {
-                                display: dropdownMenu.style.display,
-                                visibility: dropdownMenu.style.visibility,
-                                opacity: dropdownMenu.style.opacity,
-                                height: dropdownMenu.style.height,
-                                maxHeight: dropdownMenu.style.maxHeight,
-                                position: dropdownMenu.style.position,
-                                zIndex: dropdownMenu.style.zIndex,
-                                childrenCount: dropdownMenu.children.length,
-                                innerHTML: dropdownMenu.innerHTML.substring(0, 200) + '...',
-                                computedDisplay: window.getComputedStyle(dropdownMenu).display,
-                                computedVisibility: window.getComputedStyle(dropdownMenu).visibility,
-                                rect: dropdownMenu.getBoundingClientRect()
-                            });
-                            
-                            // 检查#dropdown-options内容
-                            const dropdownOptions = dropdownMenu.querySelector('#dropdown-options');
-                            if (dropdownOptions) {
-                                console.log('🔍 dropdown-options 状态:', {
-                                    childrenCount: dropdownOptions.children.length,
-                                    innerHTML: dropdownOptions.innerHTML.substring(0, 200) + '...',
-                                    display: window.getComputedStyle(dropdownOptions).display,
-                                    height: dropdownOptions.getBoundingClientRect().height
-                                });
-                            } else {
-                                console.error('❌ 找不到 #dropdown-options 元素');
-                            }
-                            
-                            // 如果下拉菜单不可见，尝试强制修复
-                            const rect = dropdownMenu.getBoundingClientRect();
-                            if (rect.height === 0 || rect.width === 0) {
-                                console.log('🔧 检测到下拉菜单不可见，尝试强制修复...');
-                                dropdownMenu.style.visibility = 'visible';
-                                dropdownMenu.style.opacity = '1';
-                                dropdownMenu.style.height = 'auto';
-                                dropdownMenu.style.maxHeight = '200px';
-                                dropdownMenu.style.overflow = 'auto';
-                                dropdownMenu.style.position = 'absolute';
-                                dropdownMenu.style.top = '100%';
-                                dropdownMenu.style.left = '0';
-                                dropdownMenu.style.width = '100%';
-                                dropdownMenu.style.zIndex = '1000';
-                                dropdownMenu.style.background = '#2b2b2b';
-                                dropdownMenu.style.border = '1px solid #555';
-                                dropdownMenu.style.borderTop = 'none';
-                                dropdownMenu.style.borderRadius = '0 0 6px 6px';
-                                
-                                console.log('✅ 强制修复完成，重新检查...');
-                                const newRect = dropdownMenu.getBoundingClientRect();
-                                console.log('📐 修复后的尺寸:', newRect);
-                            }
-                        }
-                    });
-                    
-                    // 标记为已绑定
-                    dropdown.dataset.ensuredBound = 'true';
-                    console.log('✅ 下拉框事件已修复');
+                if (dropdown && dropdown.dataset.bound === 'true') {
+                    console.log('✅ 新的下拉框事件系统正常工作');
                 } else {
-                    console.log('✅ 下拉框事件已存在，无需修复');
+                    console.log('⚠️ 新的下拉框事件系统可能未正确初始化');
                 }
                 
-                // 测试点击功能
-                console.log('🧪 测试下拉框功能...');
-                setTimeout(() => {
-                    const testClick = new MouseEvent('click', {
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    
-                    console.log('🧪 模拟点击下拉框...');
-                    dropdown.dispatchEvent(testClick);
-                    
-                    setTimeout(() => {
-                        const isNowOpen = dropdownMenu.style.display === 'block';
-                        console.log('🧪 测试结果 - 下拉框状态:', isNowOpen ? '已打开' : '未打开');
-                        
-                        if (isNowOpen) {
-                            // 检查下拉菜单是否真的可见
-                            const rect = dropdownMenu.getBoundingClientRect();
-                            const isActuallyVisible = rect.width > 0 && rect.height > 0;
-                            console.log('🧪 下拉菜单实际可见性:', {
-                                isActuallyVisible: isActuallyVisible,
-                                rect: rect,
-                                hasContent: dropdownMenu.children.length > 0
-                            });
-                            
-                            // 关闭测试打开的下拉框
-                            dropdown.dispatchEvent(testClick);
-                        }
-                    }, 50);
-                }, 50);
+                // 不再执行旧的事件绑定逻辑
+                return;
             };
             
             // 标准的下拉框事件绑定
@@ -1825,15 +1708,16 @@ app.registerExtension({
                             console.log('✅ 标注恢复完全成功！');
                         }
                         
-                        // 🔧 在标注恢复完成后，确保下拉框事件正确绑定
-                        console.log('🔄 标注恢复完成后，检查并修复下拉框事件绑定...');
+                        // 🔧 标注恢复完成后，更新下拉框选择器
+                        console.log('✅ 标注恢复完成，更新下拉框选择器...');
                         try {
                             // 延迟确保DOM更新完成
                             setTimeout(() => {
-                                nodeInstance.ensureDropdownEventsWork(modal);
+                                updateObjectSelector(modal);
+                                console.log('✅ 下拉框选择器更新完成');
                             }, 100);
                         } catch (error) {
-                            console.error('❌ 修复下拉框事件失败:', error);
+                            console.error('❌ 更新下拉框选择器失败:', error);
                         }
                         
                         // 🔧 额外的持久性检查 - 确保不会被后续操作清除
