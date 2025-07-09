@@ -374,21 +374,74 @@ export function createPromptArea() {
     `;
     
     promptContent.innerHTML = `
-        <!-- 多选功能元素 -->
-        <div style="background: #333; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-            <div style="color: #4CAF50; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-                🎯 Layer Selection
+        <!-- 下拉复选框式图层编辑器 -->
+        <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                🎯 Layer Selection & Operations
                 <span id="selection-count" style="color: #888; font-size: 11px;">0 selected</span>
             </div>
             
-            <div style="margin-bottom: 8px;">
-                <label style="display: flex; align-items: center; cursor: pointer; color: white; font-size: 12px; font-weight: 500;">
-                    <input type="checkbox" id="select-all-objects" style="margin-right: 6px; transform: scale(1.1);">
-                    Select All Layers
-                </label>
+            <!-- 图层选择下拉框 -->
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📋 Select Layers</label>
+                <div style="position: relative;">
+                    <div id="layer-dropdown" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="dropdown-text" style="color: #aaa; font-size: 12px;">Click to select layers...</span>
+                        <span id="dropdown-arrow" style="transition: transform 0.2s ease;">▼</span>
+                    </div>
+                    <div id="layer-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #2b2b2b; border: 1px solid #555; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 1000;">
+                        <div id="dropdown-options" style="padding: 4px;"></div>
+                    </div>
+                </div>
             </div>
             
-            <div id="annotation-objects" style="max-height: 120px; overflow-y: auto; border: 1px solid #555; border-radius: 4px; padding: 4px; background: #2b2b2b;"></div>
+            <!-- 当前编辑图层信息 -->
+            <div id="current-layer-info" style="display: none; margin-bottom: 16px; padding: 12px; background: #2a2a2a; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                <div id="layer-title" style="color: white; font-weight: 600; margin-bottom: 4px;"></div>
+                <div id="layer-subtitle" style="color: #aaa; font-size: 11px;"></div>
+            </div>
+            
+            <!-- 批量操作或单个图层编辑 -->
+            <div id="layer-operations" style="display: none;">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">⚙️ Operation Type</label>
+                    <select id="current-layer-operation" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; font-size: 13px;">
+                        <option value="add_object">Add Object</option>
+                        <option value="change_color">Change Color</option>
+                        <option value="change_style">Change Style</option>
+                        <option value="replace_object">Replace Object</option>
+                        <option value="remove_object">Remove Object</option>
+                        <option value="change_texture">Change Texture</option>
+                        <option value="change_pose">Change Pose</option>
+                        <option value="change_expression">Change Expression</option>
+                        <option value="change_clothing">Change Clothing</option>
+                        <option value="change_background">Change Background</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📝 Description</label>
+                    <textarea id="current-layer-description" 
+                              style="width: 100%; height: 80px; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; font-size: 13px; resize: vertical; font-family: inherit; line-height: 1.4;"
+                              placeholder="Enter description for selected layer(s)..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                        ✅ Apply to Selected
+                    </button>
+                    <button id="select-all-layers" style="padding: 10px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                        📋 Select All
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 空状态提示 -->
+            <div id="no-layers-message" style="text-align: center; color: #888; padding: 40px 20px;">
+                <div style="font-size: 18px; margin-bottom: 8px;">📝</div>
+                <div style="font-size: 14px; margin-bottom: 4px;">No annotation layers yet</div>
+                <div style="font-size: 11px;">Create annotations to start editing</div>
+            </div>
         </div>
         
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
@@ -414,7 +467,7 @@ export function createPromptArea() {
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Description Text</label>
                 <textarea id="target-input" 
                           style="width: 100%; height: 80px; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4;" 
-                          placeholder="Please enter editing instructions for this object..."></textarea>
+                          placeholder="Enter editing instructions for selected objects..."></textarea>
             </div>
             
             <div id="constraint-prompts-container" style="margin-bottom: 12px;">

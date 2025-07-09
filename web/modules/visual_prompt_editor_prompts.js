@@ -176,30 +176,63 @@ function autoSaveDescription(modal) {
 }
 
 /**
- * 生成描述文本
+ * 生成描述文本 - 支持全局和独立两种模式
  */
 function generateDescription(modal, getObjectInfoFunction) {
     const operationType = modal.querySelector('#operation-type');
     const targetInput = modal.querySelector('#target-input');
     const generatedDescription = modal.querySelector('#generated-description');
     
-    if (!operationType || !targetInput || !generatedDescription) {
+    if (!generatedDescription) {
         console.log('⚠️ VPE缺少必要元素');
         return;
     }
     
     // 获取选中的标注对象（支持多选）
     const selectedAnnotationIds = getSelectedAnnotationIds(modal);
-    const operation = operationType.value;
-    const inputText = targetInput.value.trim();
     
-    if (selectedAnnotationIds.length === 0 || !operation) {
-        showNotification('Please select annotation objects and operation type', 'error');
+    if (selectedAnnotationIds.length === 0) {
+        showNotification('Please select annotation objects', 'error');
         return;
     }
     
-    // 生成多模态编辑模型可理解的提示词
-    let description = generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction);
+    // 检测编辑模式
+    const globalOperation = operationType?.value;
+    const globalDescription = targetInput?.value?.trim();
+    
+    // 检查是否有任何层设置了独立操作
+    const individualOperationsInfo = selectedAnnotationIds.map(id => {
+        const annotation = modal.annotations.find(ann => ann.id === id);
+        return annotation ? {
+            id: annotation.id,
+            hasIndividualOperation: annotation.operationType !== 'add_object',
+            hasIndividualDescription: annotation.description && annotation.description.trim() !== '',
+            operationType: annotation.operationType,
+            description: annotation.description
+        } : null;
+    }).filter(info => info);
+    
+    const hasIndividualOperations = individualOperationsInfo.some(info => 
+        info.hasIndividualOperation || info.hasIndividualDescription
+    );
+    
+    // console.log('🔍 独立操作检测:', individualOperationsInfo);
+    
+    let description;
+    
+    if (hasIndividualOperations) {
+        // 独立模式：使用每个层的独立设置
+        description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
+        console.log('🔀 使用独立模式生成描述');
+    } else if (globalOperation && globalDescription) {
+        // 全局模式：使用全局设置
+        description = generateMultiSelectPrompt(selectedAnnotationIds, globalOperation, globalDescription, modal, getObjectInfoFunction);
+        console.log('🌍 使用全局模式生成描述');
+    } else {
+        // 混合模式：优先使用独立设置，回退到全局设置
+        description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
+        console.log('🔄 使用混合模式生成描述');
+    }
     
     // 添加约束性和修饰性提示词
     description = enhanceDescriptionWithPrompts(description, modal);
@@ -209,20 +242,86 @@ function generateDescription(modal, getObjectInfoFunction) {
     // 触发生成完成事件，通知编辑监听器
     generatedDescription.dispatchEvent(new Event('descriptiongenerated', { bubbles: true }));
     
-    console.log('✨ VPE生成多模态提示词:', description);
+    console.log('✨ VPE生成提示词:', description);
     showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
 }
 
 /**
- * 获取选中的标注ID列表 (从annotations模块导入)
+ * 获取选中的标注ID列表 (适应标签页系统)
  */
 function getSelectedAnnotationIds(modal) {
-    const checkedBoxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked');
+    // 标签页系统：从 selectedLayers Set 获取
+    if (modal.selectedLayers && modal.selectedLayers.size > 0) {
+        return Array.from(modal.selectedLayers);
+    }
+    
+    // 备用方案：从复选框获取
+    const checkedBoxes = modal.querySelectorAll('.layer-tab input[type="checkbox"]:checked, #annotation-objects input[type="checkbox"]:checked');
     return Array.from(checkedBoxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
 }
 
 /**
- * 生成多选标注的提示词
+ * 生成多层独立操作的提示词
+ */
+function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
+    // 读取编号显示设置
+    const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
+    const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : false;
+    
+    // 获取全局设置作为回退
+    const globalOperation = modal.querySelector('#operation-type')?.value;
+    const globalDescription = modal.querySelector('#target-input')?.value?.trim();
+    
+    // 为每个选中的标注生成独立的描述
+    const layerDescriptions = selectedAnnotationIds.map(annotationId => {
+        const annotation = modal.annotations.find(ann => ann.id === annotationId);
+        if (!annotation) return null;
+        
+        // 获取该标注的操作类型和描述（如果没有设置，使用全局设置）
+        const operationType = annotation.operationType || globalOperation || 'add_object';
+        const layerDescription = annotation.description || globalDescription || '';
+        
+        // console.log(`🔍 处理标注 ${annotationId}:`, { operationType, layerDescription });
+        
+        // 生成该层的对象描述
+        const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
+        
+        // 获取操作模板
+        const template = OPERATION_TEMPLATES[operationType];
+        if (!template) {
+            return `Apply ${operationType} to ${objectDescription}`;
+        }
+        
+        // 生成该层的完整描述
+        const layerPrompt = template.description(layerDescription).replace('{object}', objectDescription);
+        
+        // console.log(`📝 生成层描述: ${layerPrompt}`);
+        
+        return layerPrompt;
+    }).filter(desc => desc);
+    
+    if (layerDescriptions.length === 0) {
+        return 'No valid layers selected.';
+    }
+    
+    // 合并多层描述
+    let combinedDescription;
+    if (layerDescriptions.length === 1) {
+        combinedDescription = layerDescriptions[0];
+    } else if (layerDescriptions.length === 2) {
+        combinedDescription = `${layerDescriptions[0]}, and ${layerDescriptions[1]}`;
+    } else {
+        const lastDesc = layerDescriptions.pop();
+        combinedDescription = `${layerDescriptions.join(', ')}, and ${lastDesc}`;
+    }
+    
+    console.log(`🎯 生成了 ${selectedAnnotationIds.length} 个图层的独立操作提示词`);
+    
+    return combinedDescription;
+}
+
+/**
+ * 生成多选标注的提示词 (保留兼容性)
  */
 function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, modal, getObjectInfoFunction) {
     // 读取编号显示设置
@@ -585,9 +684,6 @@ export function generateNegativePrompt(operation, inputText) {
  */
 export function exportPromptData(modal) {
     const generatedDescription = modal.querySelector('#generated-description');
-    const objectSelector = modal.querySelector('#object-selector');
-    const operationType = modal.querySelector('#operation-type');
-    const targetInput = modal.querySelector('#target-input');
     const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
     
     if (!generatedDescription) return null;
@@ -596,18 +692,37 @@ export function exportPromptData(modal) {
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
     const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     
+    // 获取选中的标注和它们的独立设置
+    const selectedAnnotationIds = getSelectedAnnotationIds(modal);
+    const selectedAnnotations = selectedAnnotationIds.map(id => {
+        const annotation = modal.annotations.find(ann => ann.id === id);
+        return annotation ? {
+            id: annotation.id,
+            operationType: annotation.operationType,
+            description: annotation.description,
+            type: annotation.type,
+            color: annotation.color
+        } : null;
+    }).filter(ann => ann);
+    
+    // 获取全局设置
+    const operationType = modal.querySelector('#operation-type');
+    const targetInput = modal.querySelector('#target-input');
+    const templateCategory = modal.querySelector('#template-category');
+    
     const promptData = {
         positive_prompt: generatedDescription.value,
         negative_prompt: generateNegativePrompt(operationType?.value || 'custom', targetInput?.value || ''),
-        selected_object: objectSelector?.value || '',
-        operation_type: operationType?.value || 'custom',
-        target_description: targetInput?.value || '',
+        selected_annotations: selectedAnnotations,  // 🔴 新增：选中的标注及其独立设置
+        global_operation_type: operationType?.value || 'add_object',  // 🔴 恢复：全局操作类型
+        global_description: targetInput?.value || '',  // 🔴 恢复：全局描述
+        template_category: templateCategory?.value || 'local',  // 🔴 恢复：模板分类
         constraint_prompts: selectedConstraints,  // 🔴 改为数组
         decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
         annotations: modal.annotations || [],
         quality_analysis: analyzePromptQuality(generatedDescription.value),
-        template_category: modal.querySelector('#template-category')?.value || 'local',  // 🔴 新增分类信息
+        editing_mode: 'hybrid',  // 🔴 支持混合模式
         timestamp: new Date().toISOString()
     };
     
