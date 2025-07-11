@@ -60,15 +60,16 @@ class VisualPromptEditor:
             }
         }
     
-    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
     RETURN_NAMES = (
         "processed_image", 
         "structured_prompt",
-        "annotation_data"
+        "annotation_data",
+        "model_instruction"
     )
     FUNCTION = "visual_prompt_edit"
     CATEGORY = "kontext/core"
-    DESCRIPTION = "Unified visual annotation editor with structured prompt generation. layers_json is optional - can work standalone or with pre-detected layers."
+    DESCRIPTION = "Unified visual annotation editor with structured prompt generation. Outputs: processed image, structured prompt, annotation data, and complete model instruction for debugging/monitoring."
     
     def visual_prompt_edit(self, image: torch.Tensor, annotation_data: str = None,
                           text_prompt: str = "", prompt_template: str = "object_edit"):
@@ -117,6 +118,10 @@ class VisualPromptEditor:
                         print(f"🔒 约束性提示词: {constraint_prompts}")
                         print(f"🎨 修饰性提示词: {decorative_prompts}")
                         
+                        # Extract selected annotations with individual operation types
+                        selected_annotations = parsed_data.get("selected_annotations", [])
+                        print(f"📝 选中的标注: {len(selected_annotations)} 个，包含独立操作类型")
+                        
                         # Extract user-edited positive_prompt - 🔴 新增：读取用户修改后的提示词
                         user_edited_prompt = parsed_data.get("positive_prompt", "")
                         if user_edited_prompt and user_edited_prompt.strip():
@@ -159,7 +164,7 @@ class VisualPromptEditor:
                 }
                     
                 structured_prompt = self._generate_structured_prompt(
-                    layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts
+                    layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts, selected_annotations
                 )
                 print(f"🤖 使用自动生成的提示词: {structured_prompt[:100]}...")
             
@@ -175,13 +180,19 @@ class VisualPromptEditor:
                 "operation_type": prompt_template,
                 "target_description": text_prompt,
                 "constraint_prompts": constraint_prompts,
-                "decorative_prompts": decorative_prompts
+                "decorative_prompts": decorative_prompts,
+                "selected_annotations": selected_annotations,  # 🔴 新增：包含每个标注的独立操作类型
+                "multi_layer_operations": len(selected_annotations) > 1  # 🔴 新增：标识是否为多层独立操作
             }, ensure_ascii=False, indent=2)
+            
+            # 🔴 新增：生成给大模型的完整指令
+            model_instruction = self._generate_model_instruction(structured_prompt, constraint_prompts, decorative_prompts, selected_annotations)
             
             return (
                 output_image,  # Image with annotations
                 structured_prompt,  # Structured prompt string
-                annotation_output  # Annotation data JSON
+                annotation_output,  # Annotation data JSON
+                model_instruction  # Complete instruction for the model
             )
             
         except Exception as e:
@@ -192,7 +203,8 @@ class VisualPromptEditor:
                                    selected_ids: List[str], 
                                    template: str, text_prompt: str = "", 
                                    include_annotation_numbers: bool = True,
-                                   enhanced_prompts: Dict = None) -> str:
+                                   enhanced_prompts: Dict = None,
+                                   selected_annotations: List[Dict] = None) -> str:
         """Generate structured prompt string using the same templates as frontend"""
         
         # 1. Object (对象) - 明确指定要编辑的区域或对象
@@ -305,15 +317,71 @@ class VisualPromptEditor:
             'custom': lambda target: target or "Apply custom modification to the selected region"
         }
         
-        # Get template function (direct match, no mapping needed)
-        template_func = operation_templates.get(template, operation_templates['custom'])
-        
-        # Generate prompt using template
-        target_text = text_prompt.strip() if text_prompt.strip() else None
-        structured_prompt = template_func(target_text)
-        
-        # Replace {object} placeholder with actual object description
-        structured_prompt = structured_prompt.replace('{object}', objects_str)
+        # 🔴 新逻辑：处理多个标注的独立操作类型
+        if selected_annotations and len(selected_annotations) > 0:
+            # 多标注独立操作模式
+            prompt_parts = []
+            
+            for annotation in selected_annotations:
+                annotation_id = annotation.get('id')
+                operation_type = annotation.get('operationType', template)
+                individual_description = annotation.get('description', text_prompt)
+                
+                # 找到对应的图层数据
+                layer_data = next((layer for layer in layers_data if layer.get('id') == annotation_id), None)
+                if not layer_data:
+                    continue
+                
+                # 构建单个标注的对象描述
+                layer_type = layer_data.get("type", "object")
+                color = layer_data.get("color", "#ff0000")
+                number = layer_data.get("number", 1)
+                
+                # Color mapping
+                color_map = {
+                    '#ff0000': 'red',
+                    '#00ff00': 'green', 
+                    '#ffff00': 'yellow',
+                    '#0000ff': 'blue'
+                }
+                # Shape mapping
+                shape_map = {
+                    'rectangle': 'rectangular',
+                    'circle': 'circular',
+                    'arrow': 'arrow-marked',
+                    'freehand': 'outlined'
+                }
+                
+                color_name = color_map.get(color, 'marked')
+                shape_name = shape_map.get(layer_type, 'marked')
+                
+                # Build object description for this annotation
+                if include_annotation_numbers:
+                    object_desc = f"the {color_name} {shape_name} marked area (annotation {number})"
+                else:
+                    object_desc = f"the {color_name} {shape_name} marked area"
+                
+                # Get template function for this specific annotation
+                template_func = operation_templates.get(operation_type, operation_templates['custom'])
+                target_text = individual_description.strip() if individual_description.strip() else None
+                
+                # Generate prompt for this annotation
+                annotation_prompt = template_func(target_text)
+                annotation_prompt = annotation_prompt.replace('{object}', object_desc)
+                
+                prompt_parts.append(annotation_prompt)
+            
+            # Combine all annotation prompts
+            if len(prompt_parts) == 1:
+                structured_prompt = prompt_parts[0]
+            else:
+                structured_prompt = "; ".join(prompt_parts)
+        else:
+            # 原有逻辑：全局操作模式（向后兼容）
+            template_func = operation_templates.get(template, operation_templates['custom'])
+            target_text = text_prompt.strip() if text_prompt.strip() else None
+            structured_prompt = template_func(target_text)
+            structured_prompt = structured_prompt.replace('{object}', objects_str)
         
         # Add enhanced prompts if provided - 🔴 支持多选提示词
         if enhanced_prompts:
@@ -835,6 +903,48 @@ class VisualPromptEditor:
             print(f"Warning: Failed to render annotations on image: {e}")
             return image  # Return original image if rendering fails
     
+    def _generate_model_instruction(self, structured_prompt: str, constraint_prompts: List[str], decorative_prompts: List[str], selected_annotations: List[Dict]) -> str:
+        """
+        生成给大模型的完整指令
+        包含基础提示词、约束性提示词、修饰性提示词和元数据信息
+        """
+        instruction_parts = []
+        
+        # 1. 基础操作指令
+        instruction_parts.append(f"OPERATION: {structured_prompt}")
+        
+        # 2. 约束性提示词（质量和技术要求）
+        if constraint_prompts:
+            constraints_text = ", ".join(constraint_prompts)
+            instruction_parts.append(f"CONSTRAINTS: {constraints_text}")
+        
+        # 3. 修饰性提示词（风格和视觉效果）
+        if decorative_prompts:
+            decoratives_text = ", ".join(decorative_prompts)
+            instruction_parts.append(f"STYLE: {decoratives_text}")
+        
+        # 4. 元数据信息
+        metadata = []
+        if selected_annotations:
+            metadata.append(f"annotations_count: {len(selected_annotations)}")
+            
+            # 统计操作类型
+            operation_types = {}
+            for ann in selected_annotations:
+                op_type = ann.get('operationType', 'unknown')
+                operation_types[op_type] = operation_types.get(op_type, 0) + 1
+            
+            if operation_types:
+                op_summary = ", ".join([f"{op}({count})" for op, count in operation_types.items()])
+                metadata.append(f"operations: {op_summary}")
+        
+        if metadata:
+            instruction_parts.append(f"METADATA: {'; '.join(metadata)}")
+        
+        # 组合完整指令
+        complete_instruction = " | ".join(instruction_parts)
+        
+        return complete_instruction
     
     def _create_fallback_output(self, image: torch.Tensor, error_msg: str):
         """Create fallback output"""
@@ -849,10 +959,14 @@ class VisualPromptEditor:
             "decorative_prompts": []
         }, ensure_ascii=False, indent=2)
         
+        # Create fallback model instruction
+        fallback_model_instruction = f"Fallback instruction: {fallback_structured_prompt}. Error: {error_msg}"
+        
         return (
             image,  # Image
             fallback_structured_prompt,  # Structured prompt
-            fallback_annotation_data  # Annotation data
+            fallback_annotation_data,  # Annotation data
+            fallback_model_instruction  # Model instruction
         )
 
 # Node registration
