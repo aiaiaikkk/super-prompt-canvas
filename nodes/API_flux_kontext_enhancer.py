@@ -237,7 +237,6 @@ class APIFluxKontextEnhancer:
                     "multiline": False,
                     "placeholder": "Custom model name (when preset=custom)"
                 }),
-                "image": ("IMAGE",),
                 "annotation_data": ("STRING", {
                     "forceInput": True,
                     "tooltip": "来自VisualPromptEditor的标注JSON数据（连接输入）"
@@ -284,6 +283,9 @@ class APIFluxKontextEnhancer:
                 })
             },
             "optional": {
+                "image": ("IMAGE", {
+                    "tooltip": "可选：用于视觉分析的图像（仅支持视觉模型时需要）"
+                }),
                 "custom_guidance": ("STRING", {
                     "default": "",
                     "multiline": True,
@@ -468,10 +470,10 @@ class APIFluxKontextEnhancer:
             print(f"⚠️ 解析API响应失败: {str(e)}")
             return response_text, ""
     
-    def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, image, 
+    def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, 
                                 annotation_data, edit_description, 
                                 enhancement_level, language, guidance_style, guidance_template,
-                                custom_guidance=""):
+                                image=None, custom_guidance=""):
         """主要处理函数"""
         
         try:
