@@ -279,9 +279,6 @@ class OllamaFluxKontextEnhancerV2:
                     "forceInput": True,
                     "tooltip": "来自VisualPromptEditor的标注JSON数据（连接输入）"
                 }),
-                "image": ("IMAGE", {
-                    "tooltip": "来自VisualPromptEditor的处理后图像（用于视觉分析）"
-                }),
                 "edit_description": ("STRING", {
                     "multiline": True,
                     "default": "",
@@ -314,6 +311,9 @@ class OllamaFluxKontextEnhancerV2:
                 }),
             },
             "optional": {
+                "image": ("IMAGE", {
+                    "tooltip": "可选：用于视觉分析的图像（仅支持视觉模型时需要）"
+                }),
                 "url": ("STRING", {
                     "default": "http://127.0.0.1:11434",
                     "tooltip": "Ollama服务地址"
@@ -398,9 +398,9 @@ class OllamaFluxKontextEnhancerV2:
         self.start_time = None
         self.debug_logs = []
     
-    def enhance_flux_instructions(self, annotation_data: str, image, edit_description: str, model: str, 
+    def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
                                 edit_instruction_type: str, output_format: str,
-                                url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
+                                image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
                                 language: str = "chinese", enable_visual_analysis: bool = False,
                                 guidance_style: str = "efficient_concise",
                                 guidance_template: str = "none", custom_guidance: str = ""):
