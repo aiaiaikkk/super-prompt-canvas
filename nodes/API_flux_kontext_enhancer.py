@@ -49,12 +49,23 @@ class APIFluxKontextEnhancer:
     
     # API提供商配置
     API_PROVIDERS = {
+        "siliconflow": {
+            "name": "SiliconFlow",
+            "base_url": "https://api.siliconflow.cn/v1",
+            "default_model": "deepseek-ai/DeepSeek-V3",
+            "cost_per_1k": 0.001,
+            "description": "SiliconFlow - 支持DeepSeek R1/V3等最新模型",
+            "models": [
+                "deepseek-ai/DeepSeek-R1",
+                "deepseek-ai/DeepSeek-V3"
+            ]
+        },
         "deepseek": {
             "name": "DeepSeek",
             "base_url": "https://api.deepseek.com/v1",
             "default_model": "deepseek-chat",
             "cost_per_1k": 0.001,
-            "description": "高性价比中文优化模型"
+            "description": "DeepSeek官方 - 高性价比中文优化模型"
         },
         "qianwen": {
             "name": "千问/Qianwen",
@@ -73,16 +84,23 @@ class APIFluxKontextEnhancer:
     }
     
     @classmethod
-    def get_available_models(cls, provider="deepseek", api_key=None, force_refresh=False):
+    def get_available_models(cls, provider="siliconflow", api_key=None, force_refresh=False):
         """动态获取可用的API模型列表"""
+        
+        provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["siliconflow"])
+        
+        # 如果提供商有预定义的模型列表，优先使用
+        if "models" in provider_config:
+            print(f"✅ 使用{provider_config['name']}预定义模型列表: {provider_config['models']}")
+            return provider_config["models"]
         
         if not OPENAI_AVAILABLE:
             print("❌ OpenAI库未安装，无法获取API模型")
-            return [cls.API_PROVIDERS[provider]["default_model"]]
+            return [provider_config["default_model"]]
             
         if not api_key:
-            print(f"❌ {provider} API密钥未提供")
-            return [cls.API_PROVIDERS[provider]["default_model"]]
+            print(f"❌ {provider} API密钥未提供，使用默认模型")
+            return [provider_config["default_model"]]
             
         import time
         current_time = time.time()
@@ -100,7 +118,7 @@ class APIFluxKontextEnhancer:
                 print(f"❌ OpenAI库未安装，无法获取{provider}模型")
                 return [cls.API_PROVIDERS[provider]["default_model"]]
             
-            provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["deepseek"])
+            provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["siliconflow"])
             
             client = OpenAI(
                 api_key=api_key,
@@ -134,47 +152,101 @@ class APIFluxKontextEnhancer:
             return [default_model]
     
     @classmethod
+    def get_template_content_for_placeholder(cls, guidance_style, guidance_template):
+        """获取模板内容用于placeholder显示"""
+        try:
+            # 导入guidance_templates模块
+            from .guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
+            
+            # 根据guidance_style选择内容
+            if guidance_style == "custom":
+                # 自定义模式保留完整提示文字
+                return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+            elif guidance_style == "template":
+                if guidance_template and guidance_template != "none" and guidance_template in TEMPLATE_LIBRARY:
+                    template_content = TEMPLATE_LIBRARY[guidance_template]["prompt"]
+                    # 截取前200个字符用于placeholder显示
+                    preview = template_content[:200].replace('\n', ' ').strip()
+                    return f"当前模板: {TEMPLATE_LIBRARY[guidance_template]['name']}\n\n{preview}..."
+                else:
+                    return "选择一个模板后将在此显示预览..."
+            else:
+                # 显示预设风格的内容
+                if guidance_style in PRESET_GUIDANCE:
+                    preset_content = PRESET_GUIDANCE[guidance_style]["prompt"]
+                    # 截取前200个字符用于placeholder显示
+                    preview = preset_content[:200].replace('\n', ' ').strip()
+                    return f"当前风格: {PRESET_GUIDANCE[guidance_style]['name']}\n\n{preview}..."
+                else:
+                    return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+        except Exception as e:
+            print(f"获取模板内容失败: {e}")
+            return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+
+    @classmethod
     def INPUT_TYPES(cls):
         """定义节点输入类型"""
+        # 动态生成placeholder内容
+        default_placeholder = cls.get_template_content_for_placeholder("efficient_concise", "none")
         return {
             "required": {
-                "api_provider": (["deepseek", "qianwen", "openai"], {
-                    "default": "deepseek"
+                "api_provider": (["siliconflow", "deepseek", "qianwen", "openai"], {
+                    "default": "siliconflow"
                 }),
                 "api_key": ("STRING", {
                     "default": "",
                     "multiline": False,
                     "placeholder": "Enter your API key here..."
                 }),
-                "model_name": ("STRING", {
-                    "default": "deepseek-chat",
+                "model_preset": ([
+                    "deepseek-ai/DeepSeek-R1",
+                    "deepseek-ai/DeepSeek-V3", 
+                    "deepseek-chat",
+                    "qwen-turbo",
+                    "gpt-3.5-turbo",
+                    "custom"
+                ], {
+                    "default": "deepseek-ai/DeepSeek-V3"
+                }),
+                "custom_model": ("STRING", {
+                    "default": "",
                     "multiline": False,
-                    "placeholder": "Model name (auto-detected if API key provided)"
+                    "placeholder": "Custom model name (when preset=custom)"
                 }),
                 "image": ("IMAGE",),
-                "annotations_json": ("STRING", {
-                    "default": "[]",
-                    "multiline": True,
-                    "placeholder": "Annotation data from VisualPromptEditor"
+                "annotation_data": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "来自VisualPromptEditor的标注JSON数据（连接输入）"
                 }),
-                "base_prompt": ("STRING", {
+                "edit_description": ("STRING", {
+                    "multiline": True,
                     "default": "",
-                    "multiline": True,
-                    "placeholder": "Base prompt to enhance..."
-                }),
-                "style_preset": ([
-                    "photorealistic",
-                    "artistic",
-                    "cinematic", 
-                    "portrait",
-                    "landscape",
-                    "anime",
-                    "concept_art",
-                    "commercial",
-                    "fashion",
-                    "architectural"
-                ], {
-                    "default": "photorealistic"
+                    "placeholder": "描述你想做的编辑操作...\n\n例如：\n- 在红色矩形区域增加一棵树\n- 将蓝色标记区域的车辆改为红色\n- 移除圆形区域的人物\n- 将黄色区域的天空改为晩霞效果",
+                    "tooltip": "描述你想要做的编辑操作，结合标注信息生成精准的编辑指令"
                 }),
                 "enhancement_level": ([
                     "minimal",
@@ -187,41 +259,42 @@ class APIFluxKontextEnhancer:
                 "language": (["chinese", "english", "bilingual"], {
                     "default": "chinese"
                 }),
-                "temperature": ("FLOAT", {
-                    "default": 0.7,
-                    "min": 0.0,
-                    "max": 2.0,
-                    "step": 0.1
+                "guidance_style": ([
+                    "efficient_concise",   # 高效简洁 (默认)
+                    "natural_creative",    # 自然创意
+                    "technical_precise",   # 技术精确
+                    "template",           # 模板选择
+                    "custom"              # 自定义
+                ], {
+                    "default": "efficient_concise",
+                    "tooltip": "选择AI引导话术风格：高效简洁适合快速编辑，自然创意适合艺术设计，技术精确适合专业用途，模板选择常用预设，自定义允许完全控制"
                 }),
-                "max_tokens": ("INT", {
-                    "default": 1000,
-                    "min": 100,
-                    "max": 4000,
-                    "step": 100
-                }),
-                "enable_caching": ("BOOLEAN", {
-                    "default": True
-                }),
-                "debug_mode": ("BOOLEAN", {
-                    "default": False
+                "guidance_template": ([
+                    "none",               # 无模板
+                    "ecommerce_product",  # 电商产品
+                    "portrait_beauty",    # 人像美化
+                    "creative_design",    # 创意设计
+                    "architecture_photo", # 建筑摄影
+                    "food_photography",   # 美食摄影
+                    "fashion_retail",     # 时尚零售
+                    "landscape_nature"    # 风景自然
+                ], {
+                    "default": "none",
+                    "tooltip": "选择专用引导模板（当guidance_style为template时使用）"
                 })
             },
             "optional": {
-                "custom_instructions": ("STRING", {
+                "custom_guidance": ("STRING", {
                     "default": "",
                     "multiline": True,
-                    "placeholder": "Additional custom instructions..."
-                }),
-                "negative_prompt": ("STRING", {
-                    "default": "",
-                    "multiline": True,
-                    "placeholder": "What to avoid in the image..."
+                    "placeholder": default_placeholder,
+                    "tooltip": "当guidance_style为'custom'时，在此输入您的专用AI引导指令。placeholder会根据当前选择的guidance_style和guidance_template动态显示预览内容。"
                 })
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("enhanced_prompt", "kontext_instructions", "api_response", "debug_info")
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("flux_edit_instructions", "system_prompt")
     
     FUNCTION = "enhance_flux_instructions"
     CATEGORY = "KontextVisualPromptWindow/API"
@@ -236,12 +309,12 @@ class APIFluxKontextEnhancer:
             "estimated_cost": 0.0
         }
     
-    def _get_cache_key(self, annotations_json: str, base_prompt: str, 
-                      style_preset: str, enhancement_level: str, 
-                      language: str, model_name: str, temperature: float) -> str:
+    def _get_cache_key(self, annotation_data: str, 
+                      enhancement_level: str, 
+                      language: str, model_name: str) -> str:
         """生成缓存键"""
         import hashlib
-        content = f"{annotations_json}|{base_prompt}|{style_preset}|{enhancement_level}|{language}|{model_name}|{temperature}"
+        content = f"{annotation_data}|{enhancement_level}|{language}|{model_name}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
@@ -259,91 +332,38 @@ class APIFluxKontextEnhancer:
         if not api_key:
             raise Exception(f"请提供{provider} API密钥")
         
-        provider_config = self.API_PROVIDERS.get(provider, self.API_PROVIDERS["deepseek"])
+        provider_config = self.API_PROVIDERS.get(provider, self.API_PROVIDERS["siliconflow"])
         
         return OpenAI(
             api_key=api_key,
             base_url=provider_config["base_url"]
         )
     
-    def _build_system_prompt(self, language: str, style_preset: str, 
-                           enhancement_level: str) -> str:
-        """构建系统提示词"""
-        
-        language_instructions = {
-            "chinese": "请用中文回答，使用专业的图像编辑和AI绘画术语。",
-            "english": "Please respond in English using professional image editing and AI art terminology.",
-            "bilingual": "Please provide responses in both Chinese and English, with Chinese first."
-        }
-        
-        enhancement_instructions = {
-            "minimal": "进行基础的提示词优化，保持简洁",
-            "moderate": "进行中等程度的提示词增强，平衡细节和可读性",
-            "comprehensive": "进行全面的提示词优化，包含丰富的细节描述",
-            "professional": "进行专业级的提示词优化，适合商业用途"
-        }
-        
-        style_instructions = {
-            "photorealistic": "专注于真实感摄影效果，包含光影、质感等细节",
-            "artistic": "强调艺术性表达，包含色彩、构图等艺术元素",
-            "cinematic": "电影级视觉效果，包含镜头语言和氛围营造",
-            "portrait": "人像摄影专业技法，包含表情、光线、构图",
-            "landscape": "风景摄影技法，包含自然光、景深、构图",
-            "anime": "动漫风格特征，包含色彩、线条、风格化处理",
-            "concept_art": "概念艺术风格，包含创意设计和视觉概念",
-            "commercial": "商业摄影标准，包含产品展示和品牌调性",
-            "fashion": "时尚摄影技法，包含造型、光影、趋势元素",
-            "architectural": "建筑摄影技法，包含空间、线条、光影"
-        }
-        
-        return f"""你是一个专业的AI图像编辑专家，特别擅长Flux模型的Kontext编辑功能。
-
-{language_instructions[language]}
-
-任务目标：
-1. 分析VisualPromptEditor提供的标注数据
-2. 将标注信息转换为Flux Kontext优化的编辑指令
-3. 结合基础提示词生成增强版提示词
-4. 确保指令符合{style_preset}风格的{enhancement_instructions[enhancement_level]}要求
-
-风格指导：
-{style_instructions[style_preset]}
-
-输出格式要求：
-1. enhanced_prompt: 增强后的完整提示词
-2. kontext_instructions: Flux Kontext格式的编辑指令
-3. 确保提示词自然流畅，符合AI绘画最佳实践
-4. 包含适当的技术参数和质量关键词
-
-请始终遵循专业的AI图像编辑标准和Flux模型的最佳实践。"""
     
-    def _build_user_prompt(self, annotations_json: str, base_prompt: str, 
-                          custom_instructions: str = "", negative_prompt: str = "") -> str:
+    def _build_user_prompt(self, annotation_data: str, edit_description: str = "") -> str:
         """构建用户提示词"""
         
-        user_prompt = f"""请分析以下内容并生成优化的Flux Kontext编辑指令：
-
-**标注数据：**
-```json
-{annotations_json}
-```
-
-**基础提示词：**
-{base_prompt}
-
-**自定义指令：**
-{custom_instructions}
-
-**负面提示词：**
-{negative_prompt}
-
-请生成：
-1. **enhanced_prompt** - 增强后的完整提示词
-2. **kontext_instructions** - Flux Kontext格式的编辑指令
-
-确保输出的指令能够精确控制图像编辑，同时保持自然流畅的语言表达。"""
+        prompt_parts = []
+        prompt_parts.append("请分析以下内容并生成优化的Flux Kontext编辑指令：")
         
-        return user_prompt
+        # 1. 编辑意图描述（最重要的信息）
+        if edit_description and edit_description.strip():
+            prompt_parts.append(f"\n**编辑意图：**")
+            prompt_parts.append(edit_description.strip())
+        
+        # 2. 标注数据
+        prompt_parts.append(f"\n**标注数据：**")
+        prompt_parts.append(f"```json\n{annotation_data}\n```")
+        
+        
+        # 3. 生成要求
+        prompt_parts.append(f"\n请生成：")
+        prompt_parts.append("1. **enhanced_prompt** - 增强后的完整提示词")
+        prompt_parts.append("2. **kontext_instructions** - Flux Kontext格式的编辑指令")
+        prompt_parts.append("\n确保输出的指令能够精确控制图像编辑，同时保持自然流畅的语言表达。")
+        prompt_parts.append("重点根据编辑意图和标注信息的结合来生成指令。")
+        
+        return "\n".join(prompt_parts)
     
     def _generate_with_api(self, client, model_name: str, 
                          system_prompt: str, user_prompt: str, 
@@ -357,8 +377,8 @@ class APIFluxKontextEnhancer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens,
+                temperature=0.7,
+                max_tokens=1000,
                 stream=False
             )
             
@@ -448,50 +468,79 @@ class APIFluxKontextEnhancer:
             print(f"⚠️ 解析API响应失败: {str(e)}")
             return response_text, ""
     
-    def enhance_flux_instructions(self, api_provider, api_key, model_name, image, 
-                                annotations_json, base_prompt, style_preset, 
-                                enhancement_level, language, temperature, max_tokens, 
-                                enable_caching, debug_mode, custom_instructions="", 
-                                negative_prompt=""):
+    def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, image, 
+                                annotation_data, edit_description, 
+                                enhancement_level, language, guidance_style, guidance_template,
+                                custom_guidance=""):
         """主要处理函数"""
         
         try:
             start_time = time.time()
             
+            # 设置移除参数的默认值
+            temperature = 0.7
+            max_tokens = 1000
+            enable_caching = True
+            debug_mode = False
+            
+            # 导入引导话术管理器
+            try:
+                from .guidance_templates import guidance_manager
+            except ImportError:
+                # 回退到绝对导入
+                import sys
+                import os
+                sys.path.append(os.path.dirname(__file__))
+                from guidance_templates import guidance_manager
+            
+            # 构建系统提示词（整合引导话术）
+            system_prompt = guidance_manager.build_system_prompt(
+                guidance_style=guidance_style,
+                guidance_template=guidance_template,
+                custom_guidance=custom_guidance,
+                load_saved_guidance=""
+            )
+            
+            # 确定实际使用的模型名称
+            if model_preset == "custom":
+                if not custom_model or not custom_model.strip():
+                    return (
+                        "错误：选择自定义模型时，请提供模型名称",
+                        "错误：自定义模型名称验证失败"
+                    )
+                model_name = custom_model.strip()
+            else:
+                model_name = model_preset
+            
             # 输入验证
             if not api_key or not api_key.strip():
                 return (
                     "错误：请提供有效的API密钥",
-                    "",
-                    json.dumps({"error": "API密钥为空"}, ensure_ascii=False, indent=2),
-                    "API密钥验证失败"
+                    "错误：API密钥验证失败"
                 )
             
             # 检查缓存
             cache_key = None
             if enable_caching:
                 cache_key = self._get_cache_key(
-                    annotations_json, base_prompt, style_preset, 
-                    enhancement_level, language, model_name, temperature
+                    annotation_data, 
+                    enhancement_level, language, model_name
                 )
                 
                 if cache_key in self.cache:
                     cached_result = self.cache[cache_key]
                     if debug_mode:
                         print(f"🎯 使用缓存结果: {cache_key}")
-                    return (
-                        cached_result['enhanced_prompt'],
-                        cached_result['kontext_instructions'],
-                        cached_result['api_response'],
-                        f"缓存命中 | 生成时间: {cached_result['generation_time']:.2f}秒"
-                    )
+                    # 选择最相关的缓存输出作为Flux编辑指令
+                    flux_instructions = cached_result.get('kontext_instructions', '') or cached_result.get('enhanced_prompt', '')
+                    cached_system_prompt = cached_result.get('system_prompt', '[缓存中无system_prompt信息]')
+                    return (flux_instructions, cached_system_prompt)
             
             # 创建API客户端
             client = self._create_api_client(api_provider, api_key)
             
-            # 构建提示词
-            system_prompt = self._build_system_prompt(language, style_preset, enhancement_level)
-            user_prompt = self._build_user_prompt(annotations_json, base_prompt, custom_instructions, negative_prompt)
+            # 构建用户提示词（系统提示词已在前面通过引导话术系统构建）
+            user_prompt = self._build_user_prompt(annotation_data, edit_description)
             
             if debug_mode:
                 print(f"🔍 系统提示词: {system_prompt[:200]}...")
@@ -526,12 +575,15 @@ class APIFluxKontextEnhancer:
                 self.cache[cache_key] = {
                     'enhanced_prompt': enhanced_prompt,
                     'kontext_instructions': kontext_instructions,
-                    'api_response': api_response,
+                    'system_prompt': system_prompt,
                     'generation_time': generation_time,
                     'timestamp': time.time()
                 }
             
-            return (enhanced_prompt, kontext_instructions, api_response, debug_info)
+            # 选择最相关的输出作为Flux编辑指令
+            flux_instructions = kontext_instructions if kontext_instructions.strip() else enhanced_prompt
+            
+            return (flux_instructions, system_prompt)
             
         except Exception as e:
             error_msg = f"处理失败: {str(e)}"
@@ -545,9 +597,7 @@ class APIFluxKontextEnhancer:
             
             return (
                 f"错误：{error_msg}",
-                "",
-                error_response,
-                f"处理失败 | 错误: {error_msg}"
+                f"错误：处理失败 - {error_msg}"
             )
     
     @classmethod

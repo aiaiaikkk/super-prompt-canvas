@@ -2571,23 +2571,25 @@ app.registerExtension({
                         const originalStroke = shape.getAttribute('data-original-stroke');
                         const originalStrokeWidth = shape.getAttribute('data-original-stroke-width');
                         
+                        // 🔧 完全清除高亮效果
+                        shape.classList.remove('selected');
+                        shape.style.filter = 'none';
+                        shape.removeAttribute('stroke-opacity');
+                        
+                        // 🔧 恢复原始边框宽度
                         if (originalStrokeWidth) {
                             shape.setAttribute('stroke-width', originalStrokeWidth);
                         } else {
                             shape.setAttribute('stroke-width', '3');
                         }
                         
+                        // 🔧 恢复原始边框状态
                         if (originalStroke) {
-                            if (originalStroke === 'none') {
-                                shape.setAttribute('stroke', 'none');
-                            } else {
-                                shape.setAttribute('stroke', originalStroke);
-                            }
+                            shape.setAttribute('stroke', originalStroke);
+                        } else {
+                            // 🔧 标注在非高亮状态下应该没有边框
+                            shape.setAttribute('stroke', 'none');
                         }
-                        
-                        shape.classList.remove('selected');
-                        // 🔧 清除高亮滤镜效果
-                        shape.style.filter = 'none';
                         
                         console.log('🔄 恢复形状原始状态:', {
                             tagName: shape.tagName,
@@ -3065,12 +3067,86 @@ app.registerExtension({
                                             const shape = svg.querySelector(`[data-annotation-id="${annotationId}"]`);
                                             if (shape) {
                                                 if (isChecked) {
+                                                    // 🔧 保存原始状态
+                                                    const currentStroke = shape.getAttribute('stroke');
+                                                    const currentStrokeWidth = shape.getAttribute('stroke-width');
+                                                    
+                                                    if (!shape.hasAttribute('data-original-stroke')) {
+                                                        shape.setAttribute('data-original-stroke', currentStroke || 'none');
+                                                    }
+                                                    if (!shape.hasAttribute('data-original-stroke-width')) {
+                                                        shape.setAttribute('data-original-stroke-width', currentStrokeWidth || '3');
+                                                    }
+                                                    
+                                                    // 应用高亮效果
                                                     shape.setAttribute('stroke-width', '6');
+                                                    shape.setAttribute('stroke-opacity', '1.0');
                                                     shape.classList.add('selected');
+                                                    shape.style.filter = 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))';
+                                                    
+                                                    // 确保边框可见
+                                                    if (!currentStroke || currentStroke === 'none') {
+                                                        const currentFill = shape.getAttribute('fill');
+                                                        const strokeColor = currentFill && currentFill !== 'none' ? currentFill : '#ffff00';
+                                                        shape.setAttribute('stroke', strokeColor);
+                                                    }
+                                                    
+                                                    // 🔧 高亮对应的编号标签
+                                                    const annotation = modal.annotations?.find(ann => ann.id === annotationId);
+                                                    if (annotation) {
+                                                        const label = svg.querySelector(`[data-annotation-number="${annotation.number}"]`);
+                                                        if (label) {
+                                                            const circle = label.querySelector('circle');
+                                                            if (circle) {
+                                                                circle.setAttribute('stroke', '#ffff00');
+                                                                circle.setAttribute('stroke-width', '4');
+                                                            }
+                                                        }
+                                                    }
+                                                    
                                                     console.log('✨ 高亮标注:', annotationId);
                                                 } else {
-                                                    shape.setAttribute('stroke-width', '3');
+                                                    // 🔧 完全恢复原始状态
+                                                    const originalStroke = shape.getAttribute('data-original-stroke');
+                                                    const originalStrokeWidth = shape.getAttribute('data-original-stroke-width');
+                                                    
+                                                    // 恢复原始边框宽度
+                                                    if (originalStrokeWidth) {
+                                                        shape.setAttribute('stroke-width', originalStrokeWidth);
+                                                    } else {
+                                                        shape.setAttribute('stroke-width', '3');
+                                                    }
+                                                    
+                                                    // 恢复原始边框颜色
+                                                    if (originalStroke) {
+                                                        if (originalStroke === 'none') {
+                                                            shape.setAttribute('stroke', 'none');
+                                                        } else {
+                                                            shape.setAttribute('stroke', originalStroke);
+                                                        }
+                                                    } else {
+                                                        // 🔧 标注在非高亮状态下应该没有边框
+                                                        shape.setAttribute('stroke', 'none');
+                                                    }
+                                                    
+                                                    // 清除高亮效果
                                                     shape.classList.remove('selected');
+                                                    shape.style.filter = 'none';
+                                                    shape.removeAttribute('stroke-opacity');
+                                                    
+                                                    // 🔧 恢复编号标签的原始状态
+                                                    const annotation = modal.annotations?.find(ann => ann.id === annotationId);
+                                                    if (annotation) {
+                                                        const label = svg.querySelector(`[data-annotation-number="${annotation.number}"]`);
+                                                        if (label) {
+                                                            const circle = label.querySelector('circle');
+                                                            if (circle) {
+                                                                circle.setAttribute('stroke', '#fff');
+                                                                circle.setAttribute('stroke-width', '3');
+                                                            }
+                                                        }
+                                                    }
+                                                    
                                                     console.log('🔹 取消高亮标注:', annotationId);
                                                 }
                                             }

@@ -13,6 +13,7 @@ providing advanced image editing, visual annotation recognition, and structured 
 
 import os
 import sys
+import importlib
 import importlib.util
 from pathlib import Path
 
@@ -98,6 +99,7 @@ def try_import_from_paths():
 # Create basic nodes if none found
 def create_basic_nodes():
     """Create basic nodes as fallback"""
+    global NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
     
     print("📦 Creating basic fallback nodes...")
     

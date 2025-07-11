@@ -205,6 +205,62 @@ class OllamaFluxKontextEnhancerV2:
         return cls.get_available_models(force_refresh=True)
 
     @classmethod
+    def get_template_content_for_placeholder(cls, guidance_style, guidance_template):
+        """获取模板内容用于placeholder显示"""
+        try:
+            # 导入guidance_templates模块
+            from .guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
+            
+            # 根据guidance_style选择内容
+            if guidance_style == "custom":
+                # 自定义模式保留完整提示文字
+                return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+            elif guidance_style == "template":
+                if guidance_template and guidance_template != "none" and guidance_template in TEMPLATE_LIBRARY:
+                    template_content = TEMPLATE_LIBRARY[guidance_template]["prompt"]
+                    # 截取前200个字符用于placeholder显示
+                    preview = template_content[:200].replace('\n', ' ').strip()
+                    return f"当前模板: {TEMPLATE_LIBRARY[guidance_template]['name']}\n\n{preview}..."
+                else:
+                    return "选择一个模板后将在此显示预览..."
+            else:
+                # 显示预设风格的内容
+                if guidance_style in PRESET_GUIDANCE:
+                    preset_content = PRESET_GUIDANCE[guidance_style]["prompt"]
+                    # 截取前200个字符用于placeholder显示
+                    preview = preset_content[:200].replace('\n', ' ').strip()
+                    return f"当前风格: {PRESET_GUIDANCE[guidance_style]['name']}\n\n{preview}..."
+                else:
+                    return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+        except Exception as e:
+            print(f"获取模板内容失败: {e}")
+            return """输入您的自定义AI引导指令...
+
+例如：
+你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
+1. 保持指令简洁
+2. 确保操作精确
+3. 维持风格一致性
+
+更多示例请查看guidance_template选项。"""
+
+    @classmethod
     def INPUT_TYPES(cls):
         # 动态获取模型列表
         available_models = cls.get_available_models()
@@ -214,12 +270,23 @@ class OllamaFluxKontextEnhancerV2:
         if default_model not in available_models:
             default_model = available_models[0] if available_models else "ollama-model-not-found"
         
+        # 动态生成placeholder内容
+        default_placeholder = cls.get_template_content_for_placeholder("efficient_concise", "none")
+        
         return {
             "required": {
                 "annotation_data": ("STRING", {
-                    "multiline": True, 
+                    "forceInput": True,
+                    "tooltip": "来自VisualPromptEditor的标注JSON数据（连接输入）"
+                }),
+                "image": ("IMAGE", {
+                    "tooltip": "来自VisualPromptEditor的处理后图像（用于视觉分析）"
+                }),
+                "edit_description": ("STRING", {
+                    "multiline": True,
                     "default": "",
-                    "tooltip": "来自VisualPromptEditor的标注JSON数据"
+                    "placeholder": "描述你想做的编辑操作...\n\n例如：\n- 在红色矩形区域增加一棵树\n- 将蓝色标记区域的车辆改为红色\n- 移除圆形区域的人物\n- 将黄色区域的天空改为晩霞效果",
+                    "tooltip": "描述你想要做的编辑操作，结合标注信息生成精准的编辑指令"
                 }),
                 "model": (available_models, {
                     "default": default_model,
@@ -240,34 +307,13 @@ class OllamaFluxKontextEnhancerV2:
                 "output_format": ([
                     "flux_kontext_standard",  # Flux Kontext标准格式
                     "structured_json",        # 结构化JSON
-                    "natural_language",       # 自然语言描述
-                    "prompt_engineering"      # 提示工程优化
+                    "natural_language"        # 自然语言描述
                 ], {
                     "default": "flux_kontext_standard",
                     "tooltip": "选择输出的提示词格式"
                 }),
             },
             "optional": {
-                "reference_context": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "tooltip": "参考上下文，用于增强编辑指令的连贯性"
-                }),
-                "edit_intensity": ("FLOAT", {
-                    "default": 0.8,
-                    "min": 0.1,
-                    "max": 2.0,
-                    "step": 0.1,
-                    "tooltip": "编辑强度 (0.1=轻微, 1.0=标准, 2.0=强烈)"
-                }),
-                "preservation_mask": ("STRING", {
-                    "default": "",
-                    "tooltip": "需要保护不变的区域描述"
-                }),
-                "style_guidance": ("STRING", {
-                    "default": "",
-                    "tooltip": "风格引导参数"
-                }),
                 "url": ("STRING", {
                     "default": "http://127.0.0.1:11434",
                     "tooltip": "Ollama服务地址"
@@ -279,23 +325,43 @@ class OllamaFluxKontextEnhancerV2:
                     "step": 0.1,
                     "tooltip": "生成温度 (创意性控制)"
                 }),
-                "top_p": ("FLOAT", {
-                    "default": 0.9,
-                    "min": 0.1,
-                    "max": 1.0,
-                    "step": 0.1,
-                    "tooltip": "核心采样参数"
+                "language": (["chinese", "english", "bilingual"], {
+                    "default": "chinese",
+                    "tooltip": "选择输出语言：中文、英文或双语"
                 }),
-                "keep_alive": ("INT", {
-                    "default": 5,
-                    "min": -1,
-                    "max": 60,
-                    "tooltip": "模型保持活跃时间(分钟)"
-                }),
-                "debug_mode": ("BOOLEAN", {
+                "enable_visual_analysis": ("BOOLEAN", {
                     "default": False,
-                    "tooltip": "启用调试模式，输出详细处理日志"
+                    "tooltip": "启用视觉分析（仅对支持视觉的多模态模型有效，如qwen-vl、llava等）"
                 }),
+                "guidance_style": ([
+                    "efficient_concise",   # 高效简洁 (默认)
+                    "natural_creative",    # 自然创意
+                    "technical_precise",   # 技术精确
+                    "template",           # 模板选择
+                    "custom"              # 自定义
+                ], {
+                    "default": "efficient_concise",
+                    "tooltip": "选择AI引导话术风格：高效简洁适合快速编辑，自然创意适合艺术设计，技术精确适合专业用途，模板选择常用预设，自定义允许完全控制"
+                }),
+                "guidance_template": ([
+                    "none",               # 无模板
+                    "ecommerce_product",  # 电商产品
+                    "portrait_beauty",    # 人像美化
+                    "creative_design",    # 创意设计
+                    "architecture_photo", # 建筑摄影
+                    "food_photography",   # 美食摄影
+                    "fashion_retail",     # 时尚零售
+                    "landscape_nature"    # 风景自然
+                ], {
+                    "default": "none",
+                    "tooltip": "选择专用引导模板（当guidance_style为template时使用）"
+                }),
+                "custom_guidance": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": default_placeholder,
+                    "tooltip": "当guidance_style为'custom'时，在此输入您的专用AI引导指令。placeholder会根据当前选择的guidance_style和guidance_template动态显示预览内容。"
+                })
             }
         }
     
@@ -318,11 +384,10 @@ class OllamaFluxKontextEnhancerV2:
         
         return True
     
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = (
         "flux_edit_instructions",  # Flux Kontext格式的编辑指令
-        "spatial_mappings",        # 空间映射信息
-        "processing_metadata"      # 处理元数据和调试信息
+        "system_prompt",           # 发送给模型的完整系统指令
     )
     
     FUNCTION = "enhance_flux_instructions"
@@ -333,17 +398,53 @@ class OllamaFluxKontextEnhancerV2:
         self.start_time = None
         self.debug_logs = []
     
-    def enhance_flux_instructions(self, annotation_data: str, model: str, 
+    def enhance_flux_instructions(self, annotation_data: str, image, edit_description: str, model: str, 
                                 edit_instruction_type: str, output_format: str,
-                                reference_context: str = "", edit_intensity: float = 0.8,
-                                preservation_mask: str = "", style_guidance: str = "",
                                 url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
-                                top_p: float = 0.9, keep_alive: int = 5,
-                                debug_mode: bool = False):
+                                language: str = "chinese", enable_visual_analysis: bool = False,
+                                guidance_style: str = "efficient_concise",
+                                guidance_template: str = "none", custom_guidance: str = ""):
         """通过Ollama增强标注数据，生成Flux Kontext优化的编辑指令"""
+        
+        # 设置移除参数的默认值
+        reference_context = ""
+        edit_intensity = 0.8
+        preservation_mask = ""
+        style_guidance = ""
+        top_p = 0.9
+        keep_alive = 5
+        debug_mode = False  # 移除debug_mode参数，固定为False
         
         print(f"🚀 OllamaFluxKontextEnhancerV2: 开始执行enhance_flux_instructions")
         print(f"📝 annotation_data长度: {len(annotation_data) if annotation_data else 0}")
+        
+        # 导入引导话术管理器
+        try:
+            from .guidance_templates import guidance_manager
+        except ImportError:
+            # 回退到绝对导入
+            import sys
+            import os
+            sys.path.append(os.path.dirname(__file__))
+            from guidance_templates import guidance_manager
+        
+        # 构建系统提示词（整合引导话术和语言控制）
+        enhanced_system_prompt = guidance_manager.build_system_prompt(
+            guidance_style=guidance_style,
+            guidance_template=guidance_template,
+            custom_guidance=custom_guidance,
+            load_saved_guidance="",
+            language=language
+        )
+        print(f"🔧 使用引导模式: {guidance_style}")
+        print(f"🌍 输出语言: {language}")
+        print(f"🔍 视觉分析: {'启用' if enable_visual_analysis else '禁用'}")
+        if guidance_style == "template" and guidance_template != "none":
+            print(f"📚 使用模板: {guidance_template}")
+        elif guidance_style == "custom" and custom_guidance.strip():
+            print(f"🎯 使用自定义引导: {len(custom_guidance)} 字符")
+        
+        print(f"📏 生成的系统提示词长度: {len(enhanced_system_prompt)} 字符")
         print(f"🤖 使用模型: {model}")
         print(f"🎯 编辑策略: {edit_instruction_type}")
         print(f"📄 输出格式: {output_format}")
@@ -377,19 +478,30 @@ class OllamaFluxKontextEnhancerV2:
             # 2. Ollama服务已通过前面的检查确认可用
             self._log_debug(f"🔗 使用Ollama服务: {url}", debug_mode)
             
-            # 3. 构建提示词
-            system_prompt = self._build_system_prompt(edit_instruction_type, output_format)
+            # 3. 构建用户提示词（系统提示词已在上面通过引导话术系统构建）
             user_prompt = self._build_user_prompt(
-                annotations, parsed_data, reference_context, 
+                annotations, parsed_data, edit_description, reference_context, 
                 edit_intensity, preservation_mask, style_guidance
             )
             
             self._log_debug(f"📝 生成的用户提示词长度: {len(user_prompt)} 字符", debug_mode)
             
-            # 4. 调用Ollama生成增强指令
+            # 4. 检查是否需要视觉分析
+            image_base64 = None
+            if enable_visual_analysis:
+                if self._is_multimodal_model(model):
+                    image_base64 = self._encode_image_for_ollama(image, debug_mode)
+                    if image_base64:
+                        self._log_debug("🔍 启用视觉分析模式", debug_mode)
+                    else:
+                        self._log_debug("⚠️ 图像编码失败，回退到纯文本模式", debug_mode)
+                else:
+                    self._log_debug(f"⚠️ 模型 {model} 不支持视觉分析，忽略视觉输入", debug_mode)
+            
+            # 5. 调用Ollama生成增强指令（使用引导话术系统构建的enhanced_system_prompt）
             enhanced_instructions = self._generate_with_ollama(
-                url, model, system_prompt, user_prompt,
-                temperature, top_p, keep_alive, debug_mode
+                url, model, enhanced_system_prompt, user_prompt,
+                temperature, top_p, keep_alive, debug_mode, image_base64
             )
             
             if not enhanced_instructions:
@@ -403,17 +515,9 @@ class OllamaFluxKontextEnhancerV2:
                 enhanced_instructions, output_format, debug_mode
             )
             
-            # 6. 生成空间映射
-            spatial_mappings = self._generate_spatial_mappings(annotations, debug_mode)
-            
-            # 7. 生成处理元数据
-            processing_metadata = self._generate_processing_metadata(
-                model, edit_instruction_type, len(annotations), debug_mode
-            )
-            
             self._log_debug("✅ 处理完成", debug_mode)
             
-            return (flux_instructions, spatial_mappings, processing_metadata)
+            return (flux_instructions, enhanced_system_prompt)
             
         except Exception as e:
             error_msg = f"Error in enhance_flux_instructions: {str(e)}"
@@ -429,6 +533,63 @@ class OllamaFluxKontextEnhancerV2:
             return response.status_code == 200
         except:
             return False
+    
+    def _is_multimodal_model(self, model: str) -> bool:
+        """检查模型是否支持视觉分析"""
+        multimodal_models = [
+            "qwen-vl", "qwen2-vl", "qwen:vl", "qwen2:vl",
+            "llava", "llava:latest", "llava:7b", "llava:13b", "llava:34b",
+            "llava-llama3", "llava-phi3", "llava-code",
+            "moondream", "cogvlm", "cogvlm2",
+            "yi-vl", "internvl", "minicpm-v"
+        ]
+        
+        model_lower = model.lower()
+        for mm_model in multimodal_models:
+            if mm_model in model_lower:
+                return True
+        return False
+    
+    def _encode_image_for_ollama(self, image, debug_mode: bool) -> Optional[str]:
+        """将图像编码为Ollama可用的base64格式"""
+        try:
+            import torch
+            import numpy as np
+            from PIL import Image
+            import io
+            import base64
+            
+            # 处理ComfyUI的图像格式 (tensor)
+            if isinstance(image, torch.Tensor):
+                # ComfyUI图像格式: [batch, height, width, channels]
+                if image.dim() == 4:
+                    image = image[0]  # 取第一张图像
+                
+                # 转换为numpy
+                if image.dtype == torch.float32:
+                    # 从[0,1]范围转换到[0,255]
+                    image_np = (image * 255).clamp(0, 255).byte().cpu().numpy()
+                else:
+                    image_np = image.cpu().numpy()
+                
+                # 创建PIL图像
+                pil_image = Image.fromarray(image_np, mode='RGB')
+            else:
+                # 如果已经是PIL图像
+                pil_image = image
+            
+            # 转换为JPEG格式的base64
+            buffer = io.BytesIO()
+            pil_image.save(buffer, format='JPEG', quality=85)
+            img_bytes = buffer.getvalue()
+            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+            
+            self._log_debug(f"🖼️ 图像编码成功，base64长度: {len(img_base64)} 字符", debug_mode)
+            return img_base64
+            
+        except Exception as e:
+            self._log_debug(f"❌ 图像编码失败: {e}", debug_mode)
+            return None
     
     def _auto_detect_strategy(self, annotation_data: str, debug_mode: bool) -> str:
         """根据annotation数据自动检测最佳编辑策略"""
@@ -617,8 +778,7 @@ detail_level: "high"
 consistency: "maintain_original_quality"
 """,
             "structured_json": "输出结构化的JSON格式，包含操作、约束和质量控制信息",
-            "natural_language": "输出自然流畅的语言描述，适合直接作为提示词使用",
-            "prompt_engineering": "输出经过提示工程优化的格式，包含明确的标签和结构"
+            "natural_language": "输出自然流畅的语言描述，适合直接作为提示词使用"
         }
         
         # 获取当前策略的指导
@@ -641,14 +801,18 @@ Rules:
         return system_prompt
     
     def _build_user_prompt(self, annotations: List[Dict], parsed_data: Dict,
-                          reference_context: str, edit_intensity: float,
-                          preservation_mask: str, style_guidance: str) -> str:
+                          edit_description: str = "", reference_context: str = "", edit_intensity: float = 0.8,
+                          preservation_mask: str = "", style_guidance: str = "") -> str:
         """构建用户提示词"""
         
         prompt_parts = []
         
-        # 1. 标注信息
-        prompt_parts.append("=== 图像标注信息 ===")
+        # 1. 编辑意图描述（最重要的信息）
+        if edit_description and edit_description.strip():
+            prompt_parts.append("=== 编辑意图 ===\n用户要求: " + edit_description.strip())
+        
+        # 2. 图像标注信息
+        prompt_parts.append("\n=== 图像标注信息 ===")
         for i, annotation in enumerate(annotations):
             annotation_desc = f"标注 {i+1}:"
             annotation_desc += f" 类型={annotation.get('type', 'unknown')}"
@@ -661,7 +825,7 @@ Rules:
             
             prompt_parts.append(annotation_desc)
         
-        # 2. 操作信息
+        # 3. 操作信息
         if 'operation_type' in parsed_data:
             prompt_parts.append(f"\n=== 操作类型 ===")
             prompt_parts.append(f"操作: {parsed_data['operation_type']}")
@@ -669,7 +833,7 @@ Rules:
         if 'target_description' in parsed_data:
             prompt_parts.append(f"目标描述: {parsed_data['target_description']}")
         
-        # 3. 增强提示词
+        # 4. 增强提示词
         if 'constraint_prompts' in parsed_data and parsed_data['constraint_prompts']:
             prompt_parts.append(f"\n=== 约束性提示词 ===")
             constraints = parsed_data['constraint_prompts']
@@ -686,12 +850,12 @@ Rules:
             else:
                 prompt_parts.append(str(decoratives))
         
-        # 4. 参考上下文
+        # 5. 参考上下文
         if reference_context:
             prompt_parts.append(f"\n=== 参考上下文 ===")
             prompt_parts.append(reference_context)
         
-        # 5. 编辑参数
+        # 6. 编辑参数
         prompt_parts.append(f"\n=== 编辑参数 ===")
         prompt_parts.append(f"编辑强度: {edit_intensity}")
         
@@ -701,16 +865,18 @@ Rules:
         if style_guidance:
             prompt_parts.append(f"风格指导: {style_guidance}")
         
-        # 6. 生成要求
+        # 7. 生成要求
         prompt_parts.append(f"\n=== 生成要求 ===")
         prompt_parts.append("请根据以上信息生成优化的Flux Kontext编辑指令。")
         prompt_parts.append("确保指令精确、可执行，并符合指定的输出格式。")
+        prompt_parts.append("重点根据编辑意图和标注信息的结合来生成指令。")
         
         return "\n".join(prompt_parts)
     
     def _generate_with_ollama(self, url: str, model: str, system_prompt: str,
-                             user_prompt: str, temperature: float, top_p: float,
-                             keep_alive: int, debug_mode: bool) -> Optional[str]:
+                             user_prompt: str, temperature: float, top_p: float = 0.9,
+                             keep_alive: int = 5, debug_mode: bool = False, 
+                             image_base64: Optional[str] = None) -> Optional[str]:
         """使用Ollama HTTP API生成增强指令"""
         try:
             import requests
@@ -734,18 +900,43 @@ Rules:
                 system_prompt += "\n\nIMPORTANT: Do not include any thinking process, reasoning steps, or <think> tags in your response. Output only the final formatted instructions."
             
             # 构建请求数据
-            payload = {
-                "model": model,
-                "prompt": user_prompt,
-                "system": system_prompt,
-                "options": options,
-                "keep_alive": f"{keep_alive}m",
-                "stream": False
-            }
+            if image_base64:
+                # 对于多模态模型，使用chat API格式
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": system_prompt
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                            "images": [image_base64]
+                        }
+                    ],
+                    "options": options,
+                    "keep_alive": f"{keep_alive}m",
+                    "stream": False
+                }
+                api_endpoint = f"{url}/api/chat"
+                self._log_debug("🖼️ 使用多模态Chat API", debug_mode)
+            else:
+                # 对于纯文本模型，使用传统的generate API
+                payload = {
+                    "model": model,
+                    "prompt": user_prompt,
+                    "system": system_prompt,
+                    "options": options,
+                    "keep_alive": f"{keep_alive}m",
+                    "stream": False
+                }
+                api_endpoint = f"{url}/api/generate"
+                self._log_debug("📝 使用纯文本Generate API", debug_mode)
             
             # 发送请求到Ollama HTTP API
             response = requests.post(
-                f"{url}/api/generate",
+                api_endpoint,
                 json=payload,
                 timeout=60
             )
@@ -754,16 +945,33 @@ Rules:
                 result = response.json()
                 self._log_debug(f"🔍 Ollama API响应: {str(result)[:200]}...", debug_mode)
                 
-                if result and 'response' in result:
-                    generated_text = result['response'].strip()
-                    
+                generated_text = None
+                
+                # 处理不同的API响应格式
+                if image_base64:
+                    # Chat API响应格式
+                    if result and 'message' in result and 'content' in result['message']:
+                        generated_text = result['message']['content'].strip()
+                        self._log_debug("🖼️ 解析Chat API响应成功", debug_mode)
+                    else:
+                        self._log_debug(f"❌ Chat API响应格式错误: {result}", debug_mode)
+                        return None
+                else:
+                    # Generate API响应格式
+                    if result and 'response' in result:
+                        generated_text = result['response'].strip()
+                        self._log_debug("📝 解析Generate API响应成功", debug_mode)
+                    else:
+                        self._log_debug(f"❌ Generate API响应缺少'response'字段: {result}", debug_mode)
+                        return None
+                
+                if generated_text:
                     # 过滤掉qwen3等模型的thinking内容
                     filtered_text = self._filter_thinking_content(generated_text, debug_mode)
                     
                     self._log_debug(f"✅ Ollama生成成功，原始长度: {len(generated_text)}, 过滤后长度: {len(filtered_text)} 字符", debug_mode)
                     return filtered_text
                 else:
-                    self._log_debug(f"❌ Ollama响应缺少'response'字段: {result}", debug_mode)
                     return None
             else:
                 self._log_debug(f"❌ Ollama API请求失败，状态码: {response.status_code}, 内容: {response.text}", debug_mode)
@@ -918,7 +1126,7 @@ realism: "photorealistic"
             self.debug_logs.append(log_message)
             print(log_message)  # 同时输出到控制台
     
-    def _create_fallback_output(self, error_msg: str, debug_mode: bool) -> Tuple[str, str, str]:
+    def _create_fallback_output(self, error_msg: str, debug_mode: bool) -> Tuple[str, str]:
         """创建失败时的回退输出"""
         self._log_debug(f"❌ 创建回退输出: {error_msg}", debug_mode)
         
@@ -935,11 +1143,9 @@ detail_level: "standard"
 consistency: "maintain_original"
 """
         
-        fallback_mappings = f'{{"error": "{error_msg}", "regions": []}}'
+        fallback_system_prompt = f"Error occurred during processing: {error_msg}"
         
-        fallback_metadata = f'{{"error": "{error_msg}", "status": "failed", "timestamp": "{datetime.now().isoformat()}"}}'
-        
-        return (fallback_instructions, fallback_mappings, fallback_metadata)
+        return (fallback_instructions, fallback_system_prompt)
 
 
 # 添加API端点用于动态获取模型

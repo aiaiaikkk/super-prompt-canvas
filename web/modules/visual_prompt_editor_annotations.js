@@ -2039,8 +2039,27 @@ function highlightSelectedAnnotations(modal, selectedIds) {
     
     // 清除所有选中状态
     svg.querySelectorAll('.annotation-shape').forEach(shape => {
-        shape.setAttribute('stroke-width', '3');
+        // 🔧 完全清除高亮效果
         shape.classList.remove('selected');
+        shape.style.filter = 'none';
+        shape.removeAttribute('stroke-opacity');
+        
+        // 🔧 恢复原始边框状态
+        const originalStroke = shape.getAttribute('data-original-stroke');
+        const originalStrokeWidth = shape.getAttribute('data-original-stroke-width');
+        
+        if (originalStrokeWidth) {
+            shape.setAttribute('stroke-width', originalStrokeWidth);
+        } else {
+            shape.setAttribute('stroke-width', '3');
+        }
+        
+        if (originalStroke) {
+            shape.setAttribute('stroke', originalStroke);
+        } else {
+            // 🔧 标注在非高亮状态下应该没有边框
+            shape.setAttribute('stroke', 'none');
+        }
     });
     
     svg.querySelectorAll('.annotation-label circle').forEach(circle => {
@@ -2054,9 +2073,24 @@ function highlightSelectedAnnotations(modal, selectedIds) {
         console.log(`🔍 查找标注 ${annotationId}:`, targetShape ? '找到' : '未找到');
         
         if (targetShape) {
+            // 🔧 保存原始状态
+            const currentStroke = targetShape.getAttribute('stroke');
+            const currentStrokeWidth = targetShape.getAttribute('stroke-width');
+            
+            if (!targetShape.hasAttribute('data-original-stroke')) {
+                targetShape.setAttribute('data-original-stroke', currentStroke || 'none');
+            }
+            if (!targetShape.hasAttribute('data-original-stroke-width')) {
+                targetShape.setAttribute('data-original-stroke-width', currentStrokeWidth || '3');
+            }
+            
+            // 🔧 应用高亮效果
             targetShape.setAttribute('stroke-width', '6');
             targetShape.setAttribute('stroke', '#ffff00'); // 添加黄色边框
+            targetShape.setAttribute('stroke-opacity', '1.0');
             targetShape.classList.add('selected');
+            targetShape.style.filter = 'drop-shadow(0 0 8px rgba(255, 255, 0, 0.8))';
+            
             console.log('✅ 已高亮标注:', annotationId);
             
             // 高亮对应的编号标签

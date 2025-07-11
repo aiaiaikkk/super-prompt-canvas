@@ -254,7 +254,7 @@ function generateDescription(modal, getObjectInfoFunction) {
             const annotation = modal.annotations.find(ann => ann.id === id);
             return annotation ? {
                 id: annotation.id,
-                hasIndividualOperation: annotation.operationType !== 'add_object',
+                hasIndividualOperation: annotation.operationType && annotation.operationType.trim() !== '',
                 hasIndividualDescription: annotation.description && annotation.description.trim() !== '',
                 operationType: annotation.operationType,
                 description: annotation.description
@@ -302,14 +302,35 @@ function generateDescription(modal, getObjectInfoFunction) {
  * 获取选中的标注ID列表 (适应标签页系统)
  */
 function getSelectedAnnotationIds(modal) {
+    console.log('🔍 getSelectedAnnotationIds 被调用');
+    
     // 标签页系统：从 selectedLayers Set 获取
     if (modal.selectedLayers && modal.selectedLayers.size > 0) {
+        console.log('🔍 使用 selectedLayers:', Array.from(modal.selectedLayers));
         return Array.from(modal.selectedLayers);
     }
     
     // 备用方案：从复选框获取
     const checkedBoxes = modal.querySelectorAll('.layer-tab input[type="checkbox"]:checked, #annotation-objects input[type="checkbox"]:checked');
-    return Array.from(checkedBoxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
+    const fromCheckboxes = Array.from(checkedBoxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
+    console.log('🔍 从复选框获取到的IDs:', fromCheckboxes);
+    
+    // 🔴 修复：如果复选框也没有选中，则获取所有有修改设置的标注
+    if (fromCheckboxes.length === 0) {
+        const annotationsWithOperations = modal.annotations?.filter(ann => {
+            // 检查是否有任何自定义设置：操作类型设置、描述内容、或增强提示词
+            const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
+            const hasDescription = ann.description && ann.description.trim() !== '';
+            const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
+            const hasDecoratives = ann.decorativePrompts && ann.decorativePrompts.length > 0;
+            
+            return hasOperationType || hasDescription || hasConstraints || hasDecoratives;
+        }).map(ann => ann.id) || [];
+        console.log('🔍 有修改设置的标注:', annotationsWithOperations);
+        return annotationsWithOperations;
+    }
+    
+    return fromCheckboxes;
 }
 
 /**
@@ -744,18 +765,55 @@ export function exportPromptData(modal) {
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
     const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     
-    // 获取选中的标注和它们的独立设置
-    const selectedAnnotationIds = getSelectedAnnotationIds(modal);
+    // 🔴 优化：获取所有已编辑的标注（有操作类型设置的）+ 当前选中的标注
+    let selectedAnnotationIds = getSelectedAnnotationIds(modal);
+    
+    // 获取所有已修改设置的标注（不管是否当前选中）
+    const annotationsWithOperations = modal.annotations?.filter(ann => {
+        // 检查是否有任何自定义设置：操作类型设置、描述内容、或增强提示词
+        const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
+        const hasDescription = ann.description && ann.description.trim() !== '';
+        const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
+        const hasDecoratives = ann.decorativePrompts && ann.decorativePrompts.length > 0;
+        
+        return hasOperationType || hasDescription || hasConstraints || hasDecoratives;
+    }).map(ann => ann.id) || [];
+    
+    // 合并两个列表，去重
+    const allRelevantIds = [...new Set([...selectedAnnotationIds, ...annotationsWithOperations])];
+    
+    console.log('🔍 exportPromptData - 当前选中的标注:', selectedAnnotationIds);
+    console.log('🔍 exportPromptData - 有操作类型的标注:', annotationsWithOperations);
+    console.log('🔍 exportPromptData - 最终导出的标注:', allRelevantIds);
+    console.log('🔍 exportPromptData - modal.selectedLayers:', modal.selectedLayers ? Array.from(modal.selectedLayers) : 'undefined');
+    console.log('🔍 exportPromptData - total annotations:', modal.annotations?.length || 0);
+    
+    // 使用合并后的ID列表
+    selectedAnnotationIds = allRelevantIds;
+    
     const selectedAnnotations = selectedAnnotationIds.map(id => {
         const annotation = modal.annotations.find(ann => ann.id === id);
+        if (annotation) {
+            console.log(`🔍 标注 ${id} 的操作类型:`, annotation.operationType, '描述:', annotation.description);
+        }
         return annotation ? {
             id: annotation.id,
-            operationType: annotation.operationType,
-            description: annotation.description,
+            operationType: annotation.operationType || 'add_object',
+            description: annotation.description || '',
             type: annotation.type,
-            color: annotation.color
+            color: annotation.color,
+            coordinates: annotation.coordinates,
+            number: annotation.number,
+            constraintPrompts: annotation.constraintPrompts || [],
+            decorativePrompts: annotation.decorativePrompts || []
         } : null;
     }).filter(ann => ann);
+    
+    console.log('🔍 最终的 selectedAnnotations:', selectedAnnotations.map(ann => ({
+        id: ann.id,
+        operationType: ann.operationType,
+        description: ann.description
+    })));
     
     // 获取全局设置
     const operationType = modal.querySelector('#operation-type');
