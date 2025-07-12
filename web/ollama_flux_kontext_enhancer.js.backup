@@ -50,28 +50,8 @@ async function fetchOllamaModels(url) {
             throw new Error(`Backend API error: ${responseData.error}`);
         }
         
-        // 处理正常的模型列表响应 - 调试版本
-        console.log(`🔍 原始响应数据:`, responseData);
-        console.log(`🔍 响应数据类型:`, typeof responseData);
-        console.log(`🔍 是否为数组:`, Array.isArray(responseData));
-        
-        let modelNames = [];
-        
-        if (Array.isArray(responseData)) {
-            modelNames = responseData;
-            console.log(`✅ 响应是数组格式，直接使用`);
-        } else if (responseData && typeof responseData === 'object') {
-            if (responseData.models && Array.isArray(responseData.models)) {
-                modelNames = responseData.models;
-                console.log(`✅ 从响应对象的models字段获取`);
-            } else {
-                console.warn(`⚠️ 响应对象格式异常:`, responseData);
-                modelNames = [];
-            }
-        } else {
-            console.warn(`⚠️ 响应格式不正确:`, responseData);
-            modelNames = [];
-        }
+        // 处理正常的模型列表响应
+        const modelNames = Array.isArray(responseData) ? responseData : responseData.models || [];
         
         console.log(`✅ 通过后端API成功获取${modelNames.length}个模型:`, modelNames);
         return modelNames;
