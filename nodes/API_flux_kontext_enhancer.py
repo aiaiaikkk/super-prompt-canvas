@@ -355,7 +355,10 @@ class APIFluxKontextEnhancer:
         
         # 2. 标注数据
         prompt_parts.append(f"\n**标注数据：**")
-        prompt_parts.append(f"```json\n{annotation_data}\n```")
+        
+        # 处理编号显示设置
+        processed_annotation_data = self._process_annotation_data(annotation_data)
+        prompt_parts.append(f"```json\n{processed_annotation_data}\n```")
         
         
         # 3. 生成要求
@@ -366,6 +369,26 @@ class APIFluxKontextEnhancer:
         prompt_parts.append("重点根据编辑意图和标注信息的结合来生成指令。")
         
         return "\n".join(prompt_parts)
+    
+    def _process_annotation_data(self, annotation_data: str) -> str:
+        """处理标注数据，根据include_annotation_numbers设置过滤编号信息"""
+        try:
+            import json
+            data = json.loads(annotation_data)
+            
+            # 检查是否包含编号设置
+            include_numbers = data.get("include_annotation_numbers", True)
+            
+            # 如果不包含编号，移除annotations中的number字段
+            if not include_numbers and "annotations" in data:
+                for annotation in data["annotations"]:
+                    if "number" in annotation:
+                        del annotation["number"]
+            
+            return json.dumps(data, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"⚠️ 处理标注数据时出错: {str(e)}")
+            return annotation_data
     
     def _generate_with_api(self, client, model_name: str, 
                          system_prompt: str, user_prompt: str, 
