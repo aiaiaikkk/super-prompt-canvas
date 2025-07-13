@@ -1,4 +1,4 @@
-# Kontext Visual Prompt Window
+![Screenshot_2025-07-13-15-47-51-101_mark via gp](https://github.com/user-attachments/assets/7ecdc812-5395-4249-87c4-a8153c08d2f0)# Kontext Visual Prompt Window
 
 **[🇨🇳 中文文档](#chinese-docs) | [🇺🇸 English Docs](#english-docs)**
 
@@ -14,6 +14,18 @@
 |--------|--------|
 | ![Before](images/before.png) | ![After](images/after.png) |
 | 传统文本提示词输入 | 多模态可视化提示词生成 |
+**近期更新内容展示：**
+**1.编辑窗口优化，支持多图层使用不同指令。根据官方数据集更新提示词预设**
+![Screenshot_2025-07-13-15-41-19-374_mark via gp](https://github.com/user-attachments/assets/5c9c867e-2dc7-4639-8b2a-34505e49854a)
+![Screenshot_2025-07-13-15-42-13-927_mark via gp](https://github.com/user-attachments/assets/03383cce-40fb-4c03-8b05-c63a7052a72e)
+![Screenshot_2025-07-13-15-42-34-386_mark via gp](https://github.com/user-attachments/assets/c47c9212-a8a5-4c2c-9870-1e1ac1a53eb1)
+![Screenshot_2025-07-13-15-42-37-837_mark via gp](https://github.com/user-attachments/assets/a919a05a-29ab-48a2-b666-16ecd39fb560)
+**2.支持本地调用本地ollama服务生成提示词**
+![Screenshot_2025-07-13-15-47-51-101_mark via gp](https://github.com/user-attachments/assets/feb6a136-7d1b-465d-848e-adefd06dcf9f)
+**3.支持API远程调用大语言模型生成提示词**
+![Screenshot_2025-07-13-15-48-14-301_mark via gp](https://github.com/user-attachments/assets/e2c2f4fc-6775-42a7-8be5-26500aaa30e1)
+
+
 
 ### 💫 快速上手
 
