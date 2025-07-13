@@ -1,5 +1,3 @@
-![Screenshot_2025-07-13-15-47-51-101_mark via gp](https://github.com/user-attachments/assets/7ecdc812-5395-4249-87c4-a8153c08d2f0)# Kontext Visual Prompt Window
-
 **[🇨🇳 中文文档](#chinese-docs) | [🇺🇸 English Docs](#english-docs)**
 
 ---
