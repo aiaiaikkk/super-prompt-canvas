@@ -14,16 +14,16 @@ import { app } from "../../scripts/app.js";
  */
 async function fetchOllamaModels(url) {
     try {
-        console.log(`🔄 正在通过后端API获取Ollama模型列表: ${url}`);
+        console.log(`🔄 Fetching Ollama model list via backend API: ${url}`);
         
         // 额外的URL验证和警告
         if (!url) {
-            console.error("❌ URL参数为空！");
+            console.error("❌ URL parameter is empty!");
             url = "http://127.0.0.1:11434";
         }
         
         if (url === "http://127.0.0.1:11434") {
-            console.warn("⚠️ 使用默认localhost地址，如果在云端环境中可能连接失败");
+            console.warn("⚠️ Using default localhost address, may fail to connect in cloud environments");
         }
         
         // 通过ComfyUI后端API获取模型，避免CORS问题
@@ -45,81 +45,81 @@ async function fetchOllamaModels(url) {
         
         // 检查是否是错误响应
         if (responseData.error) {
-            console.error(`❌ 后端API返回错误: ${responseData.error}`);
-            console.error(`🔍 错误详情: ${responseData.details}`);
+            console.error(`❌ Backend API returned error: ${responseData.error}`);
+            console.error(`🔍 Error details: ${responseData.details}`);
             throw new Error(`Backend API error: ${responseData.error}`);
         }
         
-        // 处理正常的模型列表响应 - 调试版本
-        console.log(`🔍 原始响应数据:`, responseData);
-        console.log(`🔍 响应数据类型:`, typeof responseData);
-        console.log(`🔍 是否为数组:`, Array.isArray(responseData));
+        // Handle normal model list response - debug version
+        console.log(`🔍 Raw response data:`, responseData);
+        console.log(`🔍 Response data type:`, typeof responseData);
+        console.log(`🔍 Is array:`, Array.isArray(responseData));
         
         let modelNames = [];
         
         if (Array.isArray(responseData)) {
             modelNames = responseData;
-            console.log(`✅ 响应是数组格式，直接使用`);
+            console.log(`✅ Response is array format, using directly`);
         } else if (responseData && typeof responseData === 'object') {
             if (responseData.models && Array.isArray(responseData.models)) {
                 modelNames = responseData.models;
-                console.log(`✅ 从响应对象的models字段获取`);
+                console.log(`✅ Getting from response object's models field`);
             } else {
-                console.warn(`⚠️ 响应对象格式异常:`, responseData);
+                console.warn(`⚠️ Response object format abnormal:`, responseData);
                 modelNames = [];
             }
         } else {
-            console.warn(`⚠️ 响应格式不正确:`, responseData);
+            console.warn(`⚠️ Response format incorrect:`, responseData);
             modelNames = [];
         }
         
-        console.log(`✅ 通过后端API成功获取${modelNames.length}个模型:`, modelNames);
+        console.log(`✅ Successfully fetched ${modelNames.length} models via backend API:`, modelNames);
         return modelNames;
         
     } catch (error) {
         console.error(`❌ Failed to fetch Ollama models via backend API: ${error.message}`);
-        console.log(`ℹ️ 尝试回退到后端模型检测...`);
+        console.log(`ℹ️ Attempting fallback to backend model detection...`);
         return [];
     }
 }
 
 /**
- * 更新模型选择框的选项
- * @param {Object} widget - 模型选择widget
- * @param {Array<string>} models - 模型列表
+ * Update model selection widget options
+ * @param {Object} widget - Model selection widget
+ * @param {Array<string>} models - Model list
  */
 function updateModelWidget(widget, models) {
     if (!widget || !Array.isArray(models)) {
-        console.warn("⚠️ 无效的widget或模型列表");
+        console.warn("⚠️ Invalid widget or model list");
         return;
     }
 
-    // 保存当前选中的模型
+    // Save currently selected model
     const currentModel = widget.value;
     
-    // 更新选项
+    // Update options
     widget.options.values = models;
     
-    // 恢复选中的模型（如果还存在）或选择第一个
+    // Restore selected model (if still exists) or select first one
     if (models.length > 0) {
         if (models.includes(currentModel)) {
             widget.value = currentModel;
         } else {
             widget.value = models[0];
         }
-        console.log(`🎯 模型选择更新为: ${widget.value}`);
+        console.log(`🎯 Model selection updated to: ${widget.value}`);
     } else {
         widget.value = "";
-        console.warn("⚠️ 没有可用的模型");
+        console.warn("⚠️ No available models");
     }
 }
 
 /**
- * 创建模型刷新按钮
- * @param {Object} node - ComfyUI节点实例
- * @param {Object} modelWidget - 模型选择widget
- * @param {Object} urlWidget - URL输入widget
- * @returns {Object} 刷新按钮widget
+ * Create model refresh button
+ * @param {Object} node - ComfyUI node instance
+ * @param {Object} modelWidget - Model selection widget
+ * @param {Object} urlWidget - URL input widget
+ * @returns {Object} Refresh button widget
  */
 function createRefreshButton(node, modelWidget, urlWidget) {
     try {
@@ -199,47 +199,47 @@ async function refreshModels(node, modelWidget, urlWidget) {
             }
         }
         
-        console.log(`🎯 最终使用的URL: ${currentUrl}`);
+        console.log(`🎯 Final URL being used: ${currentUrl}`);
         
-        // 显示加载状态
+        // Show loading state
         if (modelWidget) {
             const originalOptions = modelWidget.options.values;
             modelWidget.options.values = ["🔄 Refreshing models..."];
             modelWidget.value = "🔄 Refreshing models...";
             
-            // 强制重绘
+            // Force redraw
             if (node.graph && node.graph.canvas) {
                 node.graph.canvas.setDirty(true);
             }
         }
         
-        // 通过后端API获取新的模型列表
+        // Get new model list via backend API
         const models = await fetchOllamaModels(currentUrl);
         
         if (models && models.length > 0) {
-            // 添加刷新选项到列表开头
+            // Add refresh option to beginning of list
             const updatedModels = ["🔄 Refresh model list", ...models];
             updateModelWidget(modelWidget, updatedModels);
             
-            // 选择第一个实际模型（跳过刷新选项）
+            // Select first actual model (skip refresh option)
             if (modelWidget && models.length > 0) {
                 modelWidget.value = models[0];
             }
             
             console.log(`✅ Successfully refreshed model list via backend API, found ${models.length} models`);
             
-            // 显示成功通知
-            showRefreshNotification(node, `✅ 成功刷新！获取到 ${models.length} 个模型`, "success");
+            // Show success notification
+            showRefreshNotification(node, `✅ Successfully refreshed! Found ${models.length} models`, "success");
             
         } else {
-            // 处理无模型情况 - 提供更详细的错误信息
+            // Handle no models case - provide more detailed error info
             const errorMessage = "❌ No models found - Check Ollama service";
             updateModelWidget(modelWidget, [errorMessage]);
             console.warn("⚠️ No models retrieved via backend API");
             
-            // 显示详细的故障排除信息
+            // Show detailed troubleshooting info
             showRefreshNotification(node, 
-                "❌ 未找到模型\n请检查：\n1. Ollama服务是否运行\n2. 是否安装了模型\n3. URL配置是否正确", 
+                "❌ No models found\nPlease check:\n1. Is Ollama service running\n2. Are models installed\n3. Is URL configuration correct", 
                 "warning"
             );
         }
@@ -247,28 +247,28 @@ async function refreshModels(node, modelWidget, urlWidget) {
     } catch (error) {
         console.error("❌ Failed to refresh model list via backend API:", error);
         
-        // 恢复错误状态
+        // Restore error state
         if (modelWidget) {
             updateModelWidget(modelWidget, ["❌ Refresh failed - Backend API error"]);
         }
         
-        // 显示错误通知
+        // Show error notification
         showRefreshNotification(node, 
-            `❌ 刷新失败：${error.message}\n这通常是由于CORS政策或网络连接问题`, 
+            `❌ Refresh failed: ${error.message}\nThis is usually due to CORS policy or network connection issues`, 
             "error"
         );
     }
 }
 
 /**
- * 显示刷新通知
- * @param {Object} node - ComfyUI节点实例
- * @param {string} message - 通知消息
- * @param {string} type - 通知类型 (success/warning/error)
+ * Show refresh notification
+ * @param {Object} node - ComfyUI node instance
+ * @param {string} message - Notification message
+ * @param {string} type - Notification type (success/warning/error)
  */
 function showRefreshNotification(node, message, type) {
     try {
-        // 在控制台显示消息
+        // Display message in console
         if (type === "success") {
             console.log(`✅ ${message}`);
         } else if (type === "warning") {
@@ -312,14 +312,14 @@ function showRefreshNotification(node, message, type) {
         }
         
     } catch (e) {
-        console.log("无法显示通知:", e);
+        console.log("Cannot display notification:", e);
     }
 }
 
 /**
- * 创建状态指示器
- * @param {Object} node - ComfyUI节点实例
- * @returns {Object} 状态指示器widget
+ * Create status indicator
+ * @param {Object} node - ComfyUI node instance
+ * @returns {Object} Status indicator widget
  */
 function createStatusIndicator(node) {
     try {
@@ -334,115 +334,115 @@ function createStatusIndicator(node) {
 }
 
 /**
- * 获取引导模板内容用于placeholder
- * @param {string} guidanceStyle - 引导风格
- * @param {string} guidanceTemplate - 引导模板
- * @returns {string} placeholder文本
+ * Get guidance template content for placeholder
+ * @param {string} guidanceStyle - Guidance style
+ * @param {string} guidanceTemplate - Guidance template
+ * @returns {string} placeholder text
  */
 function getTemplateContentForPlaceholder(guidanceStyle, guidanceTemplate) {
-    // 预设引导风格内容
+    // Preset guidance style content
     const presetGuidance = {
         "efficient_concise": {
-            "name": "高效简洁模式",
+            "name": "Efficient Concise Mode",
             "prompt": "You are an efficient AI editor focused on clear, concise Flux Kontext instructions. Generate direct, actionable editing commands..."
         },
         "natural_creative": {
-            "name": "自然创意模式",
+            "name": "Natural Creative Mode",
             "prompt": "You are a creative AI assistant specializing in artistic image editing with Flux Kontext. Focus on natural expression and artistic enhancement..."
         },
         "technical_precise": {
-            "name": "技术精确模式",
+            "name": "Technical Precise Mode",
             "prompt": "You are a technical specialist for Flux Kontext image editing, focused on precision and accuracy. Generate technically precise, unambiguous editing instructions..."
         }
     };
     
-    // 模板库内容
+    // Template library content
     const templateLibrary = {
         "ecommerce_product": {
-            "name": "电商产品编辑",
-            "prompt": "你是专业的电商产品图像编辑AI，专注于产品展示优化。保持产品真实性，避免过度修饰..."
+            "name": "E-commerce Product Editing",
+            "prompt": "You are a professional e-commerce product image editing AI, focused on product display optimization. Maintain product authenticity, avoid over-retouching..."
         },
         "portrait_beauty": {
-            "name": "人像美化编辑",
-            "prompt": "你是专业人像摄影后期处理专家，专注于自然美化。保持人物自然神态，避免过度美颜..."
+            "name": "Portrait Beauty Editing",
+            "prompt": "You are a professional portrait photography post-processing expert, focused on natural beautification. Maintain natural expressions, avoid excessive beauty filtering..."
         },
         "creative_design": {
-            "name": "创意设计编辑",
-            "prompt": "你是富有创意的设计师AI，专长艺术化图像处理。大胆的色彩运用和视觉冲击..."
+            "name": "Creative Design Editing",
+            "prompt": "You are a creative designer AI, specializing in artistic image processing. Bold color usage and visual impact..."
         },
         "architecture_photo": {
-            "name": "建筑摄影编辑",
-            "prompt": "你是专业建筑摄影后期专家，专注于建筑和空间美学。强调建筑线条和几何美感..."
+            "name": "Architecture Photography Editing",
+            "prompt": "You are a professional architectural photography post-processing expert, focused on building and spatial aesthetics. Emphasize architectural lines and geometric beauty..."
         },
         "food_photography": {
-            "name": "美食摄影编辑",
-            "prompt": "你是专业美食摄影师，专注于食物的诱人呈现。突出食物的新鲜和诱人质感..."
+            "name": "Food Photography Editing",
+            "prompt": "You are a professional food photographer, focused on appetizing food presentation. Highlight freshness and appealing textures..."
         },
         "fashion_retail": {
-            "name": "时尚零售编辑",
-            "prompt": "你是时尚零售视觉专家，专注于服装和配饰的完美呈现。突出服装的版型和设计细节..."
+            "name": "Fashion Retail Editing",
+            "prompt": "You are a fashion retail visual expert, focused on perfect presentation of clothing and accessories. Highlight garment fit and design details..."
         },
         "landscape_nature": {
-            "name": "风景自然编辑",
-            "prompt": "你是自然风光摄影专家，专注于大自然的美丽呈现。保持自然景色的真实感和美感..."
+            "name": "Landscape Nature Editing",
+            "prompt": "You are a natural landscape photography expert, focused on beautiful presentation of nature. Maintain realistic feel and beauty of natural scenery..."
         }
     };
     
     try {
-        // 根据guidance_style选择内容
+        // Select content based on guidance_style
         if (guidanceStyle === "custom") {
-            // 自定义模式保留完整提示文字
-            return `输入您的自定义AI引导指令...
+            // Custom mode retains complete prompt text
+            return `Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。`;
+For more examples, please check guidance_template options.`;
         } else if (guidanceStyle === "template") {
             if (guidanceTemplate && guidanceTemplate !== "none" && templateLibrary[guidanceTemplate]) {
                 const template = templateLibrary[guidanceTemplate];
                 const preview = template.prompt.substring(0, 200).replace(/\n/g, ' ').trim();
-                return `当前模板: ${template.name}\n\n${preview}...`;
+                return `Current template: ${template.name}\n\n${preview}...`;
             } else {
-                return "选择一个模板后将在此显示预览...";
+                return "Preview will be displayed here after selecting a template...";
             }
         } else {
-            // 显示预设风格的内容
+            // Display preset style content
             if (presetGuidance[guidanceStyle]) {
                 const preset = presetGuidance[guidanceStyle];
                 const preview = preset.prompt.substring(0, 200).replace(/\n/g, ' ').trim();
-                return `当前风格: ${preset.name}\n\n${preview}...`;
+                return `Current style: ${preset.name}\n\n${preview}...`;
             } else {
-                return `输入您的自定义AI引导指令...
+                return `Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。`;
+For more examples, please check guidance_template options.`;
             }
         }
     } catch (error) {
-        console.error("获取模板内容失败:", error);
-        return `输入您的自定义AI引导指令...
+        console.error("Failed to get template content:", error);
+        return `Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。`;
+For more examples, please check guidance_template options.`;
     }
 }
 
 /**
- * 设置引导相关widgets的联动
+ * 设置引导widget之间的交互
  * @param {Object} node - ComfyUI节点实例
  * @param {Object} guidanceStyleWidget - 引导风格widget
  * @param {Object} guidanceTemplateWidget - 引导模板widget
@@ -450,182 +450,74 @@ function getTemplateContentForPlaceholder(guidanceStyle, guidanceTemplate) {
  */
 function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget) {
     if (!guidanceStyleWidget || !customGuidanceWidget) {
-        console.warn("⚠️ 缺少必要的widgets，跳过placeholder联动设置");
+        console.warn("⚠️ Required widgets not found for guidance interaction setup");
         return;
     }
-    
-    console.log("🔧 开始设置引导widgets联动");
-    
+
+    console.log("🔗 Setting up guidance widgets interaction");
+
+    // 保存原始回调
+    const originalStyleCallback = guidanceStyleWidget.callback;
+    const originalTemplateCallback = guidanceTemplateWidget?.callback;
+
     // 更新placeholder的函数
-    function updatePlaceholder() {
+    function updateCustomGuidancePlaceholder() {
         try {
-            const guidanceStyle = guidanceStyleWidget.value || "efficient_concise";
-            const guidanceTemplate = guidanceTemplateWidget ? guidanceTemplateWidget.value || "none" : "none";
+            const currentStyle = guidanceStyleWidget.value;
+            const currentTemplate = guidanceTemplateWidget ? guidanceTemplateWidget.value : "none";
             
-            console.log(`📝 准备更新placeholder: style=${guidanceStyle}, template=${guidanceTemplate}`);
+            console.log(`🔄 Updating placeholder for style: ${currentStyle}, template: ${currentTemplate}`);
             
-            const newPlaceholder = getTemplateContentForPlaceholder(guidanceStyle, guidanceTemplate);
+            const newPlaceholder = getTemplateContentForPlaceholder(currentStyle, currentTemplate);
             
-            // 多种方式尝试更新placeholder
-            let updated = false;
-            
-            // 方法1: 直接更新inputEl
             if (customGuidanceWidget.inputEl) {
                 customGuidanceWidget.inputEl.placeholder = newPlaceholder;
-                updated = true;
-                console.log("✅ 通过inputEl更新placeholder");
-            }
-            
-            // 方法2: 更新widget的options
-            if (customGuidanceWidget.options && customGuidanceWidget.options.placeholder !== undefined) {
-                customGuidanceWidget.options.placeholder = newPlaceholder;
-                updated = true;
-                console.log("✅ 通过options更新placeholder");
-            }
-            
-            // 方法3: 查找textarea元素
-            if (!updated) {
-                const textareas = node.widgets.filter(w => w.name === "custom_guidance");
-                if (textareas.length > 0 && textareas[0].inputEl) {
-                    textareas[0].inputEl.placeholder = newPlaceholder;
-                    updated = true;
-                    console.log("✅ 通过直接查找更新placeholder");
-                }
-            }
-            
-            // 方法4: 强制重绘widget
-            if (customGuidanceWidget.onRemoved && customGuidanceWidget.onAdded) {
-                try {
-                    customGuidanceWidget.options = customGuidanceWidget.options || {};
-                    customGuidanceWidget.options.placeholder = newPlaceholder;
-                    // 触发重绘
-                    node.onResize && node.onResize();
-                    updated = true;
-                    console.log("✅ 通过重绘更新placeholder");
-                } catch (e) {
-                    console.log("⚠️ 重绘方法失败:", e);
-                }
-            }
-            
-            if (updated) {
-                console.log(`🎨 成功更新placeholder: ${guidanceStyle} -> ${guidanceTemplate}`);
-                console.log(`📄 新placeholder内容: ${newPlaceholder.substring(0, 50)}...`);
+                console.log("✅ Placeholder updated successfully");
             } else {
-                console.warn("❌ 所有placeholder更新方法都失败了");
+                console.warn("⚠️ Custom guidance input element not found");
             }
             
+            // 强制重绘
+            if (node.graph && node.graph.canvas) {
+                node.graph.canvas.setDirty(true);
+            }
         } catch (error) {
-            console.error("❌ updatePlaceholder错误:", error);
+            console.error("❌ Error updating custom guidance placeholder:", error);
         }
     }
-    
-    // 更强健的事件绑定
-    function bindWidgetCallback(widget, widgetName) {
-        if (!widget) {
-            console.warn(`⚠️ Ollama版本${widgetName} widget为空，跳过绑定`);
-            return;
+
+    // 设置引导风格变化回调
+    guidanceStyleWidget.callback = function(value, ...args) {
+        console.log(`🎨 Guidance style changed to: ${value}`);
+        
+        // 更新placeholder
+        setTimeout(updateCustomGuidancePlaceholder, 100);
+        
+        // 调用原始回调
+        if (originalStyleCallback) {
+            originalStyleCallback.apply(this, [value, ...args]);
         }
-        
-        console.log(`🔗 Ollama版本绑定${widgetName}事件回调`);
-        console.log(`   Widget类型: ${widget.type}, 当前值: ${widget.value}`);
-        
-        // 保存原始callback
-        const originalCallback = widget.callback;
-        console.log(`   原始callback存在: ${!!originalCallback}`);
-        
-        // 设置新的callback
-        widget.callback = function(value, ...args) {
-            console.log(`🎯 Ollama版本${widgetName}值变化: ${value} (参数数量: ${args.length})`);
+    };
+
+    // 设置引导模板变化回调
+    if (guidanceTemplateWidget) {
+        guidanceTemplateWidget.callback = function(value, ...args) {
+            console.log(`📋 Guidance template changed to: ${value}`);
             
-            // 先调用原始callback
-            if (originalCallback) {
-                try {
-                    originalCallback.apply(this, [value, ...args]);
-                    console.log(`   ✅ 原始${widgetName}回调执行成功`);
-                } catch (e) {
-                    console.warn(`⚠️ Ollama版本原始${widgetName}回调错误:`, e);
-                }
+            // 更新placeholder
+            setTimeout(updateCustomGuidancePlaceholder, 100);
+            
+            // 调用原始回调
+            if (originalTemplateCallback) {
+                originalTemplateCallback.apply(this, [value, ...args]);
             }
-            
-            // 延迟更新placeholder，确保值已经设置
-            console.log(`   🔄 准备延迟更新placeholder (${widgetName})`);
-            setTimeout(updatePlaceholder, 100);
         };
-        
-        // 尝试多种事件监听方式
-        if (widget.element) {
-            console.log(`   📱 ${widgetName} DOM元素存在，添加事件监听`);
-            
-            // change事件
-            widget.element.addEventListener('change', (e) => {
-                console.log(`🎯 Ollama版本${widgetName}元素change事件, 新值: ${e.target.value}`);
-                setTimeout(updatePlaceholder, 100);
-            });
-            
-            // input事件
-            widget.element.addEventListener('input', (e) => {
-                console.log(`🎯 Ollama版本${widgetName}元素input事件, 新值: ${e.target.value}`);
-                setTimeout(updatePlaceholder, 100);
-            });
-            
-            // click事件（用于下拉框）
-            widget.element.addEventListener('click', (e) => {
-                console.log(`🎯 Ollama版本${widgetName}元素click事件`);
-                setTimeout(updatePlaceholder, 200); // 稍长延迟确保值已更改
-            });
-        } else {
-            console.warn(`⚠️ Ollama版本${widgetName} DOM元素不存在`);
-        }
-        
-        // 尝试直接监听widget的属性变化
-        if (widget.value !== undefined) {
-            let lastValue = widget.value;
-            const checkValueChange = () => {
-                if (widget.value !== lastValue) {
-                    console.log(`🎯 Ollama版本${widgetName}属性值变化: ${lastValue} → ${widget.value}`);
-                    lastValue = widget.value;
-                    updatePlaceholder();
-                }
-            };
-            
-            // 定期检查值变化
-            setInterval(checkValueChange, 500);
-            console.log(`   ⏰ ${widgetName}定期值检查已设置`);
-        }
     }
+
+    // 初始化placeholder
+    setTimeout(updateCustomGuidancePlaceholder, 200);
     
-    // 绑定事件
-    bindWidgetCallback(guidanceStyleWidget, "guidance_style");
-    bindWidgetCallback(guidanceTemplateWidget, "guidance_template");
-    
-    // 延迟初始化，确保所有widgets都已完全加载
-    setTimeout(() => {
-        console.log("🚀 初始化placeholder");
-        updatePlaceholder();
-    }, 1000);
-    
-    // 添加定期检查机制，确保placeholder保持同步
-    let checkCount = 0;
-    const checkInterval = setInterval(() => {
-        checkCount++;
-        if (checkCount > 10) {
-            clearInterval(checkInterval);
-            return;
-        }
-        
-        // 检查当前placeholder是否正确
-        const currentStyle = guidanceStyleWidget.value || "efficient_concise";
-        const currentTemplate = guidanceTemplateWidget ? guidanceTemplateWidget.value || "none" : "none";
-        const expectedPlaceholder = getTemplateContentForPlaceholder(currentStyle, currentTemplate);
-        
-        if (customGuidanceWidget.inputEl) {
-            const currentPlaceholder = customGuidanceWidget.inputEl.placeholder;
-            if (currentPlaceholder !== expectedPlaceholder) {
-                console.log(`🔄 定期检查发现placeholder不同步，正在更新 (检查${checkCount}/10)`);
-                updatePlaceholder();
-            }
-        }
-    }, 2000);
+    console.log("✅ Guidance widgets interaction setup completed");
 }
 
 // 注册ComfyUI扩展
@@ -703,12 +595,13 @@ app.registerExtension({
                 console.warn("⚠️ 未找到模型选择widget");
             }
             
-            // 设置引导widgets联动
+            // 设置引导widgets交互
             if (guidanceStyleWidget && customGuidanceWidget) {
                 setupGuidanceWidgetsInteraction(this, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget);
-                console.log("✅ 引导widgets联动设置完成");
+                console.log("✅ Ollama版本引导系统初始化完成 (包含自定义模板功能)");
             } else {
-                console.warn("⚠️ 未找到引导相关widgets");
+                console.warn("⚠️ 未找到必要的引导widgets，跳过交互设置");
+                console.log("✅ 引导系统初始化完成 (基础功能)");
             }
         };
         
@@ -719,7 +612,7 @@ app.registerExtension({
                 onSerialize.apply(this, arguments);
             }
             
-            // 保存当前选中的模型
+            // Save currently selected model
             const modelWidget = this.widgets?.find(w => w.name === "model");
             if (modelWidget && modelWidget.value) {
                 o.model_selection = modelWidget.value;
@@ -758,5 +651,7 @@ export {
     fetchOllamaModels,
     updateModelWidget,
     createRefreshButton,
-    createStatusIndicator
+    createStatusIndicator,
+    getTemplateContentForPlaceholder,
+    setupGuidanceWidgetsInteraction
 };
