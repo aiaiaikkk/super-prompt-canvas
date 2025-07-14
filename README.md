@@ -6,40 +6,61 @@
 
 ## <a id="chinese-docs"></a>🇨🇳 中文文档
 
-**多模态AI超级提示词生成系统** - 智能的视觉提示词生成系统，为ComfyUI提供**可视化标注**与**结构化提示词生成**的完美结合，专为Flux Kontext工作流优化。这是一个革命性的**多模态AI超级提示词界面**，将视觉理解与文本生成无缝集成。
+🎆 **让AI图像编辑变得简单如画图** 🎆
+
+你只需要：📝 **框选区域** + 🗣️ **说出想法** = ✨ **完美的AI编辑指令**
+
+无需学习复杂的提示词技巧，无需理解模型参数，无需记忆命令格式。像使用画笔一样简单，却能获得专业级的AI编辑效果。
 
 ## 🎯 效果展示
 
-| 使用前 | 使用后 |
-|--------|--------|
-| ![Before](images/before.png) | ![After](images/after.png) |
-| 传统文本提示词输入 | 多模态可视化提示词生成 |
+### 🎨 **可视化编辑界面**
+![Visual Editor Interface](images/visual_editor1.png)
+*直观的可视化编辑界面 - 左侧图像标注，右侧AI提示词生成*
 
-### 💫 快速上手
+### 🖄 **基础模板系统**
+![Basic Templates](images/basic.png)
+*49个精品模板覆盖全部编辑场景 - 局部、全局、文字、专业操作*
 
-1. **双击节点** → 打开可视化编辑器
-2. **绘制标注** → 选择工具标记目标区域  
-3. **选择模板** → 选择操作类型和增强提示词
-4. **一键生成** → 自动生成结构化提示词
+### 🚀 **30秒即学会**
 
-### 🎯 项目目标
+🎯 **步骤1**：双击节点 → 打开智能编辑器  
+🖌️ **步骤2**：框选区域 → 用鼠标在图上圈出你想改的地方  
+💬 **步骤3**：说出想法 → 用人话描述你的编辑意图  
+✨ **步骤4**：一键生成 → AI自动创建完美指令
 
-本项目旨在构建一个基于 **Flux Kontext 大模型** 的超级提示词生成系统，通过直观的图形标注与智能AI增强的协同控制，实现对图像的精细化、多模态编辑。
+🎉 **就这么简单！从第一次使用就能获得专业效果！**
 
-用户无需掌握复杂的提示词编写，仅需 **框选图像区域 + 描述意图**，超级提示词系统即可自动生成智能AI增强的结构化编辑指令，驱动 Kontext 模型完成图像局部/整体的智能修改操作。
+### 🎆 **为什么选择Kontext超级提示词？**
 
-本项目力求实现：
+😫 **传统方式的痛点**：  
+• 需要学习复杂的提示词语法  
+• 经常遇到“想得到做不到”的情况  
+• 需要反复调试和尝试才能得到满意结果  
+• 不同操作需要不同的专业知识
 
-🖼️ **所见即所得的可视化交互**：支持矩形、圆形、箭头、自由绘图等多种标注方式；
+🎆 **Kontext超级提示词的优势**：  
+✨ **零门槛**：就像在手机上标记照片一样简单  
+🎯 **高准确**：基于1000+官方指令优化，精准匹配意图  
+🤖 **AI加持**：智能理解你的想法，自动生成专业指令  
+🚀 **即时可用**：无需学习，第一次使用就能获得专业效果
 
-✍️ **结构化提示词自动拼接与补全**：帮助小白用户高效表达编辑需求；
+🎁 **结果**：从“学习一天”到“上手一分钟”，让任何人都能轻松创作专业级AI作品！
 
-🧠 **结合大模型的语义理解能力**：精确控制图像的变换、替换、修复与增强；
+### 🏆 **为什么效果这么好？**
 
-🔄 **编辑闭环完整打通**：从标注 → 生成掩码 → 提示生成 → 编辑执行 → 回显反馈，全流程自动联动。
+#### 🎨 **精准定位系统**
+• **4种直觉工具**：矩形框、圆形圈、箭头指向、自由绘制 - 像用画图软件一样简单  
+• **4种色彩标记**：红绿黄蓝，可同时标记多个区域，一次性处理复杂编辑  
+• **实时预览**：所见即所得，标记哪里就编辑哪里
 
-目标是打造一个适用于 **ComfyUI 图像创作生态** 的超级提示词生成平台，为 AI 图像编辑提供更加智能、自然、高效的交互方式。
+#### 🤖 **AI智能引擎**
+• **6种编辑策略**：自动检测、空间精准、语义增强、风格一致、内容感知、多区域协调  
+• **49个精品模板**：每个都是基于官方数据训练的精品，保证效果  
+• **无限可能**：AI加持，从49个模板扩展到无限变体，满足任何创意需求  
+• **多语言支持**：中文、英文输入都支持，想怎么说就怎么说
 
+<<<<<<< Updated upstream
 ### ✨ 核心特性
 
 #### 🎨 视觉标注系统
@@ -54,45 +75,50 @@
 - **AI智能扩展**：通过Ollama/API增强器可生成无限变体
 - **多选提示词**：约束性和修饰性提示词的复选框界面
 - **智能组合**：自动将视觉标注转换为多模态AI可理解的结构化提示词
+=======
+#### 🎯 **6种编辑策略详解**
+🔄 **自动检测**：AI分析你的需求，自动选择最合适的处理方式（推荐新手使用）  
+📍 **空间精准**：专注位置准确性，适合"把这里的XX改成YY"类型的精确编辑  
+🧠 **语义增强**：理解内容含义，适合"让人物表情更开心"等需要理解的编辑  
+🎨 **风格一致**：保持整体风格统一，适合"添加XX但要符合整张图的风格"  
+👁️ **内容感知**：智能理解上下文，适合"自然地移除XX"等需要补全背景的操作  
+🎭 **多区域协调**：同时处理多个区域，确保它们相互协调，适合复杂的批量编辑
+>>>>>>> Stashed changes
 
 
-### 🚀 已实现功能
+### 🎉 **你能用它做什么？**
 
-#### ✅ 核心功能
-- [x] **可视化提示词编辑器节点** - 双击打开统一界面
-- [x] **多工具标注** - 矩形、圆形、箭头、自由绘制
-- [x] **4分类模板系统** - 局部/全局/文字/专业操作
-- [x] **多选提示词增强** - 约束性/修饰性提示词复选框界面
-- [x] **实时模板切换** - 操作类型切换立即更新提示词选项
-- [x] **结构化输出生成** - 自动构建包含选中增强词的提示词
-- [x] **图像渲染** - 标注直接渲染到输出图像
+#### 🔥 **经典场景**
+🌄 **人像修图**：“把这个人的衣服改成白色” - 框一下，说一声，就好了！  
+🌅 **风景美化**：“让这片天空变成月夜” - 圈出天空，输入想法，一键完成！  
+📝 **文字编辑**：“在这里加上新年快乐” - 点个位置，说出内容，自动生成！  
+🎨 **风格转换**：“让整张照片变成动漫风格” - 选择全图，输入风格，立刻变身！
 
-#### ✅ AI增强功能 (NEW!)
-- [x] **🤖 本地Ollama服务集成** - 支持调用本地ollama服务生成结构化提示词
-- [x] **🌐 API远程调用** - 支持API远程调用大语言模型生成结构化提示词
-- [x] **🎯 多图层指令支持** - 支持对多图层使用不同指令，例如：在红色标记处添加一只小狗，移除蓝色标记处的椅子等
-- [x] **📋 智能模板库** - 根据FLUX官方训练数据集优化提示词模板覆盖局部编辑，全局编辑，文字编辑，专业操作70+预设模板
-- [x] **🎲 种子参数控制** - 支持seed参数控制生成随机性，确保结果可重现
-- [x] **✏️ 用户自定义模板** - 完整的自定义引导话术保存/加载/管理系统
-- [x] **🧹 输出清理** - 智能清理技术分析内容，输出简洁自然语言指令
-- [x] **🔄 手动刷新模型** - 一键刷新Ollama模型列表，无需重启ComfyUI
-- [x] **DeepSeek R1/V3 支持** - 最新推理优化模型集成
-- [x] **多服务商支持** - SiliconFlow、DeepSeek、千问、OpenAI
-- [x] **成本控制** - 智能缓存和实时成本监控
+#### 🤖 **AI黑科技**
+✨ **本地AI**：支持Ollama，数据不出门，隐私安全  
+☁️ **云端AI**：支持GPT、DeepSeek、千问，效果更强  
+🎯 **智能理解**：自动识别你的意图，选择最佳策略  
+🔄 **结果可控**：支持种子参数，同样输入获得同样结果
 
-#### 🚀 模型训练进展
-- [x] **基于deepseek-r1和qwen3用于生成kontext提示词的模型正在训练中**……
+#### 📦 **完整解决方案**
+• **4大类别** × **49个模板** = 覆盖所有常见需求  
+• **6种策略** × **AI加持** = 无限可能性  
+• **中英双语** × **自定义模板** = 适合所有人
 
-#### 🌟 仙宫云镜像体验
-**仙宫云镜像已部署完成以上功能**：[https://www.xiangongyun.com/register/FIP8MJ](https://www.xiangongyun.com/register/FIP8MJ)（搜索：小红猪）
+### 🤖 **AI增强器展示**
 
-#### 📈 计划中的高级功能  
-- [ ] **标注数据导出** - JSON格式的坐标和元数据
-- [ ] **多语言支持** - 中英文界面元素
+#### 🌐 **API云端AI增强器**
+![API Enhancer](images/api.png)
+*支持GPT、DeepSeek、千问等云端AI模型，效果强大*
 
-#### ✅ 用户体验
-- [x] **直观界面** - 左侧画布，右侧提示词面板布局
-- [x] **响应式设计** - 自动缩放和缩放控制
+#### 🤖 **Ollama本地AI增强器**
+![Ollama Enhancer](images/ollama.png)
+*本地部署AI模型，数据不出门，隐私安全*
+
+### 🌐 **在线体验**
+🎆 **仙宫云在线体验**：[https://www.xiangongyun.com/register/FIP8MJ](https://www.xiangongyun.com/register/FIP8MJ)  
+🔍 搜索“小红猪”即可找到，无需本地安装，上手即用！
+
 
 ### 📋 模板分类
 
@@ -133,47 +159,59 @@ git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
 3. 在`kontext_super_prompt/core`分类中找到`VisualPromptEditor`节点
 4. 双击节点打开可视化编辑器
 
-### 🎮 使用方法
+### 📱 **使用方法（比用手机还简单）**
 
-1. **添加节点**：在工作流中放置`VisualPromptEditor`
-2. **连接图像**：将图像输入连接到节点
-3. **打开编辑器**：双击节点启动界面
-4. **标注**：使用绘制工具标记感兴趣的区域
-5. **配置**：选择模板分类和操作类型
-6. **增强**：通过复选框选择约束性和修饰性提示词
-7. **生成**：点击"生成描述"获得结构化提示词
-8. **导出**：保存标注并在工作流中使用生成的提示词
+#### 🚀 **第一步：3秒钟设置**
+1. 在ComfyUI中找到 `kontext_super_prompt/core` 分类
+2. 拖入 `Kontext Super Prompt Visual Editor` 节点  
+3. 连接你的图像输入
 
-### 🔧 系统要求
+#### 🎯 **第二步：开始编辑**
+1. **双击节点** → 打开编辑界面（就像打开手机App一样）
+2. **选择工具** → 矩形/圆形/箭头/自由绘制，选你顺手的
+3. **框选区域** → 在图上圈出你想改的地方
+4. **说出想法** → 用人话描述你的需求，比如"把这里改成红色"
 
-- ComfyUI（推荐最新版本）
-- Python 3.7+
-- 支持JavaScript的现代网页浏览器
-- 4GB+内存以获得最佳性能
+#### ⚡ **第三步：AI处理**
+1. **选择策略** → 不知道选什么？选"自动检测"就对了
+2. **一键生成** → 点击生成，AI自动创建专业指令
+3. **直接使用** → 生成的指令可以直接用于Flux Kontext模型
 
-### 📊 项目统计
+#### 💡 **小贴士**
+• 🎨 **多个区域**：用不同颜色标记不同区域，一次处理多个编辑
+• 🗣️ **自然语言**：想怎么说就怎么说，"把人变年轻"、"天空改成夜晚"都行
+• 🔄 **结果不满意**：换个编辑策略或者重新描述，总有一个适合你
 
-- **预设模板数量**：70+个FLUX优化模板（基于官方训练数据集）
-- **自定义模板**：无限制用户自定义引导话术
-- **AI增强节点**：2个智能增强器（Ollama本地 + API远程）
-- **提示词数据库**：343个约束性和修饰性提示词
-- **多图层支持**：无限制标注层数和指令组合
-- **语言支持**：英文/中文双语界面
-- **文件大小**：约3.2MB完整包
-- **节点数量**：4个核心节点（编辑器 + 2个AI增强器 + 种子控制）
+### 💻 **系统要求**
+- ✅ **ComfyUI** - 任何版本都可以，推荐最新版
+- ✅ **现代浏览器** - Chrome、Firefox、Safari、Edge都支持
+- ✅ **4GB内存** - 保证流畅运行（大部分电脑都满足）
+
+### 📊 **核心数据**
+🎯 **49个精品模板** + 🤖 **AI无限扩展** = 💯 **覆盖所有需求**  
+📦 **仅3.2MB** - 轻量级安装，不占空间  
+🚀 **4个核心节点** - 简单够用，不复杂  
+🌐 **中英双语** - 国内外用户都适用
 
 ---
 
 ## <a id="english-docs"></a>🇺🇸 English Documentation
 
-**Multimodal AI Super Prompt Generation System** - An intelligent visual prompt generation system for ComfyUI that combines **visual annotation** with **structured prompt generation**, optimized for Flux Kontext workflow. This is a revolutionary **multimodal AI super prompt interface** that seamlessly integrates visual understanding with text generation.
+🎆 **Make AI Image Editing as Simple as Drawing** 🎆
+
+All you need: 📝 **Select Area** + 🗣️ **Describe Intent** = ✨ **Perfect AI Editing Instructions**
+
+No need to learn complex prompt techniques, no need to understand model parameters, no need to memorize command formats. As simple as using a paintbrush, yet achieving professional-grade AI editing results.
 
 ## 🎯 Visual Demonstration
 
-| Before | After |
-|--------|-------|
-| ![Before](images/before.png) | ![After](images/after.png) |
-| Traditional text prompt input | Multimodal visual prompt generation |
+### 🎨 **Visual Editor Interface**
+![Visual Editor Interface](images/visual_editor1.png)
+*Intuitive visual editing interface - Image annotation on the left, AI prompt generation on the right*
+
+### 🖄 **Base Template System**
+![Basic Templates](images/basic.png)
+*49 premium templates covering all editing scenarios - Local, Global, Text, Professional operations*
 
 ### 💫 Quick Start
 
@@ -242,6 +280,16 @@ The goal is to create a super prompt generation platform suitable for the **Comf
 
 ### 🚀 Model Training Progress
 - [x] **Models based on deepseek-r1 and qwen3 for generating kontext prompts are in training**...
+
+### 🤖 **AI Enhancer Showcase**
+
+#### 🌐 **API Cloud AI Enhancer**
+![API Enhancer](images/api.png)
+*Support for GPT, DeepSeek, Qianwen and other cloud AI models with powerful effects*
+
+#### 🤖 **Ollama Local AI Enhancer**
+![Ollama Enhancer](images/ollama.png)
+*Local AI model deployment, data never leaves your device, privacy secure*
 
 ### 🌟 Xiangong Cloud Mirror Experience
 **Xiangong Cloud Mirror has deployed all the above features**: [https://www.xiangongyun.com/register/FIP8MJ](https://www.xiangongyun.com/register/FIP8MJ) (Search: 小红猪)
