@@ -68,8 +68,8 @@ class VisualPromptEditor:
         "model_instruction"
     )
     FUNCTION = "visual_prompt_edit"
-    CATEGORY = "kontext/core"
-    DESCRIPTION = "Unified visual annotation editor with structured prompt generation. Outputs: processed image, structured prompt, annotation data, and complete model instruction for debugging/monitoring."
+    CATEGORY = "kontext_super_prompt/core"
+    DESCRIPTION = "🎨 Kontext Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
     
     def visual_prompt_edit(self, image: torch.Tensor, annotation_data: str = None,
                           text_prompt: str = "", prompt_template: str = "object_edit"):

@@ -416,7 +416,7 @@ For more examples, please check guidance_template options."""
         
         # 检查模型是否在可用列表中，先尝试缓存的列表
         available_models = cls.get_available_models(url=url, force_refresh=False)
-        if model not in available_models and model not in ["ollama-model-not-found", "请先启动Ollama服务"]:
+        if model not in available_models and model not in ["ollama-model-not-found", "Please start Ollama service"]:
             # 如果模型不在缓存中，强制刷新一次
             available_models = cls.get_available_models(url=url, force_refresh=True)
             if model not in available_models:
@@ -433,8 +433,8 @@ For more examples, please check guidance_template options."""
     )
     
     FUNCTION = "enhance_flux_instructions"
-    CATEGORY = "kontext/ai_enhanced"
-    DESCRIPTION = "🤖 通过Ollama增强VisualPromptEditor的标注数据，生成Flux Kontext优化的结构化编辑指令"
+    CATEGORY = "kontext_super_prompt/ai_enhanced"
+    DESCRIPTION = "🤖 Kontext Super Prompt Ollama Enhancer - Generate optimized structured editing instructions through local Ollama models"
     
     def __init__(self):
         self.start_time = None
@@ -580,9 +580,9 @@ For more examples, please check guidance_template options."""
             # 自动检测最佳编辑策略
             if edit_instruction_type == "auto_detect":
                 edit_instruction_type = self._auto_detect_strategy(annotation_data, debug_mode)
-                self._log_debug(f"🔄 自动检测到最佳策略: {edit_instruction_type}", debug_mode)
+                self._log_debug(f"🔄 Auto-detected optimal strategy: {edit_instruction_type}", debug_mode)
             
-            self._log_debug(f"🚀 开始处理 - 模型: {model}, 策略: {edit_instruction_type}", debug_mode)
+            self._log_debug(f"🚀 Starting processing - Model: {model}, Strategy: {edit_instruction_type}", debug_mode)
             
             # 1. 解析标注数据
             annotations, parsed_data = self._parse_annotation_data(annotation_data, debug_mode)
@@ -593,7 +593,7 @@ For more examples, please check guidance_template options."""
                 )
             
             # 2. Ollama服务已通过前面的检查确认可用
-            self._log_debug(f"🔗 使用Ollama服务: {url}", debug_mode)
+            self._log_debug(f"🔗 Using Ollama service: {url}", debug_mode)
             
             # 3. 构建用户提示词（系统提示词已在上面通过引导话术系统构建）
             user_prompt = self._build_user_prompt(
@@ -601,7 +601,7 @@ For more examples, please check guidance_template options."""
                 edit_intensity, preservation_mask, style_guidance, output_format
             )
             
-            self._log_debug(f"📝 生成的用户提示词长度: {len(user_prompt)} 字符", debug_mode)
+            self._log_debug(f"📝 Generated user prompt length: {len(user_prompt)} characters", debug_mode)
             
             # 4. 检查是否需要视觉分析
             image_base64 = None
@@ -609,11 +609,11 @@ For more examples, please check guidance_template options."""
                 if self._is_multimodal_model(model):
                     image_base64 = self._encode_image_for_ollama(image, debug_mode)
                     if image_base64:
-                        self._log_debug("🔍 启用视觉分析模式", debug_mode)
+                        self._log_debug("🔍 Visual analysis mode enabled", debug_mode)
                     else:
-                        self._log_debug("⚠️ 图像编码失败，回退到纯文本模式", debug_mode)
+                        self._log_debug("⚠️ Image encoding failed, fallback to text mode", debug_mode)
                 else:
-                    self._log_debug(f"⚠️ 模型 {model} 不支持视觉分析，忽略视觉输入", debug_mode)
+                    self._log_debug(f"⚠️ Model {model} doesn't support visual analysis, ignoring visual input", debug_mode)
             
             # 5. 调用Ollama生成增强指令（使用引导话术系统构建的enhanced_system_prompt）
             enhanced_instructions = self._generate_with_ollama(
@@ -637,7 +637,7 @@ For more examples, please check guidance_template options."""
                 enhanced_instructions, output_format, debug_mode
             )
             
-            self._log_debug("✅ 处理完成", debug_mode)
+            self._log_debug("✅ Processing completed", debug_mode)
             
             # 保存到缓存
             result = (flux_instructions, enhanced_system_prompt)
@@ -722,11 +722,11 @@ For more examples, please check guidance_template options."""
             img_bytes = buffer.getvalue()
             img_base64 = base64.b64encode(img_bytes).decode('utf-8')
             
-            self._log_debug(f"🖼️ 图像编码成功，base64长度: {len(img_base64)} 字符", debug_mode)
+            self._log_debug(f"🖼️ Image encoding successful, base64 length: {len(img_base64)} characters", debug_mode)
             return img_base64
             
         except Exception as e:
-            self._log_debug(f"❌ 图像编码失败: {e}", debug_mode)
+            self._log_debug(f"❌ Image encoding failed: {e}", debug_mode)
             return None
     
     def _auto_detect_strategy(self, annotation_data: str, debug_mode: bool) -> str:
@@ -786,22 +786,22 @@ For more examples, please check guidance_template options."""
             if len(annotations) > 2:
                 detected_strategy = "multi_region"
             
-            self._log_debug(f"🎯 操作类型: {operation_type} → 策略: {detected_strategy}", debug_mode)
+            self._log_debug(f"🎯 Operation type: {operation_type} → Strategy: {detected_strategy}", debug_mode)
             return detected_strategy
             
         except Exception as e:
-            self._log_debug(f"⚠️ 策略自动检测失败: {e}, 使用默认策略", debug_mode)
+            self._log_debug(f"⚠️ Strategy auto-detection failed: {e}, using default strategy", debug_mode)
             return "spatial_precise"
     
     def _parse_annotation_data(self, annotation_data: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
         """解析标注数据"""
         try:
             if not annotation_data or not annotation_data.strip():
-                self._log_debug("⚠️ 标注数据为空", debug_mode)
+                self._log_debug("⚠️ Annotation data is empty", debug_mode)
                 return [], {}
             
             parsed_data = json.loads(annotation_data)
-            self._log_debug(f"📊 解析标注数据成功，数据类型: {type(parsed_data)}", debug_mode)
+            self._log_debug(f"📊 Annotation data parsed successfully, data type: {type(parsed_data)}", debug_mode)
             
             # 提取annotations
             annotations = []
@@ -813,31 +813,31 @@ For more examples, please check guidance_template options."""
             elif isinstance(parsed_data, list):
                 annotations = parsed_data
             
-            self._log_debug(f"📍 提取到 {len(annotations)} 个标注", debug_mode)
+            self._log_debug(f"📍 Extracted {len(annotations)} annotations", debug_mode)
             return annotations, parsed_data
             
         except json.JSONDecodeError as e:
-            self._log_debug(f"❌ JSON解析失败: {e}", debug_mode)
+            self._log_debug(f"❌ JSON parsing failed: {e}", debug_mode)
             return [], {}
         except Exception as e:
-            self._log_debug(f"❌ 标注数据解析异常: {e}", debug_mode)
+            self._log_debug(f"❌ Annotation data parsing exception: {e}", debug_mode)
             return [], {}
     
     def _connect_ollama(self, url: str, debug_mode: bool) -> Optional[object]:
         """连接Ollama服务"""
         try:
             if not OLLAMA_AVAILABLE:
-                self._log_debug("❌ Ollama模块不可用", debug_mode)
+                self._log_debug("❌ Ollama module not available", debug_mode)
                 return None
                 
             from ollama import Client
             client = Client(host=url)
             # 测试连接
             models = client.list()
-            self._log_debug(f"🔗 Ollama连接成功，可用模型数: {len(models.get('models', []))}", debug_mode)
+            self._log_debug(f"🔗 Ollama connection successful, available models: {len(models.get('models', []))}", debug_mode)
             return client
         except Exception as e:
-            self._log_debug(f"❌ Ollama连接失败: {e}", debug_mode)
+            self._log_debug(f"❌ Ollama connection failed: {e}", debug_mode)
             return None
     
     def _build_system_prompt(self, edit_instruction_type: str, output_format: str) -> str:
@@ -846,7 +846,7 @@ For more examples, please check guidance_template options."""
         # 编辑策略说明及具体指导
         strategy_descriptions = {
             "spatial_precise": {
-                "description": "专注于精确的空间位置描述和坐标定位",
+                "description": "Focus on precise spatial positioning and coordinate positioning",
                 "guidance": """Focus on:
 - Precise spatial positioning and coordinates
 - Exact boundary definitions
@@ -855,7 +855,7 @@ For more examples, please check guidance_template options."""
 - Include specific pixel/region coordinates when possible"""
             },
             "semantic_enhanced": {
-                "description": "强调语义理解和内容识别，生成语义丰富的编辑指令",
+                "description": "Emphasize semantic understanding and content recognition, generate semantically rich editing instructions",
                 "guidance": """Focus on:
 - Object recognition and semantic understanding
 - Context-aware content modifications
@@ -864,7 +864,7 @@ For more examples, please check guidance_template options."""
 - Preserve semantic coherence"""
             },
             "style_coherent": {
-                "description": "注重整体风格的协调统一，确保编辑后的视觉一致性",
+                "description": "Focus on overall style coordination and unity, ensuring visual consistency after editing",
                 "guidance": """Focus on:
 - Visual style consistency
 - Color harmony and palette coherence
@@ -873,7 +873,7 @@ For more examples, please check guidance_template options."""
 - Overall aesthetic unity"""
             },
             "content_aware": {
-                "description": "智能理解图像内容和上下文，生成内容感知的编辑指令",
+                "description": "Intelligently understand image content and context, generate content-aware editing instructions",
                 "guidance": """Focus on:
 - Context-sensitive modifications
 - Content-appropriate enhancements
@@ -882,7 +882,7 @@ For more examples, please check guidance_template options."""
 - Preserve content authenticity"""
             },
             "multi_region": {
-                "description": "处理多个标注区域的协调关系，确保整体编辑的和谐性",
+                "description": "Handle coordination relationships of multiple annotation regions, ensuring overall editing harmony",
                 "guidance": """Focus on:
 - Coordinate multiple region edits
 - Ensure region-to-region harmony
@@ -891,7 +891,7 @@ For more examples, please check guidance_template options."""
 - Synchronize related changes"""
             },
             "custom": {
-                "description": "根据用户需求生成自定义的编辑指令",
+                "description": "Generate custom editing instructions based on user requirements",
                 "guidance": """Focus on:
 - User-specific requirements
 - Flexible adaptation to needs
@@ -952,10 +952,10 @@ Rules:
         
         # 1. 编辑意图描述（最重要的信息）
         if edit_description and edit_description.strip():
-            prompt_parts.append("=== 编辑意图 ===\n用户要求: " + edit_description.strip())
+            prompt_parts.append("=== Editing Intent ===\nUser requirement: " + edit_description.strip())
         
         # 2. 图像标注信息
-        prompt_parts.append("\n=== 图像标注信息 ===")
+        prompt_parts.append("\n=== Image Annotation Information ===")
         
         # 检查是否包含编号设置
         include_numbers = parsed_data.get("include_annotation_numbers", True)
@@ -964,31 +964,31 @@ Rules:
             if include_numbers:
                 # 使用annotation中的number字段，如果没有则使用索引
                 number = annotation.get('number', i+1)
-                annotation_desc = f"标注 {number}:"
+                annotation_desc = f"Annotation {number}:"
             else:
-                annotation_desc = "标注:"
+                annotation_desc = "Annotation:"
             
-            annotation_desc += f" 类型={annotation.get('type', 'unknown')}"
-            annotation_desc += f" 颜色={annotation.get('color', '#000000')}"
+            annotation_desc += f" Type={annotation.get('type', 'unknown')}"
+            annotation_desc += f" Color={annotation.get('color', '#000000')}"
             
             if 'start' in annotation and 'end' in annotation:
                 start = annotation['start']
                 end = annotation['end']
-                annotation_desc += f" 坐标=({start.get('x', 0)},{start.get('y', 0)})-({end.get('x', 0)},{end.get('y', 0)})"
+                annotation_desc += f" Coordinates=({start.get('x', 0)},{start.get('y', 0)})-({end.get('x', 0)},{end.get('y', 0)})"
             
             prompt_parts.append(annotation_desc)
         
         # 3. 操作信息
         if 'operation_type' in parsed_data:
-            prompt_parts.append(f"\n=== 操作类型 ===")
-            prompt_parts.append(f"操作: {parsed_data['operation_type']}")
+            prompt_parts.append(f"\n=== Operation Type ===")
+            prompt_parts.append(f"Operation: {parsed_data['operation_type']}")
         
         if 'target_description' in parsed_data:
-            prompt_parts.append(f"目标描述: {parsed_data['target_description']}")
+            prompt_parts.append(f"Target description: {parsed_data['target_description']}")
         
         # 4. 增强提示词
         if 'constraint_prompts' in parsed_data and parsed_data['constraint_prompts']:
-            prompt_parts.append(f"\n=== 约束性提示词 ===")
+            prompt_parts.append(f"\n=== Constraint Prompts ===")
             constraints = parsed_data['constraint_prompts']
             if isinstance(constraints, list):
                 prompt_parts.append(", ".join(constraints))
@@ -996,7 +996,7 @@ Rules:
                 prompt_parts.append(str(constraints))
         
         if 'decorative_prompts' in parsed_data and parsed_data['decorative_prompts']:
-            prompt_parts.append(f"\n=== 修饰性提示词 ===")
+            prompt_parts.append(f"\n=== Decorative Prompts ===")
             decoratives = parsed_data['decorative_prompts']
             if isinstance(decoratives, list):
                 prompt_parts.append(", ".join(decoratives))
@@ -1005,24 +1005,24 @@ Rules:
         
         # 5. 参考上下文
         if reference_context:
-            prompt_parts.append(f"\n=== 参考上下文 ===")
+            prompt_parts.append(f"\n=== Reference Context ===")
             prompt_parts.append(reference_context)
         
         # 6. 编辑参数
-        prompt_parts.append(f"\n=== 编辑参数 ===")
-        prompt_parts.append(f"编辑强度: {edit_intensity}")
+        prompt_parts.append(f"\n=== Editing Parameters ===")
+        prompt_parts.append(f"Editing intensity: {edit_intensity}")
         
         if preservation_mask:
-            prompt_parts.append(f"保护区域: {preservation_mask}")
+            prompt_parts.append(f"Protection area: {preservation_mask}")
         
         if style_guidance:
-            prompt_parts.append(f"风格指导: {style_guidance}")
+            prompt_parts.append(f"Style guidance: {style_guidance}")
         
         # 7. 生成要求
-        prompt_parts.append(f"\n=== 生成要求 ===")
-        prompt_parts.append("请根据以上信息生成优化的Flux Kontext编辑指令。")
-        prompt_parts.append("确保指令精确、可执行，并符合指定的输出格式。")
-        prompt_parts.append("重点根据编辑意图和标注信息的结合来生成指令。")
+        prompt_parts.append(f"\n=== Generation Requirements ===")
+        prompt_parts.append("Please generate optimized Flux Kontext editing instructions based on the above information.")
+        prompt_parts.append("Ensure instructions are precise, executable, and conform to the specified output format.")
+        prompt_parts.append("Focus on generating instructions based on the combination of editing intent and annotation information.")
         
         return "\n".join(prompt_parts)
     
@@ -1144,7 +1144,7 @@ Rules:
             import requests
             import json
             
-            self._log_debug(f"🤖 调用Ollama模型: {model} (HTTP API)", debug_mode)
+            self._log_debug(f"🤖 Calling Ollama model: {model} (HTTP API)", debug_mode)
             
             # 配置生成参数 - 为了提高速度，限制最大temperature
             # 使用seed控制随机性
@@ -1193,7 +1193,7 @@ Rules:
                     "stream": False
                 }
                 api_endpoint = f"{url}/api/chat"
-                self._log_debug("🖼️ 使用多模态Chat API", debug_mode)
+                self._log_debug("🖼️ Using multimodal Chat API", debug_mode)
             else:
                 # 对于纯文本模型，使用传统的generate API
                 payload = {
@@ -1204,7 +1204,7 @@ Rules:
                     "keep_alive": f"{keep_alive}m"
                 }
                 api_endpoint = f"{url}/api/generate"
-                self._log_debug("📝 使用纯文本Generate API", debug_mode)
+                self._log_debug("📝 Using text-only Generate API", debug_mode)
             
             # 发送请求到Ollama HTTP API
             print(f"Sending request to Ollama API: {api_endpoint}")
@@ -1279,7 +1279,7 @@ Rules:
                         result = json.loads(response_text)
                     
                     print(f"Parsed JSON successfully, result keys: {list(result.keys()) if result else 'None'}")
-                    self._log_debug(f"🔍 Ollama API响应: {str(result)[:200]}...", debug_mode)
+                    self._log_debug(f"🔍 Ollama API response: {str(result)[:200]}...", debug_mode)
                 except json.JSONDecodeError as e:
                     print(f"JSON parsing error: {e}")
                     print(f"Problematic response text: {response_text}")
@@ -1292,19 +1292,19 @@ Rules:
                     # Chat API响应格式
                     if result and 'message' in result and 'content' in result['message']:
                         generated_text = result['message']['content'].strip()
-                        self._log_debug("🖼️ 解析Chat API响应成功", debug_mode)
+                        self._log_debug("🖼️ Chat API response parsed successfully", debug_mode)
                     else:
-                        self._log_debug(f"❌ Chat API响应格式错误: {result}", debug_mode)
+                        self._log_debug(f"❌ Chat API response format error: {result}", debug_mode)
                         return None
                 else:
                     # Generate API响应格式
                     if result and 'response' in result:
                         generated_text = result['response'].strip()
                         print(f"Generated text length: {len(generated_text)}")
-                        self._log_debug("📝 解析Generate API响应成功", debug_mode)
+                        self._log_debug("📝 Generate API response parsed successfully", debug_mode)
                     else:
                         print(f"Error: Generate API response missing 'response' field. Available fields: {list(result.keys()) if result else 'None'}")
-                        self._log_debug(f"❌ Generate API响应缺少'response'字段: {result}", debug_mode)
+                        self._log_debug(f"❌ Generate API response missing 'response' field: {result}", debug_mode)
                         return None
                 
                 if generated_text:
@@ -1312,7 +1312,7 @@ Rules:
                     filtered_text = self._filter_thinking_content(generated_text, debug_mode)
                     
                     print(f"Success: Generated text original length: {len(generated_text)}, filtered length: {len(filtered_text)}")
-                    self._log_debug(f"✅ Ollama生成成功，原始长度: {len(generated_text)}, 过滤后长度: {len(filtered_text)} 字符", debug_mode)
+                    self._log_debug(f"✅ Ollama generation successful, original length: {len(generated_text)}, filtered length: {len(filtered_text)} characters", debug_mode)
                     return filtered_text
                 else:
                     print("Error: Generated text is empty after parsing")
@@ -1403,12 +1403,12 @@ Rules:
             
             # 过滤常见的thinking标签格式
             thinking_patterns = [
-                r'<think>.*?</think>',  # qwen3的<think>标签
-                r'<thinking>.*?</thinking>',  # 其他可能的thinking标签
-                r'<thought>.*?</thought>',  # thought标签
-                r'思考[:：].*?(?=\n|$)',  # 中文"思考:"开头的行
-                r'Let me think.*?(?=\n|$)',  # 英文thinking开头
-                r'I need to think.*?(?=\n|$)',  # 其他thinking表达
+                r'<think>.*?</think>',  # qwen3's <think> tags
+                r'<thinking>.*?</thinking>',  # Other possible thinking tags
+                r'<thought>.*?</thought>',  # thought tags
+                r'思考[:：].*?(?=\n|$)',  # Chinese "思考:" starting lines
+                r'Let me think.*?(?=\n|$)',  # English thinking start
+                r'I need to think.*?(?=\n|$)',  # Other thinking expressions
             ]
             
             filtered_text = text
@@ -1424,12 +1424,12 @@ Rules:
             
             # 如果过滤掉了内容，记录日志
             if len(filtered_text) < original_length:
-                self._log_debug(f"🧹 过滤掉thinking内容，减少了 {original_length - len(filtered_text)} 字符", debug_mode)
+                self._log_debug(f"🧹 Filtered thinking content, reduced by {original_length - len(filtered_text)} characters", debug_mode)
             
             return filtered_text
             
         except Exception as e:
-            self._log_debug(f"⚠️ thinking内容过滤失败: {e}，返回原始内容", debug_mode)
+            self._log_debug(f"⚠️ Thinking content filtering failed: {e}, returning original content", debug_mode)
             return text
     
     def _format_flux_instructions(self, instructions: str, output_format: str, debug_mode: bool) -> str:
@@ -1473,7 +1473,7 @@ realism: "photorealistic"
                 return instructions
                 
         except Exception as e:
-            self._log_debug(f"⚠️ 格式化失败，返回原始内容: {e}", debug_mode)
+            self._log_debug(f"⚠️ Formatting failed, returning original content: {e}", debug_mode)
             return instructions
     
     def _clean_natural_language_output(self, instructions: str) -> str:
@@ -1568,7 +1568,7 @@ realism: "photorealistic"
             return json.dumps(mappings, indent=2, ensure_ascii=False)
             
         except Exception as e:
-            self._log_debug(f"⚠️ 空间映射生成失败: {e}", debug_mode)
+            self._log_debug(f"⚠️ Spatial mapping generation failed: {e}", debug_mode)
             return f'{{"error": "Failed to generate spatial mappings: {str(e)}"}}'
     
     def _generate_processing_metadata(self, model: str, strategy: str, 
@@ -1605,7 +1605,7 @@ realism: "photorealistic"
     
     def _create_fallback_output(self, error_msg: str, debug_mode: bool) -> Tuple[str, str]:
         """创建失败时的回退输出"""
-        self._log_debug(f"❌ 创建回退输出: {error_msg}", debug_mode)
+        self._log_debug(f"❌ Creating fallback output: {error_msg}", debug_mode)
         
         fallback_instructions = f"""[EDIT_OPERATIONS]
 operation_1: Apply standard edit to marked regions
