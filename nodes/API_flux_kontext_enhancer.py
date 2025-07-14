@@ -247,13 +247,16 @@ For more examples, please check guidance_template options."""
                     "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
                     "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
-                "enhancement_level": ([
-                    "minimal",
-                    "moderate", 
-                    "comprehensive",
-                    "professional"
+                "edit_instruction_type": ([
+                    "auto_detect",          # 🔄 Automatically select best strategy based on operation type
+                    "spatial_precise",      # Spatial precise editing
+                    "semantic_enhanced",    # Semantic enhanced editing  
+                    "style_coherent",       # Style coherent editing
+                    "content_aware",        # Content aware editing
+                    "multi_region"          # Multi-region coordinated editing
                 ], {
-                    "default": "moderate"
+                    "default": "auto_detect",
+                    "tooltip": "Select editing instruction generation strategy (auto_detect automatically selects based on operation type)"
                 }),
                 "guidance_style": ([
                     "efficient_concise",   # Efficient Concise (default)
@@ -319,11 +322,11 @@ For more examples, please check guidance_template options."""
         }
     
     def _get_cache_key(self, annotation_data: str, 
-                      enhancement_level: str, 
+                      edit_instruction_type: str, 
                       model_name: str, seed: int = 0) -> str:
         """生成缓存键"""
         import hashlib
-        content = f"{annotation_data}|{enhancement_level}|{model_name}|{seed}"
+        content = f"{annotation_data}|{edit_instruction_type}|{model_name}|{seed}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
@@ -504,7 +507,7 @@ For more examples, please check guidance_template options."""
     
     def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, 
                                 annotation_data, edit_description, 
-                                enhancement_level, guidance_style, guidance_template, seed,
+                                edit_instruction_type, guidance_style, guidance_template, seed,
                                 custom_guidance, load_saved_guidance, image=None):
         """主要处理函数"""
         
@@ -564,7 +567,7 @@ For more examples, please check guidance_template options."""
             if enable_caching:
                 cache_key = self._get_cache_key(
                     annotation_data, 
-                    enhancement_level, model_name, seed
+                    edit_instruction_type, model_name, seed
                 )
                 
                 if cache_key in self.cache:

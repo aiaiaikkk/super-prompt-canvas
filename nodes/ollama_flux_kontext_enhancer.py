@@ -334,8 +334,7 @@ For more examples, please check guidance_template options."""
                     "semantic_enhanced",    # Semantic enhanced editing  
                     "style_coherent",       # Style coherent editing
                     "content_aware",        # Content aware editing
-                    "multi_region",         # Multi-region coordinated editing
-                    "custom"                # Custom instructions
+                    "multi_region"          # Multi-region coordinated editing
                 ], {
                     "default": "auto_detect",
                     "tooltip": "Select editing instruction generation strategy (auto_detect automatically selects based on operation type)"
@@ -349,6 +348,19 @@ For more examples, please check guidance_template options."""
                 ], {
                     "default": "efficient_concise",
                     "tooltip": "Select AI guidance style: Efficient Concise for quick editing, Natural Creative for artistic design, Technical Precise for professional use, Template for common presets, Custom for user-defined guidance"
+                }),
+                "guidance_template": ([
+                    "none",               # No Template
+                    "ecommerce_product",  # E-commerce Product
+                    "portrait_beauty",    # Portrait Beauty
+                    "creative_design",    # Creative Design
+                    "architecture_photo", # Architecture Photography
+                    "food_photography",   # Food Photography
+                    "fashion_retail",     # Fashion Retail
+                    "landscape_nature"    # Landscape Nature
+                ], {
+                    "default": "none",
+                    "tooltip": "Select specialized guidance template (used when guidance_style is template)"
                 }),
             },
             "optional": {
@@ -369,19 +381,6 @@ For more examples, please check guidance_template options."""
                 "enable_visual_analysis": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Enable visual analysis (only effective for multimodal models that support vision, such as qwen-vl, llava, etc.)"
-                }),
-                "guidance_template": ([
-                    "none",               # No Template
-                    "ecommerce_product",  # E-commerce Product
-                    "portrait_beauty",    # Portrait Beauty
-                    "creative_design",    # Creative Design
-                    "architecture_photo", # Architecture Photography
-                    "food_photography",   # Food Photography
-                    "fashion_retail",     # Fashion Retail
-                    "landscape_nature"    # Landscape Nature
-                ], {
-                    "default": "none",
-                    "tooltip": "Select specialized guidance template (used when guidance_style is template)"
                 }),
                 "seed": ("INT", {
                     "default": 42,
