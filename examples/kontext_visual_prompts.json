@@ -1,0 +1,918 @@
+{
+  "id": "b12431b4-5c8d-4977-93fd-2cd904ea3e7d",
+  "revision": 0,
+  "last_node_id": 33,
+  "last_link_id": 51,
+  "nodes": [
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "pos": [
+        -472.82293701171875,
+        135.90113830566406
+      ],
+      "size": [
+        290.6379699707031,
+        551.3299560546875
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        },
+        {
+          "label": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "LoadImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "1000001743.png",
+        "image"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "LoadImage",
+      "pos": [
+        -462.89434814453125,
+        1719.6444091796875
+      ],
+      "size": [
+        290.6379699707031,
+        551.3299560546875
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            27
+          ]
+        },
+        {
+          "label": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "LoadImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "1000001743.png",
+        "image"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "ShowText|pysssss",
+      "pos": [
+        618.4505004882812,
+        1719.6444091796875
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 51
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Error: Please provide valid API key"
+      ]
+    },
+    {
+      "id": 28,
+      "type": "ShowText|pysssss",
+      "pos": [
+        618.4505004882812,
+        1999.5458984375
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Error: API key validation failed"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "LoadImage",
+      "pos": [
+        -467.91558837890625,
+        1005.3504638671875
+      ],
+      "size": [
+        290.6379699707031,
+        551.3299560546875
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            19
+          ]
+        },
+        {
+          "label": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "LoadImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "1000001743.png",
+        "image"
+      ]
+    },
+    {
+      "id": 32,
+      "type": "PreviewImage",
+      "pos": [
+        -118.42778015136719,
+        1285.1959228515625
+      ],
+      "size": [
+        211.1578826904297,
+        258.7719421386719
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 45
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "PreviewImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 20,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -142.1749267578125,
+        398.828125
+      ],
+      "size": [
+        363.92352294921875,
+        132.54635620117188
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\n  \"annotations\": [\n    {\n      \"id\": \"annotation_1752482966635_0e2613piv\",\n      \"type\": \"rectangle\",\n      \"color\": \"#ff0000\",\n      \"fillMode\": \"filled\",\n      \"opacity\": 100,\n      \"number\": 0,\n      \"geometry\": {\n        \"type\": \"rectangle\",\n        \"coordinates\": [\n          391.9360806100043,\n          257.0441005340787,\n          839.5710004225195,\n          508.8566176695771\n        ]\n      },\n      \"start\": {\n        \"x\": 391.9360806100043,\n        \"y\": 257.0441005340787\n      },\n      \"end\": {\n        \"x\": 839.5710004225195,\n        \"y\": 508.8566176695771\n      }\n    },\n    {\n      \"id\": \"annotation_1752482976847_184nbtyen\",\n      \"type\": \"circle\",\n      \"color\": \"#0000ff\",\n      \"fillMode\": \"outline\",\n      \"opacity\": 100,\n      \"number\": 1,\n      \"geometry\": {\n        \"type\": \"circle\",\n        \"coordinates\": [\n          437.8473544369289,\n          829.3452758420295,\n          793.6597265955947,\n          1184.1720045329591\n        ]\n      },\n      \"start\": {\n        \"x\": 437.8473544369289,\n        \"y\": 829.3452758420295\n      },\n      \"end\": {\n        \"x\": 793.6597265955947,\n        \"y\": 1184.1720045329591\n      }\n    }\n  ],\n  \"operation_type\": \"global_color_grade\",\n  \"target_description\": \"\",\n  \"constraint_prompts\": \"\",\n  \"decorative_prompts\": \"\",\n  \"selected_annotations\": [\n    {\n      \"id\": \"annotation_1752482976847_184nbtyen\",\n      \"operationType\": \"add_object\",\n      \"description\": \"dog\",\n      \"type\": \"circle\",\n      \"color\": \"#0000ff\",\n      \"number\": 1,\n      \"constraintPrompts\": [\n        \"maintaining proper scale\"\n      ],\n      \"decorativePrompts\": [\n        \"balanced composition\"\n      ]\n    },\n    {\n      \"id\": \"annotation_1752482966635_0e2613piv\",\n      \"operationType\": \"change_color\",\n      \"description\": \"blue\",\n      \"type\": \"rectangle\",\n      \"color\": \"#ff0000\",\n      \"number\": 0,\n      \"constraintPrompts\": [\n        \"preserving original texture details\"\n      ],\n      \"decorativePrompts\": [\n        \"natural blending\"\n      ]\n    }\n  ],\n  \"multi_layer_operations\": true\n}"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -148.06947326660156,
+        623.5741577148438
+      ],
+      "size": [
+        371.4630432128906,
+        139.33189392089844
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "OPERATION: add dog to the blue circular marked area in the lower right part of the image, and make the red rectangular marked area in the right part of the image blue | METADATA: annotations_count: 2; operations: add_object(1), change_color(1)"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "PreviewImage",
+      "pos": [
+        252.88357543945312,
+        135.90113830566406
+      ],
+      "size": [
+        308.890625,
+        509.82257080078125
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "PreviewImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 12,
+      "type": "VisualPromptEditor",
+      "pos": [
+        -140.18496704101562,
+        135.90113830566406
+      ],
+      "size": [
+        351.06854248046875,
+        220
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "label": "processed_image",
+          "name": "processed_image",
+          "type": "IMAGE",
+          "links": [
+            12
+          ]
+        },
+        {
+          "label": "structured_prompt",
+          "name": "structured_prompt",
+          "type": "STRING",
+          "links": [
+            16
+          ]
+        },
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "links": [
+            17
+          ]
+        },
+        {
+          "label": "model_instruction",
+          "name": "model_instruction",
+          "type": "STRING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "Node name for S&R": "VisualPromptEditor",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\"positive_prompt\":\"add dog to the blue circular marked area in the lower right part of the image, and make the red rectangular marked area in the right part of the image blue\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752482976847_184nbtyen\",\"operationType\":\"add_object\",\"description\":\"dog\",\"type\":\"circle\",\"color\":\"#0000ff\",\"number\":1,\"constraintPrompts\":[\"maintaining proper scale\"],\"decorativePrompts\":[\"balanced composition\"]},{\"id\":\"annotation_1752482966635_0e2613piv\",\"operationType\":\"change_color\",\"description\":\"blue\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[\"preserving original texture details\"],\"decorativePrompts\":[\"natural blending\"]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752482966635_0e2613piv\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":100,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[391.9360806100043,257.0441005340787,839.5710004225195,508.8566176695771]},\"start\":{\"x\":391.9360806100043,\"y\":257.0441005340787},\"end\":{\"x\":839.5710004225195,\"y\":508.8566176695771}},{\"id\":\"annotation_1752482976847_184nbtyen\",\"type\":\"circle\",\"color\":\"#0000ff\",\"fillMode\":\"outline\",\"opacity\":100,\"number\":1,\"geometry\":{\"type\":\"circle\",\"coordinates\":[437.8473544369289,829.3452758420295,793.6597265955947,1184.1720045329591]},\"start\":{\"x\":437.8473544369289,\"y\":829.3452758420295},\"end\":{\"x\":793.6597265955947,\"y\":1184.1720045329591}}],\"quality_analysis\":{\"score\":65,\"word_count\":31,\"char_count\":155,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Good prompt, minor improvements possible\"],\"grade\":\"B\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-14T08:52:16.302Z\"}",
+        "",
+        "global_color_grade",
+        "Visual Editor Ready"
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8"
+    },
+    {
+      "id": 15,
+      "type": "ShowText|pysssss",
+      "pos": [
+        603.774169921875,
+        135.90113830566406
+      ],
+      "size": [
+        420.7154541015625,
+        247.98983764648438
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "add dog to the blue circular marked area in the lower right part of the image, and make the red rectangular marked area in the right part of the image blue"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "ShowText|pysssss",
+      "pos": [
+        618.9619750976562,
+        990.4550170898438
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 49
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "change the red horizontal rectangle area to blue naturally with good quality"
+      ]
+    },
+    {
+      "id": 23,
+      "type": "ShowText|pysssss",
+      "pos": [
+        613.4292602539062,
+        1285.252197265625
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 50
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "You are an efficient AI editor focused on clear, concise Flux Kontext instructions.\n\n## Core Mission\n- Generate direct, actionable editing commands\n- Use simple, unambiguous language\n- Focus on reliability and consistency\n- Minimize complexity while maintaining quality\n\n## Communication Style\n1. **Direct Commands**: \"make\", \"remove\", \"replace\", \"add\"\n2. **Clear References**: \"the red rectangular area (annotation 1)\"\n3. **Essential Quality**: \"with good quality\", \"seamlessly\", \"naturally\"\n4. **Consistent Format**: Predictable instruction structure\n\n## Output Guidelines\n- Single operation: \"[Action] [area] [target] [basic_quality]\"\n- Multiple operations: \"[Action1]; [Action2]; [Action3]\"\n- Always include annotation references\n- Keep instructions concise but complete\n\n## Quality Standards\n- Reliable execution over creative expression\n- Consistent results across similar inputs\n- Fast processing and clear understanding\n- Focus on what works reliably with Flux Kontext\n\n## Language Instruction\nPlease respond in English using professional image editing and AI art terminology.\n\n## Input Format Understanding\nYou will receive JSON annotation data containing:\n1. **Annotations**: Visual markers (rectangles, circles, arrows, freehand) with positions and colors\n2. **Operation Types**: change_color, remove_object, replace_object, add_object, etc.\n3. **Descriptions**: User's target descriptions for each annotation  \n4. **Constraint Prompts**: Quality and technical requirements\n5. **Decorative Prompts**: Style and visual enhancement keywords\n\n## CRITICAL OUTPUT REQUIREMENTS\n- Generate ONLY simple, direct editing instructions\n- Use natural language without technical analysis\n- DO NOT include annotation numbers like \"(annotation 0)\" in the output\n- DO NOT provide explanations, rationale, or technical details\n- DO NOT use bullet points or numbered lists\n- Output should be a single, clean sentence like: \"change the red area to blue naturally\"\n\n## Quality Standards\n- Simple and direct language\n- Focus on the core editing action\n- Include constraint and decorative elements naturally in the instruction\n- No technical jargon or analysis"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "VisualPromptEditor",
+      "pos": [
+        -135.277587890625,
+        1005.3504638671875
+      ],
+      "size": [
+        351.06854248046875,
+        220
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "label": "processed_image",
+          "name": "processed_image",
+          "type": "IMAGE",
+          "links": [
+            45,
+            48
+          ]
+        },
+        {
+          "label": "structured_prompt",
+          "name": "structured_prompt",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "links": [
+            47
+          ]
+        },
+        {
+          "label": "model_instruction",
+          "name": "model_instruction",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "Node name for S&R": "VisualPromptEditor",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752483207698_nrr40h4v5\",\"operationType\":\"add_object\",\"description\":\"\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[],\"decorativePrompts\":[]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752483207698_nrr40h4v5\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":50,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[412.0222629092838,311.41271218833407,805.1375450523261,591.84028808923]},\"start\":{\"x\":412.0222629092838,\"y\":311.41271218833407},\"end\":{\"x\":805.1375450523261,\"y\":591.84028808923}}],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-14T08:53:28.760Z\"}",
+        "",
+        "global_color_grade",
+        "Visual Editor Ready"
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8"
+    },
+    {
+      "id": 33,
+      "type": "OllamaFluxKontextEnhancerV2",
+      "pos": [
+        241.725341796875,
+        995.1643676757812
+      ],
+      "size": [
+        347.9774169921875,
+        564.7271118164062
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "link": 47
+        },
+        {
+          "label": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {
+          "label": "flux_edit_instructions",
+          "name": "flux_edit_instructions",
+          "type": "STRING",
+          "links": [
+            49
+          ]
+        },
+        {
+          "label": "system_prompt",
+          "name": "system_prompt",
+          "type": "STRING",
+          "links": [
+            50
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "OllamaFluxKontextEnhancerV2"
+      },
+      "widgets_values": [
+        "",
+        "deepseek-r1:latest",
+        "auto_detect",
+        "template",
+        "http://127.0.0.1:11434",
+        0.7000000000000001,
+        false,
+        "landscape_nature",
+        896747602,
+        "randomize",
+        "",
+        "none",
+        "refresh"
+      ],
+      "model_selection": "deepseek-r1:latest"
+    },
+    {
+      "id": 27,
+      "type": "VisualPromptEditor",
+      "pos": [
+        -102.36006927490234,
+        1724.1680908203125
+      ],
+      "size": [
+        351.06854248046875,
+        220
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "label": "processed_image",
+          "name": "processed_image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "label": "structured_prompt",
+          "name": "structured_prompt",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "links": [
+            51
+          ]
+        },
+        {
+          "label": "model_instruction",
+          "name": "model_instruction",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "Node name for S&R": "VisualPromptEditor",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752475120963_88a260t6p\",\"operationType\":\"add_object\",\"description\":\"\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[],\"decorativePrompts\":[]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752475120963_88a260t6p\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":50,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[242.72444067249924,222.7060300156017,506.7142651773159,423.0114413733845]},\"start\":{\"x\":242.72444067249924,\"y\":222.7060300156017},\"end\":{\"x\":506.7142651773159,\"y\":423.0114413733845}}],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-14T06:38:41.736Z\"}",
+        "",
+        "global_color_grade",
+        "Visual Editor Ready"
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8"
+    }
+  ],
+  "links": [
+    [
+      11,
+      10,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      12,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      12,
+      1,
+      15,
+      0,
+      "STRING"
+    ],
+    [
+      17,
+      12,
+      2,
+      20,
+      0,
+      "STRING"
+    ],
+    [
+      18,
+      12,
+      3,
+      21,
+      0,
+      "STRING"
+    ],
+    [
+      19,
+      17,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      24,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      18,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      47,
+      18,
+      2,
+      33,
+      0,
+      "STRING"
+    ],
+    [
+      48,
+      18,
+      0,
+      33,
+      1,
+      "IMAGE"
+    ],
+    [
+      49,
+      33,
+      0,
+      22,
+      0,
+      "STRING"
+    ],
+    [
+      50,
+      33,
+      1,
+      23,
+      0,
+      "STRING"
+    ],
+    [
+      51,
+      27,
+      2,
+      25,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "系统预设",
+      "bounding": [
+        -492.82293701171875,
+        51.90113830566406,
+        1582.69775390625,
+        759.0355224609375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "本地ollama调用",
+      "bounding": [
+        -487.91558837890625,
+        921.3504638671875,
+        1571.9727783203125,
+        655.3299560546875
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "API远程调用",
+      "bounding": [
+        -482.89434814453125,
+        1635.6444091796875,
+        1571.9727783203125,
+        655.3299560546875
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5445000000000032,
+      "offset": [
+        531.8802994598834,
+        -355.3631990896437
+      ]
+    },
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "frontendVersion": "1.23.4"
+  },
+  "version": 0.4
+}
