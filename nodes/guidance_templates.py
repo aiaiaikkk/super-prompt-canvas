@@ -19,8 +19,8 @@ USER_GUIDANCE_DIR.mkdir(parents=True, exist_ok=True)
 # 预设引导话术
 PRESET_GUIDANCE = {
     "efficient_concise": {
-        "name": "高效简洁模式",
-        "description": "简洁直接，适合快速编辑和批量处理",
+        "name": "Efficient Concise Mode",
+        "description": "Direct and concise, suitable for quick editing and batch processing",
         "prompt": """You are an efficient AI editor focused on clear, concise Flux Kontext instructions.
 
 ## Core Mission
@@ -49,8 +49,8 @@ PRESET_GUIDANCE = {
     },
     
     "natural_creative": {
-        "name": "自然创意模式", 
-        "description": "自然表达，适合创意设计和艺术创作",
+        "name": "Natural Creative Mode", 
+        "description": "Natural expression, suitable for creative design and artistic creation",
         "prompt": """You are a creative AI assistant specializing in artistic image editing with Flux Kontext.
 
 ## Core Identity
@@ -86,8 +86,8 @@ Example: "Transform the red rectangular area (annotation 1) into a beautiful oce
     },
     
     "technical_precise": {
-        "name": "技术精确模式",
-        "description": "专业术语，适合高精度要求和技术制作", 
+        "name": "Technical Precise Mode",
+        "description": "Professional terminology, suitable for high precision requirements and technical production", 
         "prompt": """You are a technical specialist for Flux Kontext image editing, focused on precision and accuracy.
 
 ## Core Identity
@@ -124,8 +124,8 @@ Example: "Execute color transformation to blue specification on the red rectangu
 # 内置模板库
 TEMPLATE_LIBRARY = {
     "ecommerce_product": {
-        "name": "电商产品编辑",
-        "description": "专为电商产品图片优化设计",
+        "name": "E-commerce Product Editing",
+        "description": "Specially designed for e-commerce product image optimization",
         "prompt": """你是专业的电商产品图像编辑AI，专注于产品展示优化。
 
 ## 编辑目标
@@ -151,8 +151,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "portrait_beauty": {
-        "name": "人像美化编辑",
-        "description": "专为人像摄影后期处理设计",
+        "name": "Portrait Beauty Editing",
+        "description": "Specially designed for portrait photography post-processing",
         "prompt": """你是专业人像摄影后期处理专家，专注于自然美化。
 
 ## 美化理念
@@ -178,8 +178,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "creative_design": {
-        "name": "创意设计编辑",
-        "description": "专为艺术创作和创意设计优化",
+        "name": "Creative Design Editing",
+        "description": "Specially optimized for artistic creation and creative design",
         "prompt": """你是富有创意的设计师AI，专长艺术化图像处理。
 
 ## 创作理念
@@ -205,8 +205,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "architecture_photo": {
-        "name": "建筑摄影编辑",
-        "description": "专为建筑和室内摄影优化",
+        "name": "Architecture Photography Editing",
+        "description": "Specially optimized for architectural and interior photography",
         "prompt": """你是专业建筑摄影后期专家，专注于建筑和空间美学。
 
 ## 建筑美学原则
@@ -232,8 +232,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "food_photography": {
-        "name": "美食摄影编辑", 
-        "description": "专为美食和餐饮摄影优化",
+        "name": "Food Photography Editing", 
+        "description": "Specially optimized for food and culinary photography",
         "prompt": """你是专业美食摄影师，专注于食物的诱人呈现。
 
 ## 美食摄影理念
@@ -259,8 +259,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "fashion_retail": {
-        "name": "时尚零售编辑",
-        "description": "专为服装和时尚产品优化",
+        "name": "Fashion Retail Editing",
+        "description": "Specially optimized for clothing and fashion products",
         "prompt": """你是时尚零售视觉专家，专注于服装和配饰的完美呈现。
 
 ## 时尚视觉原则
@@ -286,8 +286,8 @@ TEMPLATE_LIBRARY = {
     },
     
     "landscape_nature": {
-        "name": "风景自然编辑",
-        "description": "专为自然风光和户外摄影优化", 
+        "name": "Landscape Nature Editing",
+        "description": "Specially optimized for natural scenery and outdoor photography", 
         "prompt": """你是自然风光摄影专家，专注于大自然的美丽呈现。
 
 ## 自然摄影理念
@@ -340,9 +340,18 @@ class GuidanceManager:
                           language: str = "chinese") -> str:
         """构建完整的系统提示词"""
         
-        # 简化逻辑：custom_guidance > template > preset
-        if guidance_style == "custom" and custom_guidance.strip():
-            base_prompt = custom_guidance
+        # 优先级：saved > custom > template > preset
+        if guidance_style == "custom":
+            if load_saved_guidance and load_saved_guidance != "none":
+                saved_guidance = self.load_user_guidance(load_saved_guidance)
+                if saved_guidance:
+                    base_prompt = saved_guidance
+                else:
+                    # 如果加载失败，使用自定义输入
+                    base_prompt = custom_guidance if custom_guidance else self.get_preset_guidance("efficient_concise")
+            else:
+                # 使用用户输入的自定义引导话术
+                base_prompt = custom_guidance if custom_guidance else self.get_preset_guidance("efficient_concise")
         elif guidance_style == "template":
             template_prompt = self.get_template_guidance(guidance_template)
             if template_prompt:
@@ -372,82 +381,72 @@ You will receive JSON annotation data containing:
 4. **Constraint Prompts**: Quality and technical requirements
 5. **Decorative Prompts**: Style and visual enhancement keywords
 
-## Output Requirements
-- Generate Flux Kontext compatible instructions
-- Reference all marked areas clearly with colors and annotation numbers
-- Maintain logical operation sequence for multiple annotations
-- Ensure natural language flow that humans can understand
-- Integrate constraint and decorative prompts seamlessly
-- Focus on actionable, precise editing commands
+## CRITICAL OUTPUT REQUIREMENTS
+- Generate ONLY simple, direct editing instructions
+- Use natural language without technical analysis
+- DO NOT include annotation numbers like "(annotation 0)" in the output
+- DO NOT provide explanations, rationale, or technical details
+- DO NOT use bullet points or numbered lists
+- Output should be a single, clean sentence like: "change the red area to blue naturally"
 
 ## Quality Standards
-- Clear and unambiguous instructions
-- Preserve user intent while optimizing clarity
-- Include all necessary technical and style requirements
-- Maintain consistency across multi-annotation scenarios"""
+- Simple and direct language
+- Focus on the core editing action
+- Include constraint and decorative elements naturally in the instruction
+- No technical jargon or analysis"""
         
         return f"{base_prompt}{technical_requirements}"
     
-    def save_user_guidance(self, name: str, guidance: str) -> bool:
+    def save_user_guidance(self, name: str, guidance_text: str) -> bool:
         """保存用户自定义引导话术"""
-        if not name.strip() or not guidance.strip():
-            return False
-        
         try:
             user_data = self.load_user_guidance_data()
             user_data[name] = {
-                "guidance": guidance,
+                "name": name,
+                "guidance": guidance_text,
                 "created_time": datetime.now().isoformat(),
-                "usage_count": user_data.get(name, {}).get("usage_count", 0)
+                "updated_time": datetime.now().isoformat()
             }
             self.save_user_guidance_data(user_data)
-            print(f"✅ 成功保存引导话术: {name}")
+            print(f"✅ 已保存自定义引导话术: {name}")
             return True
         except Exception as e:
-            print(f"❌ 保存引导话术失败: {e}")
+            print(f"❌ 保存自定义引导话术失败: {str(e)}")
             return False
     
-    def load_saved_guidance(self, name: str) -> Optional[str]:
-        """加载已保存的引导话术"""
+    def load_user_guidance(self, name: str) -> Optional[str]:
+        """加载用户自定义引导话术"""
         try:
             user_data = self.load_user_guidance_data()
             if name in user_data:
-                # 增加使用计数
-                user_data[name]["usage_count"] = user_data[name].get("usage_count", 0) + 1
-                self.save_user_guidance_data(user_data)
-                print(f"✅ 成功加载引导话术: {name}")
                 return user_data[name]["guidance"]
-            else:
-                print(f"❌ 未找到引导话术: {name}")
-                return None
+            return None
         except Exception as e:
-            print(f"❌ 加载引导话术失败: {e}")
+            print(f"❌ 加载自定义引导话术失败: {str(e)}")
             return None
     
-    def list_saved_guidance(self) -> List[str]:
-        """列出所有已保存的引导话术名称"""
-        try:
-            user_data = self.load_user_guidance_data()
-            return list(user_data.keys())
-        except Exception as e:
-            print(f"❌ 获取引导话术列表失败: {e}")
-            return []
-    
-    def delete_saved_guidance(self, name: str) -> bool:
-        """删除已保存的引导话术"""
+    def delete_user_guidance(self, name: str) -> bool:
+        """删除用户自定义引导话术"""
         try:
             user_data = self.load_user_guidance_data()
             if name in user_data:
                 del user_data[name]
                 self.save_user_guidance_data(user_data)
-                print(f"✅ 成功删除引导话术: {name}")
+                print(f"✅ 已删除自定义引导话术: {name}")
                 return True
-            else:
-                print(f"❌ 未找到引导话术: {name}")
-                return False
-        except Exception as e:
-            print(f"❌ 删除引导话术失败: {e}")
             return False
+        except Exception as e:
+            print(f"❌ 删除自定义引导话术失败: {str(e)}")
+            return False
+    
+    def list_user_guidance(self) -> List[str]:
+        """获取所有用户自定义引导话术名称列表"""
+        try:
+            user_data = self.load_user_guidance_data()
+            return list(user_data.keys())
+        except Exception as e:
+            print(f"❌ 获取自定义引导话术列表失败: {str(e)}")
+            return []
     
     def load_user_guidance_data(self) -> Dict:
         """加载用户引导话术数据"""
@@ -457,7 +456,7 @@ You will receive JSON annotation data containing:
                     return json.load(f)
             return {}
         except Exception as e:
-            print(f"❌ 读取用户引导话术数据失败: {e}")
+            print(f"❌ 加载用户数据失败: {str(e)}")
             return {}
     
     def save_user_guidance_data(self, data: Dict):
@@ -466,7 +465,8 @@ You will receive JSON annotation data containing:
             with open(USER_GUIDANCE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"❌ 保存用户引导话术数据失败: {e}")
+            print(f"❌ 保存用户数据失败: {str(e)}")
+            raise
 
 # 全局引导管理器实例
 guidance_manager = GuidanceManager()
@@ -476,5 +476,5 @@ def get_guidance_info():
     return {
         "preset_styles": list(PRESET_GUIDANCE.keys()),
         "template_library": list(TEMPLATE_LIBRARY.keys()),
-        "saved_guidance": guidance_manager.list_saved_guidance()
+        "saved_guidance": guidance_manager.list_user_guidance()
     }

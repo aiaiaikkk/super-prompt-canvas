@@ -1,9 +1,9 @@
 """
 OllamaFluxKontextEnhancer Node
-Ollama集成的Flux Kontext提示词增强节点
+Ollama-integrated Flux Kontext prompt enhancement node
 
-将VisualPromptEditor的标注数据通过本地Ollama模型转换为
-Flux Kontext优化的结构化编辑指令
+Converts VisualPromptEditor annotation data through local Ollama models to
+Flux Kontext-optimized structured editing instructions
 """
 
 import json
@@ -133,12 +133,12 @@ class OllamaFluxKontextEnhancerV2:
                     
                     if name:
                         model_names.append(name)
-                        print(f"✅ Ollama Client检测到模型: {name}")
+                        print(f"✅ Ollama Client detected model: {name}")
                 
                 return model_names
                 
             except Exception as e:
-                print(f"Ollama Client检测失败: {e}")
+                print(f"Ollama Client detection failed: {e}")
                 return []
         
         # Start model detection process
@@ -217,7 +217,7 @@ class OllamaFluxKontextEnhancerV2:
     @classmethod
     def refresh_model_cache(cls):
         """手动刷新模型缓存"""
-        print("🔄 手动刷新模型缓存...")
+        print("🔄 Manually refreshing model cache...")
         cls._cached_models = None
         cls._cache_timestamp = 0
         return cls.get_available_models(force_refresh=True)
@@ -231,52 +231,52 @@ class OllamaFluxKontextEnhancerV2:
             
             # 根据guidance_style选择内容
             if guidance_style == "custom":
-                # 自定义模式保留完整提示文字
-                return """输入您的自定义AI引导指令...
+                # Custom mode retains complete prompt text
+                return """Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。"""
+For more examples, please check guidance_template options."""
             elif guidance_style == "template":
                 if guidance_template and guidance_template != "none" and guidance_template in TEMPLATE_LIBRARY:
                     template_content = TEMPLATE_LIBRARY[guidance_template]["prompt"]
                     # 截取前200个字符用于placeholder显示
                     preview = template_content[:200].replace('\n', ' ').strip()
-                    return f"当前模板: {TEMPLATE_LIBRARY[guidance_template]['name']}\n\n{preview}..."
+                    return f"Current template: {TEMPLATE_LIBRARY[guidance_template]['name']}\n\n{preview}..."
                 else:
-                    return "选择一个模板后将在此显示预览..."
+                    return "Preview will be displayed here after selecting a template..."
             else:
-                # 显示预设风格的内容
+                # Display preset style content
                 if guidance_style in PRESET_GUIDANCE:
                     preset_content = PRESET_GUIDANCE[guidance_style]["prompt"]
                     # 截取前200个字符用于placeholder显示
                     preview = preset_content[:200].replace('\n', ' ').strip()
-                    return f"当前风格: {PRESET_GUIDANCE[guidance_style]['name']}\n\n{preview}..."
+                    return f"Current style: {PRESET_GUIDANCE[guidance_style]['name']}\n\n{preview}..."
                 else:
-                    return """输入您的自定义AI引导指令...
+                    return """Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。"""
+For more examples, please check guidance_template options."""
         except Exception as e:
-            print(f"获取模板内容失败: {e}")
-            return """输入您的自定义AI引导指令...
+            print(f"Failed to get template content: {e}")
+            return """Enter your custom AI guidance instructions...
 
-例如：
-你是专业的图像编辑专家，请将标注数据转换为简洁明了的编辑指令。重点关注：
-1. 保持指令简洁
-2. 确保操作精确
-3. 维持风格一致性
+For example:
+You are a professional image editing expert. Please convert annotation data into clear and concise editing instructions. Focus on:
+1. Keep instructions concise
+2. Ensure precise operations
+3. Maintain style consistency
 
-更多示例请查看guidance_template选项。"""
+For more examples, please check guidance_template options."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -316,91 +316,88 @@ class OllamaFluxKontextEnhancerV2:
             "required": {
                 "annotation_data": ("STRING", {
                     "forceInput": True,
-                    "tooltip": "来自VisualPromptEditor的标注JSON数据（连接输入）"
+                    "tooltip": "Annotation JSON data from VisualPromptEditor (connected input)"
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,
                     "default": "",
-                    "placeholder": "描述你想做的编辑操作...\n\n例如：\n- 在红色矩形区域增加一棵树\n- 将蓝色标记区域的车辆改为红色\n- 移除圆形区域的人物\n- 将黄色区域的天空改为晩霞效果",
-                    "tooltip": "描述你想要做的编辑操作，结合标注信息生成精准的编辑指令"
+                    "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
+                    "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
                 "model": (available_models, {
                     "default": default_model,
-                    "tooltip": "选择Ollama模型。列表实时从Ollama服务获取，显示所有当前可用的模型。"
+                    "tooltip": "Select Ollama model. List is fetched in real-time from Ollama service, showing all currently available models."
                 }),
                 "edit_instruction_type": ([
-                    "auto_detect",          # 🔄 自动根据操作类型选择最佳策略
-                    "spatial_precise",      # 空间精准编辑
-                    "semantic_enhanced",    # 语义增强编辑  
-                    "style_coherent",       # 风格一致性编辑
-                    "content_aware",        # 内容感知编辑
-                    "multi_region",         # 多区域协调编辑
-                    "custom"                # 自定义指令
+                    "auto_detect",          # 🔄 Automatically select best strategy based on operation type
+                    "spatial_precise",      # Spatial precise editing
+                    "semantic_enhanced",    # Semantic enhanced editing  
+                    "style_coherent",       # Style coherent editing
+                    "content_aware",        # Content aware editing
+                    "multi_region"          # Multi-region coordinated editing
                 ], {
                     "default": "auto_detect",
-                    "tooltip": "选择编辑指令的生成策略 (auto_detect根据操作类型自动选择)"
+                    "tooltip": "Select editing instruction generation strategy (auto_detect automatically selects based on operation type)"
                 }),
-                "output_format": ([
-                    "flux_kontext_standard",  # Flux Kontext标准格式
-                    "structured_json",        # 结构化JSON
-                    "natural_language"        # 自然语言描述
+                "guidance_style": ([
+                    "efficient_concise",   # Efficient Concise (default)
+                    "natural_creative",    # Natural Creative
+                    "technical_precise",   # Technical Precise
+                    "template",            # Template Selection
+                    "custom"              # Custom User Input
                 ], {
-                    "default": "flux_kontext_standard",
-                    "tooltip": "选择输出的提示词格式"
+                    "default": "efficient_concise",
+                    "tooltip": "Select AI guidance style: Efficient Concise for quick editing, Natural Creative for artistic design, Technical Precise for professional use, Template for common presets, Custom for user-defined guidance"
+                }),
+                "guidance_template": ([
+                    "none",               # No Template
+                    "ecommerce_product",  # E-commerce Product
+                    "portrait_beauty",    # Portrait Beauty
+                    "creative_design",    # Creative Design
+                    "architecture_photo", # Architecture Photography
+                    "food_photography",   # Food Photography
+                    "fashion_retail",     # Fashion Retail
+                    "landscape_nature"    # Landscape Nature
+                ], {
+                    "default": "none",
+                    "tooltip": "Select specialized guidance template (used when guidance_style is template)"
                 }),
             },
             "optional": {
                 "image": ("IMAGE", {
-                    "tooltip": "可选：用于视觉分析的图像（仅支持视觉模型时需要）"
+                    "tooltip": "Optional: Image for visual analysis (required only when visual models are supported)"
                 }),
                 "url": ("STRING", {
                     "default": "http://127.0.0.1:11434",
-                    "tooltip": "Ollama服务地址"
+                    "tooltip": "Ollama service address"
                 }),
                 "temperature": ("FLOAT", {
                     "default": 0.7,
                     "min": 0.1,
                     "max": 1.0,
                     "step": 0.1,
-                    "tooltip": "生成温度 (创意性控制)"
-                }),
-                "language": (["chinese", "english", "bilingual"], {
-                    "default": "chinese",
-                    "tooltip": "选择输出语言：中文、英文或双语"
+                    "tooltip": "Generation temperature (creativity control)"
                 }),
                 "enable_visual_analysis": ("BOOLEAN", {
                     "default": False,
-                    "tooltip": "启用视觉分析（仅对支持视觉的多模态模型有效，如qwen-vl、llava等）"
+                    "tooltip": "Enable visual analysis (only effective for multimodal models that support vision, such as qwen-vl, llava, etc.)"
                 }),
-                "guidance_style": ([
-                    "efficient_concise",   # 高效简洁 (默认)
-                    "natural_creative",    # 自然创意
-                    "technical_precise",   # 技术精确
-                    "template",           # 模板选择
-                    "custom"              # 自定义
-                ], {
-                    "default": "efficient_concise",
-                    "tooltip": "选择AI引导话术风格：高效简洁适合快速编辑，自然创意适合艺术设计，技术精确适合专业用途，模板选择常用预设，自定义允许完全控制"
-                }),
-                "guidance_template": ([
-                    "none",               # 无模板
-                    "ecommerce_product",  # 电商产品
-                    "portrait_beauty",    # 人像美化
-                    "creative_design",    # 创意设计
-                    "architecture_photo", # 建筑摄影
-                    "food_photography",   # 美食摄影
-                    "fashion_retail",     # 时尚零售
-                    "landscape_nature"    # 风景自然
-                ], {
-                    "default": "none",
-                    "tooltip": "选择专用引导模板（当guidance_style为template时使用）"
+                "seed": ("INT", {
+                    "default": 42,
+                    "min": 0,
+                    "max": 2**32 - 1,
+                    "tooltip": "Seed for controlling randomness in generation. Use the same seed for reproducible results."
                 }),
                 "custom_guidance": ("STRING", {
-                    "default": "",
                     "multiline": True,
+                    "default": "",
                     "placeholder": default_placeholder,
-                    "tooltip": "当guidance_style为'custom'时，在此输入您的专用AI引导指令。placeholder会根据当前选择的guidance_style和guidance_template动态显示预览内容。"
-                })
+                    "tooltip": "Custom AI guidance instructions (used when guidance_style is custom)"
+                }),
+                "load_saved_guidance": (["none"], {
+                    "default": "none",
+                    "tooltip": "Load previously saved custom guidance (used when guidance_style is custom)"
+                }),
             }
         }
     
@@ -423,7 +420,7 @@ class OllamaFluxKontextEnhancerV2:
             # 如果模型不在缓存中，强制刷新一次
             available_models = cls.get_available_models(url=url, force_refresh=True)
             if model not in available_models:
-                print(f"⚠️ 模型 '{model}' 不在可用列表中: {available_models}")
+                print(f"⚠️ Model '{model}' not in available list: {available_models}")
                 # 不返回错误，让用户知道但仍可以继续
                 return True
         
@@ -442,23 +439,46 @@ class OllamaFluxKontextEnhancerV2:
     def __init__(self):
         self.start_time = None
         self.debug_logs = []
+        # 简单的内存缓存
+        self.cache = {}
+        self.cache_max_size = 100
+    
+    def _get_cache_key(self, annotation_data: str, edit_description: str, 
+                      edit_instruction_type: str, model: str, temperature: float,
+                      guidance_style: str, guidance_template: str, seed: int,
+                      custom_guidance: str = "", load_saved_guidance: str = "none") -> str:
+        """生成缓存键，包含所有参数"""
+        import hashlib
+        content = f"{annotation_data}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    def _manage_cache(self):
+        """管理缓存大小"""
+        if len(self.cache) > self.cache_max_size:
+            # 删除最旧的条目
+            oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
+            del self.cache[oldest_key]
+            print(f"🗑️ Removed oldest cache entry, cache size: {len(self.cache)}")
     
     def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
-                                edit_instruction_type: str, output_format: str,
+                                edit_instruction_type: str,
                                 image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
-                                language: str = "chinese", enable_visual_analysis: bool = False,
+                                enable_visual_analysis: bool = False,
                                 guidance_style: str = "efficient_concise",
-                                guidance_template: str = "none", custom_guidance: str = ""):
+                                guidance_template: str = "none", seed: int = 42,
+                                custom_guidance: str = "", load_saved_guidance: str = "none"):
         """通过Ollama增强标注数据，生成Flux Kontext优化的编辑指令"""
         
-        # 设置移除参数的默认值
+        # Set default values for removed parameters
         reference_context = ""
         edit_intensity = 0.8
         preservation_mask = ""
         style_guidance = ""
         top_p = 0.9
         keep_alive = 5
-        debug_mode = False  # 移除debug_mode参数，固定为False
+        debug_mode = False  # Fixed debug_mode to False
+        language = "english"  # Fixed language to English for downstream processing
+        output_format = "natural_language"  # Fixed output format to natural language
         
         
         # 导入引导话术管理器
@@ -476,7 +496,7 @@ class OllamaFluxKontextEnhancerV2:
             guidance_style=guidance_style,
             guidance_template=guidance_template,
             custom_guidance=custom_guidance,
-            load_saved_guidance="",
+            load_saved_guidance=load_saved_guidance,
             language=language
         )
         print(f"Using guidance mode: {guidance_style}")
@@ -530,6 +550,25 @@ class OllamaFluxKontextEnhancerV2:
         self.start_time = time.time()
         self.debug_logs = []
         
+        # 生成缓存键
+        cache_key = self._get_cache_key(
+            annotation_data, edit_description, edit_instruction_type, 
+            model, temperature, guidance_style, guidance_template, seed,
+            custom_guidance, load_saved_guidance
+        )
+        
+        # 检查缓存
+        if cache_key in self.cache:
+            cached_result = self.cache[cache_key]
+            cache_age = time.time() - cached_result['timestamp']
+            if cache_age < 3600:  # 缓存1小时
+                print(f"🎯 Using cached result (age: {cache_age:.1f}s)")
+                return cached_result['result']
+            else:
+                # 缓存过期，删除
+                del self.cache[cache_key]
+                print(f"🗑️ Cache expired (age: {cache_age:.1f}s), regenerating")
+        
         try:
             # 检查Ollama服务可用性（通过HTTP API）
             if not self._check_ollama_service(url):
@@ -559,7 +598,7 @@ class OllamaFluxKontextEnhancerV2:
             # 3. 构建用户提示词（系统提示词已在上面通过引导话术系统构建）
             user_prompt = self._build_user_prompt(
                 annotations, parsed_data, edit_description, reference_context, 
-                edit_intensity, preservation_mask, style_guidance
+                edit_intensity, preservation_mask, style_guidance, output_format
             )
             
             self._log_debug(f"📝 生成的用户提示词长度: {len(user_prompt)} 字符", debug_mode)
@@ -579,7 +618,7 @@ class OllamaFluxKontextEnhancerV2:
             # 5. 调用Ollama生成增强指令（使用引导话术系统构建的enhanced_system_prompt）
             enhanced_instructions = self._generate_with_ollama(
                 url, model, enhanced_system_prompt, user_prompt,
-                temperature, top_p, keep_alive, debug_mode, image_base64
+                temperature, top_p, keep_alive, debug_mode, image_base64, seed
             )
             
             if not enhanced_instructions:
@@ -600,7 +639,16 @@ class OllamaFluxKontextEnhancerV2:
             
             self._log_debug("✅ 处理完成", debug_mode)
             
-            return (flux_instructions, enhanced_system_prompt)
+            # 保存到缓存
+            result = (flux_instructions, enhanced_system_prompt)
+            self.cache[cache_key] = {
+                'result': result,
+                'timestamp': time.time()
+            }
+            self._manage_cache()  # 管理缓存大小
+            print(f"💾 Result cached (cache size: {len(self.cache)})")
+            
+            return result
             
         except Exception as e:
             error_msg = f"Error in enhance_flux_instructions: {str(e)}"
@@ -868,7 +916,7 @@ detail_level: "high"
 consistency: "maintain_original_quality"
 """,
             "structured_json": "输出结构化的JSON格式，包含操作、约束和质量控制信息",
-            "natural_language": "输出自然流畅的语言描述，适合直接作为提示词使用"
+            "natural_language": "Output clean, natural language descriptions without technical details, annotation numbers, or structured formatting. Focus on the core editing action using color and spatial descriptions (e.g., 'transform the red area into blue', 'remove the object in the center'). Avoid any annotation references like 'annotation 0' or technical instructions."
         }
         
         # 获取当前策略的指导
@@ -892,9 +940,14 @@ Rules:
     
     def _build_user_prompt(self, annotations: List[Dict], parsed_data: Dict,
                           edit_description: str = "", reference_context: str = "", edit_intensity: float = 0.8,
-                          preservation_mask: str = "", style_guidance: str = "") -> str:
+                          preservation_mask: str = "", style_guidance: str = "", output_format: str = "natural_language") -> str:
         """构建用户提示词"""
         
+        # For natural language format, use simplified English prompts
+        if output_format == "natural_language":
+            return self._build_natural_language_prompt(annotations, parsed_data, edit_description)
+        
+        # For other formats, use detailed Chinese prompts
         prompt_parts = []
         
         # 1. 编辑意图描述（最重要的信息）
@@ -973,10 +1026,119 @@ Rules:
         
         return "\n".join(prompt_parts)
     
+    def _build_natural_language_prompt(self, annotations: List[Dict], parsed_data: Dict, edit_description: str = "") -> str:
+        """构建自然语言格式的简洁提示词"""
+        prompt_parts = []
+        
+        # 1. User editing intent (most important)
+        if edit_description and edit_description.strip():
+            prompt_parts.append(f"User request: {edit_description.strip()}")
+        
+        # 2. Simplified annotation information (without numbers)
+        if annotations:
+            prompt_parts.append("\nImage annotations:")
+            for annotation in annotations:
+                # Describe by color and type without annotation numbers
+                color = annotation.get('color', '#000000')
+                annotation_type = annotation.get('type', 'rectangle')
+                
+                # Convert color hex to color name if possible
+                color_name = self._get_color_name(color)
+                
+                # Create spatial description
+                if 'start' in annotation and 'end' in annotation:
+                    start = annotation['start']
+                    end = annotation['end']
+                    width = abs(end.get('x', 0) - start.get('x', 0))
+                    height = abs(end.get('y', 0) - start.get('y', 0))
+                    
+                    if width > height:
+                        area_desc = f"{color_name} horizontal {annotation_type} area"
+                    elif height > width:
+                        area_desc = f"{color_name} vertical {annotation_type} area"
+                    else:
+                        area_desc = f"{color_name} {annotation_type} area"
+                else:
+                    area_desc = f"{color_name} {annotation_type} area"
+                
+                prompt_parts.append(f"- {area_desc}")
+        
+        # 3. Operation type (if available)
+        if 'operation_type' in parsed_data:
+            operation = parsed_data['operation_type']
+            prompt_parts.append(f"\nOperation: {operation}")
+        
+        # 4. Target description (if available)
+        if 'target_description' in parsed_data:
+            prompt_parts.append(f"Target: {parsed_data['target_description']}")
+        
+        # 5. Generation instructions
+        prompt_parts.append("\nGenerate a clean, natural language editing instruction.")
+        prompt_parts.append("Focus on the core editing action using color and spatial descriptions.")
+        prompt_parts.append("Do not include annotation numbers, technical details, or structured formatting.")
+        
+        return "\n".join(prompt_parts)
+    
+    def _get_color_name(self, hex_color: str) -> str:
+        """Convert hex color to color name"""
+        color_map = {
+            '#ff0000': 'red', '#ff4444': 'red', '#cc0000': 'red',
+            '#00ff00': 'green', '#44ff44': 'green', '#00cc00': 'green',
+            '#0000ff': 'blue', '#4444ff': 'blue', '#0000cc': 'blue',
+            '#ffff00': 'yellow', '#ffff44': 'yellow', '#cccc00': 'yellow',
+            '#ff00ff': 'magenta', '#ff44ff': 'magenta', '#cc00cc': 'magenta',
+            '#00ffff': 'cyan', '#44ffff': 'cyan', '#00cccc': 'cyan',
+            '#ffa500': 'orange', '#ff8800': 'orange', '#cc6600': 'orange',
+            '#800080': 'purple', '#9966cc': 'purple', '#663399': 'purple',
+            '#000000': 'black', '#333333': 'dark gray', '#666666': 'gray',
+            '#999999': 'light gray', '#cccccc': 'light gray', '#ffffff': 'white'
+        }
+        
+        # Try exact match first
+        if hex_color.lower() in color_map:
+            return color_map[hex_color.lower()]
+        
+        # For other colors, try to guess based on RGB values
+        try:
+            if hex_color.startswith('#'):
+                hex_color = hex_color[1:]
+            if len(hex_color) == 6:
+                r = int(hex_color[0:2], 16)
+                g = int(hex_color[2:4], 16) 
+                b = int(hex_color[4:6], 16)
+                
+                # Simple color detection
+                if r > 200 and g < 100 and b < 100:
+                    return 'red'
+                elif r < 100 and g > 200 and b < 100:
+                    return 'green'
+                elif r < 100 and g < 100 and b > 200:
+                    return 'blue'
+                elif r > 200 and g > 200 and b < 100:
+                    return 'yellow'
+                elif r > 200 and g < 100 and b > 200:
+                    return 'magenta'
+                elif r < 100 and g > 200 and b > 200:
+                    return 'cyan'
+                elif r > 200 and g > 150 and b < 100:
+                    return 'orange'
+                elif r > 150 and g < 100 and b > 150:
+                    return 'purple'
+                elif r < 100 and g < 100 and b < 100:
+                    return 'dark'
+                elif r > 200 and g > 200 and b > 200:
+                    return 'light'
+                else:
+                    return 'colored'
+        except:
+            pass
+        
+        return 'colored'
+    
     def _generate_with_ollama(self, url: str, model: str, system_prompt: str,
                              user_prompt: str, temperature: float, top_p: float = 0.9,
                              keep_alive: int = 5, debug_mode: bool = False, 
-                             image_base64: Optional[str] = None) -> Optional[str]:
+                             image_base64: Optional[str] = None, seed: int = 42) -> Optional[str]:
         """使用Ollama HTTP API生成增强指令"""
         try:
             import requests
@@ -985,9 +1147,16 @@ Rules:
             self._log_debug(f"🤖 调用Ollama模型: {model} (HTTP API)", debug_mode)
             
             # 配置生成参数 - 为了提高速度，限制最大temperature
+            # 使用seed控制随机性
+            adjusted_temperature = min(temperature, 0.7) if seed != 0 else temperature
+            if seed != 0:
+                # 如果提供了seed，适当降低temperature以确保更一致的结果
+                adjusted_temperature = min(adjusted_temperature, 0.5)
+            
             options = {
-                "temperature": min(temperature, 0.7),  # 限制最大温度为0.7以提高速度
+                "temperature": adjusted_temperature,
                 "top_p": min(top_p, 0.9),
+                "seed": seed,  # 添加seed参数控制生成的随机性
             }
             
             # 为小模型添加额外的速度优化选项
@@ -1054,7 +1223,7 @@ Rules:
             except requests.exceptions.Timeout:
                 print("Request timed out. Trying with a shorter, simplified prompt...")
                 # 尝试使用简化的prompt重新生成
-                return self._generate_with_simplified_prompt(url, model, system_prompt, user_prompt, options, api_endpoint, debug_mode)
+                return self._generate_with_simplified_prompt(url, model, system_prompt, user_prompt, options, api_endpoint, debug_mode, seed)
             
             print(f"Ollama API response status: {response.status_code}")
             if response.status_code == 200:
@@ -1162,7 +1331,7 @@ Rules:
     
     def _generate_with_simplified_prompt(self, url: str, model: str, system_prompt: str, 
                                        user_prompt: str, options: dict, api_endpoint: str, 
-                                       debug_mode: bool) -> Optional[str]:
+                                       debug_mode: bool, seed: int = 42) -> Optional[str]:
         """使用简化的prompt重新尝试生成"""
         try:
             import requests
@@ -1296,12 +1465,71 @@ realism: "photorealistic"
                     return json.dumps(json_output, indent=2, ensure_ascii=False)
                 except:
                     return instructions
+            elif output_format == "natural_language":
+                # For natural language, clean up the output
+                return self._clean_natural_language_output(instructions)
             else:
                 # 其他格式直接返回
                 return instructions
                 
         except Exception as e:
             self._log_debug(f"⚠️ 格式化失败，返回原始内容: {e}", debug_mode)
+            return instructions
+    
+    def _clean_natural_language_output(self, instructions: str) -> str:
+        """Clean natural language output to remove technical details and annotation numbers"""
+        try:
+            # Remove annotation numbers like "(annotation 0)", "(annotation 1)", etc.
+            import re
+            
+            # Remove annotation references
+            instructions = re.sub(r'\(annotation\s+\d+\)', '', instructions, flags=re.IGNORECASE)
+            instructions = re.sub(r'annotation\s+\d+:?', '', instructions, flags=re.IGNORECASE)
+            
+            # Remove technical instruction sections
+            lines = instructions.split('\n')
+            cleaned_lines = []
+            skip_section = False
+            
+            for line in lines:
+                line = line.strip()
+                
+                # Skip technical instruction sections
+                if line.startswith('**Instruction:**') or line.startswith('**Instructions:**'):
+                    skip_section = True
+                    continue
+                elif line.startswith('**') and skip_section:
+                    # End of instruction section
+                    skip_section = False
+                    continue
+                elif skip_section and (line.startswith('-') or line.startswith('*') or 'Apply' in line or 'Ensure' in line or 'Maintain' in line):
+                    # Skip technical instruction items
+                    continue
+                elif skip_section and not line:
+                    # Skip empty lines in instruction sections
+                    continue
+                else:
+                    skip_section = False
+                
+                # Keep non-technical content
+                if line and not skip_section:
+                    # Additional cleanup
+                    if not (line.startswith('- Apply') or line.startswith('- Ensure') or line.startswith('- Maintain')):
+                        cleaned_lines.append(line)
+            
+            # Join and clean up spacing
+            result = ' '.join(cleaned_lines)
+            
+            # Remove extra spaces and clean up
+            result = re.sub(r'\s+', ' ', result).strip()
+            
+            # Remove remaining technical patterns
+            result = re.sub(r'global_color_grade|intensify.*hue|transition.*smoothly', '', result, flags=re.IGNORECASE)
+            
+            return result if result else instructions
+            
+        except Exception as e:
+            # If cleaning fails, return original
             return instructions
     
     def _generate_spatial_mappings(self, annotations: List[Dict], debug_mode: bool, include_numbers: bool = True) -> str:
@@ -1406,37 +1634,37 @@ if WEB_AVAILABLE:
             data = await request.json()
             url = data.get("url", "http://127.0.0.1:11434")
             
-            print(f"🔄 API端点: 开始获取Ollama模型列表")
-            print(f"📡 API端点: 请求URL: {url}")
-            print(f"🌐 API端点: 客户端来源: {request.remote}")
+            print(f"🔄 API endpoint: Starting to fetch Ollama model list")
+            print(f"📡 API endpoint: Request URL: {url}")
+            print(f"🌐 API endpoint: Client source: {request.remote}")
             
-            # 云端环境特殊处理：如果是localhost，可能需要不同的地址
+            # Special handling for cloud environments: if localhost, may need different address
             if "127.0.0.1" in url or "localhost" in url:
-                print("⚠️ API端点: 检测到localhost地址，在云端环境中可能无法访问")
-                print("💡 API端点: 建议检查Ollama服务配置和网络连接")
+                print("⚠️ API endpoint: Detected localhost address, may not be accessible in cloud environments")
+                print("💡 API endpoint: Recommend checking Ollama service configuration and network connection")
             
-            # 使用与主节点完全相同的模型检测逻辑
-            print("🔍 API端点: 调用 get_available_models 方法")
+            # Use exactly the same model detection logic as main node
+            print("🔍 API endpoint: Calling get_available_models method")
             model_names = OllamaFluxKontextEnhancerV2.get_available_models(url=url, force_refresh=True)
             
-            print(f"✅ API端点: 检测完成，获取到 {len(model_names)} 个模型")
+            print(f"✅ API endpoint: Detection complete, found {len(model_names)} models")
             if model_names:
-                print(f"📋 API端点: 模型列表: {model_names}")
+                print(f"📋 API endpoint: Model list: {model_names}")
             else:
-                print("❌ API端点: 未检测到任何模型")
-                print("🔧 API端点: 可能的原因:")
-                print("   1. Ollama服务未运行")
-                print("   2. 网络连接问题（云端环境常见）")
-                print("   3. URL配置错误")
-                print("   4. 防火墙阻塞")
+                print("❌ API endpoint: No models detected")
+                print("🔧 API endpoint: Possible reasons:")
+                print("   1. Ollama service not running")
+                print("   2. Network connection issues (common in cloud environments)")
+                print("   3. URL configuration error")
+                print("   4. Firewall blocking")
             
             return web.json_response(model_names)
             
         except Exception as e:
-            print(f"❌ API端点严重错误: {e}")
+            print(f"❌ API endpoint critical error: {e}")
             import traceback
             error_details = traceback.format_exc()
-            print(f"🔍 API端点错误详情:\n{error_details}")
+            print(f"🔍 API endpoint error details:\n{error_details}")
             
             # 返回错误信息给前端
             return web.json_response({
