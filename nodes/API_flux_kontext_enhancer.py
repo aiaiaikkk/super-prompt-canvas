@@ -309,7 +309,8 @@ For more examples, please check guidance_template options."""
     RETURN_NAMES = ("flux_edit_instructions", "system_prompt")
     
     FUNCTION = "enhance_flux_instructions"
-    CATEGORY = "KontextVisualPromptWindow/API"
+    CATEGORY = "kontext_super_prompt/api"
+    DESCRIPTION = "🌐 Kontext Super Prompt API Enhancer - Generate optimized structured editing instructions through cloud AI models"
     
     def __init__(self):
         self.cache = {}

@@ -26,8 +26,8 @@ class AnnotationDataNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("annotation_data",)
     FUNCTION = "output_annotation_data"
-    CATEGORY = "kontext/core"
-    DESCRIPTION = "Provides annotation JSON data as input connection for Visual Prompt Editor"
+    CATEGORY = "kontext_super_prompt/core"
+    DESCRIPTION = "📊 Kontext Super Prompt Data Node - Provides annotation JSON data as input connection"
     
     def output_annotation_data(self, json_text: str = "[]"):
         """Output annotation data for connection to Visual Prompt Editor"""
