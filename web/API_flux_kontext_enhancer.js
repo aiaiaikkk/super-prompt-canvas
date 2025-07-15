@@ -208,14 +208,18 @@ app.registerExtension({
         // 重写节点创建方法
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
-            // 调用原始创建方法
-            if (onNodeCreated) {
-                onNodeCreated.apply(this, arguments);
-            }
+            const r = onNodeCreated?.apply(this, arguments);
             
-            console.log("🏗️ 创建APIFluxKontextEnhancer节点");
+            console.log("🏗️ Creating APIFluxKontextEnhancer node");
             
-            // 查找相关widgets
+            // Set node color to purple theme to match Visual Prompt Editor
+            this.color = "#673AB7";     // Main color - deep purple
+            this.bgcolor = "#512DA8";   // Background color - deeper purple
+            
+            // A flag to ensure we only modify the widget once.
+            this.apiKeyWidgetPatched = false;
+            
+            // Find relevant widgets
             let guidanceStyleWidget = null;
             let guidanceTemplateWidget = null;
             let customGuidanceWidget = null;
@@ -238,13 +242,31 @@ app.registerExtension({
                 setupGuidanceWidgetsInteraction(this, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget);
                 console.log("✅ API版本引导系统初始化完成 (包含自定义模板功能)");
             } else {
-                console.warn("⚠️ 未找到必要的引导widgets，跳过交互设置");
+                console.warn("⚠️ Necessary guidance widgets not found, skipping interaction setup");
             }
+            return r;
         };
+
+        // This function is called when connections change, which is a much more reliable time
+        // to modify widgets, as they are guaranteed to exist.
+        const onConnectionsChange = nodeType.prototype.onConnectionsChange;
+        nodeType.prototype.onConnectionsChange = function (type, index, connected, link_info) {
+            const r = onConnectionsChange ? onConnectionsChange.apply(this, arguments) : undefined;
+
+            if (!this.apiKeyWidgetPatched) {
+                const apiKeyWidget = this.widgets.find(w => w.name === "api_key");
+                if (apiKeyWidget && apiKeyWidget.inputEl) {
+                    apiKeyWidget.inputEl.type = "password";
+                    this.apiKeyWidgetPatched = true;
+                }
+            }
+
+            return r;
+        }
     },
     
     async setup() {
-        console.log("🚀 APIFluxKontextEnhancer扩展加载完成");
+        console.log("🚀 APIFluxKontextEnhancer extension loaded");
     }
 });
 

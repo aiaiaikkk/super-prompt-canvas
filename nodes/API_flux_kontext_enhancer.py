@@ -239,7 +239,8 @@ For more examples, please check guidance_template options."""
                 }),
                 "annotation_data": ("STRING", {
                     "forceInput": True,
-                    "tooltip": "Annotation JSON data from VisualPromptEditor (connected input)"
+                    "default": "",
+                    "tooltip": "Annotation JSON data from VisualPromptEditor (optional - can work with edit_description alone)"
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,

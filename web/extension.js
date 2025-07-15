@@ -10,6 +10,7 @@ import { app } from "../../scripts/app.js";
 // 导入核心前端扩展 - 极简架构
 import "./visual_prompt_editor_v2.js";        // 核心可视化编辑器
 import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展
+import "./API_flux_kontext_enhancer.js";      // API增强节点扩展
 
 // 已移除的扩展 - moved to disabled_nodes/
 // - global_image_processor.js   # 全图处理扩展 (已移除)

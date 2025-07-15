@@ -532,15 +532,18 @@ app.registerExtension({
         
         console.log("🔧 初始化OllamaFluxKontextEnhancer前端扩展");
         
+        const original_onNodeCreated = nodeType.prototype.onNodeCreated;
+        
         // 重写节点创建方法
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
-            // 调用原始创建方法
-            if (onNodeCreated) {
-                onNodeCreated.apply(this, arguments);
-            }
+            const r = onNodeCreated?.apply(this, arguments);
             
             console.log("🏗️ 创建OllamaFluxKontextEnhancerV2节点");
+            
+            // 设置节点颜色为紫色主题，与Visual Prompt Editor保持一致
+            this.color = "#673AB7";     // 主色调 - 深度紫色
+            this.bgcolor = "#512DA8";   // 背景色 - 更深的紫色
             
             // 查找相关widgets
             let modelWidget = null;
@@ -603,6 +606,7 @@ app.registerExtension({
                 console.warn("⚠️ 未找到必要的引导widgets，跳过交互设置");
                 console.log("✅ 引导系统初始化完成 (基础功能)");
             }
+            return r;
         };
         
         // 添加节点序列化支持
