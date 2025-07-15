@@ -65,21 +65,21 @@ class APIFluxKontextEnhancer:
             "base_url": "https://api.deepseek.com/v1",
             "default_model": "deepseek-chat",
             "cost_per_1k": 0.001,
-            "description": "DeepSeek官方 - 高性价比中文优化模型"
+            "description": "DeepSeek official - High-performance Chinese optimization model"
         },
         "qianwen": {
-            "name": "千问/Qianwen",
+            "name": "Qianwen/Qianwen",
             "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
             "default_model": "qwen-turbo",
             "cost_per_1k": 0.002,
-            "description": "阿里云千问模型"
+            "description": "Aliyun Qianwen model"
         },
         "openai": {
             "name": "OpenAI",
             "base_url": "https://api.openai.com/v1",
             "default_model": "gpt-3.5-turbo",
             "cost_per_1k": 0.015,
-            "description": "OpenAI官方模型"
+            "description": "OpenAI official model"
         }
     }
     
@@ -156,7 +156,10 @@ class APIFluxKontextEnhancer:
         """获取模板内容用于placeholder显示"""
         try:
             # 导入guidance_templates模块
-            from .guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
             
             # 根据guidance_style选择内容
             if guidance_style == "custom":
@@ -248,39 +251,30 @@ For more examples, please check guidance_template options."""
                     "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
                     "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
-                "edit_instruction_type": ([
-                    "auto_detect",          # 🔄 Automatically select best strategy based on operation type
-                    "spatial_precise",      # Spatial precise editing
-                    "semantic_enhanced",    # Semantic enhanced editing  
-                    "style_coherent",       # Style coherent editing
-                    "content_aware",        # Content aware editing
-                    "multi_region"          # Multi-region coordinated editing
+                "editing_intent": ([
+                    "product_showcase",      # 产品展示优化
+                    "portrait_enhancement",  # 人像美化
+                    "creative_design",       # 创意设计
+                    "architectural_photo",   # 建筑摄影
+                    "food_styling",          # 美食摄影
+                    "fashion_retail",        # 时尚零售
+                    "landscape_nature",      # 风景自然
+                    "professional_editing",  # 专业图像编辑
+                    "general_editing",       # 通用编辑
+                    "custom"                 # 自定义
                 ], {
-                    "default": "auto_detect",
-                    "tooltip": "Select editing instruction generation strategy (auto_detect automatically selects based on operation type)"
+                    "default": "general_editing",
+                    "tooltip": "Select your editing intent: What type of result do you want to achieve? The AI will automatically choose the best technical approach based on your intent."
                 }),
-                "guidance_style": ([
-                    "efficient_concise",   # Efficient Concise (default)
-                    "natural_creative",    # Natural Creative
-                    "technical_precise",   # Technical Precise
-                    "template",            # Template Selection
-                    "custom"              # Custom User Input
+                "processing_style": ([
+                    "auto_smart",           # 智能自动
+                    "efficient_fast",       # 高效快速
+                    "creative_artistic",    # 创意艺术
+                    "precise_technical",    # 精确技术
+                    "custom_guidance"       # 自定义指引
                 ], {
-                    "default": "efficient_concise",
-                    "tooltip": "Select AI guidance style: Efficient Concise for quick editing, Natural Creative for artistic design, Technical Precise for professional use, Template for common presets, Custom for user-defined guidance"
-                }),
-                "guidance_template": ([
-                    "none",               # No Template
-                    "ecommerce_product",  # E-commerce Product
-                    "portrait_beauty",    # Portrait Beauty
-                    "creative_design",    # Creative Design
-                    "architecture_photo", # Architecture Photography
-                    "food_photography",   # Food Photography
-                    "fashion_retail",     # Fashion Retail
-                    "landscape_nature"    # Landscape Nature
-                ], {
-                    "default": "none",
-                    "tooltip": "Select specialized guidance template (used when guidance_style is template)"
+                    "default": "auto_smart",
+                    "tooltip": "Select the AI processing style: auto_smart will intelligently choose the best approach, others provide specific processing styles."
                 }),
                 "seed": ("INT", {
                     "default": 0,
@@ -314,14 +308,17 @@ For more examples, please check guidance_template options."""
     DESCRIPTION = "🌐 Kontext Super Prompt API Enhancer - Generate optimized structured editing instructions through cloud AI models"
     
     def __init__(self):
+        """初始化缓存和日志"""
         self.cache = {}
-        self.cache_max_size = 100
+        self.log = []
+        self.cache_max_size = 100  # 缓存最大条目数
         self.session_stats = {
             "total_requests": 0,
             "successful_requests": 0,
             "total_tokens": 0,
             "estimated_cost": 0.0
         }
+        self._manage_cache()
     
     def _get_cache_key(self, annotation_data: str, 
                       edit_instruction_type: str, 
@@ -354,6 +351,39 @@ For more examples, please check guidance_template options."""
         )
     
     
+    def _build_intelligent_system_prompt(self, editing_intent, processing_style, 
+                                       edit_description, annotation_data,
+                                       guidance_style, guidance_template, custom_guidance,
+                                       load_saved_guidance, language, guidance_manager):
+        """构建智能系统提示词"""
+        try:
+            # 导入智能提示分析器
+            from intelligent_prompt_analyzer import IntelligentPromptAnalyzer
+            
+            # 创建分析器实例
+            analyzer = IntelligentPromptAnalyzer()
+            
+            # 使用智能分析器构建增强提示
+            enhanced_prompt = analyzer.build_intelligent_prompt(
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                edit_description=edit_description,
+                annotation_data=annotation_data
+            )
+            
+            return enhanced_prompt
+            
+        except Exception as e:
+            print(f"⚠️ Intelligent prompt analysis failed: {e}")
+            # 回退到基础系统提示词
+            return guidance_manager.build_system_prompt(
+                guidance_style=guidance_style,
+                guidance_template=guidance_template,
+                custom_guidance=custom_guidance,
+                load_saved_guidance=load_saved_guidance,
+                language=language
+            )
+
     def _build_user_prompt(self, annotation_data: str, edit_description: str = "") -> str:
         """构建用户提示词"""
         
@@ -507,14 +537,80 @@ For more examples, please check guidance_template options."""
             print(f"⚠️ Failed to parse API response: {str(e)}")
             return response_text, ""
     
+    def _map_intent_to_guidance(self, editing_intent: str, processing_style: str) -> tuple:
+        """将编辑意图和处理风格映射到具体的技术参数"""
+        
+        # 编辑意图到模板的映射
+        intent_template_map = {
+            "product_showcase": "ecommerce_product",
+            "portrait_enhancement": "portrait_beauty", 
+            "creative_design": "creative_design",
+            "architectural_photo": "architecture_photo",
+            "food_styling": "food_photography",
+            "fashion_retail": "fashion_retail",
+            "landscape_nature": "landscape_nature",
+            "professional_editing": "professional_editing",
+            "general_editing": "none",
+            "custom": "none"
+        }
+        
+        # 处理风格到guidance_style的映射
+        style_guidance_map = {
+            "auto_smart": "efficient_concise",  # 智能自动默认高效
+            "efficient_fast": "efficient_concise",
+            "creative_artistic": "natural_creative", 
+            "precise_technical": "technical_precise",
+            "custom_guidance": "custom"
+        }
+        
+        # 编辑意图到instruction_type的映射
+        intent_instruction_map = {
+            "product_showcase": "semantic_enhanced",
+            "portrait_enhancement": "content_aware",
+            "creative_design": "style_coherent",
+            "architectural_photo": "spatial_precise",
+            "food_styling": "semantic_enhanced",
+            "fashion_retail": "semantic_enhanced",
+            "landscape_nature": "style_coherent",
+            "professional_editing": "content_aware",
+            "general_editing": "auto_detect",
+            "custom": "auto_detect"
+        }
+        
+        # 智能自动选择逻辑
+        if processing_style == "auto_smart":
+            # 根据编辑意图智能选择最佳组合
+            if editing_intent in ["professional_editing", "architectural_photo"]:
+                guidance_style = "technical_precise"
+            elif editing_intent in ["creative_design", "landscape_nature"]:
+                guidance_style = "natural_creative"
+            else:
+                guidance_style = "efficient_concise"
+        else:
+            guidance_style = style_guidance_map.get(processing_style, "efficient_concise")
+        
+        guidance_template = intent_template_map.get(editing_intent, "none")
+        edit_instruction_type = intent_instruction_map.get(editing_intent, "auto_detect")
+        
+        return edit_instruction_type, guidance_style, guidance_template
+
     def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, 
                                 annotation_data, edit_description, 
-                                edit_instruction_type, guidance_style, guidance_template, seed,
+                                editing_intent, processing_style, seed,
                                 custom_guidance, load_saved_guidance, image=None):
-        """主要处理函数"""
+        """
+        Main function to enhance Flux instructions via API
+        """
         
         try:
             start_time = time.time()
+            
+            # 使用AI智能映射逻辑
+            edit_instruction_type, guidance_style, guidance_template = self._map_intent_to_guidance(
+                editing_intent, processing_style
+            )
+            
+            print(f"🎯 Intent mapping: {editing_intent} + {processing_style} -> {edit_instruction_type}, {guidance_style}, {guidance_template}")
             
             # 设置参数，使用seed控制随机性
             # 使用seed来调整temperature，确保可重复性
@@ -529,7 +625,10 @@ For more examples, please check guidance_template options."""
             
             # 导入引导话术管理器
             try:
-                from .guidance_templates import guidance_manager
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                from guidance_templates import guidance_manager
             except ImportError:
                 # 回退到绝对导入
                 import sys
@@ -538,13 +637,25 @@ For more examples, please check guidance_template options."""
                 from guidance_templates import guidance_manager
             
             # 构建系统提示词（整合引导话术）
-            system_prompt = guidance_manager.build_system_prompt(
-                guidance_style=guidance_style,
-                guidance_template=guidance_template,
-                custom_guidance=custom_guidance,
-                load_saved_guidance=load_saved_guidance,
-                language=language
-            )
+            # 优先使用智能提示分析器
+            try:
+                system_prompt = self._build_intelligent_system_prompt(
+                    editing_intent, processing_style, edit_description, annotation_data,
+                    guidance_style, guidance_template, custom_guidance, 
+                    load_saved_guidance, language, guidance_manager
+                )
+                print("✅ Using intelligent system prompt analysis")
+            except Exception as e:
+                print(f"⚠️ Intelligent system prompt failed: {e}")
+                # 回退到基础系统提示词
+                system_prompt = guidance_manager.build_system_prompt(
+                    guidance_style=guidance_style,
+                    guidance_template=guidance_template,
+                    custom_guidance=custom_guidance,
+                    load_saved_guidance=load_saved_guidance,
+                    language=language
+                )
+                print("↩️ Using fallback system prompt")
             
             # 确定实际使用的模型名称
             if model_preset == "custom":
@@ -649,170 +760,82 @@ Cost: ¥{response_info.get('estimated_cost', 0):.4f}"""
             )
     
     def _clean_natural_language_output(self, instructions: str) -> str:
-        """Clean natural language output to remove technical details and annotation numbers"""
-        try:
-            import re
-            
-            # First, try to find the actual editing instruction before any technical analysis
-            lines = instructions.split('\n')
-            
-            # Look for the core editing instruction line that contains action verbs
-            action_patterns = [
-                r'change_color[^.]*',
-                r'transform[^.]*to\s+blue[^.]*',
-                r'将.*改.*蓝[^.]*',
-                r'[^.]*red.*blue[^.]*'
-            ]
-            
-            # Find the first line that looks like a simple editing instruction
-            for line in lines:
-                line = line.strip()
-                
-                # Skip technical headers and analysis
-                if (line.startswith(('#', '*', '-', '1.', '2.', '3.')) or 
-                    'Explanation' in line or 'Precision' in line or 'Alignment' in line or
-                    'Clarity' in line or 'Rationale' in line or 'Details' in line):
-                    continue
-                
-                # Look for simple action instructions
-                for pattern in action_patterns:
-                    if re.search(pattern, line, re.IGNORECASE):
-                        # Clean this instruction
-                        result = line
-                        
-                        # Remove annotation references
-                        result = re.sub(r'\(annotation[_\s]*\d+\)', '', result, flags=re.IGNORECASE)
-                        result = re.sub(r'annotation[_\s]*\d+:?', '', result, flags=re.IGNORECASE)
-                        
-                        # Clean up extra words
-                        result = re.sub(r'the red rectangular area', 'the red area', result, flags=re.IGNORECASE)
-                        result = re.sub(r'with good quality', '', result, flags=re.IGNORECASE)
-                        result = re.sub(r'seamlessly', '', result, flags=re.IGNORECASE)
-                        result = re.sub(r'\s+', ' ', result).strip()
-                        result = re.sub(r',\s*$', '', result)  # Remove trailing comma
-                        
-                        if result:
-                            return result
-            
-            # If no simple instruction found, try to extract from the whole text
-            full_text = ' '.join(lines)
-            
-            # Remove all technical analysis sections
-            full_text = re.sub(r'###[^#]*?(?=###|$)', '', full_text, flags=re.DOTALL)
-            full_text = re.sub(r'\*\*[^*]*?\*\*[^*]*?(?=\*\*|$)', '', full_text, flags=re.DOTALL)
-            
-            # Look for action patterns in cleaned text
-            for pattern in action_patterns:
-                match = re.search(pattern, full_text, re.IGNORECASE)
-                if match:
-                    result = match.group(0)
-                    
-                    # Clean annotation references
-                    result = re.sub(r'\(annotation[_\s]*\d+\)', '', result, flags=re.IGNORECASE)
-                    result = re.sub(r'annotation[_\s]*\d+:?', '', result, flags=re.IGNORECASE)
-                    
-                    # Clean up
-                    result = re.sub(r'\s+', ' ', result).strip()
-                    if result:
-                        return result
-            
-            # Final fallback: create a simple instruction
-            if 'red' in instructions.lower() and 'blue' in instructions.lower():
-                return "change the red area to blue"
-            
-            # Last resort
-            return instructions
-            
-        except Exception as e:
-            # If cleaning fails, return original
-            return instructions
+        """清理和格式化自然语言输出"""
+        
+        # 移除常见的API响应包裹，例如```json ... ```
+        if instructions.strip().startswith("```json"):
+            instructions = instructions.split("```json", 1)[1]
+            if "```" in instructions:
+                instructions = instructions.rsplit("```", 1)[0]
+        
+        # 移除 ``` ... ```
+        if instructions.strip().startswith("```"):
+            instructions = instructions.split("```", 1)[1]
+            if "```" in instructions:
+                instructions = instructions.rsplit("```", 1)[0]
+        
+        # 移除XML/JSON标签
+        instructions = instructions.replace("<thinking>", "").replace("</thinking>", "")
+        instructions = instructions.replace("<instructions>", "").replace("</instructions>", "")
+        
+        # 移除"Here are the generated instructions:"等前缀
+        prefixes_to_remove = [
+            "Here are the generated instructions:",
+            "Here are the editing instructions:",
+            "Here is the result:",
+            "The generated instructions are as follows:",
+            "The editing instructions are as follows:"
+        ]
+        for prefix in prefixes_to_remove:
+            if instructions.strip().lower().startswith(prefix.lower()):
+                instructions = instructions.strip()[len(prefix):].strip()
+
+        # 移除markdown格式
+        instructions = instructions.replace("*", "").replace("#", "")
+        
+        # 确保输出是干净的字符串
+        return instructions.strip()
+
+
+# 服务器API端点 (可选)
+# ---------------------
+# 如果WEB_AVAILABLE为True，则设置API端点
+if WEB_AVAILABLE:
     
     @classmethod
     def IS_CHANGED(cls, **kwargs):
-        """检查输入是否改变"""
-        # 对于API调用，总是重新生成以确保最新结果
-        return float("nan")
+        """用于前端UI的动态更新检查"""
+        # 每次都返回一个新时间戳，强制前端更新
+        return time.time()
 
+    @PromptServer.instance.routes.get("/kontextapi/providers")
+    async def get_providers(request):
+        """获取所有API提供商的列表"""
+        return web.json_response(list(APIFluxKontextEnhancer.API_PROVIDERS.keys()))
 
-# 注册节点
+    @PromptServer.instance.routes.post("/kontextapi/models")
+    async def get_models(request):
+        """获取指定提供商的模型列表"""
+        try:
+            data = await request.json()
+            provider = data.get("provider")
+            api_key = data.get("api_key")
+            
+            if not provider or not api_key:
+                return web.json_response({"error": "Provider and API key are required"}, status=400)
+            
+            models = APIFluxKontextEnhancer.get_available_models(provider, api_key, force_refresh=True)
+            return web.json_response(models)
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+            
+# 节点映射
 NODE_CLASS_MAPPINGS = {
     "APIFluxKontextEnhancer": APIFluxKontextEnhancer
 }
 
+# 节点显示名称映射
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "APIFluxKontextEnhancer": "🤖 API Flux Kontext Enhancer"
+    "APIFluxKontextEnhancer": "APIFluxKontextEnhancer"
 }
-
-# 添加Web UI支持
-if WEB_AVAILABLE:
-    @PromptServer.instance.routes.get("/kontextapi/providers")
-    async def get_providers(request):
-        """获取可用的API提供商"""
-        providers = []
-        for key, config in APIFluxKontextEnhancer.API_PROVIDERS.items():
-            providers.append({
-                "id": key,
-                "name": config["name"],
-                "cost_per_1k": config["cost_per_1k"],
-                "description": config["description"],
-                "default_model": config["default_model"]
-            })
-        return web.json_response(providers)
-    
-    @PromptServer.instance.routes.post("/kontextapi/models")
-    async def get_models(request):
-        """获取指定提供商的模型列表"""
-        data = await request.json()
-        provider = data.get("provider", "deepseek")
-        api_key = data.get("api_key", "")
-        
-        try:
-            models = APIFluxKontextEnhancer.get_available_models(provider, api_key)
-            return web.json_response({"models": models})
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=400)
-    
-    @classmethod
-    def IS_CHANGED(cls, **kwargs):
-        """检查输入是否改变"""
-        # 对于API调用，总是重新生成以确保最新结果
-        return float("nan")
-
-
-# 注册节点
-NODE_CLASS_MAPPINGS = {
-    "APIFluxKontextEnhancer": APIFluxKontextEnhancer
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "APIFluxKontextEnhancer": "🤖 API Flux Kontext Enhancer"
-}
-
-# 添加Web UI支持
-if WEB_AVAILABLE:
-    @PromptServer.instance.routes.get("/kontextapi/providers")
-    async def get_providers(request):
-        """获取可用的API提供商"""
-        providers = []
-        for key, config in APIFluxKontextEnhancer.API_PROVIDERS.items():
-            providers.append({
-                "id": key,
-                "name": config["name"],
-                "cost_per_1k": config["cost_per_1k"],
-                "description": config["description"],
-                "default_model": config["default_model"]
-            })
-        return web.json_response(providers)
-    
-    @PromptServer.instance.routes.post("/kontextapi/models")
-    async def get_models(request):
-        """获取指定提供商的模型列表"""
-        data = await request.json()
-        provider = data.get("provider", "deepseek")
-        api_key = data.get("api_key", "")
-        
-        try:
-            models = APIFluxKontextEnhancer.get_available_models(provider, api_key)
-            return web.json_response({"models": models})
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=400)

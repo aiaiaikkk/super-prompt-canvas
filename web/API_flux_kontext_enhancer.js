@@ -196,16 +196,16 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
 // 注册ComfyUI扩展
 app.registerExtension({
     name: "KontextAPIFluxEnhancer",
-    
+
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        // 只处理APIFluxKontextEnhancer节点
+        // Only process the APIFluxKontextEnhancer node
         if (nodeData.name !== "APIFluxKontextEnhancer") {
             return;
         }
         
-        console.log("🔧 初始化APIFluxKontextEnhancer前端扩展");
+        console.log("🔧 Initializing APIFluxKontextEnhancer frontend extension");
         
-        // 重写节点创建方法
+        // Rewrite the node creation method
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             const r = onNodeCreated?.apply(this, arguments);
@@ -216,9 +216,6 @@ app.registerExtension({
             this.color = "#673AB7";     // Main color - deep purple
             this.bgcolor = "#512DA8";   // Background color - deeper purple
             
-            // A flag to ensure we only modify the widget once.
-            this.apiKeyWidgetPatched = false;
-            
             // Find relevant widgets
             let guidanceStyleWidget = null;
             let guidanceTemplateWidget = null;
@@ -227,42 +224,25 @@ app.registerExtension({
             for (const widget of this.widgets) {
                 if (widget.name === "guidance_style") {
                     guidanceStyleWidget = widget;
-                    console.log("🎨 找到引导风格widget");
+                    console.log("🎨 Found guidance style widget");
                 } else if (widget.name === "guidance_template") {
                     guidanceTemplateWidget = widget;
-                    console.log("📋 找到引导模板widget");
+                    console.log("📋 Found guidance template widget");
                 } else if (widget.name === "custom_guidance") {
                     customGuidanceWidget = widget;
-                    console.log("✏️ 找到自定义引导widget");
+                    console.log("✏️ Found custom guidance widget");
                 }
             }
             
-            // 设置引导widgets交互
+            // Set up guidance widgets interaction
             if (guidanceStyleWidget && customGuidanceWidget) {
                 setupGuidanceWidgetsInteraction(this, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget);
-                console.log("✅ API版本引导系统初始化完成 (包含自定义模板功能)");
+                console.log("✅ API version guidance system initialized (with custom template support)");
             } else {
                 console.warn("⚠️ Necessary guidance widgets not found, skipping interaction setup");
             }
             return r;
         };
-
-        // This function is called when connections change, which is a much more reliable time
-        // to modify widgets, as they are guaranteed to exist.
-        const onConnectionsChange = nodeType.prototype.onConnectionsChange;
-        nodeType.prototype.onConnectionsChange = function (type, index, connected, link_info) {
-            const r = onConnectionsChange ? onConnectionsChange.apply(this, arguments) : undefined;
-
-            if (!this.apiKeyWidgetPatched) {
-                const apiKeyWidget = this.widgets.find(w => w.name === "api_key");
-                if (apiKeyWidget && apiKeyWidget.inputEl) {
-                    apiKeyWidget.inputEl.type = "password";
-                    this.apiKeyWidgetPatched = true;
-                }
-            }
-
-            return r;
-        }
     },
     
     async setup() {

@@ -416,6 +416,20 @@ export function createPromptArea() {
                         <option value="change_expression">Change Expression</option>
                         <option value="change_clothing">Change Clothing</option>
                         <option value="change_background">Change Background</option>
+                        <!-- 核心局部操作 (L11-L18) -->
+                        <option value="enhance_quality">Enhance Quality</option>
+                        <option value="blur_background">Blur Background</option>
+                        <option value="adjust_lighting">Adjust Lighting</option>
+                        <option value="resize_object">Resize Object</option>
+                        <option value="enhance_skin_texture">Enhance Skin Texture</option>
+                        <option value="character_expression">Character Expression</option>
+                        <option value="character_hair">Character Hair</option>
+                        <option value="character_accessories">Character Accessories</option>
+                        <!-- 新增：来自kontext-presets的局部操作 -->
+                        <option value="zoom_focus">Zoom Focus</option>
+                        <option value="stylize_local">Stylize Local</option>
+                        <!-- 自定义操作 -->
+                        <option value="custom">Custom Operation</option>
                     </select>
                 </div>
                 
@@ -470,8 +484,9 @@ export function createPromptArea() {
             <div style="margin-bottom: 12px;">
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Template Category</label>
                 <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
-                    <option value="global">🌍 Global Adjustments (8 templates)</option>
-                    <option value="professional">🔧 Professional Operations (14 templates)</option>
+                    <option value="global">🌍 Global Adjustments (15 templates)</option>
+                    <option value="text">📝 Text Editing (5 templates)</option>
+                    <option value="professional">🔧 Professional Operations (15 templates)</option>
                 </select>
             </div>
             

@@ -22,16 +22,6 @@ export const COLOR_NAMES = {
 
 // 模板分类定义 - Flux Kontext优化版 (4大分类)
 export const TEMPLATE_CATEGORIES = {
-    local: {
-        name: '🎯 局部编辑',
-        description: 'Object-specific editing operations',
-        templates: [
-            'change_color', 'change_style', 'replace_object', 'add_object', 'remove_object',
-            'change_texture', 'change_pose', 'change_expression', 'change_clothing', 'change_background',
-            'enhance_quality', 'blur_background', 'adjust_lighting', 'resize_object', 'enhance_skin_texture',
-            'character_expression', 'character_hair', 'character_accessories'
-        ]
-    },
     global: {
         name: '🌍 全局编辑',
         description: 'Whole image processing operations',
@@ -39,7 +29,9 @@ export const TEMPLATE_CATEGORIES = {
             'global_color_grade', 'global_style_transfer', 'global_brightness_contrast',
             'global_hue_saturation', 'global_sharpen_blur', 'global_noise_reduction',
             'global_enhance', 'global_filter', 'character_age', 'detail_enhance',
-            'realism_enhance', 'camera_operation'
+            'realism_enhance', 'camera_operation',
+            // 新增：来自kontext-presets的全局操作
+            'relight_scene', 'colorize_image', 'teleport_context'
         ]
     },
     text: {
@@ -56,7 +48,9 @@ export const TEMPLATE_CATEGORIES = {
             'geometric_warp', 'perspective_transform', 'lens_distortion', 'global_perspective',
             'content_aware_fill', 'seamless_removal', 'smart_patch',
             'style_blending', 'collage_integration', 'texture_mixing',
-            'precision_cutout', 'alpha_composite', 'mask_feathering', 'depth_composite'
+            'precision_cutout', 'alpha_composite', 'mask_feathering', 'depth_composite',
+            // 新增：来自kontext-presets的专业操作
+            'professional_product'
         ]
     }
 };
@@ -367,6 +361,43 @@ export const OPERATION_TEMPLATES = {
         label: 'Depth Composite'
     },
 
+    // 新增：来自kontext-presets的操作模板
+    'zoom_focus': {
+        template: 'zoom {target} of {object}',
+        description: (target) => `zoom ${target || 'close-up'} of {object}`,
+        category: 'local',
+        label: 'Zoom Focus'
+    },
+    'stylize_local': {
+        template: 'stylize {object} into {target} style',
+        description: (target) => `stylize {object} into ${target || 'artistic'} style`,
+        category: 'local',
+        label: 'Stylize Local'
+    },
+    'relight_scene': {
+        template: 'relight the scene with {target}',
+        description: (target) => `relight the scene with ${target || 'professional lighting'}`,
+        category: 'global',
+        label: 'Relight Scene'
+    },
+    'colorize_image': {
+        template: 'colorize the image with {target}',
+        description: (target) => `colorize the image with ${target || 'natural colors'}`,
+        category: 'global',
+        label: 'Colorize Image'
+    },
+    'teleport_context': {
+        template: 'teleport to {target} context',
+        description: (target) => `teleport to ${target || 'different location'} context`,
+        category: 'global',
+        label: 'Teleport Context'
+    },
+    'professional_product': {
+        template: 'create professional product photo with {target}',
+        description: (target) => `create professional product photo with ${target || 'catalog quality'}`,
+        category: 'professional',
+        label: 'Professional Product'
+    },
     'custom': {
         template: '{target}',
         description: (target) => target || 'Apply custom modification to the selected region',
@@ -434,7 +465,14 @@ export const CONSTRAINT_PROMPTS = {
     'precision_cutout': ['achieving pixel-perfect boundaries', 'maintaining natural edge transitions', 'preserving fine details'],
     'alpha_composite': ['managing transparency interactions', 'preserving color accuracy', 'maintaining blending precision'],
     'mask_feathering': ['creating soft natural transitions', 'maintaining selection accuracy', 'avoiding harsh edges'],
-    'depth_composite': ['respecting spatial relationships', 'maintaining atmospheric perspective', 'preserving depth cues']
+    'depth_composite': ['respecting spatial relationships', 'maintaining atmospheric perspective', 'preserving depth cues'],
+    // 新增：来自kontext-presets的约束性提示词
+    'zoom_focus': ['maintaining subject clarity', 'preserving focus quality', 'avoiding distortion artifacts'],
+    'stylize_local': ['preserving essential details', 'maintaining structural integrity', 'avoiding over-stylization'],
+    'relight_scene': ['preserving natural shadows', 'maintaining surface characteristics', 'avoiding harsh lighting artifacts'],
+    'colorize_image': ['maintaining natural color relationships', 'preserving tonal balance', 'avoiding color bleeding'],
+    'teleport_context': ['maintaining visual coherence', 'preserving lighting consistency', 'avoiding perspective conflicts'],
+    'professional_product': ['ensuring catalog quality', 'maintaining product accuracy', 'avoiding commercial distortion']
 };
 
 // 修饰性提示词库 - Flux Kontext整合版，支持49个模板
@@ -496,7 +534,14 @@ export const DECORATIVE_PROMPTS = {
     'precision_cutout': ['precision cutting', 'flawless edge quality', 'professional cutout', 'masterful selection'],
     'alpha_composite': ['perfect alpha blending', 'seamless transparency', 'professional compositing', 'flawless integration'],
     'mask_feathering': ['smooth edge transitions', 'natural feathering', 'professional softening', 'elegant blending'],
-    'depth_composite': ['realistic depth integration', 'dimensional accuracy', 'spatial harmony', 'atmospheric realism']
+    'depth_composite': ['realistic depth integration', 'dimensional accuracy', 'spatial harmony', 'atmospheric realism'],
+    // 新增：来自kontext-presets的修饰性提示词
+    'zoom_focus': ['dramatic focus enhancement', 'cinematic depth', 'professional zoom quality', 'artistic magnification'],
+    'stylize_local': ['artistic style enhancement', 'creative transformation', 'unique artistic flair', 'stylized perfection'],
+    'relight_scene': ['dramatic lighting effects', 'professional illumination', 'cinematic atmosphere', 'masterful lighting'],
+    'colorize_image': ['vibrant color restoration', 'natural color enhancement', 'artistic colorization', 'lifelike color depth'],
+    'teleport_context': ['seamless context transition', 'immersive environment', 'creative scene transformation', 'dynamic context shift'],
+    'professional_product': ['catalog-quality finish', 'commercial excellence', 'professional presentation', 'premium product showcase']
 };
 
 /**

@@ -328,39 +328,30 @@ For more examples, please check guidance_template options."""
                     "default": default_model,
                     "tooltip": "Select an Ollama model. The list is fetched in real-time from the Ollama service."
                 }),
-                "edit_instruction_type": ([
-                    "auto_detect",          # Automatically select the best strategy
-                    "spatial_precise",      # Spatial precise editing
-                    "semantic_enhanced",    # Semantic enhanced editing  
-                    "style_coherent",       # Style coherent editing
-                    "content_aware",        # Content aware editing
-                    "multi_region"          # Multi-region coordinated editing
+                "editing_intent": ([
+                    "product_showcase",      # 产品展示优化
+                    "portrait_enhancement",  # 人像美化
+                    "creative_design",       # 创意设计
+                    "architectural_photo",   # 建筑摄影
+                    "food_styling",          # 美食摄影
+                    "fashion_retail",        # 时尚零售
+                    "landscape_nature",      # 风景自然
+                    "professional_editing",  # 专业图像编辑
+                    "general_editing",       # 通用编辑
+                    "custom"                 # 自定义
                 ], {
-                    "default": "auto_detect",
-                    "tooltip": "Select the generation strategy for editing instructions. 'auto_detect' will choose the best one based on the input."
+                    "default": "general_editing",
+                    "tooltip": "Select your editing intent: What type of result do you want to achieve? The AI will automatically choose the best technical approach based on your intent."
                 }),
-                "guidance_style": ([
-                    "efficient_concise",   # Efficient & Concise
-                    "natural_creative",    # Natural & Creative
-                    "technical_precise",   # Technical & Precise
-                    "template",            # Template Selection
-                    "custom"              # Custom User Input
+                "processing_style": ([
+                    "auto_smart",           # 智能自动
+                    "efficient_fast",       # 高效快速
+                    "creative_artistic",    # 创意艺术
+                    "precise_technical",    # 精确技术
+                    "custom_guidance"       # 自定义指引
                 ], {
-                    "default": "efficient_concise",
-                    "tooltip": "Select the AI guidance style: Efficient for quick edits, Natural for artistic design, Technical for professional use, Template for presets, Custom for user-defined guidance."
-                }),
-                "guidance_template": ([
-                    "none",
-                    "ecommerce_product",
-                    "portrait_beauty",
-                    "creative_design",
-                    "architecture_photo",
-                    "food_photography",
-                    "fashion_retail",
-                    "landscape_nature"
-                ], {
-                    "default": "none",
-                    "tooltip": "Select a specialized guidance template (used when guidance_style is 'template')."
+                    "default": "auto_smart",
+                    "tooltip": "Select the AI processing style: auto_smart will intelligently choose the best approach, others provide specific processing styles."
                 }),
             },
             "optional": {
@@ -441,7 +432,8 @@ For more examples, please check guidance_template options."""
         self.cache = {}
         self.max_cache_size = 50
         self.debug_logs = []
-
+        self.start_time = None
+    
     def _get_cache_key(self, annotation_data: str, edit_description: str, 
                       edit_instruction_type: str, model: str, temperature: float,
                       guidance_style: str, guidance_template: str, seed: int,
@@ -459,16 +451,179 @@ For more examples, please check guidance_template options."""
             del self.cache[oldest_key]
             print(f"🗑️ Removed oldest cache entry, cache size: {len(self.cache)}")
     
+    def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
+                                       edit_description: str, annotation_data: str = "") -> str:
+        """构建智能系统提示"""
+        try:
+            # 导入智能分析器
+            try:
+                from .intelligent_prompt_analyzer import IntelligentPromptAnalyzer
+            except ImportError:
+                from intelligent_prompt_analyzer import IntelligentPromptAnalyzer
+            
+            analyzer = IntelligentPromptAnalyzer()
+            
+            # 生成智能提示
+            intelligent_prompt = analyzer.build_intelligent_prompt(
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                edit_description=edit_description,
+                annotation_data=annotation_data
+            )
+            
+            return intelligent_prompt
+            
+        except Exception as e:
+            self._log_debug(f"⚠️ 智能分析系统失败，使用备用方案: {e}", True)
+            # 备用方案：使用原有的简单映射
+            return self._fallback_system_prompt(editing_intent, processing_style)
+    
+    def _fallback_system_prompt(self, editing_intent: str, processing_style: str) -> str:
+        """备用系统提示（原有逻辑）"""
+        # 编辑意图到模板的映射
+        intent_template_map = {
+            "product_showcase": "ecommerce_product",
+            "portrait_enhancement": "portrait_beauty", 
+            "creative_design": "creative_design",
+            "architectural_photo": "architecture_photo",
+            "food_styling": "food_photography",
+            "fashion_retail": "fashion_retail",
+            "landscape_nature": "landscape_nature",
+            "professional_editing": "professional_editing",
+            "general_editing": "none",
+            "custom": "none"
+        }
+        
+        # 处理风格到guidance_style的映射
+        style_guidance_map = {
+            "auto_smart": "efficient_concise",  # 智能自动默认高效
+            "efficient_fast": "efficient_concise",
+            "creative_artistic": "natural_creative", 
+            "precise_technical": "technical_precise",
+            "custom_guidance": "custom"
+        }
+        
+        # 编辑意图到instruction_type的映射
+        intent_instruction_map = {
+            "product_showcase": "semantic_enhanced",
+            "portrait_enhancement": "content_aware",
+            "creative_design": "style_coherent",
+            "architectural_photo": "spatial_precise",
+            "food_styling": "semantic_enhanced",
+            "fashion_retail": "semantic_enhanced",
+            "landscape_nature": "style_coherent",
+            "professional_editing": "content_aware",
+            "general_editing": "auto_detect",
+            "custom": "auto_detect"
+        }
+        
+        # 智能自动选择逻辑
+        if processing_style == "auto_smart":
+            # 根据编辑意图智能选择最佳组合
+            if editing_intent in ["professional_editing", "architectural_photo"]:
+                guidance_style = "technical_precise"
+            elif editing_intent in ["creative_design", "landscape_nature"]:
+                guidance_style = "natural_creative"
+            else:
+                guidance_style = "efficient_concise"
+        else:
+            guidance_style = style_guidance_map.get(processing_style, "efficient_concise")
+        
+        guidance_template = intent_template_map.get(editing_intent, "none")
+        edit_instruction_type = intent_instruction_map.get(editing_intent, "auto_detect")
+        
+        # 使用原有的guidance_manager构建系统提示
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from guidance_templates import guidance_manager
+            
+            system_prompt = guidance_manager.build_system_prompt(
+                guidance_style=guidance_style,
+                guidance_template=guidance_template,
+                custom_guidance="",
+                load_saved_guidance="none"
+            )
+            
+            return system_prompt
+            
+        except Exception as e:
+            return "你是专业的图像编辑AI助手，请根据用户需求生成精确的编辑指令。"
+
+    def _map_intent_to_guidance(self, editing_intent: str, processing_style: str) -> tuple:
+        """将编辑意图和处理风格映射到具体的技术参数"""
+        
+        # 编辑意图到模板的映射
+        intent_template_map = {
+            "product_showcase": "ecommerce_product",
+            "portrait_enhancement": "portrait_beauty", 
+            "creative_design": "creative_design",
+            "architectural_photo": "architecture_photo",
+            "food_styling": "food_photography",
+            "fashion_retail": "fashion_retail",
+            "landscape_nature": "landscape_nature",
+            "professional_editing": "professional_editing",
+            "general_editing": "none",
+            "custom": "none"
+        }
+        
+        # 处理风格到guidance_style的映射
+        style_guidance_map = {
+            "auto_smart": "efficient_concise",  # 智能自动默认高效
+            "efficient_fast": "efficient_concise",
+            "creative_artistic": "natural_creative", 
+            "precise_technical": "technical_precise",
+            "custom_guidance": "custom"
+        }
+        
+        # 编辑意图到instruction_type的映射
+        intent_instruction_map = {
+            "product_showcase": "semantic_enhanced",
+            "portrait_enhancement": "content_aware",
+            "creative_design": "style_coherent",
+            "architectural_photo": "spatial_precise",
+            "food_styling": "semantic_enhanced",
+            "fashion_retail": "semantic_enhanced",
+            "landscape_nature": "style_coherent",
+            "professional_editing": "content_aware",
+            "general_editing": "auto_detect",
+            "custom": "auto_detect"
+        }
+        
+        # 智能自动选择逻辑
+        if processing_style == "auto_smart":
+            # 根据编辑意图智能选择最佳组合
+            if editing_intent in ["professional_editing", "architectural_photo"]:
+                guidance_style = "technical_precise"
+            elif editing_intent in ["creative_design", "landscape_nature"]:
+                guidance_style = "natural_creative"
+            else:
+                guidance_style = "efficient_concise"
+        else:
+            guidance_style = style_guidance_map.get(processing_style, "efficient_concise")
+        
+        guidance_template = intent_template_map.get(editing_intent, "none")
+        edit_instruction_type = intent_instruction_map.get(editing_intent, "auto_detect")
+        
+        return edit_instruction_type, guidance_style, guidance_template
+
     def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
-                                edit_instruction_type: str,
+                                editing_intent: str, processing_style: str,
                                 image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
-                                enable_visual_analysis: bool = False,
-                                guidance_style: str = "efficient_concise",
-                                guidance_template: str = "none", seed: int = 42,
+                                enable_visual_analysis: bool = False, seed: int = 42,
                                 custom_guidance: str = "", load_saved_guidance: str = "none"):
         
         debug_mode = True 
+        self.start_time = time.time()  # Record start time for processing metadata
         self._log_debug("🚀 [Ollama Enhancer] Starting enhancement process...", debug_mode)
+        
+        # 使用AI智能映射逻辑
+        edit_instruction_type, guidance_style, guidance_template = self._map_intent_to_guidance(
+            editing_intent, processing_style
+        )
+        
+        self._log_debug(f"🎯 Intent mapping: {editing_intent} + {processing_style} -> {edit_instruction_type}, {guidance_style}, {guidance_template}", debug_mode)
 
         if not (edit_description and edit_description.strip()) and not (annotation_data and annotation_data.strip()):
             error_msg = "Error: You must provide either an edit description or connect valid annotation data."
@@ -492,7 +647,7 @@ For more examples, please check guidance_template options."""
                     annotations, parsed_data = self._parse_annotation_data(annotation_data, debug_mode)
                     has_annotations = True
                 else:
-                    self._log_debug("  -> Path: Text-only Generation (annotations list is empty)", debug_mode)
+                    self._log_debug("  -> Path: Text-only Generation (annotations list is empty or not a valid dict structure)", debug_mode)
             except json.JSONDecodeError:
                 self._log_debug("⚠️ Annotation data is not valid JSON, proceeding as text-only.", debug_mode)
         else:
@@ -521,8 +676,6 @@ For more examples, please check guidance_template options."""
                 cached_result = self.cache[cache_key]
                 return (cached_result, system_prompt)
 
-            # (The rest of the generation logic remains largely the same)
-            
             # 连接Ollama
             client = self._connect_ollama(url, debug_mode)
             if not client:
@@ -536,7 +689,7 @@ For more examples, please check guidance_template options."""
                     image_base64 = self._encode_image_for_ollama(image, debug_mode)
                 else:
                     self._log_debug("⚠️ Visual analysis enabled but no image provided.", debug_mode)
-
+            
             # 生成增强指令
             enhanced_instructions = self._generate_with_ollama(
                 url, model, system_prompt, user_prompt, temperature,
@@ -556,7 +709,7 @@ For more examples, please check guidance_template options."""
             else:
                 error_msg = "The Ollama model did not return a valid result."
                 return self._create_fallback_output(error_msg, debug_mode)
-                
+            
         except Exception as e:
             error_msg = f"An unknown error occurred during the enhancement process: {e}"
             self._log_debug(f"💥 {error_msg}\n{traceback.format_exc()}", debug_mode)
@@ -642,7 +795,7 @@ For more examples, please check guidance_template options."""
         if not annotation_data or not annotation_data.strip():
             self._log_debug("     - No annotation data string, defaulting to 'semantic_enhanced'.", debug_mode)
             return "semantic_enhanced"
-
+            
         try:
             parsed_data = json.loads(annotation_data)
             annotations = parsed_data.get("annotations", [])

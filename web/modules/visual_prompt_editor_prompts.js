@@ -851,7 +851,7 @@ function initializeCategorySelector(modal) {
         return;
     }
     
-    // 初始化为全局调整模板
+    // 初始化为全局调整模板（第一个选项）
     updateOperationTypeSelect(operationSelect, 'global');
     
     // Edit Control区域不再需要提示词选择器初始化
