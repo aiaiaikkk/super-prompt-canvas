@@ -12,6 +12,8 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
 
 ### ✨ 主要功能
 
+![中文界面](images/visual_editor_zh.png)
+
 #### 🖼️ 图像标注
 - 提供矩形、圆形、箭头和自由绘制四种标注工具
 - 支持红、绿、黄、蓝四种颜色标记
@@ -24,11 +26,16 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
 - **文本操作**：在图片上添加、删除或修改文字内容
 - **专业处理**：进行图像合成、变形等高级编辑操作
 
+![编辑指令生成](images/basic.png)
+
 #### 🤖 AI智能辅助
 - **本地AI支持**：使用本地AI模型，保护数据隐私
 - **云端AI服务**：连接多种在线AI服务，获得更强的处理能力
 - **智能理解**：自动分析您的编辑需求，提供合适的编辑建议
 - **模板系统**：提供多种预设编辑模板，覆盖常见的编辑场景
+
+![API支持](images/api.png)
+![Ollama支持](images/ollama.png)
 
 #### 🌐 多语言界面
 - 支持中文和英文界面切换
@@ -120,6 +127,8 @@ Kontext Visual Prompt Editor is an image editing assistant tool that helps users
 
 ### ✨ Main Features
 
+![English Interface](images/visual_editor_en.png)
+
 #### 🖼️ Image Annotation
 - Provides four annotation tools: rectangle, circle, arrow, and freehand drawing
 - Supports four color markers: red, green, yellow, and blue
@@ -132,11 +141,16 @@ Kontext Visual Prompt Editor is an image editing assistant tool that helps users
 - **Text Operations**: Add, delete, or modify text content on images
 - **Professional Processing**: Perform advanced editing operations like image compositing and transformation
 
+![Editing Instruction Generation](images/basic.png)
+
 #### 🤖 AI Intelligent Assistance
 - **Local AI Support**: Uses local AI models to protect data privacy
 - **Cloud AI Services**: Connects to various online AI services for enhanced processing power
 - **Smart Understanding**: Automatically analyzes your editing needs and provides suitable editing suggestions
 - **Template System**: Provides various preset editing templates covering common editing scenarios
+
+![API Support](images/api.png)
+![Ollama Support](images/ollama.png)
 
 #### 🌐 Multi-language Interface
 - Supports Chinese and English interface switching

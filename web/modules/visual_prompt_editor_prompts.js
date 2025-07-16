@@ -981,7 +981,7 @@ function updateConstraintPrompts(containerElement, operationType) {
         
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
-        label.textContent = t(`constraint_${constraint.replace(/ /g, '_')}`, constraint);
+        label.textContent = t(`constraint_${operationType}_${index + 1}`, constraint);
         label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
         
         checkboxWrapper.appendChild(checkbox);
@@ -1032,7 +1032,7 @@ function updateDecorativePrompts(containerElement, operationType) {
         
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
-        label.textContent = t(`decorative_${decorative.replace(/ /g, '_')}`, decorative);
+        label.textContent = t(`decorative_${operationType}_${index + 1}`, decorative);
         label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
         
         checkboxWrapper.appendChild(checkbox);

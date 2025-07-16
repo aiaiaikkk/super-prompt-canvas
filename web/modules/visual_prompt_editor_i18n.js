@@ -380,6 +380,47 @@ export const I18N_TEXTS = {
         'zh': '自定义操作'
     },
     
+    // 全局操作
+    'op_global_color_grade': { 'en': 'Color Grading', 'zh': '色彩分级' },
+    'op_global_style_transfer': { 'en': 'Style Transfer', 'zh': '风格迁移' },
+    'op_global_brightness_contrast': { 'en': 'Brightness & Contrast', 'zh': '亮度与对比度' },
+    'op_global_hue_saturation': { 'en': 'Hue & Saturation', 'zh': '色相与饱和度' },
+    'op_global_sharpen_blur': { 'en': 'Sharpen/Blur', 'zh': '锐化/模糊' },
+    'op_global_noise_reduction': { 'en': 'Noise Reduction', 'zh': '降噪' },
+    'op_global_enhance': { 'en': 'Global Enhance', 'zh': '全局增强' },
+    'op_global_filter': { 'en': 'Filter Effect', 'zh': '滤镜效果' },
+    'op_character_age': { 'en': 'Character Age', 'zh': '角色年龄' },
+    'op_detail_enhance': { 'en': 'Detail Enhance', 'zh': '细节增强' },
+    'op_realism_enhance': { 'en': 'Realism Enhance', 'zh': '真实感增强' },
+    'op_camera_operation': { 'en': 'Camera Operation', 'zh': '镜头操作' },
+    'op_relight_scene': { 'en': 'Relight Scene', 'zh': '场景重打光' },
+    'op_colorize_image': { 'en': 'Colorize Image', 'zh': '图像上色' },
+    'op_teleport_context': { 'en': 'Teleport Context', 'zh': '场景传送' },
+    
+    // 文本操作
+    'op_text_add': { 'en': 'Add Text', 'zh': '添加文字' },
+    'op_text_remove': { 'en': 'Remove Text', 'zh': '移除文字' },
+    'op_text_edit': { 'en': 'Edit Text', 'zh': '编辑文字' },
+    'op_text_resize': { 'en': 'Resize Text', 'zh': '缩放文字' },
+    'op_object_combine': { 'en': 'Object Combine', 'zh': '对象组合' },
+    
+    // 专业操作
+    'op_geometric_warp': { 'en': 'Geometric Warp', 'zh': '几何扭曲' },
+    'op_perspective_transform': { 'en': 'Perspective Transform', 'zh': '透视变换' },
+    'op_lens_distortion': { 'en': 'Lens Distortion', 'zh': '镜头畸变' },
+    'op_global_perspective': { 'en': 'Global Perspective', 'zh': '全局透视' },
+    'op_content_aware_fill': { 'en': 'Content-Aware Fill', 'zh': '内容感知填充' },
+    'op_seamless_removal': { 'en': 'Seamless Removal', 'zh': '无缝移除' },
+    'op_smart_patch': { 'en': 'Smart Patch', 'zh': '智能修补' },
+    'op_style_blending': { 'en': 'Style Blending', 'zh': '风格混合' },
+    'op_collage_integration': { 'en': 'Collage Integration', 'zh': '拼贴集成' },
+    'op_texture_mixing': { 'en': 'Texture Mixing', 'zh': '纹理混合' },
+    'op_precision_cutout': { 'en': 'Precision Cutout', 'zh': '精确抠图' },
+    'op_alpha_composite': { 'en': 'Alpha Composite', 'zh': 'Alpha合成' },
+    'op_mask_feathering': { 'en': 'Mask Feathering', 'zh': '蒙版羽化' },
+    'op_depth_composite': { 'en': 'Depth Composite', 'zh': '深度合成' },
+    'op_professional_product': { 'en': 'Professional Product', 'zh': '专业产品' },
+    
     // 模板分类
     'template_global': {
         'en': '🌍 Global Adjustments (15 templates)',

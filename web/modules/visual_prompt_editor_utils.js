@@ -1,3 +1,5 @@
+import { t } from './visual_prompt_editor_i18n.js';
+
 /**
  * Visual Prompt Editor - 工具函数模块
  * 通用工具函数和常量定义
@@ -472,7 +474,9 @@ export const CONSTRAINT_PROMPTS = {
     'relight_scene': ['preserving natural shadows', 'maintaining surface characteristics', 'avoiding harsh lighting artifacts'],
     'colorize_image': ['maintaining natural color relationships', 'preserving tonal balance', 'avoiding color bleeding'],
     'teleport_context': ['maintaining visual coherence', 'preserving lighting consistency', 'avoiding perspective conflicts'],
-    'professional_product': ['ensuring catalog quality', 'maintaining product accuracy', 'avoiding commercial distortion']
+    'professional_product': ['ensuring catalog quality', 'maintaining product accuracy', 'avoiding commercial distortion'],
+    'custom': ['maintaining overall coherence', 'preserving artistic intent', 'ensuring realistic results'],
+    'default': []
 };
 
 // 修饰性提示词库 - Flux Kontext整合版，支持49个模板
@@ -541,7 +545,9 @@ export const DECORATIVE_PROMPTS = {
     'relight_scene': ['dramatic lighting effects', 'professional illumination', 'cinematic atmosphere', 'masterful lighting'],
     'colorize_image': ['vibrant color restoration', 'natural color enhancement', 'artistic colorization', 'lifelike color depth'],
     'teleport_context': ['seamless context transition', 'immersive environment', 'creative scene transformation', 'dynamic context shift'],
-    'professional_product': ['catalog-quality finish', 'commercial excellence', 'professional presentation', 'premium product showcase']
+    'professional_product': ['catalog-quality finish', 'commercial excellence', 'professional presentation', 'premium product showcase'],
+    'custom': ['personalized enhancement', 'creative freedom', 'unique artistic vision', 'customized perfection'],
+    'default': []
 };
 
 /**
@@ -578,7 +584,7 @@ export function updateOperationTypeSelect(selectElement, category) {
     templates.forEach(({ id, label }) => {
         const option = document.createElement('option');
         option.value = id;
-        option.textContent = label;
+        option.textContent = t(`op_${id}`, label);
         selectElement.appendChild(option);
     });
     
@@ -586,7 +592,7 @@ export function updateOperationTypeSelect(selectElement, category) {
     if (category === 'local') {
         const customOption = document.createElement('option');
         customOption.value = 'custom';
-        customOption.textContent = 'Custom Operation';
+        customOption.textContent = t('op_custom', 'Custom Operation');
         selectElement.appendChild(customOption);
     }
 }
