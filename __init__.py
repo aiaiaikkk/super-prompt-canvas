@@ -4,7 +4,7 @@ Intelligent Visual Prompt Builder - ComfyUI Custom Node Package
 
 Version: 1.2.0
 Author: Kontext Team
-Repository: https://github.com/username/KontextVisualPromptWindow
+Repository: https://github.com/username/KontextSuperPrompt
 License: MIT
 
 This is an intelligent visual prompt builder designed for Flux Kontext models,
@@ -212,7 +212,7 @@ __all__ = [
 # Print loading completion info
 print(f"✨ Kontext Visual Prompt Window v{__version__} initialization complete!")
 print(f"🌐 Web extensions directory: {WEB_DIRECTORY}")
-print(f"📚 For documentation and examples, visit: https://github.com/username/KontextVisualPromptWindow")
+print(f"📚 For documentation and examples, visit: https://github.com/username/KontextSuperPrompt")
 
 # Check dependencies and provide suggestions
 try:

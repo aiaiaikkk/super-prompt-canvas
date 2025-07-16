@@ -3,6 +3,8 @@
  * 负责创建和管理UI界面组件
  */
 
+import { t, getCurrentLanguage, toggleLanguage, updateAllUITexts, loadLanguageFromStorage } from './visual_prompt_editor_i18n.js';
+
 /**
  * 创建主模态弹窗
  */
@@ -62,16 +64,19 @@ export function createTitleBar() {
     titleBar.innerHTML = `
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="font-size: 24px;">🎨</span>
-            <span style="font-weight: 700; font-size: 20px;">Visual Prompt Editor</span>
-            <span style="background: rgba(255, 255, 255, 0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px; opacity: 0.9;">
+            <span style="font-weight: 700; font-size: 20px;" data-i18n="title">Visual Prompt Editor</span>
+            <span style="background: rgba(255, 255, 255, 0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px; opacity: 0.9;" data-i18n="subtitle">
                 Unified Annotation & Prompt Generation
             </span>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button id="vpe-save" style="background: #4CAF50; border: none; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <button id="vpe-language-toggle" style="background: #2196F3; border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" data-i18n="language_switch">
+                🌐 中文
+            </button>
+            <button id="vpe-save" style="background: #4CAF50; border: none; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" data-i18n="save_apply">
                 💾 Save & Apply
             </button>
-            <button id="vpe-close" style="background: #f44336; border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+            <button id="vpe-close" style="background: #f44336; border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;" data-i18n="close">
                 ✕ Close
             </button>
         </div>
@@ -94,18 +99,18 @@ export function createToolbar() {
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 32px; width: 100%;">
             <!-- 绘制工具组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Tools:</span>
-                <button class="vpe-tool" data-tool="rectangle" title="Rectangle">📐</button>
-                <button class="vpe-tool" data-tool="circle" title="Circle (Shift=Perfect Circle)">⭕</button>
-                <button class="vpe-tool" data-tool="arrow" title="Arrow">➡️</button>
-                <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing (Left-click to add anchor points, right-click to close)">🔗</button>
-                <button class="vpe-tool" data-tool="brush" title="Brush (Adjustable size and feather)">🖌️</button>
-                <button class="vpe-tool" data-tool="eraser" title="Eraser">🗑️</button>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="tools">Tools:</span>
+                <button class="vpe-tool" data-tool="rectangle" title="Rectangle" data-i18n-title="tooltip_rectangle">📐</button>
+                <button class="vpe-tool" data-tool="circle" title="Circle (Shift=Perfect Circle)" data-i18n-title="tooltip_circle">⭕</button>
+                <button class="vpe-tool" data-tool="arrow" title="Arrow" data-i18n-title="tooltip_arrow">➡️</button>
+                <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing (Left-click to add anchor points, right-click to close)" data-i18n-title="tooltip_freehand">🔗</button>
+                <button class="vpe-tool" data-tool="brush" title="Brush (Adjustable size and feather)" data-i18n-title="tooltip_brush">🖌️</button>
+                <button class="vpe-tool" data-tool="eraser" title="Eraser" data-i18n-title="tooltip_eraser">🗑️</button>
             </div>
             
             <!-- 颜色选择组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Colors:</span>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="colors">Colors:</span>
                 <button class="vpe-color" data-color="#ff0000" style="background: linear-gradient(135deg, #ff0000, #cc0000); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,0,0,0.3);"></button>
                 <button class="vpe-color" data-color="#00ff00" style="background: linear-gradient(135deg, #00ff00, #00cc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,255,0,0.3);"></button>
                 <button class="vpe-color" data-color="#ffff00" style="background: linear-gradient(135deg, #ffff00, #cccc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,255,0,0.3);"></button>
@@ -114,48 +119,48 @@ export function createToolbar() {
             
             <!-- 编辑操作组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Edit:</span>
-                <button id="vpe-undo" style="font-size: 11px; padding: 4px 8px;" title="Undo">↶ Undo</button>
-                <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All">🗂️ Clear</button>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="edit">Edit:</span>
+                <button id="vpe-undo" style="font-size: 11px; padding: 4px 8px;" title="Undo" data-i18n="btn_undo" data-i18n-title="tooltip_undo">↶ Undo</button>
+                <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All" data-i18n="btn_clear" data-i18n-title="tooltip_clear">🗂️ Clear</button>
             </div>
             
             <!-- 填充样式组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Fill:</span>
-                <button id="vpe-fill-toggle" style="font-size: 11px; padding: 4px 8px;" title="Toggle between filled and outline annotations">🔴 Filled</button>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="fill">Fill:</span>
+                <button id="vpe-fill-toggle" style="font-size: 11px; padding: 4px 8px;" title="Toggle between filled and outline annotations" data-i18n="btn_filled" data-i18n-title="tooltip_fill_toggle">🔴 Filled</button>
             </div>
             
             <!-- 不透明度控制组 -->
             <div style="display: flex; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Opacity:</span>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="opacity">Opacity:</span>
                 <input type="range" id="vpe-opacity-slider" min="10" max="100" value="50" 
                        style="width: 80px; height: 20px; background: #333; outline: none; cursor: pointer;" 
-                       title="Adjust annotation opacity (10-100%)">
+                       title="Adjust annotation opacity (10-100%)" data-i18n-title="tooltip_opacity">
                 <span id="vpe-opacity-value" style="color: #aaa; font-size: 10px; min-width: 30px; text-align: center;">50%</span>
             </div>
             
             <!-- 画笔控制组 -->
             <div id="vpe-brush-controls" style="display: none; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;">Brush:</span>
-                <span style="color: #aaa; font-size: 10px;">Size:</span>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="brush">Brush:</span>
+                <span style="color: #aaa; font-size: 10px;" data-i18n="size">Size:</span>
                 <input type="range" id="vpe-brush-size" min="5" max="50" value="20" 
                        style="width: 60px; height: 20px; background: #333; outline: none; cursor: pointer;" 
-                       title="Adjust brush size (5-50px)">
+                       title="Adjust brush size (5-50px)" data-i18n-title="tooltip_brush_size">
                 <span id="vpe-brush-size-value" style="color: #aaa; font-size: 10px; min-width: 25px; text-align: center;">20px</span>
-                <span style="color: #aaa; font-size: 10px;">Feather:</span>
+                <span style="color: #aaa; font-size: 10px;" data-i18n="feather">Feather:</span>
                 <input type="range" id="vpe-brush-feather" min="0" max="20" value="5" 
                        style="width: 60px; height: 20px; background: #333; outline: none; cursor: pointer;" 
-                       title="Adjust brush feather/softness (0-20px)">
+                       title="Adjust brush feather/softness (0-20px)" data-i18n-title="tooltip_brush_feather">
                 <span id="vpe-brush-feather-value" style="color: #aaa; font-size: 10px; min-width: 25px; text-align: center;">5px</span>
             </div>
             
             <!-- 视图控制组 -->
             <div style="display: flex; gap: 4px; align-items: center;">
-                <span style="color: #ccc; font-size: 11px;">View:</span>
-                <button id="vpe-zoom-fit" style="font-size: 11px; padding: 4px 8px;" title="Fit to Screen">Fit</button>
-                <button id="vpe-zoom-100" style="font-size: 11px; padding: 4px 8px;" title="100% Zoom">1:1</button>
-                <button id="vpe-zoom-in" style="font-size: 11px; padding: 4px 6px;" title="Zoom In">+</button>
-                <button id="vpe-zoom-out" style="font-size: 11px; padding: 4px 6px;" title="Zoom Out">-</button>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="view">View:</span>
+                <button id="vpe-zoom-fit" style="font-size: 11px; padding: 4px 8px;" title="Fit to Screen" data-i18n="btn_fit" data-i18n-title="tooltip_zoom_fit">Fit</button>
+                <button id="vpe-zoom-100" style="font-size: 11px; padding: 4px 8px;" title="100% Zoom" data-i18n="btn_zoom_100" data-i18n-title="tooltip_zoom_100">1:1</button>
+                <button id="vpe-zoom-in" style="font-size: 11px; padding: 4px 6px;" title="Zoom In" data-i18n="btn_zoom_in" data-i18n-title="tooltip_zoom_in">+</button>
+                <button id="vpe-zoom-out" style="font-size: 11px; padding: 4px 6px;" title="Zoom Out" data-i18n="btn_zoom_out" data-i18n-title="tooltip_zoom_out">-</button>
                 <span id="vpe-zoom-level" style="color: #aaa; font-size: 10px; min-width: 40px; text-align: center;">100%</span>
             </div>
         </div>
@@ -377,16 +382,16 @@ export function createPromptArea() {
         <!-- 下拉复选框式图层编辑器 -->
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
             <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-                🎯 Layer Selection & Operations
+                <span data-i18n="layer_selection_operations">🎯 Layer Selection & Operations</span>
                 <span id="selection-count" style="color: #888; font-size: 11px;">0 selected</span>
             </div>
             
             <!-- 图层选择下拉框 -->
             <div style="margin-bottom: 16px;">
-                <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📋 Select Layers (Optional for Global/Professional)</label>
+                <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="select_layers">📋 Select Layers (Optional for Global/Professional)</label>
                 <div style="position: relative;">
                     <div id="layer-dropdown" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-                        <span id="dropdown-text" style="color: #aaa; font-size: 12px;">Click to select layers...</span>
+                        <span id="dropdown-text" style="color: #aaa; font-size: 12px;" data-i18n="placeholder_select_layers">Click to select layers...</span>
                         <span id="dropdown-arrow" style="transition: transform 0.2s ease;">▼</span>
                     </div>
                     <div id="layer-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #2b2b2b; border: 1px solid #555; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 1000;">
@@ -404,67 +409,67 @@ export function createPromptArea() {
             <!-- 批量操作或单个图层编辑 -->
             <div id="layer-operations" style="display: none;">
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">⚙️ Operation Type</label>
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="operation_type">⚙️ Operation Type</label>
                     <select id="current-layer-operation" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; font-size: 13px;">
-                        <option value="add_object">Add Object</option>
-                        <option value="change_color">Change Color</option>
-                        <option value="change_style">Change Style</option>
-                        <option value="replace_object">Replace Object</option>
-                        <option value="remove_object">Remove Object</option>
-                        <option value="change_texture">Change Texture</option>
-                        <option value="change_pose">Change Pose</option>
-                        <option value="change_expression">Change Expression</option>
-                        <option value="change_clothing">Change Clothing</option>
-                        <option value="change_background">Change Background</option>
+                        <option value="add_object" data-i18n="op_add_object">Add Object</option>
+                        <option value="change_color" data-i18n="op_change_color">Change Color</option>
+                        <option value="change_style" data-i18n="op_change_style">Change Style</option>
+                        <option value="replace_object" data-i18n="op_replace_object">Replace Object</option>
+                        <option value="remove_object" data-i18n="op_remove_object">Remove Object</option>
+                        <option value="change_texture" data-i18n="op_change_texture">Change Texture</option>
+                        <option value="change_pose" data-i18n="op_change_pose">Change Pose</option>
+                        <option value="change_expression" data-i18n="op_change_expression">Change Expression</option>
+                        <option value="change_clothing" data-i18n="op_change_clothing">Change Clothing</option>
+                        <option value="change_background" data-i18n="op_change_background">Change Background</option>
                         <!-- 核心局部操作 (L11-L18) -->
-                        <option value="enhance_quality">Enhance Quality</option>
-                        <option value="blur_background">Blur Background</option>
-                        <option value="adjust_lighting">Adjust Lighting</option>
-                        <option value="resize_object">Resize Object</option>
-                        <option value="enhance_skin_texture">Enhance Skin Texture</option>
-                        <option value="character_expression">Character Expression</option>
-                        <option value="character_hair">Character Hair</option>
-                        <option value="character_accessories">Character Accessories</option>
+                        <option value="enhance_quality" data-i18n="op_enhance_quality">Enhance Quality</option>
+                        <option value="blur_background" data-i18n="op_blur_background">Blur Background</option>
+                        <option value="adjust_lighting" data-i18n="op_adjust_lighting">Adjust Lighting</option>
+                        <option value="resize_object" data-i18n="op_resize_object">Resize Object</option>
+                        <option value="enhance_skin_texture" data-i18n="op_enhance_skin_texture">Enhance Skin Texture</option>
+                        <option value="character_expression" data-i18n="op_character_expression">Character Expression</option>
+                        <option value="character_hair" data-i18n="op_character_hair">Character Hair</option>
+                        <option value="character_accessories" data-i18n="op_character_accessories">Character Accessories</option>
                         <!-- 新增：来自kontext-presets的局部操作 -->
-                        <option value="zoom_focus">Zoom Focus</option>
-                        <option value="stylize_local">Stylize Local</option>
+                        <option value="zoom_focus" data-i18n="op_zoom_focus">Zoom Focus</option>
+                        <option value="stylize_local" data-i18n="op_stylize_local">Stylize Local</option>
                         <!-- 自定义操作 -->
-                        <option value="custom">Custom Operation</option>
+                        <option value="custom" data-i18n="op_custom">Custom Operation</option>
                     </select>
                 </div>
                 
                 <div id="layer-constraint-prompts-container" style="margin-bottom: 16px;">
-                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">🔒 Constraint Prompts (Select multiple)</label>
-                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="constraint_prompts">🔒 Constraint Prompts (Select multiple)</label>
+                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;" data-i18n="select_operation_constraint">
                         Please select an operation type to load constraint prompts...
                     </div>
-                    <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                    <div style="font-size: 11px; color: #777; margin-top: 2px;" data-i18n="constraint_prompts_help">
                         Quality control and technical constraints for better results
                     </div>
                 </div>
                 
                 <div id="layer-decorative-prompts-container" style="margin-bottom: 16px;">
-                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">🎨 Decorative Prompts (Select multiple)</label>
-                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="decorative_prompts">🎨 Decorative Prompts (Select multiple)</label>
+                    <div style="padding: 8px; background: #2b2b2b; border: 1px solid #555; border-radius: 4px; color: #888; text-align: center;" data-i18n="select_operation_decorative">
                         Please select an operation type to load decorative prompts...
                     </div>
-                    <div style="font-size: 11px; color: #777; margin-top: 2px;">
+                    <div style="font-size: 11px; color: #777; margin-top: 2px;" data-i18n="decorative_prompts_help">
                         Aesthetic enhancements and visual quality improvements
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;">📝 Description</label>
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="description">📝 Description</label>
                     <textarea id="current-layer-description" 
                               style="width: 100%; height: 80px; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; font-size: 13px; resize: vertical; font-family: inherit; line-height: 1.4;"
-                              placeholder="Enter description for selected layer(s)..."></textarea>
+                              placeholder="Enter description for selected layer(s)..." data-i18n-placeholder="placeholder_layer_description"></textarea>
                 </div>
                 
                 <div style="display: flex; gap: 8px;">
-                    <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                    <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_apply_to_selected">
                         ✅ Apply to Selected
                     </button>
-                    <button id="select-all-layers" style="padding: 10px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">
+                    <button id="select-all-layers" style="padding: 10px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_select_all">
                         📋 Select All
                     </button>
                 </div>
@@ -473,69 +478,69 @@ export function createPromptArea() {
             <!-- 空状态提示 -->
             <div id="no-layers-message" style="text-align: center; color: #888; padding: 40px 20px;">
                 <div style="font-size: 18px; margin-bottom: 8px;">📝</div>
-                <div style="font-size: 14px; margin-bottom: 4px;">No annotation layers yet</div>
-                <div style="font-size: 11px;">Create annotations to start editing</div>
+                <div style="font-size: 14px; margin-bottom: 4px;" data-i18n="no_layers_title">No annotation layers yet</div>
+                <div style="font-size: 11px;" data-i18n="no_layers_subtitle">Create annotations to start editing</div>
             </div>
         </div>
         
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-            <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px;">🎯 Edit Control</div>
+            <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px;" data-i18n="edit_control">🎯 Edit Control</div>
             
             <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Template Category</label>
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;" data-i18n="template_category">Template Category</label>
                 <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
-                    <option value="global">🌍 Global Adjustments (15 templates)</option>
-                    <option value="text">📝 Text Editing (5 templates)</option>
-                    <option value="professional">🔧 Professional Operations (15 templates)</option>
+                    <option value="global" data-i18n="template_global">🌍 Global Adjustments (15 templates)</option>
+                    <option value="text" data-i18n="template_text">📝 Text Editing (5 templates)</option>
+                    <option value="professional" data-i18n="template_professional">🔧 Professional Operations (15 templates)</option>
                 </select>
             </div>
             
             <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">Edit Operation Type</label>
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;" data-i18n="edit_operation_type">Edit Operation Type</label>
                 <select id="operation-type" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px;">
                     <!-- 动态填充选项 -->
                 </select>
             </div>
             
             <div style="margin-bottom: 12px;">
-                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;">📝 Description Text</label>
+                <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;" data-i18n="description_text">📝 Description Text</label>
                 <textarea id="target-input" 
                           style="width: 100%; height: 80px; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4;" 
-                          placeholder="Enter editing instructions for selected objects..."></textarea>
+                          placeholder="Enter editing instructions for selected objects..." data-i18n-placeholder="placeholder_target_input"></textarea>
             </div>
             
             <div style="margin-bottom: 12px;">
                 <label style="display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 12px; cursor: pointer;">
                     <input type="checkbox" id="include-annotation-numbers" 
                            style="width: 14px; height: 14px; accent-color: #4CAF50; cursor: pointer;">
-                    <span>Include annotation numbers in description</span>
+                    <span data-i18n="include_annotation_numbers">Include annotation numbers in description</span>
                 </label>
-                <div style="font-size: 11px; color: #777; margin-top: 2px; margin-left: 22px;">
+                <div style="font-size: 11px; color: #777; margin-top: 2px; margin-left: 22px;" data-i18n="annotation_numbers_help">
                     🏷️ Show annotation numbers (e.g., "annotation 1") in generated prompts
                 </div>
             </div>
             
-            <button id="generate-prompt" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+            <button id="generate-prompt" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;" data-i18n="btn_generate_description">
                 ✨ Generate Description
             </button>
         </div>
         
         <div style="background: #333; padding: 16px; border-radius: 8px;">
             <div style="color: #FF9800; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                📝 Generated Description
-                <span id="description-status" style="font-size: 12px; padding: 2px 6px; border-radius: 3px; background: #555; color: #ccc; display: none;">
+                <span data-i18n="generated_description">📝 Generated Description</span>
+                <span id="description-status" style="font-size: 12px; padding: 2px 6px; border-radius: 3px; background: #555; color: #ccc; display: none;" data-i18n="edited_status">
                     ✏️ Edited
                 </span>
             </div>
             <textarea id="generated-description" 
                       style="width: 100%; height: 120px; padding: 12px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4; transition: border-color 0.3s ease;" 
-                      placeholder="Generated description text will appear here..."></textarea>
+                      placeholder="Generated description text will appear here..." data-i18n-placeholder="placeholder_generated_description"></textarea>
             
             <div style="display: flex; gap: 8px; margin-top: 8px;">
-                <button id="copy-description" style="flex: 1; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                <button id="copy-description" style="flex: 1; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" data-i18n="btn_copy">
                     📋 Copy
                 </button>
-                <button id="clear-description" style="flex: 1; padding: 8px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                <button id="clear-description" style="flex: 1; padding: 8px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" data-i18n="btn_clear_description">
                     🧹 Clear
                 </button>
             </div>
@@ -561,11 +566,11 @@ export function showControlInfo(modal) {
     `;
     
     controlInfo.innerHTML = `
-        <div style="color: white; font-weight: bold; margin-bottom: 4px;">VPE Canvas Controls:</div>
-        • Left-click: Draw freehand<br>
-        • Middle-click: Drag to pan<br>
-        • Ctrl+Scroll: Zoom<br>
-        • Shift+Circle: Perfect Circle
+        <div style="color: white; font-weight: bold; margin-bottom: 4px;" data-i18n="canvas_controls_title">VPE Canvas Controls:</div>
+        <span data-i18n="control_left_click">• Left-click: Draw freehand</span><br>
+        <span data-i18n="control_middle_click">• Middle-click: Drag to pan</span><br>
+        <span data-i18n="control_ctrl_scroll">• Ctrl+Scroll: Zoom</span><br>
+        <span data-i18n="control_shift_circle">• Shift+Circle: Perfect Circle</span>
     `;
     
     const canvasContainer = modal.querySelector('#canvas-container');

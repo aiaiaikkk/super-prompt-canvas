@@ -36,6 +36,10 @@ import {
     showPromptQualityAnalysis,
     exportPromptData
 } from './modules/visual_prompt_editor_prompts.js';
+import { 
+    initializeLanguageSystem,
+    updateCompleteUI
+} from './modules/visual_prompt_editor_language.js';
 
 console.log("🌐 Loading Visual Prompt Editor extension (Modular Version)...");
 
@@ -447,6 +451,17 @@ app.registerExtension({
             // 初始化模态弹窗功能
             nodeType.prototype.initModalFunctionality = function(modal, layersData) {
                 console.log('🔧 初始化模态弹窗功能 V2');
+                
+                // 初始化语言系统 - 在所有UI元素创建完成后立即初始化
+                setTimeout(() => {
+                    console.log('🌐 初始化语言系统...');
+                    try {
+                        initializeLanguageSystem(modal);
+                        console.log('✅ 语言系统初始化完成');
+                    } catch (error) {
+                        console.error('❌ 语言系统初始化失败:', error);
+                    }
+                }, 50);
                 
                 // 初始化画布绘制 - 延长时间确保DOM完全就绪
                 setTimeout(() => {

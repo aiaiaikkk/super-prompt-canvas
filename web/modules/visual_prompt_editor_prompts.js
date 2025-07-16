@@ -4,6 +4,7 @@
  */
 
 import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
+import { t } from './visual_prompt_editor_i18n.js';
 
 /**
  * 判断是否需要选择图层
@@ -957,14 +958,14 @@ function updateConstraintPrompts(containerElement, operationType) {
     // 清空现有内容
     actualContainer.innerHTML = `
         <div style="margin-bottom: 8px;">
-            <span style="color: #ccc; font-size: 12px; font-weight: 600;">🔒 Constraint Prompts:</span>
-            <span style="color: #888; font-size: 10px; margin-left: 8px;">(Select multiple)</span>
+            <span style="color: #ccc; font-size: 12px; font-weight: 600;">${t('constraint_prompts_title', '🔒 Constraint Prompts:')}</span>
+            <span style="color: #888; font-size: 10px; margin-left: 8px;">${t('select_multiple_subtitle', '(Select multiple)')}</span>
         </div>
         <div id="constraint-checkboxes" style="max-height: 120px; overflow-y: auto; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; padding: 8px;"></div>
     `;
     
     const checkboxContainer = actualContainer.querySelector('#constraint-checkboxes');
-    const constraints = CONSTRAINT_PROMPTS[operationType];
+    const constraints = CONSTRAINT_PROMPTS[operationType] || CONSTRAINT_PROMPTS['default'];
     if (!constraints || !checkboxContainer) return;
     
     // 添加约束性提示词复选框
@@ -980,7 +981,7 @@ function updateConstraintPrompts(containerElement, operationType) {
         
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
-        label.textContent = constraint;
+        label.textContent = t(`constraint_${constraint.replace(/ /g, '_')}`, constraint);
         label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
         
         checkboxWrapper.appendChild(checkbox);
@@ -1008,14 +1009,14 @@ function updateDecorativePrompts(containerElement, operationType) {
     // 清空现有内容
     actualContainer.innerHTML = `
         <div style="margin-bottom: 8px;">
-            <span style="color: #ccc; font-size: 12px; font-weight: 600;">🎨 Decorative Prompts:</span>
-            <span style="color: #888; font-size: 10px; margin-left: 8px;">(Select multiple)</span>
+            <span style="color: #ccc; font-size: 12px; font-weight: 600;">${t('decorative_prompts_title', '🎨 Decorative Prompts:')}</span>
+            <span style="color: #888; font-size: 10px; margin-left: 8px;">${t('select_multiple_subtitle', '(Select multiple)')}</span>
         </div>
         <div id="decorative-checkboxes" style="max-height: 120px; overflow-y: auto; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; padding: 8px;"></div>
     `;
     
     const checkboxContainer = actualContainer.querySelector('#decorative-checkboxes');
-    const decoratives = DECORATIVE_PROMPTS[operationType];
+    const decoratives = DECORATIVE_PROMPTS[operationType] || DECORATIVE_PROMPTS['default'];
     if (!decoratives || !checkboxContainer) return;
     
     // 添加修饰性提示词复选框
@@ -1031,7 +1032,7 @@ function updateDecorativePrompts(containerElement, operationType) {
         
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
-        label.textContent = decorative;
+        label.textContent = t(`decorative_${decorative.replace(/ /g, '_')}`, decorative);
         label.style.cssText = 'color: #ddd; font-size: 11px; cursor: pointer; line-height: 1.3; flex: 1;';
         
         checkboxWrapper.appendChild(checkbox);
