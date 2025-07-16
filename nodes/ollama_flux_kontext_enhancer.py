@@ -387,12 +387,6 @@ For more examples, please check guidance_template options."""
                     "max": 2**32 - 1,
                     "tooltip": "Seed for controlling randomness. Use the same seed for reproducible results."
                 }),
-                "custom_guidance": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": default_placeholder,
-                    "tooltip": "Enter custom AI guidance instructions (used when guidance_style is 'custom')."
-                }),
                 "load_saved_guidance": (["none"] + guidance_manager.list_guidance(), {
                     "default": "none",
                     "tooltip": "Load previously saved custom guidance (used when guidance_style is 'custom')."
@@ -404,6 +398,12 @@ For more examples, please check guidance_template options."""
                 "guidance_name": ("STRING", {
                     "default": "My Guidance",
                     "tooltip": "The name of the file to save the guidance to."
+                }),
+                "custom_guidance": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": default_placeholder,
+                    "tooltip": "Enter custom AI guidance instructions (used when guidance_style is 'custom')."
                 }),
             }
         }
@@ -628,12 +628,12 @@ For more examples, please check guidance_template options."""
         return edit_instruction_type, guidance_style, guidance_template
 
     def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
-                                editing_intent: str, processing_style: str,
-                                save_guidance: bool, guidance_name: str,
+                                auto_unload_model: bool, editing_intent: str, processing_style: str,
                                 image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
                                 enable_visual_analysis: bool = False, seed: int = 42,
-                                custom_guidance: str = "", load_saved_guidance: str = "none",
-                                auto_unload_model: bool = False):
+                                control_after_generate=None, load_saved_guidance: str = "none",
+                                save_guidance: bool = False, guidance_name: str = "My Guidance",
+                                custom_guidance: str = ""):
         
         debug_mode = True 
         self.start_time = time.time()  # Record start time for processing metadata

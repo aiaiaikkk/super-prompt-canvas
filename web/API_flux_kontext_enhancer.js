@@ -205,9 +205,122 @@ app.registerExtension({
         nodeType.prototype.onConstructed = function () {
             const r = onConstructed?.apply(this, arguments);
 
-            // Set node color
+            // Set node color with enhanced forcing mechanism
             this.color = "#673AB7";
             this.bgcolor = "#512DA8";
+            this.boxcolor = "#673AB7";
+            this.titlecolor = "#FFFFFF";
+            this.node_color = "#673AB7";
+            this.node_bgcolor = "#512DA8";
+            this.header_color = "#673AB7";
+            this.border_color = "#673AB7";
+            
+            console.log("🎨 APIFlux节点颜色已设置为紫色主题", this.color, this.bgcolor);
+            
+            // 强制刷新节点外观
+            if (this.setDirtyCanvas) {
+                this.setDirtyCanvas(true);
+            }
+            if (this.graph && this.graph.canvas) {
+                this.graph.canvas.setDirty(true);
+            }
+            
+            // 延迟再次设置确保生效
+            setTimeout(() => {
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                this.boxcolor = "#673AB7";
+                this.titlecolor = "#FFFFFF";
+                
+                if (this.graph && this.graph.canvas) {
+                    this.graph.canvas.setDirty(true);
+                }
+                console.log("🎨 APIFlux延迟颜色设置完成");
+            }, 100);
+            
+            // 删除错误的CSS样式代码
+            
+            // 定期强制设置颜色 - 确保颜色不被覆盖
+            const colorInterval = setInterval(() => {
+                if (this.color !== "#673AB7" || this.bgcolor !== "#512DA8") {
+                    this.color = "#673AB7";
+                    this.bgcolor = "#512DA8";
+                    this.boxcolor = "#673AB7";
+                    this.titlecolor = "#FFFFFF";
+                    
+                    // 直接设置DOM元素的样式
+                    if (this.canvas && this.canvas.canvas) {
+                        this.canvas.canvas.style.backgroundColor = "#512DA8";
+                        this.canvas.canvas.style.borderColor = "#673AB7";
+                    }
+                    
+                    if (this.graph && this.graph.canvas) {
+                        this.graph.canvas.setDirty(true);
+                    }
+                    console.log("🎨 APIFlux颜色被重置，重新设置为紫色主题");
+                }
+            }, 1000);
+            
+            // 强制重写onDrawBackground方法来确保颜色显示
+            const originalOnDrawBackground = this.onDrawBackground;
+            this.onDrawBackground = function(ctx) {
+                // 先设置颜色
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                this.boxcolor = "#673AB7";
+                
+                // 直接在canvas上绘制紫色背景
+                if (ctx) {
+                    ctx.fillStyle = "#512DA8";
+                    ctx.fillRect(0, 0, this.size[0], this.size[1]);
+                    
+                    // 绘制边框
+                    ctx.strokeStyle = "#673AB7";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, this.size[0], this.size[1]);
+                }
+                
+                // 调用原始方法
+                if (originalOnDrawBackground) {
+                    originalOnDrawBackground.call(this, ctx);
+                }
+            };
+            
+            // 也重写onDrawForeground方法
+            const originalOnDrawForeground = this.onDrawForeground;
+            this.onDrawForeground = function(ctx) {
+                // 确保颜色设置
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                // 调用原始方法
+                if (originalOnDrawForeground) {
+                    originalOnDrawForeground.call(this, ctx);
+                }
+            };
+            
+            // 重写computeSize方法确保颜色在重新计算大小时保持
+            const originalComputeSize = this.computeSize;
+            this.computeSize = function(out) {
+                const result = originalComputeSize ? originalComputeSize.call(this, out) : [200, 100];
+                
+                // 在大小重新计算后确保颜色设置
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                return result;
+            };
+            
+            // 节点销毁时清理定时器
+            const originalOnRemoved = this.onRemoved;
+            this.onRemoved = function() {
+                if (colorInterval) {
+                    clearInterval(colorInterval);
+                }
+                if (originalOnRemoved) {
+                    originalOnRemoved.call(this);
+                }
+            };
 
             // 使用setTimeout延迟执行，确保DOM元素已准备好
             setTimeout(() => {
@@ -270,6 +383,25 @@ app.registerExtension({
         };
     }
 });
+
+// 添加APIFlux节点的全局样式 - 修复颜色问题
+function addAPIFluxGlobalStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .litegraph .node.APIFluxKontextEnhancer {
+            background-color: #512DA8 !important;
+            border-color: #673AB7 !important;
+        }
+        .litegraph .node.APIFluxKontextEnhancer .title {
+            background-color: #673AB7 !important;
+            color: #FFFFFF !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// 立即执行全局样式添加
+addAPIFluxGlobalStyles();
 
 // 导出工具函数供其他模块使用
 export {

@@ -227,6 +227,17 @@ For more examples, please check guidance_template options."""
 
         return {
             "required": {
+                "annotation_data": ("STRING", {
+                    "forceInput": True,
+                    "default": "",
+                    "tooltip": "Annotation JSON data from VisualPromptEditor (optional - can work with edit_description alone)"
+                }),
+                "edit_description": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
+                    "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
+                }),
                 "api_provider": (["siliconflow", "deepseek", "qianwen", "openai"], {
                     "default": "siliconflow"
                 }),
@@ -249,17 +260,6 @@ For more examples, please check guidance_template options."""
                     "default": "",
                     "multiline": False,
                     "placeholder": "Custom model name (when preset=custom)"
-                }),
-                "annotation_data": ("STRING", {
-                    "forceInput": True,
-                    "default": "",
-                    "tooltip": "Annotation JSON data from VisualPromptEditor (optional - can work with edit_description alone)"
-                }),
-                "edit_description": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
-                    "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
                 "editing_intent": ([
                     "product_showcase",      # 产品展示优化

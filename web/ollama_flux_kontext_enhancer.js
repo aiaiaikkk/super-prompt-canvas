@@ -520,30 +520,384 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     console.log("✅ Guidance widgets interaction setup completed");
 }
 
+/**
+ * 设置保存指导模板的UI增强 - 从js/ollama_flux_kontext_enhancer.js合并
+ * @param {Object} node - 节点对象
+ */
+function setupSaveGuidanceUI(node) {
+    try {
+        // 查找相关widgets
+        const customGuidanceWidget = node.widgets.find(w => w.name === "custom_guidance");
+        const saveGuidanceWidget = node.widgets.find(w => w.name === "save_guidance");
+        const guidanceNameWidget = node.widgets.find(w => w.name === "guidance_name");
+        const loadGuidanceWidget = node.widgets.find(w => w.name === "load_saved_guidance");
+        
+        if (!saveGuidanceWidget || !guidanceNameWidget || !loadGuidanceWidget) {
+            console.warn("Required widgets for save functionality not found!");
+            return;
+        }
+
+        // 隐藏原始widgets
+        saveGuidanceWidget.hidden = true;
+        guidanceNameWidget.hidden = true;
+        loadGuidanceWidget.hidden = true;
+
+        // 创建自定义保存UI容器
+        const saveContainer = document.createElement("div");
+        saveContainer.className = "kontext-save-guidance-container";
+        saveContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            padding: 2px;
+            background: #333;
+            border-radius: 2px;
+            margin: 0px;
+            max-width: 100%;
+        `;
+        
+        // 创建标题
+        const titleLabel = document.createElement("div");
+        titleLabel.textContent = "Guidance Management";
+        titleLabel.style.cssText = `
+            color: #ccc;
+            font-size: 7px;
+            font-weight: bold;
+            margin-bottom: 0px;
+            line-height: 1;
+        `;
+        
+        // 创建加载下拉框
+        const loadSelect = document.createElement("select");
+        loadSelect.className = "kontext-load-guidance-select";
+        loadSelect.style.cssText = `
+            padding: 0px 2px;
+            border: 1px solid #555;
+            border-radius: 1px;
+            background: #444;
+            color: white;
+            font-size: 7px;
+            margin-bottom: 0px;
+            height: 14px;
+            line-height: 1;
+        `;
+        
+        // 填充加载选项
+        const updateLoadOptions = () => {
+            loadSelect.innerHTML = '<option value="none">Load saved...</option>';
+            if (loadGuidanceWidget.options && loadGuidanceWidget.options.values) {
+                loadGuidanceWidget.options.values.forEach(option => {
+                    if (option !== "none") {
+                        const optionElement = document.createElement("option");
+                        optionElement.value = option;
+                        optionElement.textContent = option;
+                        loadSelect.appendChild(optionElement);
+                    }
+                });
+            }
+        };
+        updateLoadOptions();
+        
+        loadSelect.addEventListener("change", () => {
+            if (loadSelect.value !== "none") {
+                loadGuidanceWidget.value = loadSelect.value;
+                // 触发回调来加载内容
+                if (loadGuidanceWidget.callback) {
+                    loadGuidanceWidget.callback(loadSelect.value);
+                }
+            }
+        });
+        
+        // 创建输入和按钮的容器
+        const inputContainer = document.createElement("div");
+        inputContainer.style.cssText = `
+            display: flex;
+            gap: 1px;
+            align-items: center;
+        `;
+        
+        // 创建名称输入框
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.placeholder = "Enter name...";
+        nameInput.className = "kontext-guidance-name-input";
+        nameInput.value = guidanceNameWidget.value;
+        nameInput.style.cssText = `
+            flex: 1;
+            padding: 2px 4px;
+            border: 1px solid #555;
+            border-radius: 2px;
+            background: #444;
+            color: white;
+            font-size: 8px;
+            height: 16px;
+        `;
+        nameInput.addEventListener("change", () => {
+            guidanceNameWidget.value = nameInput.value;
+        });
+
+        // 创建保存按钮
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "💾 Save";
+        saveButton.className = "kontext-save-guidance-button";
+        saveButton.style.cssText = `
+            padding: 2px 6px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 8px;
+            transition: background 0.3s;
+            white-space: nowrap;
+            height: 20px;
+        `;
+        saveButton.addEventListener("mouseenter", () => {
+            saveButton.style.background = "#45a049";
+        });
+        saveButton.addEventListener("mouseleave", () => {
+            saveButton.style.background = "#4CAF50";
+        });
+        saveButton.addEventListener("click", () => {
+            if (!guidanceNameWidget.value.trim()) {
+                alert("Please enter a name for the guidance.");
+                return;
+            }
+            
+            // 设置保存标志
+            saveGuidanceWidget.value = true;
+            
+            // 用户反馈
+            const originalText = saveButton.textContent;
+            saveButton.textContent = "✅ Saved!";
+            saveButton.style.background = "#FF9800";
+            
+            // 显示通知
+            if (window.KontextUtils) {
+                window.KontextUtils.showNotification(
+                    `Guidance "${guidanceNameWidget.value}" will be saved on next queue.`,
+                    'success'
+                );
+            } else {
+                // 使用更简洁的提示
+                console.log(`Guidance "${guidanceNameWidget.value}" will be saved on next queue.`);
+            }
+            
+            // 重置按钮状态
+            setTimeout(() => {
+                saveButton.textContent = originalText;
+                saveButton.style.background = "#4CAF50";
+                saveGuidanceWidget.value = false;
+                // 更新加载选项
+                updateLoadOptions();
+            }, 2000);
+        });
+        
+        // 组装UI
+        inputContainer.appendChild(nameInput);
+        inputContainer.appendChild(saveButton);
+        
+        saveContainer.appendChild(titleLabel);
+        saveContainer.appendChild(loadSelect);
+        saveContainer.appendChild(inputContainer);
+
+        // 添加到节点的DOM widgets
+        const customWidget = node.addDOMWidget("save_guidance_ui", "save_guidance_ui", saveContainer, {
+            getValue() { return this.value; },
+            setValue(v) { this.value = v; }
+        });
+        
+        customWidget.computeSize = function(size) {
+            return [size && size[0] ? size[0] : 200, 28]; // 调整高度为更紧凑的28px
+        };
+
+        // 强制设置widget的定位属性
+        customWidget.widget = saveContainer;
+        customWidget.options = customWidget.options || {};
+        customWidget.options.serialize = false; // 不序列化DOM元素
+        
+        // 确保widget正确定位在节点内部
+        if (saveContainer.style) {
+            saveContainer.style.position = 'relative';
+            saveContainer.style.zIndex = '1';
+        }
+
+        // 序列化支持
+        const onSerialize = node.onSerialize;
+        node.onSerialize = function(o) {
+            onSerialize?.apply(this, arguments);
+            // 确保guidance_name值是最新的
+            const guidanceNameIndex = this.widgets.findIndex(w => w.name === "guidance_name");
+            if (guidanceNameIndex !== -1) {
+                o.widgets_values[guidanceNameIndex] = guidanceNameWidget.value;
+            }
+        };
+
+        console.log("✅ Enhanced save guidance UI setup completed");
+        
+    } catch (error) {
+        console.error("❌ Error setting up save guidance UI:", error);
+    }
+}
+
+// 添加全局样式以强制节点颜色 - 紫色主题保持原始倒角
+function addGlobalNodeStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .litegraph .node.OllamaFluxKontextEnhancerV2 {
+            background-color: #512DA8 !important;
+            border-color: #673AB7 !important;
+            border-radius: 4px !important;
+        }
+        .litegraph .node.OllamaFluxKontextEnhancerV2 .title {
+            background-color: #673AB7 !important;
+            color: #FFFFFF !important;
+            border-radius: 4px 4px 0 0 !important;
+        }
+    `;
+    document.head.appendChild(style);
+    console.log("🎨 紫色主题全局样式已添加（保持倒角）");
+}
+
+// 立即添加样式
+addGlobalNodeStyles();
+
 // 注册ComfyUI扩展
 app.registerExtension({
     name: "KontextOllamaFluxEnhancer",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        // 只处理OllamaFluxKontextEnhancer节点 (注意V2版本)
+        // 处理所有Ollama增强器节点类型
+        console.log("🔍 检查节点类型:", nodeData.name);
+        
         if (nodeData.name !== "OllamaFluxKontextEnhancerV2") {
             return;
         }
         
-        console.log("🔧 初始化OllamaFluxKontextEnhancer前端扩展");
-        
-        const original_onNodeCreated = nodeType.prototype.onNodeCreated;
+        console.log("🔧 初始化OllamaFluxKontextEnhancer前端扩展, 节点类型:", nodeData.name);
         
         // 重写节点创建方法
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             const r = onNodeCreated?.apply(this, arguments);
             
-            console.log("🏗️ 创建OllamaFluxKontextEnhancerV2节点");
+            console.log("🏗️ 创建Ollama增强器节点, 类型:", nodeData.name);
             
-            // 设置节点颜色为紫色主题，与Visual Prompt Editor保持一致
+            // 设置节点颜色为紫色主题，保持原始倒角
             this.color = "#673AB7";     // 主色调 - 深度紫色
             this.bgcolor = "#512DA8";   // 背景色 - 更深的紫色
+            
+            // 强制设置节点的图形属性，不改变shape以保持倒角
+            this.boxcolor = "#673AB7";
+            this.titlecolor = "#FFFFFF";
+            
+            // 设置所有可能的颜色属性
+            this.node_color = "#673AB7";
+            this.node_bgcolor = "#512DA8";
+            this.header_color = "#673AB7";
+            this.border_color = "#673AB7";
+            
+            console.log("🎨 节点颜色已设置为紫色主题（保持倒角）", this.color, this.bgcolor);
+            
+            // 尝试直接设置DOM元素样式
+            if (this.canvas && this.canvas.canvas) {
+                const canvas = this.canvas.canvas;
+                canvas.style.backgroundColor = "#512DA8";
+                canvas.style.borderColor = "#673AB7";
+            }
+            
+            // 设置节点的CSS类名以应用样式
+            if (this.dom) {
+                this.dom.className += " OllamaFluxKontextEnhancerV2";
+            }
+            
+            // 强制刷新节点外观 - 多种方式确保生效
+            if (this.setDirtyCanvas) {
+                this.setDirtyCanvas(true);
+            }
+            if (this.graph && this.graph.canvas) {
+                this.graph.canvas.setDirty(true);
+            }
+            // 延迟再次设置确保生效
+            setTimeout(() => {
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                this.boxcolor = "#673AB7";
+                this.titlecolor = "#FFFFFF";
+                this.node_color = "#673AB7";
+                this.node_bgcolor = "#512DA8";
+                this.header_color = "#673AB7";
+                this.border_color = "#673AB7";
+                
+                if (this.graph && this.graph.canvas) {
+                    this.graph.canvas.setDirty(true);
+                }
+                console.log("🎨 延迟颜色设置完成");
+            }, 100);
+            
+            // 定期强制设置颜色 - 确保颜色不被覆盖
+            const colorInterval = setInterval(() => {
+                if (this.color !== "#673AB7" || this.bgcolor !== "#512DA8") {
+                    this.color = "#673AB7";
+                    this.bgcolor = "#512DA8";
+                    this.boxcolor = "#673AB7";
+                    this.titlecolor = "#FFFFFF";
+                    
+                    if (this.graph && this.graph.canvas) {
+                        this.graph.canvas.setDirty(true);
+                    }
+                    console.log("🎨 颜色被重置，重新设置为紫色主题");
+                }
+            }, 1000);
+            
+            // 节点销毁时清理定时器
+            const originalOnRemoved = this.onRemoved;
+            this.onRemoved = function() {
+                if (colorInterval) {
+                    clearInterval(colorInterval);
+                }
+                if (originalOnRemoved) {
+                    originalOnRemoved.call(this);
+                }
+            };
+            
+            // 强制重写onDrawBackground方法来确保颜色显示
+            const originalOnDrawBackground = this.onDrawBackground;
+            this.onDrawBackground = function(ctx) {
+                // 先设置颜色
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                // 调用原始方法
+                if (originalOnDrawBackground) {
+                    originalOnDrawBackground.call(this, ctx);
+                }
+            };
+            
+            // 也重写onDrawForeground方法
+            const originalOnDrawForeground = this.onDrawForeground;
+            this.onDrawForeground = function(ctx) {
+                // 确保颜色设置
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                // 调用原始方法
+                if (originalOnDrawForeground) {
+                    originalOnDrawForeground.call(this, ctx);
+                }
+            };
+            
+            // 重写computeSize方法确保颜色在重新计算大小时保持
+            const originalComputeSize = this.computeSize;
+            this.computeSize = function(out) {
+                const result = originalComputeSize ? originalComputeSize.call(this, out) : [200, 100];
+                
+                // 在大小重新计算后确保颜色设置
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                return result;
+            };
             
             // 查找相关widgets
             let modelWidget = null;
@@ -571,11 +925,22 @@ app.registerExtension({
                 }
             }
             
-            // 添加刷新按钮
+            // 恢复刷新按钮，并放到温度参数附近
             if (modelWidget) {
                 const refreshButton = createRefreshButton(this, modelWidget, urlWidget);
                 if (refreshButton) {
-                    console.log("✅ 模型刷新按钮已添加");
+                    // 将刷新按钮移动到紧接在 model 之后
+                    const modelIndex = this.widgets.findIndex(w => w.name === "model");
+                    if (modelIndex !== -1) {
+                        // 移除刷新按钮从当前位置
+                        const buttonIndex = this.widgets.indexOf(refreshButton);
+                        if (buttonIndex !== -1) {
+                            this.widgets.splice(buttonIndex, 1);
+                        }
+                        // 插入到 model 之后
+                        this.widgets.splice(modelIndex + 1, 0, refreshButton);
+                        console.log("✅ 刷新按钮已移动到 model 之后");
+                    }
                 }
                 
                 // 处理模型选择变化，支持刷新功能
@@ -593,7 +958,7 @@ app.registerExtension({
                     }
                 };
                 
-                console.log("✅ OllamaFluxKontextEnhancerV2前端扩展初始化完成");
+                console.log("✅ 模型刷新按钮已恢复并重新定位");
             } else {
                 console.warn("⚠️ 未找到模型选择widget");
             }
@@ -607,72 +972,83 @@ app.registerExtension({
                 console.log("✅ 引导系统初始化完成 (基础功能)");
             }
 
-            // 使用setTimeout延迟执行，确保DOM元素已准备好
-            setTimeout(() => {
-                try {
-                    // 保存按钮功能增强
-                    const saveGuidanceNameWidget = this.widgets.find(w => w.name === "save_guidance_name");
-                    const saveGuidanceButtonWidget = this.widgets.find(w => w.name === "save_guidance_button");
-
-                    if (saveGuidanceNameWidget && saveGuidanceButtonWidget && saveGuidanceNameWidget.inputEl) {
-                        // 检查是否已处理过，避免重复创建
-                        if (saveGuidanceNameWidget.inputEl.parentElement.classList.contains('kontext-save-container')) {
-                            return;
-                        }
-
-                        // 将布尔值转换为按钮
-                        saveGuidanceButtonWidget.type = "button";
-                        saveGuidanceButtonWidget.label = "Save";
-                        saveGuidanceButtonWidget.callback = () => {
-                            saveGuidanceButtonWidget.value = true;
-                            app.graph.runStep(1, false); // 使用app实例
-                            setTimeout(() => {
-                                saveGuidanceButtonWidget.value = false;
-                            }, 100);
-                        };
-
-                        // 创建容器
-                        const saveContainer = document.createElement("div");
-                        saveContainer.className = "kontext-save-container"; // 添加一个类名用于识别
-                        saveContainer.style.display = "flex";
-                        saveContainer.style.alignItems = "center";
-                        saveContainer.style.gap = "5px";
-
-                        const nameInput = saveGuidanceNameWidget.inputEl;
-                        const parent = nameInput.parentElement;
-                        
-                        saveContainer.appendChild(nameInput);
-                        
-                        const buttonElement = document.createElement("button");
-                        buttonElement.innerText = "Save Guidance";
-                        buttonElement.style.padding = "5px";
-                        buttonElement.style.border = "1px solid #555";
-                        buttonElement.style.backgroundColor = "#444";
-                        buttonElement.style.color = "white";
-                        buttonElement.style.borderRadius = "3px";
-                        buttonElement.style.cursor = "pointer";
-
-                        buttonElement.onclick = () => {
-                            if (saveGuidanceNameWidget.value) {
-                                saveGuidanceButtonWidget.callback();
-                            } else {
-                                alert("Please enter a name for the guidance.");
-                            }
-                        };
-
-                        saveContainer.appendChild(buttonElement);
-                        
-                        if (saveGuidanceButtonWidget.inputEl && saveGuidanceButtonWidget.inputEl.parentElement) {
-                            saveGuidanceButtonWidget.inputEl.parentElement.style.display = 'none';
-                        }
-
-                        parent.appendChild(saveContainer);
-
-                    }
-                } catch (e) {
-                    console.error("Error enhancing guidance widgets for Ollama node:", e);
+            // 不使用DOM widget的Guidance管理 - 直接优化现有控件
+            const saveGuidanceWidget = this.widgets.find(w => w.name === "save_guidance");
+            const guidanceNameWidget = this.widgets.find(w => w.name === "guidance_name");
+            const loadGuidanceWidget = this.widgets.find(w => w.name === "load_saved_guidance");
+            
+            // 确保控件可见
+            if (saveGuidanceWidget) saveGuidanceWidget.hidden = false;
+            if (guidanceNameWidget) guidanceNameWidget.hidden = false;
+            if (loadGuidanceWidget) loadGuidanceWidget.hidden = false;
+            
+            // 优化控件标签显示
+            if (guidanceNameWidget) {
+                guidanceNameWidget.name = "💾 Guidance Name";
+            }
+            if (loadGuidanceWidget) {
+                loadGuidanceWidget.name = "📁 Load Saved Guidance";
+            }
+            if (saveGuidanceWidget) {
+                saveGuidanceWidget.name = "💾 Save Current Guidance";
+            }
+            
+            // 将custom_guidance文本框移动到最底部
+            if (customGuidanceWidget) {
+                // 找到当前custom_guidance的位置
+                const currentIndex = this.widgets.indexOf(customGuidanceWidget);
+                if (currentIndex !== -1) {
+                    // 移除当前位置的custom_guidance
+                    this.widgets.splice(currentIndex, 1);
+                    // 添加到最底部
+                    this.widgets.push(customGuidanceWidget);
+                    console.log("✅ custom_guidance文本框已移动到最底部");
                 }
-            }, 0);
+                
+                // 设置文本框大小 - 固定5行，完全不可拉伸
+                if (customGuidanceWidget.inputEl) {
+                    customGuidanceWidget.inputEl.rows = 5;  // 固定为5行
+                    customGuidanceWidget.inputEl.style.resize = 'none';     // 禁用拉伸
+                    customGuidanceWidget.inputEl.style.minHeight = '90px';   // 固定最小高度
+                    customGuidanceWidget.inputEl.style.maxHeight = '90px';   // 固定最大高度
+                    customGuidanceWidget.inputEl.style.height = '90px';      // 固定默认高度
+                    console.log("✅ custom_guidance文本框已固定为5行且不可拉伸");
+                }
+            }
+            
+            const editDescriptionWidget = this.widgets.find(w => w.name === "edit_description");
+            if (editDescriptionWidget && editDescriptionWidget.inputEl) {
+                editDescriptionWidget.inputEl.rows = 5;  // 固定为5行
+                editDescriptionWidget.inputEl.style.resize = 'none';     // 禁用拉伸
+                editDescriptionWidget.inputEl.style.minHeight = '90px';   // 固定最小高度
+                editDescriptionWidget.inputEl.style.maxHeight = '90px';   // 固定最大高度
+                editDescriptionWidget.inputEl.style.height = '90px';      // 固定默认高度
+                console.log("✅ edit_description文本框已固定为5行且不可拉伸");
+            }
+
+            // 简化的节点大小调整 - 避免文本框折叠
+            setTimeout(() => {
+                // 获取当前节点的自动计算大小
+                const originalSize = this.size ? [...this.size] : [300, 200];
+                
+                // 让ComfyUI先自动计算一次
+                if (this.computeSize) {
+                    this.computeSize();
+                }
+                
+                // 确保节点高度足够容纳固定的文本框
+                const minimumHeight = 600; // 设置一个合理的最小高度
+                if (this.size && this.size[1] < minimumHeight) {
+                    this.size[1] = minimumHeight;
+                }
+                
+                // 标记为需要重绘
+                if (this.setDirtyCanvas) {
+                    this.setDirtyCanvas(true);
+                }
+                
+                console.log(`✅ 节点大小已调整为: ${this.size[0]}x${this.size[1]}`);
+            }, 100);
 
             return r;
         };
@@ -725,5 +1101,6 @@ export {
     createRefreshButton,
     createStatusIndicator,
     getTemplateContentForPlaceholder,
-    setupGuidanceWidgetsInteraction
+    setupGuidanceWidgetsInteraction,
+    setupSaveGuidanceUI
 };
