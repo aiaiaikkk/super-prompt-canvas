@@ -1,346 +1,226 @@
-# Kontext超级提示词
+# Kontext Visual Prompt Editor - 智能可视化提示编辑器
 
-**[🇨🇳 中文文档](#chinese-docs) | [🇺🇸 English Docs](#english-docs)**
-
----
-
-## <a id="chinese-docs"></a>🇨🇳 中文文档
-
-🎆 **让AI图像编辑变得简单如画图** 🎆
-
-你只需要：📝 **框选区域** + 🗣️ **说出想法** = ✨ **完美的AI编辑指令**
-
-无需学习复杂的提示词技巧，无需理解模型参数，无需记忆命令格式。像使用画笔一样简单，却能获得专业级的AI编辑效果。
-
-## 🎯 效果展示
-
-### 🎨 **可视化编辑界面**
-![Visual Editor Interface](images/visual_editor1.png)
-*直观的可视化编辑界面 - 左侧图像标注，右侧AI提示词生成*
-
-### 🖄 **基础模板系统**
-![Basic Templates](images/basic.png)
-*49个精品模板覆盖全部编辑场景 - 局部、全局、文字、专业操作*
-
-### 🚀 **30秒即学会**
-
-🎯 **步骤1**：双击节点 → 打开智能编辑器  
-🖌️ **步骤2**：框选区域 → 用鼠标在图上圈出你想改的地方  
-💬 **步骤3**：说出想法 → 用人话描述你的编辑意图  
-✨ **步骤4**：一键生成 → AI自动创建完美指令
-
-🎉 **就这么简单！从第一次使用就能获得专业效果！**
-
-### 🎆 **为什么选择Kontext超级提示词？**
-
-😫 **传统方式的痛点**：  
-• 需要学习复杂的提示词语法  
-• 经常遇到“想得到做不到”的情况  
-• 需要反复调试和尝试才能得到满意结果  
-• 不同操作需要不同的专业知识
-
-🎆 **Kontext超级提示词的优势**：  
-✨ **零门槛**：就像在手机上标记照片一样简单  
-🎯 **高准确**：基于1000+官方指令优化，精准匹配意图  
-🤖 **AI加持**：智能理解你的想法，自动生成专业指令  
-🚀 **即时可用**：无需学习，第一次使用就能获得专业效果
-
-🎁 **结果**：从“学习一天”到“上手一分钟”，让任何人都能轻松创作专业级AI作品！
-
-### 🏆 **为什么效果这么好？**
-
-#### 🎨 **精准定位系统**
-• **4种直觉工具**：矩形框、圆形圈、箭头指向、自由绘制 - 像用画图软件一样简单  
-• **4种色彩标记**：红绿黄蓝，可同时标记多个区域，一次性处理复杂编辑  
-• **实时预览**：所见即所得，标记哪里就编辑哪里
-
-#### 🤖 **AI智能引擎**
-• **6种编辑策略**：自动检测、空间精准、语义增强、风格一致、内容感知、多区域协调  
-• **49个精品模板**：每个都是基于官方数据训练的精品，保证效果  
-• **无限可能**：AI加持，从49个模板扩展到无限变体，满足任何创意需求  
-• **多语言支持**：中文、英文输入都支持，想怎么说就怎么说
-
-#### 🎯 **6种编辑策略详解**
-🔄 **自动检测**：AI分析你的需求，自动选择最合适的处理方式（推荐新手使用）  
-📍 **空间精准**：专注位置准确性，适合"把这里的XX改成YY"类型的精确编辑  
-🧠 **语义增强**：理解内容含义，适合"让人物表情更开心"等需要理解的编辑  
-🎨 **风格一致**：保持整体风格统一，适合"添加XX但要符合整张图的风格"  
-👁️ **内容感知**：智能理解上下文，适合"自然地移除XX"等需要补全背景的操作  
-🎭 **多区域协调**：同时处理多个区域，确保它们相互协调，适合复杂的批量编辑
-
-
-### 🎉 **你能用它做什么？**
-
-#### 🔥 **经典场景**
-🌄 **人像修图**：“把这个人的衣服改成白色” - 框一下，说一声，就好了！  
-🌅 **风景美化**：“让这片天空变成月夜” - 圈出天空，输入想法，一键完成！  
-📝 **文字编辑**：“在这里加上新年快乐” - 点个位置，说出内容，自动生成！  
-🎨 **风格转换**：“让整张照片变成动漫风格” - 选择全图，输入风格，立刻变身！
-
-#### 🤖 **AI黑科技**
-✨ **本地AI**：支持Ollama，数据不出门，隐私安全  
-☁️ **云端AI**：支持GPT、DeepSeek、千问，效果更强  
-🎯 **智能理解**：自动识别你的意图，选择最佳策略  
-🔄 **结果可控**：支持种子参数，同样输入获得同样结果
-
-#### 📦 **完整解决方案**
-• **4大类别** × **49个模板** = 覆盖所有常见需求  
-• **6种策略** × **AI加持** = 无限可能性  
-• **中英双语** × **自定义模板** = 适合所有人
-
-### 🤖 **AI增强器展示**
-
-#### 🌐 **API云端AI增强器**
-![API Enhancer](images/api.png)
-*支持GPT、DeepSeek、千问等云端AI模型，效果强大*
-
-#### 🤖 **Ollama本地AI增强器**
-![Ollama Enhancer](images/ollama.png)
-*本地部署AI模型，数据不出门，隐私安全*
-
-### 🌐 **在线体验**
-🎆 **仙宫云在线体验**：[https://www.xiangongyun.com/register/FIP8MJ](https://www.xiangongyun.com/register/FIP8MJ)  
-🔍 搜索“小红猪”即可找到，无需本地安装，上手即用！
-
-
-### 📋 模板分类
-
-| 分类 | 模板数量 | 描述 |
-|------|----------|------|
-| 🎯 **局部编辑** | 18个模板 | 特定对象编辑（颜色、样式、纹理、姿势等） |
-| 🌍 **全局调整** | 12个模板 | 整体图像处理（调色、增强、滤镜） |
-| 📝 **文字编辑** | 5个模板 | 文字操作（添加、删除、编辑、调整大小、组合） |
-| 🔧 **专业操作** | 14个模板 | 高级编辑（几何变换、合成等） |
-| ✏️ **自定义模板** | 无限制 | 用户自定义AI引导话术，支持保存/加载/管理 |
-
-### 🔮 未来规划
-
-#### 🎯 **核心发展方向**
-- [ ] **🔍 图像分割功能** - 智能识别分割图像中的元素，自动生成精准标注
-- [ ] **⚡ 实时编辑系统** - 将Ollama和API调用集成到前端，实现实时编辑实时生成提示词
-- [ ] **🧠 模型微调优化** - 基于DeepSeek-R1和Qwen3使用Flux官方训练数据集对模型微调
-
-### 📦 安装方法
-
-#### 方法一：Git克隆（推荐）
-```bash
-cd ComfyUI/custom_nodes/
-git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
-```
-
-#### 方法二：手动安装
-1. 将`KontextSuperPrompt`文件夹复制到ComfyUI的custom_nodes目录
-2. 重启ComfyUI
-3. 在`kontext_super_prompt/core`分类中找到`VisualPromptEditor`节点
-4. 双击节点打开可视化编辑器
-
-### 📱 **使用方法（比用手机还简单）**
-
-#### 🚀 **第一步：3秒钟设置**
-1. 在ComfyUI中找到 `kontext_super_prompt/core` 分类
-2. 拖入 `Kontext Super Prompt Visual Editor` 节点  
-3. 连接你的图像输入
-
-#### 🎯 **第二步：开始编辑**
-1. **双击节点** → 打开编辑界面（就像打开手机App一样）
-2. **选择工具** → 矩形/圆形/箭头/自由绘制，选你顺手的
-3. **框选区域** → 在图上圈出你想改的地方
-4. **说出想法** → 用人话描述你的需求，比如"把这里改成红色"
-
-#### ⚡ **第三步：AI处理**
-1. **选择策略** → 不知道选什么？选"自动检测"就对了
-2. **一键生成** → 点击生成，AI自动创建专业指令
-3. **直接使用** → 生成的指令可以直接用于Flux Kontext模型
-
-#### 💡 **小贴士**
-• 🎨 **多个区域**：用不同颜色标记不同区域，一次处理多个编辑
-• 🗣️ **自然语言**：想怎么说就怎么说，"把人变年轻"、"天空改成夜晚"都行
-• 🔄 **结果不满意**：换个编辑策略或者重新描述，总有一个适合你
-
-### 💻 **系统要求**
-- ✅ **ComfyUI** - 任何版本都可以，推荐最新版
-- ✅ **现代浏览器** - Chrome、Firefox、Safari、Edge都支持
-- ✅ **4GB内存** - 保证流畅运行（大部分电脑都满足）
-
-### 📊 **核心数据**
-🎯 **49个精品模板** + 🤖 **AI无限扩展** = 💯 **覆盖所有需求**  
-📦 **仅3.2MB** - 轻量级安装，不占空间  
-🚀 **4个核心节点** - 简单够用，不复杂  
-🌐 **中英双语** - 国内外用户都适用
+**[🇨🇳 中文说明](#chinese-docs) | [🇺🇸 English Manual](#english-docs)**
 
 ---
 
-## <a id="english-docs"></a>🇺🇸 English Documentation
+## <a id="chinese-docs"></a>🇨🇳 中文说明
 
-🎆 **Make AI Image Editing as Simple as Drawing** 🎆
+### 📖 产品介绍
 
-All you need: 📝 **Select Area** + 🗣️ **Describe Intent** = ✨ **Perfect AI Editing Instructions**
+Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻松创建AI图像编辑指令。您只需在图片上标记想要修改的区域，描述您的想法，工具会自动生成专业的编辑指令，无需学习复杂的提示词语法。
 
-No need to learn complex prompt techniques, no need to understand model parameters, no need to memorize command formats. As simple as using a paintbrush, yet achieving professional-grade AI editing results.
+### ✨ 主要功能
 
-## 🎯 Visual Demonstration
+#### 🖼️ 图像标注
+- 提供矩形、圆形、箭头和自由绘制四种标注工具
+- 支持红、绿、黄、蓝四种颜色标记
+- 可同时标记多个区域进行批量编辑
+- 支持调节标注的大小、透明度等属性
 
-### 🎨 **Visual Editor Interface**
-![Visual Editor Interface](images/visual_editor1.png)
-*Intuitive visual editing interface - Image annotation on the left, AI prompt generation on the right*
+#### 📝 编辑指令生成
+- **局部编辑**：修改特定对象的颜色、样式、纹理等属性
+- **全局调整**：调整整张图片的色调、光线、风格效果
+- **文本操作**：在图片上添加、删除或修改文字内容
+- **专业处理**：进行图像合成、变形等高级编辑操作
 
-### 🖄 **Base Template System**
-![Basic Templates](images/basic.png)
-*49 premium templates covering all editing scenarios - Local, Global, Text, Professional operations*
+#### 🤖 AI智能辅助
+- **本地AI支持**：使用本地AI模型，保护数据隐私
+- **云端AI服务**：连接多种在线AI服务，获得更强的处理能力
+- **智能理解**：自动分析您的编辑需求，提供合适的编辑建议
+- **模板系统**：提供多种预设编辑模板，覆盖常见的编辑场景
 
-### 💫 Quick Start
+#### 🌐 多语言界面
+- 支持中文和英文界面切换
+- 一键切换语言，所有界面文本自动更新
+- 界面语言设置自动保存
 
-1. **Double-click node** → Open visual editor
-2. **Draw annotations** → Select tools to mark target areas
-3. **Choose templates** → Select operation type and enhancement prompts  
-4. **Generate instantly** → Auto-generate structured prompts
+### 🎯 使用场景
 
-## 🎯 Project Purpose
+#### 人像修图
+- 调整人物的表情、服装、发型
+- 修改肤色、去除瑕疵
+- 改变人物姿势或添加配饰
 
-This project aims to build a super prompt generation system based on the **Flux Kontext large model**, achieving fine-grained, multimodal image editing through the collaborative control of intuitive graphic annotation and AI-enhanced intelligent prompts.
+#### 场景美化
+- 更换背景环境
+- 调整天空颜色或天气效果
+- 修改场景中的物体颜色或样式
 
-Users don't need to master complex prompt writing - they simply need to **select image regions + describe intentions**, and the super prompt system will automatically generate AI-enhanced structured editing instructions to drive the Kontext model to complete intelligent local/global image modifications.
+#### 产品图片
+- 调整产品颜色和材质
+- 优化光照和阴影效果
+- 添加或移除产品元素
 
-This project strives to achieve:
+#### 创意设计
+- 将照片转换为不同的艺术风格
+- 添加创意元素和特效
+- 制作拼图和合成图片
 
-🖼️ **WYSIWYG Visual Interaction**: Support for multiple annotation methods including rectangles, circles, arrows, and freehand drawing;
+### 🚀 操作步骤
 
-✍️ **Automated Structured Prompt Assembly and Completion**: Help novice users efficiently express editing requirements;
+#### 基本使用
+1. **打开编辑器**：双击节点打开编辑界面
+2. **选择工具**：从工具栏选择合适的标注工具
+3. **标记区域**：在图片上圈出需要编辑的部分
+4. **选择操作**：从模板中选择想要进行的编辑类型
+5. **描述需求**：用简单的语言描述您的编辑想法
+6. **生成指令**：点击生成按钮，获得专业的编辑指令
 
-🧠 **Integration with Large Model Semantic Understanding**: Precise control over image transformation, replacement, repair, and enhancement;
+#### 高级操作
+- **多区域编辑**：用不同颜色标记多个区域，一次处理多个编辑任务
+- **精细调整**：通过约束条件和装饰选项优化编辑效果
+- **自定义模板**：保存常用的编辑设置，提高工作效率
+- **语言切换**：点击界面右上角的语言按钮切换中英文
 
-🔄 **Complete Editing Loop Integration**: From annotation → mask generation → prompt generation → editing execution → feedback display, full-process automatic coordination.
+### 💡 产品特色
 
-The goal is to create a super prompt generation platform suitable for the **ComfyUI image creation ecosystem**, providing a more intelligent, natural, and efficient interaction method for AI image editing.
+#### 简单易用
+- 直观的图形操作界面，无需专业技能
+- 丰富的编辑模板，适合各种编辑需求
+- 自动生成专业指令，节省学习时间
 
-## ✨ Key Features
+#### 功能全面
+- 涵盖图像编辑的各个方面
+- 支持从简单修改到复杂合成的各种操作
+- 提供多种AI后端选择，适应不同使用环境
 
-### 🎨 Visual Annotation System
-- **4 Drawing Tools**: Rectangle, Circle, Arrow, Freehand Polygon
-- **Multi-color Support**: Red, Green, Yellow, Blue annotations
-- **Interactive Editing**: Click, drag, select, delete annotations
-- **Real-time Preview**: Live annotation rendering on images
+#### 灵活扩展
+- 支持自定义编辑模板
+- 可与其他ComfyUI工具配合使用
+- 定期更新功能，持续改进用户体验
 
-### 📝 Multimodal Structured Prompt Generation
-- **4 Template Categories**: Local Edits, Global Adjustments, Text Editing, Professional Operations
-- **49 Base Templates**: Carefully optimized based on 1025 official Flux Kontext instructions
-- **AI Smart Extension**: Generate unlimited variants through Ollama/API enhancers
-- **Multi-select Prompts**: Checkbox interface for constraint and decorative prompts
-- **Smart Combination**: Automatically convert visual annotations into multimodal AI-comprehensible structured prompts
+### 🔧 安装方法
 
+#### 自动安装
+1. 在ComfyUI的节点管理器中搜索"Kontext"
+2. 点击安装并重启ComfyUI
+3. 在节点列表中找到"Kontext Visual Prompt Editor"
 
-## 🚀 Implemented Features
+#### 手动安装
+1. 下载插件文件包
+2. 将文件夹放置到ComfyUI的custom_nodes目录下
+3. 重启ComfyUI程序
+4. 在工作流中添加相应节点
 
-### ✅ Core Functionality
-- [x] **Visual Prompt Editor Node** - Double-click to open unified interface
-- [x] **Multi-tool Annotation** - Rectangle, Circle, Arrow, Freehand drawing
-- [x] **4-category Template System** - Local/Global/Text/Professional operations
-- [x] **Multi-select Prompt Enhancement** - Checkbox interface for constraint/decorative prompts
-- [x] **Real-time Template Switching** - Operation type changes instantly update prompt options
-- [x] **Structured Output Generation** - Automatic prompt construction with selected enhancements
-- [x] **Image Rendering** - Annotations directly rendered to output images
+### 📋 系统要求
 
-### ✅ AI Enhancement Features (NEW!)
-- [x] **🤖 Local Ollama Service Integration** - Support calling local ollama service to generate structured prompts
-- [x] **🌐 API Remote Calling** - Support API remote calling of large language models to generate structured prompts
-- [x] **🎯 Multi-layer Instruction Support** - Support different instructions for multiple layers, e.g.: add a puppy at red marker, remove chair at blue marker, etc.
-- [x] **📋 Smart Template Library** - 70+ preset templates optimized based on FLUX official training dataset covering local editing, global editing, text editing, professional operations
-- [x] **🎲 Seed Parameter Control** - Support seed parameter to control generation randomness and ensure reproducible results
-- [x] **✏️ Custom User Templates** - Complete custom guidance prompt save/load/management system
-- [x] **🧹 Output Cleaning** - Intelligent cleaning of technical analysis content, outputting concise natural language instructions
-- [x] **🔄 Manual Model Refresh** - One-click refresh Ollama model list without restarting ComfyUI
-- [x] **DeepSeek R1/V3 Support** - Latest inference optimization model integration
-- [x] **Multi-provider Support** - SiliconFlow, DeepSeek, Qianwen, OpenAI
-- [x] **Cost Control** - Smart caching and real-time cost monitoring
-
-### 🚀 Model Training Progress
-- [x] **Models based on deepseek-r1 and qwen3 for generating kontext prompts are in training**...
-
-### 🤖 **AI Enhancer Showcase**
-
-#### 🌐 **API Cloud AI Enhancer**
-![API Enhancer](images/api.png)
-*Support for GPT, DeepSeek, Qianwen and other cloud AI models with powerful effects*
-
-#### 🤖 **Ollama Local AI Enhancer**
-![Ollama Enhancer](images/ollama.png)
-*Local AI model deployment, data never leaves your device, privacy secure*
-
-### 🌟 Xiangong Cloud Mirror Experience
-**Xiangong Cloud Mirror has deployed all the above features**: [https://www.xiangongyun.com/register/FIP8MJ](https://www.xiangongyun.com/register/FIP8MJ) (Search: 小红猪)
-
-### 📈 Planned Advanced Features
-- [ ] **Annotation Data Export** - JSON format with coordinates and metadata
-- [ ] **Multi-language Support** - Chinese/English interface elements
-- [ ] **Session Persistence** - Save & restore annotation states
-
-### ✅ User Experience
-- [x] **Intuitive Interface** - Left canvas, right prompt panel layout
-- [x] **Responsive Design** - Auto-scaling and zoom controls
-
-## 📋 Template Categories
-
-| Category | Templates | Description |
-|----------|-----------|-------------|
-| 🎯 **Local Edits** | 18 templates | Object-specific editing (color, style, texture, pose, etc.) |
-| 🌍 **Global Adjustments** | 12 templates | Whole image processing (color grading, enhancement, filters) |
-| 📝 **Text Editing** | 5 templates | Text manipulation (add, remove, edit, resize, combine) |
-| 🔧 **Professional Operations** | 14 templates | Advanced editing (geometric transforms, compositing, etc.) |
-| ✏️ **Custom Templates** | Unlimited | User-defined AI guidance prompts with save/load/management |
-
-## 🔮 Future Roadmap
-
-### 🎯 **Core Development Roadmap**
-- [ ] **🔍 Image Segmentation Function** - Intelligent recognition and segmentation of image elements with automatic precise annotation
-- [ ] **⚡ Real-time Editing System** - Frontend integration of Ollama and API calls for real-time editing and prompt generation
-- [ ] **🧠 Model Fine-tuning Optimization** - Fine-tune models based on DeepSeek-R1 and Qwen3 using Flux official training dataset
-
-## 📦 Installation
-
-### Method 1: Git Clone (Recommended)
-```bash
-cd ComfyUI/custom_nodes/
-git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
-```
-
-### Method 2: Manual Installation
-1. Copy the `KontextSuperPrompt` folder to your ComfyUI custom_nodes directory
-2. Restart ComfyUI
-3. Find the `VisualPromptEditor` node in the `kontext_super_prompt/core` category
-4. Double-click the node to open the visual editor
-
-## 🎮 Usage
-
-1. **Add Node**: Place `VisualPromptEditor` in your workflow
-2. **Connect Image**: Link your image input to the node
-3. **Open Editor**: Double-click the node to launch the interface
-4. **Annotate**: Use drawing tools to mark areas of interest
-5. **Configure**: Select template category and operation type
-6. **Enhance**: Choose constraint and decorative prompts via checkboxes
-7. **Generate**: Click "Generate Description" for structured prompts
-8. **Export**: Save annotations and use generated prompts in your workflow
-
-## 🔧 Requirements
-
-- ComfyUI (latest version recommended)
-- Python 3.7+
-- Modern web browser with JavaScript enabled
-- 4GB+ RAM for optimal performance
-
-## 📊 Project Stats
-
-- **Preset Templates**: 70+ FLUX optimized templates (based on official training dataset)
-- **Custom Templates**: Unlimited user-defined guidance prompts
-- **AI Enhancement Nodes**: 2 intelligent enhancers (Ollama local + API remote)
-- **Prompt Database**: 343 constraint and decorative prompts
-- **Multi-layer Support**: Unlimited annotation layers and instruction combinations
-- **Language Support**: English/Chinese bilingual interface
-- **File Size**: ~3.2MB total package
-- **Node Count**: 4 core nodes (editor + 2 AI enhancers + seed control)
+- ComfyUI版本：需要较新版本支持
+- 浏览器：Chrome、Firefox、Safari或Edge浏览器
+- 内存：建议4GB以上可用内存
+- 网络：部分AI功能需要网络连接
 
 ---
 
-**Version**: v3.0.0 - Kontext超级提示词版  
-**Status**: ✅ Production Ready  
+## <a id="english-docs"></a>🇺🇸 English Manual
+
+### 📖 Product Introduction
+
+Kontext Visual Prompt Editor is an image editing assistant tool that helps users easily create AI image editing instructions. Simply mark the areas you want to modify on the image, describe your ideas, and the tool will automatically generate professional editing instructions without needing to learn complex prompt syntax.
+
+### ✨ Main Features
+
+#### 🖼️ Image Annotation
+- Provides four annotation tools: rectangle, circle, arrow, and freehand drawing
+- Supports four color markers: red, green, yellow, and blue
+- Allows simultaneous marking of multiple areas for batch editing
+- Supports adjustment of annotation size, transparency, and other properties
+
+#### 📝 Editing Instruction Generation
+- **Local Editing**: Modify specific object colors, styles, textures, and other attributes
+- **Global Adjustment**: Adjust overall image tone, lighting, and style effects
+- **Text Operations**: Add, delete, or modify text content on images
+- **Professional Processing**: Perform advanced editing operations like image compositing and transformation
+
+#### 🤖 AI Intelligent Assistance
+- **Local AI Support**: Uses local AI models to protect data privacy
+- **Cloud AI Services**: Connects to various online AI services for enhanced processing power
+- **Smart Understanding**: Automatically analyzes your editing needs and provides suitable editing suggestions
+- **Template System**: Provides various preset editing templates covering common editing scenarios
+
+#### 🌐 Multi-language Interface
+- Supports Chinese and English interface switching
+- One-click language switching with automatic text updates
+- Interface language settings are automatically saved
+
+### 🎯 Usage Scenarios
+
+#### Portrait Retouching
+- Adjust facial expressions, clothing, and hairstyles
+- Modify skin tone and remove blemishes
+- Change poses or add accessories
+
+#### Scene Enhancement
+- Replace background environments
+- Adjust sky colors or weather effects
+- Modify object colors or styles in scenes
+
+#### Product Images
+- Adjust product colors and materials
+- Optimize lighting and shadow effects
+- Add or remove product elements
+
+#### Creative Design
+- Convert photos to different artistic styles
+- Add creative elements and effects
+- Create collages and composite images
+
+### 🚀 Operation Steps
+
+#### Basic Usage
+1. **Open Editor**: Double-click the node to open the editing interface
+2. **Select Tools**: Choose appropriate annotation tools from the toolbar
+3. **Mark Areas**: Circle the parts that need editing on the image
+4. **Choose Operations**: Select the desired editing type from templates
+5. **Describe Requirements**: Use simple language to describe your editing ideas
+6. **Generate Instructions**: Click the generate button to get professional editing instructions
+
+#### Advanced Operations
+- **Multi-area Editing**: Mark multiple areas with different colors to handle multiple editing tasks at once
+- **Fine Tuning**: Optimize editing effects through constraint conditions and decorative options
+- **Custom Templates**: Save frequently used editing settings to improve work efficiency
+- **Language Switching**: Click the language button in the top-right corner to switch between Chinese and English
+
+### 💡 Product Features
+
+#### Simple and Easy to Use
+- Intuitive graphical interface requiring no professional skills
+- Rich editing templates suitable for various editing needs
+- Automatically generates professional instructions, saving learning time
+
+#### Comprehensive Functionality
+- Covers all aspects of image editing
+- Supports various operations from simple modifications to complex compositions
+- Provides multiple AI backend options to adapt to different usage environments
+
+#### Flexible Extension
+- Supports custom editing templates
+- Can be used in conjunction with other ComfyUI tools
+- Regular feature updates with continuous user experience improvements
+
+### 🔧 Installation Methods
+
+#### Automatic Installation
+1. Search for "Kontext" in ComfyUI's node manager
+2. Click install and restart ComfyUI
+3. Find "Kontext Visual Prompt Editor" in the node list
+
+#### Manual Installation
+1. Download the plugin package
+2. Place the folder in ComfyUI's custom_nodes directory
+3. Restart the ComfyUI program
+4. Add the corresponding nodes to your workflow
+
+### 📋 System Requirements
+
+- ComfyUI Version: Requires recent version support
+- Browser: Chrome, Firefox, Safari, or Edge browser
+- Memory: Recommended 4GB+ available memory
+- Network: Some AI features require internet connection
+
+---
+
+**Version**: v3.1.0 - Intelligence Enhanced Edition  
+**Status**: ✅ Ready for Use  
 **License**: MIT  
-**Compatibility**: ComfyUI 0.4.0+
+**Author**: Kontext Team
