@@ -81,10 +81,6 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
     *   **编辑意图** (`product_showcase`) -> 为上述指令填充细节，如"专业产品照明"、"突出产品质感"、"目录级色彩标准"。
 *   **预期效果**: AI将生成一张具有专业影棚光效、背景简洁、鞋子细节和材质表现突出的高质量产品图，严格遵循技术参数。
 
-| 修改前 (普通照片) | 修改后 (专业产品图) |
-| :---: | :---: |
-| *在此处插入修改前图片* | *在此处插入修改后图片* |
-
 ---
 
 **示例2: 人像照片增强 - 艺术风格**
@@ -97,10 +93,6 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
     *   **处理风格** (`creative_artistic`) -> AI被指令扮演**“富有远见的艺术总监”**，鼓励进行富有想象力的创造。
     *   **编辑意图** (`portrait_enhancement`) -> 为创作提供基础，指示AI优化"自然肤色"、"柔和人像光"和"人物为焦点"。
 *   **预期效果**: 在优化人像的基础上，AI会增添独特的艺术氛围，可能包括戏剧性的光影、概念化的背景或特殊的色调，最终生成一张充满创意的人像艺术照。
-
-| 修改前 (普通人像) | 修改后 (创意人像) |
-| :---: | :---: |
-| *在此处插入修改前图片* | *在此处插入修改后图片* |
 
 ---
 
@@ -115,10 +107,6 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
     *   **处理风格** (`auto_smart`) -> AI被指令扮演**“图像分析专家”**，根据用户描述选择最有效的策略。
     *   **编辑意图** (`landscape_nature`) -> 为AI提供场景约束，强调"自然光线"和"环境和谐"。
 *   **预期效果**: AI将智能地重绘天空，调整全局光照，使整张照片呈现出和谐、自然的黄昏美景，所有元素的色彩和光影都会被统一到日落的氛围中。
-
-| 修改前 (白天风景) | 修改后 (黄昏风景) |
-| :---: | :---: |
-| *在此处插入修改前图片* | *在此处插入修改后图片* |
 
 ---
 
@@ -353,10 +341,6 @@ The following examples show how the node combines **Editing Intent (what to do)*
     *   **Editing Intent** (`product_showcase`) -> This fills in the details for the instruction, such as "professional product lighting," "highlight product texture," and "catalog-level color standards."
 *   **Expected Result**: The AI will generate a high-quality product image with professional studio lighting, a clean background, and outstanding detail and texture on the shoe, strictly adhering to technical parameters.
 
-| Before (Regular Photo) | After (Professional Product Image) |
-| :---: | :---: |
-| *Insert 'before' image here* | *Insert 'after' image here* |
-
 ---
 
 **Example 2: Portrait Enhancement - Artistic Style**
@@ -369,10 +353,6 @@ The following examples show how the node combines **Editing Intent (what to do)*
     *   **Processing Style** (`creative_artistic`) -> The AI is instructed to act as a **"visionary art director,"** encouraging imaginative creation.
     *   **Editing Intent** (`portrait_enhancement`) -> This provides the basis for the creation, directing the AI to optimize "natural skin tone," "soft portrait lighting," and "focus on the person."
 *   **Expected Result**: On top of enhancing the portrait, the AI will add a unique artistic atmosphere, possibly including dramatic lighting, conceptual backgrounds, or special color tones, resulting in a creative portrait.
-
-| Before (Regular Portrait) | After (Creative Portrait) |
-| :---: | :---: |
-| *Insert 'before' image here* | *Insert 'after' image here* |
 
 ---
 
@@ -387,10 +367,6 @@ The following examples show how the node combines **Editing Intent (what to do)*
     *   **Processing Style** (`auto_smart`) -> The AI is instructed to act as an **"image analysis expert,"** selecting the most effective strategy based on the user's description.
     *   **Editing Intent** (`landscape_nature`) -> This provides scene constraints for the AI, emphasizing "natural light" and "environmental harmony."
 *   **Expected Result**: The AI will intelligently repaint the sky and adjust the global lighting to create a harmonious and natural dusk scene, with the colors and shadows of all elements unified under the sunset atmosphere.
-
-| Before (Daytime Landscape) | After (Dusk Landscape) |
-| :---: | :---: |
-| *Insert 'before' image here* | *Insert 'after' image here* |
 
 ---
 
