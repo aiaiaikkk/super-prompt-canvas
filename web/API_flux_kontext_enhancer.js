@@ -197,15 +197,123 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
 app.registerExtension({
     name: "Kontext.APIEnhancer.Extension",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "APIFluxKontextEnhancer") {
+        console.log("🔍 DEBUG: beforeRegisterNodeDef called with nodeData:", {
+            name: nodeData.name,
+            display_name: nodeData.display_name,
+            category: nodeData.category,
+            description: nodeData.description
+        });
+        
+        // Check for API Flux Kontext Enhancer node (handle multiple possible names)
+        const isAPIFluxNode = nodeData.name === "APIFluxKontextEnhancer" || 
+                              nodeData.name === "API_flux_kontext_enhancer" ||
+                              (nodeData.name && nodeData.name.includes("APIFlux")) ||
+                              (nodeData.name && nodeData.name.includes("API_flux")) ||
+                              (nodeData.display_name && nodeData.display_name.includes("APIFlux")) ||
+                              (nodeData.display_name && nodeData.display_name.includes("API_flux"));
+        
+        if (!isAPIFluxNode) {
+            console.log("❌ DEBUG: Node name doesn't match, skipping color setup for:", nodeData.name);
             return;
         }
+        console.log("✅ DEBUG: APIFluxKontextEnhancer node detected, setting up colors");
         
-        const onConstructed = nodeType.prototype.onConstructed;
-        nodeType.prototype.onConstructed = function () {
-            const r = onConstructed?.apply(this, arguments);
+        // 重写nodeCreated方法，立即设置颜色（像Ollama节点一样）
+        const originalNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            console.log("🔥 DEBUG: onNodeCreated called for APIFlux node");
+            const result = originalNodeCreated?.apply(this, arguments);
 
-            // Set node color with enhanced forcing mechanism
+            // 立即设置紫色主题，保持原始倒角
+            this.color = "#673AB7";     // 主色调 - 深度紫色
+            this.bgcolor = "#512DA8";   // 背景色 - 更深的紫色
+            this.boxcolor = "#673AB7";
+            this.titlecolor = "#FFFFFF";
+            this.node_color = "#673AB7";
+            this.node_bgcolor = "#512DA8";
+            this.header_color = "#673AB7";
+            this.border_color = "#673AB7";
+            
+            console.log("🎨 APIFlux节点颜色已设置为紫色主题（立即应用）", this.color, this.bgcolor);
+
+            // 强制重绘
+            if (this.graph && this.graph.canvas) {
+                this.graph.canvas.setDirty(true);
+            }
+
+            // 延迟再次设置确保生效（和Ollama一样）
+            setTimeout(() => {
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                this.boxcolor = "#673AB7";
+                this.titlecolor = "#FFFFFF";
+                this.node_color = "#673AB7";
+                this.node_bgcolor = "#512DA8";
+                this.header_color = "#673AB7";
+                this.border_color = "#673AB7";
+                
+                if (this.graph && this.graph.canvas) {
+                    this.graph.canvas.setDirty(true);
+                }
+                console.log("🎨 APIFlux延迟颜色设置完成");
+            }, 100);
+
+            // 定期强制设置颜色（和Ollama一样）
+            const colorInterval = setInterval(() => {
+                if (this.color !== "#673AB7" || this.bgcolor !== "#512DA8") {
+                    this.color = "#673AB7";
+                    this.bgcolor = "#512DA8";
+                    this.boxcolor = "#673AB7";
+                    this.titlecolor = "#FFFFFF";
+                    
+                    if (this.graph && this.graph.canvas) {
+                        this.graph.canvas.setDirty(true);
+                    }
+                    console.log("🎨 APIFlux颜色被重置，重新设置为紫色主题");
+                }
+            }, 1000);
+
+            // 节点销毁时清理定时器
+            const originalOnRemoved = this.onRemoved;
+            this.onRemoved = function() {
+                clearInterval(colorInterval);
+                if (originalOnRemoved) {
+                    originalOnRemoved.call(this);
+                }
+            };
+
+            // 重写onDrawBackground方法来确保颜色显示（和Ollama一样）
+            const originalOnDrawBackground = this.onDrawBackground;
+            this.onDrawBackground = function(ctx) {
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                if (originalOnDrawBackground) {
+                    originalOnDrawBackground.call(this, ctx);
+                }
+            };
+
+            // 重写onDrawForeground方法（和Ollama一样）
+            const originalOnDrawForeground = this.onDrawForeground;
+            this.onDrawForeground = function(ctx) {
+                this.color = "#673AB7";
+                this.bgcolor = "#512DA8";
+                
+                if (originalOnDrawForeground) {
+                    originalOnDrawForeground.call(this, ctx);
+                }
+            };
+
+            return result;
+        };
+        
+        // 保留原有的onConstructed逻辑作为备用
+        const originalConstructor = nodeType.prototype.onConstructed;
+        nodeType.prototype.onConstructed = function () {
+            console.log("🔥 DEBUG: onConstructed called for APIFlux node");
+            const result = originalConstructor?.apply(this, arguments);
+
+            // 再次确保颜色设置
             this.color = "#673AB7";
             this.bgcolor = "#512DA8";
             this.boxcolor = "#673AB7";
@@ -215,7 +323,12 @@ app.registerExtension({
             this.header_color = "#673AB7";
             this.border_color = "#673AB7";
             
-            console.log("🎨 APIFlux节点颜色已设置为紫色主题", this.color, this.bgcolor);
+            console.log("🎨 DEBUG: APIFlux节点颜色已设置", {
+                color: this.color,
+                bgcolor: this.bgcolor,
+                constructor: this.constructor.name,
+                type: this.type
+            });
             
             // 强制刷新节点外观
             if (this.setDirtyCanvas) {
@@ -381,27 +494,286 @@ app.registerExtension({
 
             return r;
         };
+    },
+    
+    // 备用方案：使用nodeCreated事件
+    nodeCreated(node) {
+        console.log("🎯 DEBUG: nodeCreated called for node type:", node.type);
+        if (node.type === "APIFluxKontextEnhancer") {
+            console.log("🔥 DEBUG: APIFlux node created via nodeCreated event");
+            
+            // 强制设置颜色
+            node.color = "#673AB7";
+            node.bgcolor = "#512DA8";
+            node.boxcolor = "#673AB7";
+            node.titlecolor = "#FFFFFF";
+            
+            console.log("🎨 DEBUG: Colors set via nodeCreated", {
+                color: node.color,
+                bgcolor: node.bgcolor
+            });
+            
+            // 延迟设置确保生效
+            setTimeout(() => {
+                node.color = "#673AB7";
+                node.bgcolor = "#512DA8";
+                if (node.graph && node.graph.canvas) {
+                    node.graph.canvas.setDirty(true);
+                }
+                console.log("🔄 DEBUG: Delayed color set complete");
+            }, 100);
+        }
     }
 });
 
 // 添加APIFlux节点的全局样式 - 修复颜色问题
 function addAPIFluxGlobalStyles() {
+    console.log("🎨 DEBUG: Adding global CSS styles for APIFlux");
     const style = document.createElement('style');
+    style.id = 'apiflux-colors';
     style.textContent = `
-        .litegraph .node.APIFluxKontextEnhancer {
+        /* 只针对真正的图形节点，排除搜索预览和UI元素 */
+        .litegraph-node[data-node-type="APIFluxKontextEnhancer"]:not(.p-autocomplete-option):not(._sb_node_preview),
+        .graphnode[data-title*="APIFlux"]:not(.p-autocomplete-option):not(._sb_node_preview),
+        .litegraph .node.APIFluxKontextEnhancer:not(.p-autocomplete-option):not(._sb_node_preview),
+        canvas ~ .node[title*="APIFlux"]:not(.p-autocomplete-option):not(._sb_node_preview) {
             background-color: #512DA8 !important;
-            border-color: #673AB7 !important;
+            border: 2px solid #673AB7 !important;
+            box-shadow: 0 0 0 2px #673AB7 !important;
         }
-        .litegraph .node.APIFluxKontextEnhancer .title {
+        
+        /* 标题样式 - 只针对图形节点 */
+        .litegraph-node[data-node-type="APIFluxKontextEnhancer"]:not(.p-autocomplete-option):not(._sb_node_preview) .title,
+        .graphnode[data-title*="APIFlux"]:not(.p-autocomplete-option):not(._sb_node_preview) .title,
+        .litegraph .node.APIFluxKontextEnhancer:not(.p-autocomplete-option):not(._sb_node_preview) .title,
+        canvas ~ .node[title*="APIFlux"]:not(.p-autocomplete-option):not(._sb_node_preview) .title {
             background-color: #673AB7 !important;
             color: #FFFFFF !important;
         }
+        
+        /* 确保搜索预览和下拉菜单保持原样 */
+        .p-autocomplete-option[aria-label*="APIFlux"],
+        ._sb_node_preview[data-title*="APIFlux"],
+        .dropdown *[title*="APIFlux"],
+        .menu *[title*="APIFlux"],
+        .search-box *[title*="APIFlux"],
+        .contextmenu *[title*="APIFlux"] {
+            background-color: revert !important;
+            border: revert !important;
+            box-shadow: revert !important;
+        }
     `;
     document.head.appendChild(style);
+    console.log("✅ DEBUG: Global CSS styles added");
 }
 
 // 立即执行全局样式添加
 addAPIFluxGlobalStyles();
+
+// 添加动态节点观察器以确保颜色正确应用
+function addNodeObserver() {
+    console.log("🔍 DEBUG: Setting up node observer for dynamic color application");
+    
+    // 检查现有节点
+    function checkExistingNodes() {
+        const allNodes = document.querySelectorAll('.litegraph .node, .graphnode');
+        console.log("🔍 DEBUG: Found", allNodes.length, "existing nodes");
+        
+        allNodes.forEach(node => {
+            const title = node.getAttribute('title') || node.textContent || '';
+            if (title.includes('APIFlux') || title.includes('API_flux')) {
+                console.log("🎨 DEBUG: Found existing APIFlux node, applying colors:", title);
+                applyPurpleColors(node);
+            }
+        });
+    }
+    
+    // 应用紫色样式的函数
+    function applyPurpleColors(node) {
+        if (!node) return;
+        
+        // 检查是否是搜索预览或UI元素，如果是则跳过
+        if (node.classList.contains('p-autocomplete-option') ||
+            node.classList.contains('_sb_node_preview') ||
+            node.closest('.p-autocomplete, .dropdown, .menu, .search-box, .contextmenu')) {
+            console.log("🚫 DEBUG: Skipping UI element:", node.className);
+            return;
+        }
+        
+        console.log("🔧 DEBUG: Applying colors to real graph node:", node);
+        console.log("🔧 DEBUG: Node classes:", node.className);
+        
+        // 应用节点背景色 (多种方式)
+        node.style.setProperty('background-color', '#512DA8', 'important');
+        node.style.setProperty('border-color', '#673AB7', 'important');
+        node.style.setProperty('border', '2px solid #673AB7', 'important');
+        node.style.setProperty('box-shadow', '0 0 0 2px #673AB7', 'important');
+        
+        // 查找并应用标题色 (多种选择器)
+        const titleSelectors = [
+            '.title', 
+            '.litegraph-node-title', 
+            '.node-title',
+            '.comfy-node-title',
+            '[data-title]'
+        ];
+        
+        let titleElement = null;
+        for (const selector of titleSelectors) {
+            titleElement = node.querySelector(selector);
+            if (titleElement) {
+                console.log("🔧 DEBUG: Found title element with selector:", selector);
+                break;
+            }
+        }
+        
+        if (titleElement) {
+            titleElement.style.setProperty('background-color', '#673AB7', 'important');
+            titleElement.style.setProperty('color', '#FFFFFF', 'important');
+        } else {
+            console.log("🔧 DEBUG: No title element found, checking children");
+            // 如果没有找到标题元素，尝试应用到第一个子元素
+            const firstChild = node.firstElementChild;
+            if (firstChild) {
+                firstChild.style.setProperty('background-color', '#673AB7', 'important');
+                firstChild.style.setProperty('color', '#FFFFFF', 'important');
+            }
+        }
+        
+        console.log("🎨 DEBUG: Applied purple colors to node with enhanced targeting");
+    }
+    
+    // 创建观察器
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    // 排除搜索预览、下拉菜单等UI元素
+                    if (node.closest && node.closest('.p-autocomplete, .dropdown, .menu, ._sb_node_preview, .search-box, .node-search, .contextmenu')) {
+                        return;
+                    }
+                    
+                    // 检查是否是真正的图形节点
+                    const title = node.getAttribute('title') || node.textContent || '';
+                    const isRealGraphNode = node.classList.contains('litegraph-node') || 
+                                          node.classList.contains('graphnode') ||
+                                          (node.parentElement && node.parentElement.tagName === 'CANVAS');
+                    
+                    if ((title.includes('APIFlux') || title.includes('API_flux')) && isRealGraphNode) {
+                        console.log("🎨 DEBUG: New real APIFlux graph node detected, applying colors:", title);
+                        setTimeout(() => applyPurpleColors(node), 100);
+                    }
+                    
+                    // 检查子节点，但只针对真正的图形节点
+                    const apiFluxNodes = node.querySelectorAll && node.querySelectorAll('.litegraph-node[title*="APIFlux"], .graphnode[title*="APIFlux"]');
+                    if (apiFluxNodes) {
+                        apiFluxNodes.forEach(apiNode => {
+                            console.log("🎨 DEBUG: Found real APIFlux child graph node, applying colors");
+                            setTimeout(() => applyPurpleColors(apiNode), 100);
+                        });
+                    }
+                }
+            });
+        });
+    });
+    
+    // 开始观察
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // 检查现有节点
+    setTimeout(checkExistingNodes, 500);
+    
+    console.log("✅ DEBUG: Node observer setup complete");
+}
+
+// 在页面加载后设置观察器
+setTimeout(addNodeObserver, 1000);
+
+// 添加定期检查和强制应用颜色的函数
+function forceAPIFluxColors() {
+    console.log("🔍 DEBUG: Performing periodic color check for APIFlux nodes");
+    
+    // 首先查找真正的ComfyUI图形节点 (LiteGraph nodes)
+    const graphCanvas = document.querySelector('#graph-canvas, .litegraph, .graphcanvas');
+    if (graphCanvas && window.app && window.app.graph) {
+        console.log("🔍 DEBUG: Found graph canvas, checking LiteGraph nodes");
+        
+        // 遍历图形中的所有节点
+        const nodes = window.app.graph._nodes || [];
+        let styledNodes = 0;
+        
+        nodes.forEach((node, index) => {
+            if (node.type === "APIFluxKontextEnhancer" || 
+                (node.title && node.title.includes("APIFlux"))) {
+                
+                console.log("🎨 DEBUG: Found LiteGraph APIFlux node:", node.type, node.title);
+                
+                // 设置节点颜色属性
+                node.color = "#673AB7";
+                node.bgcolor = "#512DA8";
+                node.boxcolor = "#673AB7";
+                
+                // 强制重绘节点
+                if (node.setDirtyCanvas) {
+                    node.setDirtyCanvas(true, true);
+                }
+                
+                styledNodes++;
+            }
+        });
+        
+        if (styledNodes > 0) {
+            console.log(`🎨 DEBUG: Applied LiteGraph colors to ${styledNodes} nodes`);
+            // 强制重绘整个画布
+            if (window.app.graph.setDirtyCanvas) {
+                window.app.graph.setDirtyCanvas(true, true);
+            }
+        }
+    }
+    
+    // 备用方案：查找DOM中的节点元素，但排除UI元素
+    const selectors = [
+        'div.litegraph-node[data-title*="APIFlux"]',
+        'div.node[data-title*="APIFlux"]',
+        'canvas ~ div[title*="APIFlux"]'
+    ];
+    
+    let foundDOMNodes = 0;
+    selectors.forEach(selector => {
+        const nodes = document.querySelectorAll(selector);
+        nodes.forEach(node => {
+            // 排除下拉菜单和UI元素
+            if (node.closest('.p-autocomplete, .dropdown, .menu, ._sb_node_preview')) {
+                return;
+            }
+            
+            foundDOMNodes++;
+            console.log("🎨 DEBUG: Found DOM APIFlux node with selector:", selector, node);
+            
+            // 强制应用紫色样式
+            node.style.setProperty('background-color', '#512DA8', 'important');
+            node.style.setProperty('border', '2px solid #673AB7', 'important');
+            node.style.setProperty('box-shadow', '0 0 0 2px #673AB7', 'important');
+            
+            // 查找并设置标题颜色
+            const titleElement = node.querySelector('.title, .node-title, .comfy-node-title, [class*="title"]');
+            if (titleElement) {
+                titleElement.style.setProperty('background-color', '#673AB7', 'important');
+                titleElement.style.setProperty('color', '#FFFFFF', 'important');
+            }
+        });
+    });
+    
+    if (foundDOMNodes > 0) {
+        console.log(`🎨 DEBUG: Applied DOM colors to ${foundDOMNodes} APIFlux nodes`);
+    }
+}
+
+// 定期检查并应用颜色 (每2秒检查一次)
+setInterval(forceAPIFluxColors, 2000);
+
+// 页面加载完成后立即检查
+setTimeout(forceAPIFluxColors, 500);
 
 // 导出工具函数供其他模块使用
 export {
