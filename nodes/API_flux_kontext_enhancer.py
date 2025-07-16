@@ -16,6 +16,7 @@ import time
 import traceback
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
+import re # Added for language detection
 
 try:
     import openai
@@ -32,6 +33,11 @@ try:
     WEB_AVAILABLE = True
 except ImportError:
     WEB_AVAILABLE = False
+
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from guidance_manager import guidance_manager
 
 
 class APIFluxKontextEnhancer:
@@ -215,6 +221,10 @@ For more examples, please check guidance_template options."""
         """定义节点输入类型"""
         # 动态生成placeholder内容
         default_placeholder = cls.get_template_content_for_placeholder("efficient_concise", "none")
+        
+        # 获取已保存的指引列表
+        saved_guidance_list = ["none"] + guidance_manager.list_guidance()
+
         return {
             "required": {
                 "api_provider": (["siliconflow", "deepseek", "qianwen", "openai"], {
@@ -288,10 +298,19 @@ For more examples, please check guidance_template options."""
                     "placeholder": default_placeholder,
                     "tooltip": "Custom AI guidance instructions (used when guidance_style is custom)"
                 }),
-                "load_saved_guidance": (["none"], {
+                "load_saved_guidance": (saved_guidance_list, {
                     "default": "none",
                     "tooltip": "Load previously saved custom guidance (used when guidance_style is custom)"
-                })
+                }),
+                "save_guidance_name": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "placeholder": "Enter name to save guidance..."
+                }),
+                "save_guidance_button": ("BOOLEAN", {
+                    "default": False,
+                    "label": "Save Guidance"
+                }),
             },
             "optional": {
                 "image": ("IMAGE", {
@@ -321,11 +340,11 @@ For more examples, please check guidance_template options."""
         self._manage_cache()
     
     def _get_cache_key(self, annotation_data: str, 
-                      edit_instruction_type: str, 
+                      edit_description: str, 
                       model_name: str, seed: int = 0) -> str:
         """生成缓存键"""
         import hashlib
-        content = f"{annotation_data}|{edit_instruction_type}|{model_name}|{seed}"
+        content = f"{annotation_data}|{edit_description}|{model_name}|{seed}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
@@ -597,167 +616,98 @@ For more examples, please check guidance_template options."""
     def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, 
                                 annotation_data, edit_description, 
                                 editing_intent, processing_style, seed,
-                                custom_guidance, load_saved_guidance, image=None):
+                                custom_guidance, load_saved_guidance,
+                                save_guidance_name, save_guidance_button, 
+                                image=None):
         """
         Main function to enhance Flux instructions via API
         """
-        
         try:
             start_time = time.time()
+            
+            # 处理保存按钮点击
+            if save_guidance_button and save_guidance_name and custom_guidance:
+                guidance_manager.save_guidance(save_guidance_name, custom_guidance)
+                print(f"✅ Guidance '{save_guidance_name}' saved.")
+                # 重置按钮状态避免重复保存
+                save_guidance_button = False
+
+            # 如果选择了加载项，则覆盖custom_guidance
+            if load_saved_guidance != "none":
+                loaded_data = guidance_manager.load_guidance(load_saved_guidance)
+                if loaded_data and 'content' in loaded_data:
+                    custom_guidance = loaded_data['content']
+                    print(f"📋 Guidance '{load_saved_guidance}' loaded.")
+            
+            # 获取 guidance manager 的实例
+            guidance_manager_instance = guidance_manager
             
             # 使用AI智能映射逻辑
             edit_instruction_type, guidance_style, guidance_template = self._map_intent_to_guidance(
                 editing_intent, processing_style
             )
             
-            print(f"🎯 Intent mapping: {editing_intent} + {processing_style} -> {edit_instruction_type}, {guidance_style}, {guidance_template}")
-            
-            # 设置参数，使用seed控制随机性
-            # 使用seed来调整temperature，确保可重复性
-            import random
-            random.seed(seed)
-            temperature = 0.3 + (random.random() * 0.7)  # 0.3-1.0 range based on seed
-            max_tokens = 1000
-            enable_caching = True
-            debug_mode = False
-            language = "english"  # Fixed language to English for downstream processing
-            output_format = "natural_language"  # Fixed output format to natural language
-            
-            # 导入引导话术管理器
-            try:
-                import sys
-                import os
-                sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-                from guidance_templates import guidance_manager
-            except ImportError:
-                # 回退到绝对导入
-                import sys
-                import os
-                sys.path.append(os.path.dirname(__file__))
-                from guidance_templates import guidance_manager
-            
-            # 构建系统提示词（整合引导话术）
-            # 优先使用智能提示分析器
+            # 获取模型名称
+            model_name = custom_model if model_preset == "custom" else model_preset
+            language = "zh" if re.search(r'[\u4e00-\u9fa5]', edit_description) else "en"
+            output_format = "natural_language"
+
+            # 构建系统提示词
             try:
                 system_prompt = self._build_intelligent_system_prompt(
                     editing_intent, processing_style, edit_description, annotation_data,
                     guidance_style, guidance_template, custom_guidance, 
-                    load_saved_guidance, language, guidance_manager
+                    load_saved_guidance, language, guidance_manager_instance
                 )
                 print("✅ Using intelligent system prompt analysis")
             except Exception as e:
                 print(f"⚠️ Intelligent system prompt failed: {e}")
-                # 回退到基础系统提示词
-                system_prompt = guidance_manager.build_system_prompt(
+                system_prompt = guidance_manager_instance.build_system_prompt(
                     guidance_style=guidance_style,
                     guidance_template=guidance_template,
                     custom_guidance=custom_guidance,
-                    load_saved_guidance=load_saved_guidance,
-                    language=language
+                    language=language,
+                    edit_instruction_type=edit_instruction_type,
+                    output_format=output_format,
+                    fallback_mode=True
                 )
-                print("↩️ Using fallback system prompt")
-            
-            # 确定实际使用的模型名称
-            if model_preset == "custom":
-                if not custom_model or not custom_model.strip():
-                    return (
-                        "Error: Please provide model name when selecting custom model",
-                        "Error: Custom model name validation failed"
-                    )
-                model_name = custom_model.strip()
-            else:
-                model_name = model_preset
-            
-            # 输入验证
-            if not api_key or not api_key.strip():
-                return (
-                    "Error: Please provide valid API key",
-                    "Error: API key validation failed"
-                )
-            
-            # 检查缓存
-            cache_key = None
-            if enable_caching:
-                cache_key = self._get_cache_key(
-                    annotation_data, 
-                    edit_instruction_type, model_name, seed
-                )
-                
-                if cache_key in self.cache:
-                    cached_result = self.cache[cache_key]
-                    if debug_mode:
-                        print(f"🎯 Using cached result: {cache_key}")
-                    # 选择最相关的缓存输出作为Flux编辑指令
-                    flux_instructions = cached_result.get('kontext_instructions', '') or cached_result.get('enhanced_prompt', '')
-                    cached_system_prompt = cached_result.get('system_prompt', '[No system_prompt info in cache]')
-                    return (flux_instructions, cached_system_prompt)
-            
-            # 创建API客户端
-            client = self._create_api_client(api_provider, api_key)
-            
-            # 构建用户提示词（系统提示词已在前面通过引导话术系统构建）
+
+            # 2. 构建用户Prompt
             user_prompt = self._build_user_prompt(annotation_data, edit_description)
             
-            if debug_mode:
-                print(f"🔍 System prompt: {system_prompt[:200]}...")
-                print(f"🔍 User prompt: {user_prompt[:200]}...")
-            
-            # 调用API
-            response_text, response_info = self._generate_with_api(
-                client, model_name, system_prompt, user_prompt, 
-                temperature, max_tokens, api_provider
+            # 3. API调用 & 缓存管理
+            client = self._create_api_client(api_provider, api_key)
+            if client is None:
+                return ("", "API client creation failed. Please check API key and provider.")
+
+            cache_key = self._get_cache_key(annotation_data, edit_description, model_name, seed)
+            if cache_key in self.cache:
+                print("✅ Using cached response")
+                cached_data = self.cache[cache_key]
+                return (cached_data["response"], cached_data["system_prompt"])
+
+            # 4. 执行API调用
+            response_text, usage_info = self._generate_with_api(
+                client, model_name, system_prompt, user_prompt, 0.7, 2048, api_provider
             )
+
+            # 5. 解析和处理响应
+            if not response_text:
+                return ("", system_prompt)
             
-            # 解析响应
-            enhanced_prompt, kontext_instructions = self._parse_api_response(response_text)
-            
-            # 生成调试信息
-            generation_time = time.time() - start_time
-            debug_info = f"""Generation complete | Provider: {response_info.get('provider', api_provider)} | Model: {model_name} | 
-Time: {generation_time:.2f}s | Tokens: {response_info.get('total_tokens', 0)} | 
-Cost: ¥{response_info.get('estimated_cost', 0):.4f}"""
-            
-            # 准备返回的API响应信息
-            api_response = json.dumps({
-                "response_info": response_info,
-                "generation_time": generation_time,
-                "session_stats": self.session_stats,
-                "raw_response": response_text[:500] + "..." if len(response_text) > 500 else response_text
-            }, ensure_ascii=False, indent=2)
+            flux_instructions = self._clean_natural_language_output(response_text)
             
             # 缓存结果
-            if enable_caching and cache_key:
-                self._manage_cache()
-                self.cache[cache_key] = {
-                    'enhanced_prompt': enhanced_prompt,
-                    'kontext_instructions': kontext_instructions,
-                    'system_prompt': system_prompt,
-                    'generation_time': generation_time,
-                    'timestamp': time.time()
-                }
+            self.cache[cache_key] = {"response": flux_instructions, "system_prompt": system_prompt}
             
-            # 选择最相关的输出作为Flux编辑指令
-            flux_instructions = kontext_instructions if kontext_instructions.strip() else enhanced_prompt
-            
-            # Clean output for natural language format
-            flux_instructions = self._clean_natural_language_output(flux_instructions)
+            end_time = time.time()
+            print(f"✅ API call successful, cost {end_time - start_time:.2f}s")
             
             return (flux_instructions, system_prompt)
             
         except Exception as e:
-            error_msg = f"Processing failed: {str(e)}"
-            print(f"❌ {error_msg}")
-            
-            error_response = json.dumps({
-                "error": error_msg,
-                "traceback": traceback.format_exc(),
-                "timestamp": datetime.now().isoformat()
-            }, ensure_ascii=False, indent=2)
-            
-            return (
-                f"Error: {error_msg}",
-                f"Error: Processing failed - {error_msg}"
-            )
+            print(f"❌ API call failed: {traceback.format_exc()}")
+            return ("", f"Error: {e}")
     
     def _clean_natural_language_output(self, instructions: str) -> str:
         """清理和格式化自然语言输出"""

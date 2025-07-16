@@ -26,10 +26,14 @@ try:
 except ImportError:
     WEB_AVAILABLE = False
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from guidance_manager import guidance_manager
 
 class OllamaFluxKontextEnhancerV2:
     """
-    🤖 Ollama Flux Kontext Enhancer
+    🦙 Ollama Flux Kontext Enhancer
     
     Converts annotation data from VisualPromptEditor into structured editing instructions
     optimized for Flux Kontext, using local Ollama models.
@@ -226,8 +230,8 @@ class OllamaFluxKontextEnhancerV2:
     def get_template_content_for_placeholder(cls, guidance_style, guidance_template):
         """Gets template content for placeholder display"""
         try:
-            # Import guidance_templates module using an absolute path from the custom node root
-            from nodes.guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
+            # Import guidance_templates module from the current 'nodes' directory
+            from guidance_templates import PRESET_GUIDANCE, TEMPLATE_LIBRARY
             
             # Select content based on guidance_style
             if guidance_style == "custom":
@@ -328,6 +332,10 @@ For more examples, please check guidance_template options."""
                     "default": default_model,
                     "tooltip": "Select an Ollama model. The list is fetched in real-time from the Ollama service."
                 }),
+                "auto_unload_model": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Automatically unload the model after generation to free up memory. Keep unchecked to maintain the model loaded throughout the session."
+                }),
                 "editing_intent": ([
                     "product_showcase",      # 产品展示优化
                     "portrait_enhancement",  # 人像美化
@@ -385,9 +393,17 @@ For more examples, please check guidance_template options."""
                     "placeholder": default_placeholder,
                     "tooltip": "Enter custom AI guidance instructions (used when guidance_style is 'custom')."
                 }),
-                "load_saved_guidance": (["none"], {
+                "load_saved_guidance": (["none"] + guidance_manager.list_guidance(), {
                     "default": "none",
                     "tooltip": "Load previously saved custom guidance (used when guidance_style is 'custom')."
+                }),
+                "save_guidance": ("BOOLEAN", {
+                    "default": False, 
+                    "tooltip": "Enable to save the current custom guidance text to a file."
+                }),
+                "guidance_name": ("STRING", {
+                    "default": "My Guidance",
+                    "tooltip": "The name of the file to save the guidance to."
                 }),
             }
         }
@@ -452,7 +468,10 @@ For more examples, please check guidance_template options."""
             print(f"🗑️ Removed oldest cache entry, cache size: {len(self.cache)}")
     
     def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
-                                       edit_description: str, annotation_data: str = "") -> str:
+                                       edit_description: str, annotation_data: str = "",
+                                       guidance_style: str = "efficient_concise", guidance_template: str = "none",
+                                       custom_guidance: str = "", load_saved_guidance: str = "none",
+                                       language: str = "zh", guidance_manager = None) -> str:
         """构建智能系统提示"""
         try:
             # 导入智能分析器
@@ -610,9 +629,11 @@ For more examples, please check guidance_template options."""
 
     def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
                                 editing_intent: str, processing_style: str,
+                                save_guidance: bool, guidance_name: str,
                                 image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
                                 enable_visual_analysis: bool = False, seed: int = 42,
-                                custom_guidance: str = "", load_saved_guidance: str = "none"):
+                                custom_guidance: str = "", load_saved_guidance: str = "none",
+                                auto_unload_model: bool = False):
         
         debug_mode = True 
         self.start_time = time.time()  # Record start time for processing metadata
@@ -623,6 +644,18 @@ For more examples, please check guidance_template options."""
             editing_intent, processing_style
         )
         
+        # Add a save function that is compatible with the API node
+        if save_guidance and guidance_name and custom_guidance:
+            guidance_manager.save_guidance(guidance_name, custom_guidance)
+            # After saving, refresh the list so it is available immediately
+            # This part is for backend logic, the frontend needs a refresh mechanism
+            
+        # If a saved guidance is selected, load it
+        if load_saved_guidance != "none":
+            guidance_data = guidance_manager.load_guidance(load_saved_guidance)
+            if guidance_data and "content" in guidance_data:
+                custom_guidance = guidance_data["content"]
+            
         self._log_debug(f"🎯 Intent mapping: {editing_intent} + {processing_style} -> {edit_instruction_type}, {guidance_style}, {guidance_template}", debug_mode)
 
         if not (edit_description and edit_description.strip()) and not (annotation_data and annotation_data.strip()):
@@ -705,6 +738,13 @@ For more examples, please check guidance_template options."""
                 self.cache[cache_key] = formatted_instructions
                 self._log_debug("✅ Enhancement successful. Result cached.", debug_mode)
                 
+                # 根据用户设置决定是否卸载模型
+                if auto_unload_model:
+                    self._log_debug("🔄 Auto-unload enabled, unloading model...", debug_mode)
+                    self._unload_model(url, model, debug_mode)
+                else:
+                    self._log_debug("🔄 Auto-unload disabled, keeping model loaded", debug_mode)
+                
                 return (formatted_instructions, system_prompt)
             else:
                 error_msg = "The Ollama model did not return a valid result."
@@ -729,6 +769,41 @@ For more examples, please check guidance_template options."""
                 return False
         except Exception as e:
             print(f"Failed to connect to Ollama service: {e}")
+            return False
+    
+    def _unload_model(self, url: str, model: str, debug_mode: bool = False) -> bool:
+        """卸载指定的Ollama模型以释放内存"""
+        try:
+            import requests
+            import json
+            
+            self._log_debug(f"🗑️ Attempting to unload model: {model}", debug_mode)
+            
+            # 构建模型卸载请求
+            payload = {
+                "model": model,
+                "keep_alive": "0s"  # 设置keep_alive为0s立即卸载
+            }
+            
+            # 发送请求到Ollama API
+            response = requests.post(
+                f"{url}/api/generate",
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                self._log_debug(f"✅ Model {model} unloaded successfully", debug_mode)
+                print(f"✅ Model {model} unloaded successfully to free memory")
+                return True
+            else:
+                self._log_debug(f"⚠️ Failed to unload model {model}: HTTP {response.status_code}", debug_mode)
+                print(f"⚠️ Failed to unload model {model}: HTTP {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self._log_debug(f"❌ Error unloading model {model}: {e}", debug_mode)
+            print(f"❌ Error unloading model {model}: {e}")
             return False
     
     def _is_multimodal_model(self, model: str) -> bool:
@@ -1632,9 +1707,9 @@ if WEB_AVAILABLE:
 
 # 节点注册
 NODE_CLASS_MAPPINGS = {
-    "OllamaFluxKontextEnhancerV2": OllamaFluxKontextEnhancerV2,
+    "OllamaFluxKontextEnhancerV2": OllamaFluxKontextEnhancerV2
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "OllamaFluxKontextEnhancerV2": "🤖 Ollama Flux Kontext Enhancer V2",
+    "OllamaFluxKontextEnhancerV2": "Ollama FLUX Kontext Enhancer V2"
 }

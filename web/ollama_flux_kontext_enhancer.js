@@ -606,6 +606,74 @@ app.registerExtension({
                 console.warn("⚠️ 未找到必要的引导widgets，跳过交互设置");
                 console.log("✅ 引导系统初始化完成 (基础功能)");
             }
+
+            // 使用setTimeout延迟执行，确保DOM元素已准备好
+            setTimeout(() => {
+                try {
+                    // 保存按钮功能增强
+                    const saveGuidanceNameWidget = this.widgets.find(w => w.name === "save_guidance_name");
+                    const saveGuidanceButtonWidget = this.widgets.find(w => w.name === "save_guidance_button");
+
+                    if (saveGuidanceNameWidget && saveGuidanceButtonWidget && saveGuidanceNameWidget.inputEl) {
+                        // 检查是否已处理过，避免重复创建
+                        if (saveGuidanceNameWidget.inputEl.parentElement.classList.contains('kontext-save-container')) {
+                            return;
+                        }
+
+                        // 将布尔值转换为按钮
+                        saveGuidanceButtonWidget.type = "button";
+                        saveGuidanceButtonWidget.label = "Save";
+                        saveGuidanceButtonWidget.callback = () => {
+                            saveGuidanceButtonWidget.value = true;
+                            app.graph.runStep(1, false); // 使用app实例
+                            setTimeout(() => {
+                                saveGuidanceButtonWidget.value = false;
+                            }, 100);
+                        };
+
+                        // 创建容器
+                        const saveContainer = document.createElement("div");
+                        saveContainer.className = "kontext-save-container"; // 添加一个类名用于识别
+                        saveContainer.style.display = "flex";
+                        saveContainer.style.alignItems = "center";
+                        saveContainer.style.gap = "5px";
+
+                        const nameInput = saveGuidanceNameWidget.inputEl;
+                        const parent = nameInput.parentElement;
+                        
+                        saveContainer.appendChild(nameInput);
+                        
+                        const buttonElement = document.createElement("button");
+                        buttonElement.innerText = "Save Guidance";
+                        buttonElement.style.padding = "5px";
+                        buttonElement.style.border = "1px solid #555";
+                        buttonElement.style.backgroundColor = "#444";
+                        buttonElement.style.color = "white";
+                        buttonElement.style.borderRadius = "3px";
+                        buttonElement.style.cursor = "pointer";
+
+                        buttonElement.onclick = () => {
+                            if (saveGuidanceNameWidget.value) {
+                                saveGuidanceButtonWidget.callback();
+                            } else {
+                                alert("Please enter a name for the guidance.");
+                            }
+                        };
+
+                        saveContainer.appendChild(buttonElement);
+                        
+                        if (saveGuidanceButtonWidget.inputEl && saveGuidanceButtonWidget.inputEl.parentElement) {
+                            saveGuidanceButtonWidget.inputEl.parentElement.style.display = 'none';
+                        }
+
+                        parent.appendChild(saveContainer);
+
+                    }
+                } catch (e) {
+                    console.error("Error enhancing guidance widgets for Ollama node:", e);
+                }
+            }, 0);
+
             return r;
         };
         

@@ -195,58 +195,79 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
 
 // 注册ComfyUI扩展
 app.registerExtension({
-    name: "KontextAPIFluxEnhancer",
-
+    name: "Kontext.APIEnhancer.Extension",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        // Only process the APIFluxKontextEnhancer node
         if (nodeData.name !== "APIFluxKontextEnhancer") {
             return;
         }
         
-        console.log("🔧 Initializing APIFluxKontextEnhancer frontend extension");
-        
-        // Rewrite the node creation method
-        const onNodeCreated = nodeType.prototype.onNodeCreated;
-        nodeType.prototype.onNodeCreated = function() {
-            const r = onNodeCreated?.apply(this, arguments);
-            
-            console.log("🏗️ Creating APIFluxKontextEnhancer node");
-            
-            // Set node color to purple theme to match Visual Prompt Editor
-            this.color = "#673AB7";     // Main color - deep purple
-            this.bgcolor = "#512DA8";   // Background color - deeper purple
-            
-            // Find relevant widgets
-            let guidanceStyleWidget = null;
-            let guidanceTemplateWidget = null;
-            let customGuidanceWidget = null;
-            
-            for (const widget of this.widgets) {
-                if (widget.name === "guidance_style") {
-                    guidanceStyleWidget = widget;
-                    console.log("🎨 Found guidance style widget");
-                } else if (widget.name === "guidance_template") {
-                    guidanceTemplateWidget = widget;
-                    console.log("📋 Found guidance template widget");
-                } else if (widget.name === "custom_guidance") {
-                    customGuidanceWidget = widget;
-                    console.log("✏️ Found custom guidance widget");
-                }
-            }
-            
-            // Set up guidance widgets interaction
-            if (guidanceStyleWidget && customGuidanceWidget) {
-                setupGuidanceWidgetsInteraction(this, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget);
-                console.log("✅ API version guidance system initialized (with custom template support)");
+        const onConstructed = nodeType.prototype.onConstructed;
+        nodeType.prototype.onConstructed = function () {
+            const r = onConstructed?.apply(this, arguments);
+
+            // Set node color
+            this.color = "#673AB7";
+            this.bgcolor = "#512DA8";
+
+            // 使用setTimeout延迟执行，确保DOM元素已准备好
+            setTimeout(() => {
+                try {
+                    // 保存按钮功能增强
+                    const saveGuidanceNameWidget = this.widgets.find(w => w.name === "save_guidance_name");
+                    const saveGuidanceButtonWidget = this.widgets.find(w => w.name === "save_guidance_button");
+
+                    if (saveGuidanceNameWidget && saveGuidanceButtonWidget && saveGuidanceNameWidget.inputEl) {
+                        if (saveGuidanceNameWidget.inputEl.parentElement.classList.contains('kontext-save-container')) {
+                            return;
+                        }
+
+                        saveGuidanceButtonWidget.type = "button";
+                        saveGuidanceButtonWidget.callback = () => {
+                            saveGuidanceButtonWidget.value = true;
+                            app.graph.runStep(1, false);
+                            setTimeout(() => {
+                                saveGuidanceButtonWidget.value = false;
+                            }, 100);
+                        };
+
+                        const saveContainer = document.createElement("div");
+                        saveContainer.className = "kontext-save-container";
+                        saveContainer.style.display = "flex";
+                        saveContainer.style.alignItems = "center";
+                        saveContainer.style.gap = "5px";
+
+                        const nameInput = saveGuidanceNameWidget.inputEl;
+                        const parent = nameInput.parentElement;
+                        saveContainer.appendChild(nameInput);
+
+                        const buttonElement = document.createElement("button");
+                        buttonElement.innerText = "Save Guidance";
+                        buttonElement.style.cssText = `padding: 5px; border: 1px solid #555; background-color: #444; color: white; border-radius: 3px; cursor: pointer;`;
+                        
+                        buttonElement.onclick = () => {
+                            if (saveGuidanceNameWidget.value) {
+                                saveGuidanceButtonWidget.callback();
+                            } else {
+                                alert("Please enter a name for the guidance.");
+                            }
+                        };
+                        saveContainer.appendChild(buttonElement);
+
+                        if (saveGuidanceButtonWidget.inputEl && saveGuidanceButtonWidget.inputEl.parentElement) {
+                            saveGuidanceButtonWidget.inputEl.parentElement.style.display = 'none';
+                        }
+                        
+                        parent.appendChild(saveContainer);
             } else {
-                console.warn("⚠️ Necessary guidance widgets not found, skipping interaction setup");
+                        console.warn("⚠️ API Enhancer: Save guidance widgets not found, skipping interaction setup.");
+                    }
+                } catch (e) {
+                    console.error("Error enhancing guidance widgets for API node:", e);
             }
+            }, 0);
+
             return r;
         };
-    },
-    
-    async setup() {
-        console.log("🚀 APIFluxKontextEnhancer extension loaded");
     }
 });
 
