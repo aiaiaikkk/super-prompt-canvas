@@ -780,6 +780,10 @@ if WEB_AVAILABLE:
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
             
+# 调试信息
+print("🔧 DEBUG: API_flux_kontext_enhancer.py is being loaded")
+print(f"🔧 DEBUG: APIFluxKontextEnhancer class exists: {APIFluxKontextEnhancer}")
+
 # 节点映射
 NODE_CLASS_MAPPINGS = {
     "APIFluxKontextEnhancer": APIFluxKontextEnhancer
@@ -789,3 +793,6 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "APIFluxKontextEnhancer": "APIFluxKontextEnhancer"
 }
+
+print(f"🔧 DEBUG: NODE_CLASS_MAPPINGS = {NODE_CLASS_MAPPINGS}")
+print(f"🔧 DEBUG: NODE_DISPLAY_NAME_MAPPINGS = {NODE_DISPLAY_NAME_MAPPINGS}")
