@@ -99,10 +99,11 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
 
 ### 🔧 安装方法
 
-#### 自动安装
-1. 在ComfyUI的节点管理器中搜索"Kontext"
-2. 点击安装并重启ComfyUI
-3. 在节点列表中找到"Kontext Visual Prompt Editor"
+#### Git安装
+1. 打开终端或命令行界面
+2. 进入ComfyUI的`custom_nodes`目录
+3. 运行 `git clone https://github.com/aiaiaikkk/kontext-super-prompt` 命令
+4. 重启ComfyUI
 
 #### 手动安装
 1. 下载插件文件包
@@ -214,10 +215,11 @@ Kontext Visual Prompt Editor is an image editing assistant tool that helps users
 
 ### 🔧 Installation Methods
 
-#### Automatic Installation
-1. Search for "Kontext" in ComfyUI's node manager
-2. Click install and restart ComfyUI
-3. Find "Kontext Visual Prompt Editor" in the node list
+#### Git Installation
+1. Open a terminal or command prompt
+2. Navigate to the `custom_nodes` directory in your ComfyUI installation
+3. Run the command `git clone https://github.com/aiaiaikkk/kontext-super-prompt`
+4. Restart ComfyUI
 
 #### Manual Installation
 1. Download the plugin package
