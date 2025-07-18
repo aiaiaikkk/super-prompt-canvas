@@ -6,8 +6,10 @@ API集成的Flux Kontext提示词增强节点
 Flux Kontext优化的结构化编辑指令
 
 支持多个API提供商:
+- SiliconFlow (¥0.001/1K tokens) - DeepSeek模型
 - DeepSeek (¥0.001/1K tokens)
 - Qianwen/千问 (¥0.002/1K tokens)  
+- Google Gemini (¥0.0005/1K tokens) - 多模态AI
 - OpenAI (¥0.015/1K tokens)
 """
 
@@ -26,6 +28,8 @@ except ImportError:
     OPENAI_AVAILABLE = False
     OpenAI = None
     print("Warning: openai package not found. Please install with: pip install openai")
+
+# 注：Gemini API可以通过OpenAI兼容接口访问，因此使用相同的客户端库
 
 try:
     from aiohttp import web
@@ -79,6 +83,13 @@ class APIFluxKontextEnhancer:
             "default_model": "qwen-turbo",
             "cost_per_1k": 0.002,
             "description": "Aliyun Qianwen model"
+        },
+        "gemini": {
+            "name": "Google Gemini",
+            "base_url": "https://generativelanguage.googleapis.com/v1beta",
+            "default_model": "gemini-pro",
+            "cost_per_1k": 0.0005,
+            "description": "Google Gemini API - Fast and efficient multimodal AI"
         },
         "openai": {
             "name": "OpenAI",
@@ -238,7 +249,7 @@ For more examples, please check guidance_template options."""
                     "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
                     "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
-                "api_provider": (["siliconflow", "deepseek", "qianwen", "openai"], {
+                "api_provider": (["siliconflow", "deepseek", "qianwen", "gemini", "openai"], {
                     "default": "siliconflow"
                 }),
                 "api_key": ("STRING", {
@@ -251,6 +262,7 @@ For more examples, please check guidance_template options."""
                     "deepseek-ai/DeepSeek-V3", 
                     "deepseek-chat",
                     "qwen-turbo",
+                    "gemini-pro",
                     "gpt-3.5-turbo",
                     "custom"
                 ], {
@@ -364,10 +376,18 @@ For more examples, please check guidance_template options."""
         
         provider_config = self.API_PROVIDERS.get(provider, self.API_PROVIDERS["siliconflow"])
         
-        return OpenAI(
-            api_key=api_key,
-            base_url=provider_config["base_url"]
-        )
+        # Gemini API使用特殊的URL格式
+        if provider == "gemini":
+            # Gemini API key需要作为URL参数传递
+            return OpenAI(
+                api_key=api_key,
+                base_url=provider_config["base_url"]
+            )
+        else:
+            return OpenAI(
+                api_key=api_key,
+                base_url=provider_config["base_url"]
+            )
     
     
     def _build_intelligent_system_prompt(self, editing_intent, processing_style, 
@@ -459,16 +479,30 @@ For more examples, please check guidance_template options."""
                          provider: str) -> Tuple[str, Dict[str, Any]]:
         """使用API生成内容"""
         try:
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False
-            )
+            # Gemini API需要特殊处理
+            if provider == "gemini":
+                # Gemini模型通常不支持system role，将system prompt合并到user message
+                combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "user", "content": combined_prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False
+                )
+            else:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False
+                )
             
             # 提取响应内容
             generated_text = response.choices[0].message.content
