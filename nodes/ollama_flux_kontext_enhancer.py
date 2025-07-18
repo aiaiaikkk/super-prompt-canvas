@@ -44,15 +44,20 @@ class OllamaFluxKontextEnhancerV2:
     _cache_timestamp = 0
     _cache_duration = 5  # Cache for 5 seconds for rapid updates of new models
     _last_successful_url = None  # Record the last successful URL
+    _silent_mode = True  # Enable silent mode during INPUT_TYPES calls
     
     
     @classmethod
-    def get_available_models(cls, url=None, force_refresh=False):
+    def get_available_models(cls, url=None, force_refresh=False, silent=None):
         """Dynamically gets the list of available Ollama models - universal version, supports any installed model"""
         
         import time
         import os
         current_time = time.time()
+        
+        # Use instance silent mode if not specified
+        if silent is None:
+            silent = cls._silent_mode
         
         # 动态获取Ollama URL配置
         if url is None:
@@ -90,7 +95,8 @@ class OllamaFluxKontextEnhancerV2:
                     
                     return model_names
             except Exception as e:
-                print(f"HTTP API detection failed: {e}")
+                if not silent:
+                    print(f"HTTP API detection failed: {e}")
                 return []
         
         def try_ollama_client(api_url):
@@ -142,11 +148,13 @@ class OllamaFluxKontextEnhancerV2:
                 return model_names
                 
             except Exception as e:
-                print(f"Ollama Client detection failed: {e}")
+                if not silent:
+                    print(f"Ollama Client detection failed: {e}")
                 return []
         
         # Start model detection process
-        print(f"Detecting Ollama models from URL: {url}")
+        if not silent:
+            print(f"Detecting Ollama models from URL: {url}")
         
         # Try multiple URL formats (smart detection)
         urls_to_try = [url]
@@ -172,45 +180,52 @@ class OllamaFluxKontextEnhancerV2:
                 if http_models:
                     all_models.update(http_models)
                     successful_url = test_url
-                    print(f"Found {len(http_models)} models via HTTP API from {test_url}")
+                    if not silent:
+                        print(f"Found {len(http_models)} models via HTTP API from {test_url}")
                 
                 # Method 2: Ollama Client
                 client_models = try_ollama_client(test_url)
                 if client_models:
                     all_models.update(client_models)
                     successful_url = test_url
-                    print(f"Found {len(client_models)} models via Ollama Client from {test_url}")
+                    if not silent:
+                        print(f"Found {len(client_models)} models via Ollama Client from {test_url}")
                 
                 # Exit early if models found
                 if all_models:
                     break
                     
             except Exception as e:
-                print(f"Failed to test URL {test_url}: {e}")
+                if not silent:
+                    print(f"Failed to test URL {test_url}: {e}")
                 continue
         
         # Convert to sorted list
         model_list = sorted(list(all_models))
         
         if model_list:
-            print(f"Total {len(model_list)} unique models detected")
+            if not silent:
+                print(f"Total {len(model_list)} unique models detected")
             
             # Update cache (including successful URL)
             cls._cached_models = model_list
             cls._cache_timestamp = current_time
             if successful_url:
                 cls._last_successful_url = successful_url
-            print(f"Model list cached for {cls._cache_duration} seconds")
+            if not silent:
+                print(f"Model list cached for {cls._cache_duration} seconds")
             
             return model_list
         
         # If no models detected, return fallback
-        print("Warning: No models detected, returning fallback list")
+        if not silent:
+            print("Warning: No models detected, returning fallback list")
         fallback_models = ["ollama-model-not-found"]
-        print("Please ensure:")
-        print("   1. Ollama service is running (ollama serve)")
-        print("   2. At least one model is installed (ollama pull <model_name>)")
-        print("   3. Service is accessible (curl http://localhost:11434/api/tags)")
+        if not silent:
+            print("Please ensure:")
+            print("   1. Ollama service is running (ollama serve)")
+            print("   2. At least one model is installed (ollama pull <model_name>)")
+            print("   3. Service is accessible (curl http://localhost:11434/api/tags)")
         
         # Cache fallback to avoid repeated error detection
         cls._cached_models = fallback_models
@@ -224,7 +239,8 @@ class OllamaFluxKontextEnhancerV2:
         print("🔄 Manually refreshing model cache...")
         cls._cached_models = None
         cls._cache_timestamp = 0
-        return cls.get_available_models(force_refresh=True)
+        # Enable verbose logging during manual refresh
+        return cls.get_available_models(force_refresh=True, silent=False)
 
     @classmethod
     def get_template_content_for_placeholder(cls, guidance_style, guidance_template):
@@ -286,10 +302,12 @@ For more examples, please check guidance_template options."""
     def INPUT_TYPES(cls):
         # Dynamically get the actual list of available Ollama models, always force refresh to get the latest
         try:
-            # Clear cache to ensure the latest model list is fetched
-            cls._cached_models = None
-            cls._cache_timestamp = 0
-            available_models = cls.get_available_models(force_refresh=True)
+            # Use silent mode for INPUT_TYPES calls to avoid spam logs
+            # Only clear cache if no cache exists, to avoid unnecessary calls
+            if cls._cached_models is None:
+                available_models = cls.get_available_models(force_refresh=False, silent=True)
+            else:
+                available_models = cls._cached_models
             
             # If no models are detected, use a fallback option
             if not available_models or len(available_models) == 0:
@@ -638,6 +656,9 @@ For more examples, please check guidance_template options."""
         debug_mode = True 
         self.start_time = time.time()  # Record start time for processing metadata
         self._log_debug("🚀 [Ollama Enhancer] Starting enhancement process...", debug_mode)
+        
+        # Enable verbose logging during actual workflow execution
+        self.__class__._silent_mode = False
         
         # 使用AI智能映射逻辑
         edit_instruction_type, guidance_style, guidance_template = self._map_intent_to_guidance(

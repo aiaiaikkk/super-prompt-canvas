@@ -87,23 +87,23 @@ class VisualPromptEditor:
             if annotation_data and annotation_data.strip():
                 try:
                     parsed_data = json.loads(annotation_data)
-                    print(f"🔍 后端收到annotation_data长度: {len(annotation_data)} 字符")
+                    print(f"🔍 Backend received annotation_data length: {len(annotation_data)} characters")
                     
                     # Check if the data has an "annotations" key (new format)
                     if isinstance(parsed_data, dict):
                         if "annotations" in parsed_data:
                             layers_data = parsed_data["annotations"]
-                            print(f"📊 后端解析到 {len(layers_data)} 个标注")
+                            print(f"📊 Backend parsed {len(layers_data)} annotations")
                             # 详细调试每个标注
                             for i, layer in enumerate(layers_data):
-                                print(f"📍 标注{i+1}: 类型={layer.get('type')}, ID={layer.get('id')}")
+                                print(f"📍 Annotation {i+1}: type={layer.get('type')}, ID={layer.get('id')}")
                                 if layer.get('type') == 'brush':
-                                    print(f"🖌️ 画笔数据: points={len(layer.get('points', []))}, brushSize={layer.get('brushSize')}, brushFeather={layer.get('brushFeather')}")
+                                    print(f"🖌️ Brush data: points={len(layer.get('points', []))}, brushSize={layer.get('brushSize')}, brushFeather={layer.get('brushFeather')}")
                         elif "layers_data" in parsed_data:  # Alternative key
                             layers_data = parsed_data["layers_data"]
                         else:
                             layers_data = []
-                            print("⚠️ 后端: 解析的数据中没有找到annotations或layers_data字段")
+                            print("⚠️ Backend: No annotations or layers_data field found in parsed data")
                         
                         # Extract include_annotation_numbers setting
                         include_annotation_numbers = parsed_data.get("include_annotation_numbers", True)
@@ -115,19 +115,19 @@ class VisualPromptEditor:
                         # Extract constraint and decorative prompts - 🔴 支持多选格式
                         constraint_prompts = parsed_data.get("constraint_prompts", []) or parsed_data.get("constraint_prompt", "")
                         decorative_prompts = parsed_data.get("decorative_prompts", []) or parsed_data.get("decorative_prompt", "")
-                        print(f"🔒 约束性提示词: {constraint_prompts}")
-                        print(f"🎨 修饰性提示词: {decorative_prompts}")
+                        print(f"🔒 Constraint prompts: {constraint_prompts}")
+                        print(f"🎨 Decorative prompts: {decorative_prompts}")
                         
                         # Extract selected annotations with individual operation types
                         selected_annotations = parsed_data.get("selected_annotations", [])
-                        print(f"📝 选中的标注: {len(selected_annotations)} 个，包含独立操作类型")
+                        print(f"📝 Selected annotations: {len(selected_annotations)} items, with individual operation types")
                         
                         # Extract user-edited positive_prompt - 🔴 新增：读取用户修改后的提示词
                         user_edited_prompt = parsed_data.get("positive_prompt", "")
                         if user_edited_prompt and user_edited_prompt.strip():
-                            print(f"✅ 检测到用户修改的提示词: {user_edited_prompt[:50]}...")
+                            print(f"✅ Detected user-modified prompt: {user_edited_prompt[:50]}...")
                         else:
-                            print("⚠️ 未检测到用户修改的提示词，将使用自动生成")
+                            print("⚠️ No user-modified prompt detected, will use auto-generation")
                         
                         # Use synced values if available (frontend takes priority)
                         if synced_operation_type and synced_operation_type != "custom":
@@ -155,7 +155,7 @@ class VisualPromptEditor:
             if user_edited_prompt and user_edited_prompt.strip():
                 # 用户已经修改了提示词，直接使用
                 structured_prompt = user_edited_prompt.strip()
-                print(f"✅ 使用用户修改的提示词: {structured_prompt[:100]}...")
+                print(f"✅ Using user-modified prompt: {structured_prompt[:100]}...")
             else:
                 # 用户没有修改，使用自动生成
                 enhanced_prompts = {
@@ -166,7 +166,7 @@ class VisualPromptEditor:
                 structured_prompt = self._generate_structured_prompt(
                     layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts, selected_annotations
                 )
-                print(f"🤖 使用自动生成的提示词: {structured_prompt[:100]}...")
+                print(f"🤖 Using auto-generated prompt: {structured_prompt[:100]}...")
             
             # If there's layer data, render annotations on image
             if layers_data and len(layers_data) > 0:
@@ -500,7 +500,7 @@ class VisualPromptEditor:
             }
             
             # 前端SVG现在使用图像实际尺寸作为viewBox，所以坐标转换比例是1:1
-            print(f"🖼️ 后端图像渲染 - 图像尺寸: {img_width}x{img_height}")
+            print(f"🖼️ Backend image rendering - Image size: {img_width}x{img_height}")
             
             # 定义填充样式应用函数
             def apply_fill_style(draw, coords, color_rgb, fill_mode, shape_type, opacity=50):
@@ -560,7 +560,7 @@ class VisualPromptEditor:
                 scale_x = img_width / max_x if max_x > img_width * 1.5 else 1.0
                 scale_y = img_height / max_y if max_y > img_height * 1.5 else 1.0
                 
-                print(f"🔍 坐标缩放检测 - 最大坐标: ({max_x}, {max_y}), 缩放比例: ({scale_x:.3f}, {scale_y:.3f})")
+                print(f"🔍 Coordinate scaling detection - Max coords: ({max_x}, {max_y}), Scale ratio: ({scale_x:.3f}, {scale_y:.3f})")
                 return scale_x, scale_y
             
             # 检测坐标缩放比例
@@ -575,7 +575,7 @@ class VisualPromptEditor:
                 opacity = layer.get('opacity', 50)  # 获取不透明度，默认50%
                 
                 # 🔍 调试：输出每个标注的不透明度信息
-                print(f"🎨 标注{i+1}渲染信息: 类型={layer_type}, 颜色={color_hex}, 不透明度={opacity}%")
+                print(f"🎨 Annotation {i+1} render info: type={layer_type}, color={color_hex}, opacity={opacity}%")
                 
                 # Check if coordinates exist and are valid
                 # Support multiple coordinate formats: 1) start/end, 2) geometry.coordinates
@@ -584,7 +584,7 @@ class VisualPromptEditor:
                 end_point = None
                 fill_mode = layer.get('fillMode', 'filled')  # 获取填充模式
                 
-                print(f"🔍 标注{i+1} 坐标检查: type={layer_type}, 包含keys={list(layer.keys())}")
+                print(f"🔍 Annotation {i+1} coordinate check: type={layer_type}, contains keys={list(layer.keys())}")
                 
                 if layer_type in ['rectangle', 'circle', 'arrow']:
                     # Format 1: Direct start/end coordinates
@@ -639,10 +639,10 @@ class VisualPromptEditor:
                     x1, x2 = min(x1, x2), max(x1, x2)
                     y1, y2 = min(y1, y2), max(y1, y2)
                     
-                    print(f"🔴 矩形标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
-                    print(f"🔴 矩形绘制前: draw对象={id(draw)}, 图像对象={id(pil_image)}, 图像模式={pil_image.mode}")
+                    print(f"🔴 Rectangle annotation {i}: original coords({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → image coords({x1},{y1})-({x2},{y2}), fill mode: {fill_mode}, opacity: {opacity}%")
+                    print(f"🔴 Before rectangle drawing: draw object={id(draw)}, image object={id(pil_image)}, image mode={pil_image.mode}")
                     apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'rectangle', opacity)
-                    print(f"🔴 矩形绘制后: 完成矩形绘制")
+                    print(f"🔴 After rectangle drawing: Rectangle drawing completed")
                     
                     # Draw annotation number at top-left corner outside the annotation
                     annotation_number = layer.get('number', i + 1)
@@ -745,7 +745,7 @@ class VisualPromptEditor:
                     arrow_points = [(x2, y2), (int(arrow_x1), int(arrow_y1)), (int(arrow_x2), int(arrow_y2))]
                     draw.polygon(arrow_points, fill=line_color)
                     
-                    print(f"➡️ 箭头标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2})")
+                    print(f"➡️ Arrow annotation {i}: original coords({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → image coords({x1},{y1})-({x2},{y2})")
                     
                     # Draw annotation number outside the arrow (offset from start point)
                     annotation_number = layer.get('number', i + 1)
@@ -810,7 +810,7 @@ class VisualPromptEditor:
                             stroke_alpha = int(opacity * 255 / 100)
                             stroke_color = (*color_rgb, stroke_alpha)
                             
-                            print(f"🖌️ 画笔渲染 {i}: 羽化路径，width={stroke_width}, alpha={stroke_alpha}, color={stroke_color}")
+                            print(f"🖌️ Brush rendering {i}: feathered path, width={stroke_width}, alpha={stroke_alpha}, color={stroke_color}")
                             
                             # 绘制线段连接各点
                             for j in range(len(scaled_points) - 1):
@@ -825,7 +825,7 @@ class VisualPromptEditor:
                                     point[0] + radius, point[1] + radius
                                 ], fill=stroke_color)
                             
-                            print(f"🖌️ 画笔渲染 {i}: 完成羽化绘制，准备合成")
+                            print(f"🖌️ Brush rendering {i}: feathering drawing completed, preparing composition")
                         
                         # 应用羽化效果
                         feather_pixels = int(brush_feather * max(scale_x, scale_y))
@@ -881,12 +881,12 @@ class VisualPromptEditor:
                     
                     rendered_count += 1
             
-            numbers_status = "包含编号" if include_annotation_numbers else "不包含编号"
-            print(f"✅ 后端标注渲染完成: 总共{len(layers_data)}个标注，成功渲染{rendered_count}个 ({numbers_status})")
+            numbers_status = "with numbers" if include_annotation_numbers else "without numbers"
+            print(f"✅ Backend annotation rendering completed: Total {len(layers_data)} annotations, successfully rendered {rendered_count} ({numbers_status})")
             
             # 如果图像在RGBA模式，转换为RGB模式
             if pil_image.mode == 'RGBA':
-                print(f"🔄 转换最终图像从RGBA到RGB模式")
+                print(f"🔄 Converting final image from RGBA to RGB mode")
                 pil_image = pil_image.convert('RGB')
             
             # Convert back to torch tensor
