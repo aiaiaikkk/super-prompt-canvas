@@ -10,6 +10,8 @@
 
 Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻松创建AI图像编辑指令。您只需在图片上标记想要修改的区域，描述您的想法，工具会自动生成专业的编辑指令，无需学习复杂的提示词语法。
 
+🎥 **视频教程**：[详细使用演示](https://www.bilibili.com/video/BV1e1u6zjE6H/)
+
 ### ✨ 主要功能
 
 ![中文界面](images/visual_editor_zh.png)
@@ -36,6 +38,7 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
 
 ![API支持](images/api.png)
 ![Ollama支持](images/ollama.png)
+![TextGen WebUI支持](images/TextGenWebUI.png)
 
 #### 🌐 多语言界面
 - 支持中文和英文界面切换
@@ -219,6 +222,55 @@ Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻
 - **深度合成 (Depth Composite)**: 基于深度信息将图像进行合成，创造更真实的空间感。
 - **专业产品 (Professional Product)**: 专为产品图设计，可生成商业级质量的图像。
 
+### 🤖 AI增强器类型 (AI Enhancer Types)
+
+本项目提供三种不同的AI增强器，以满足不同的使用需求和环境：
+
+#### 1. API增强器 (API Flux Kontext Enhancer)
+- **特点**：连接在线AI服务，支持DeepSeek、千问、OpenAI等多种API
+- **优势**：处理能力强，模型更新及时，无需本地配置
+- **适用场景**：网络环境良好，需要强大AI能力的用户
+- **配置**：只需填入API密钥和选择模型即可使用
+
+#### 2. Ollama增强器 (Ollama Flux Kontext Enhancer)
+- **特点**：使用本地Ollama服务，完全离线工作
+- **优势**：数据隐私安全，无网络依赖，免费使用
+- **适用场景**：重视隐私，有本地计算资源的用户
+- **配置**：需要先安装和配置Ollama服务
+
+#### 3. TextGen WebUI增强器 (TextGen WebUI Flux Kontext Enhancer) 🆕
+- **特点**：集成Text Generation WebUI，支持更多模型格式
+- **优势**：
+  - 支持GGUF、GPTQ、AWQ、ExLlama等多种量化格式
+  - 专业级参数控制和优化
+  - 与Text Generation WebUI生态系统完全兼容
+  - 优化的智能引导系统，提供更精确的编辑指令
+- **适用场景**：已使用Text Generation WebUI，需要高级模型控制的用户
+- **配置**：需要运行Text Generation WebUI服务并启用API
+- **详细文档**：[TextGen WebUI增强器说明](TEXTGEN_WEBUI_ENHANCER_INFO.md)
+
+![TextGen WebUI增强器](images/TextGenWebUI.png)
+![HuggingFace模型下载](images/huggingface_download.png)
+
+**TextGen WebUI 快速部署指南**：
+
+1. **开启仙宫云小红免费镜像**
+2. **启动服务**：打开jupyter左侧文件导航，进入text-generation-webui目录，命令行输入：
+   ```bash
+   start_linux.sh --listen --api
+   ```
+3. **开放端口**：新建命令行输入：
+   ```bash
+   ngrok http 7860
+   ```
+   然后在浏览器中打开app结尾的网站
+4. **加载模型**：在新打开的WebUI界面左侧选择Models，选择一个模型加载（右侧也可以直接下载新的模型）
+5. **使用增强器**：回到ComfyUI使用TextGen WebUI增强器
+
+> **备注**：也可本地部署Text Generation WebUI，详见官方仓库：https://github.com/oobabooga/text-generation-webui
+
+> **提示**：三种增强器可以同时安装使用，根据不同场景选择最适合的增强器。
+
 ### AI增强节点详解 (AI Enhanced Node Explained)
 AI增强节点上的下拉控件可以帮助您指导AI更好地理解您的创作目标。选择合适的意图和风格，将极大提升最终效果的准确性和质量。
 
@@ -270,6 +322,8 @@ AI增强节点上的下拉控件可以帮助您指导AI更好地理解您的创�
 
 Kontext Visual Prompt Editor is an image editing assistant tool that helps users easily create AI image editing instructions. Simply mark the areas you want to modify on the image, describe your ideas, and the tool will automatically generate professional editing instructions without needing to learn complex prompt syntax.
 
+🎥 **Video Tutorial**: [Detailed Usage Demo](https://www.bilibili.com/video/BV1e1u6zjE6H/)
+
 ### ✨ Main Features
 
 ![English Interface](images/visual_editor_en.png)
@@ -296,6 +350,7 @@ Kontext Visual Prompt Editor is an image editing assistant tool that helps users
 
 ![API Support](images/api.png)
 ![Ollama Support](images/ollama.png)
+![TextGen WebUI Support](images/TextGenWebUI.png)
 
 #### 🌐 Multi-language Interface
 - Supports Chinese and English interface switching
@@ -479,6 +534,55 @@ Provides more advanced and complex professional-grade editing functions.
 - **Depth Composite**: Composites images based on depth information to create a more realistic sense of space.
 - **Professional Product**: Designed for product photography, generating commercial-grade quality images.
 
+### 🤖 AI Enhancer Types
+
+This project provides three different AI enhancers to meet various usage needs and environments:
+
+#### 1. API Flux Kontext Enhancer
+- **Features**: Connects to online AI services, supports DeepSeek, Qianwen, OpenAI, and other APIs
+- **Advantages**: Powerful processing capabilities, timely model updates, no local configuration required
+- **Use Cases**: Users with good network environment who need powerful AI capabilities
+- **Configuration**: Simply enter API key and select model to use
+
+#### 2. Ollama Flux Kontext Enhancer
+- **Features**: Uses local Ollama service, works completely offline
+- **Advantages**: Data privacy security, no network dependency, free to use
+- **Use Cases**: Users who value privacy and have local computing resources
+- **Configuration**: Requires installation and configuration of Ollama service
+
+#### 3. TextGen WebUI Flux Kontext Enhancer 🆕
+- **Features**: Integrates with Text Generation WebUI, supports more model formats
+- **Advantages**:
+  - Supports GGUF, GPTQ, AWQ, ExLlama and other quantization formats
+  - Professional-grade parameter control and optimization
+  - Full compatibility with Text Generation WebUI ecosystem
+  - Optimized intelligent guidance system for more precise editing instructions
+- **Use Cases**: Users already using Text Generation WebUI who need advanced model control
+- **Configuration**: Requires running Text Generation WebUI service with API enabled
+- **Detailed Documentation**: [TextGen WebUI Enhancer Guide](TEXTGEN_WEBUI_ENHANCER_INFO.md)
+
+![TextGen WebUI Enhancer](images/TextGenWebUI.png)
+![HuggingFace Model Download](images/huggingface_download.png)
+
+**TextGen WebUI Quick Deployment Guide**:
+
+1. **Enable XianGong Cloud free mirror**
+2. **Start Service**: Open Jupyter file navigation on the left, enter text-generation-webui directory, input in command line:
+   ```bash
+   start_linux.sh --listen --api
+   ```
+3. **Open Port**: Create new command line and input:
+   ```bash
+   ngrok http 7860
+   ```
+   Then open the website ending with "app" in your browser
+4. **Load Model**: In the newly opened WebUI interface, select Models on the left side, choose a model to load (you can also download new models on the right side)
+5. **Use Enhancer**: Return to ComfyUI to use the TextGen WebUI enhancer
+
+> **Note**: You can also deploy Text Generation WebUI locally. See official repository: https://github.com/oobabooga/text-generation-webui
+
+> **Tip**: All three enhancers can be installed and used simultaneously. Choose the most suitable enhancer for different scenarios.
+
 ### AI Enhanced Node Explained
 The dropdown controls on the AI Enhanced node help you guide the AI to better understand your creative goals. Selecting the right intent and style will significantly improve the accuracy and quality of the final result.
 
@@ -524,7 +628,14 @@ The dropdown controls on the AI Enhanced node help you guide the AI to better un
 
 ---
 
-**Version**: v3.1.0 - Intelligence Enhanced Edition  
+**Version**: v3.2.0 - TextGen WebUI Integration Edition  
 **Status**: ✅ Ready for Use  
 **License**: MIT  
 **Author**: Kontext Team
+
+#### 🆕 Latest Updates (v3.2.0)
+- ✨ Added TextGen WebUI Flux Kontext Enhancer with advanced model format support
+- 🔧 Support for GGUF, GPTQ, AWQ, ExLlama and other quantization formats
+- ⚡ Enhanced performance with professional-grade parameter control
+- 🎨 Consistent UI design across all three enhancer types
+- 🛠️ Optimized intelligent guidance system for more precise editing instructions

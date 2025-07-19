@@ -55,12 +55,13 @@ def try_import_from_paths():
             
         print(f"📁 Checking path: {path}")
         
-        # Find core node files (4 functional nodes - with Ollama and API integration)
+        # Find core node files (5 functional nodes - with Ollama, API, and TextGen WebUI integration)
         node_files = [
-            "visual_prompt_editor.py",        # Unified visual prompt editor (CORE)
-            "annotation_data_node.py",        # Annotation data provider
-            "ollama_flux_kontext_enhancer.py", # Ollama智能增强节点 (LOCAL)
-            "API_flux_kontext_enhancer.py",   # API智能增强节点 (DeepSeek/Qianwen/OpenAI)
+            "visual_prompt_editor.py",           # Unified visual prompt editor (CORE)
+            "annotation_data_node.py",           # Annotation data provider
+            "ollama_flux_kontext_enhancer.py",   # Ollama智能增强节点 (LOCAL)
+            "API_flux_kontext_enhancer.py",      # API智能增强节点 (DeepSeek/Qianwen/OpenAI)
+            "textgen_webui_flux_kontext_enhancer.py", # TextGen WebUI智能增强节点 (LOCAL ADVANCED)
             # Removed nodes - moved to disabled_nodes/
             # - global_image_processor.py      # Global image processing (REMOVED)
             # - intelligent_annotation_node.py  # Complex intelligent annotation
