@@ -37,7 +37,26 @@ Kontext Super Prompt 是一款智能超级提示词工具，专为AI图像编辑
 - **模板系统**：提供多种预设编辑模板，覆盖常见的编辑场景
 
 ![API支持](images/api.png)
+
+#### 🤖 API云端增强器
+连接多种在线AI服务，提供强大的云端AI处理能力：
+
+- **多平台支持**：支持DeepSeek、千问、OpenAI等主流AI服务
+- **即用即得**：无需本地配置，填入API密钥即可使用
+- **性能强劲**：利用云端强大的计算资源，处理速度快
+- **模型丰富**：可选择最新最强的AI模型进行处理
+- **成本灵活**：按使用量付费，适合不同规模的需求
+
 ![Ollama支持](images/ollama.png)
+
+#### 🤖 Ollama本地增强器
+使用本地Ollama服务，提供安全的离线AI处理能力：
+
+- **完全离线**：无需网络连接，保护数据隐私安全
+- **免费使用**：一次配置，长期免费使用本地AI模型
+- **模型丰富**：支持Llama、Qwen、CodeLlama等多种开源模型
+- **资源可控**：可根据硬件配置选择合适的模型大小
+- **响应快速**：本地处理，无网络延迟
 
 #### 🤖 TextGen WebUI本地增强器 🆕
 支持Text Generation WebUI的高级模型管理和多格式兼容，为本地AI提供更多选择：
@@ -356,7 +375,26 @@ Kontext Super Prompt is an intelligent super prompt tool designed specifically f
 - **Template System**: Provides various preset editing templates covering common editing scenarios
 
 ![API Support](images/api.png)
+
+#### 🤖 API Cloud Enhancer
+Connects to various online AI services, providing powerful cloud-based AI processing capabilities:
+
+- **Multi-platform Support**: Supports mainstream AI services like DeepSeek, Qianwen, OpenAI, etc.
+- **Ready to Use**: No local configuration needed, just enter API key and start using
+- **High Performance**: Utilizes powerful cloud computing resources for fast processing
+- **Rich Models**: Choose from the latest and most powerful AI models for processing
+- **Flexible Costs**: Pay-per-use model suitable for different scale requirements
+
 ![Ollama Support](images/ollama.png)
+
+#### 🤖 Ollama Local Enhancer
+Uses local Ollama service, providing secure offline AI processing capabilities:
+
+- **Completely Offline**: No network connection required, protecting data privacy and security
+- **Free to Use**: One-time configuration for long-term free use of local AI models
+- **Rich Models**: Supports various open-source models like Llama, Qwen, CodeLlama, etc.
+- **Resource Control**: Choose appropriate model sizes based on hardware configuration
+- **Fast Response**: Local processing with no network latency
 
 #### 🤖 TextGen WebUI Local Enhancer 🆕
 Supports Text Generation WebUI's advanced model management and multi-format compatibility, providing more choices for local AI:
