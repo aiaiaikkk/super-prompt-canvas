@@ -38,7 +38,7 @@ export function createMainModal() {
     
     const content = document.createElement('div');
     content.style.cssText = `
-        width: 95%; height: 95%; background: #1a1a1a;
+        width: 98%; height: 95%; background: #1a1a1a;
         border-radius: 12px; display: flex; flex-direction: column;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -368,35 +368,97 @@ export function createCanvasArea() {
 export function createPromptArea() {
     const promptArea = document.createElement('div');
     promptArea.style.cssText = `
-        width: 320px; background: #2b2b2b; display: flex; flex-direction: column;
+        width: 380px; background: #2b2b2b; display: flex; flex-direction: column;
         border-left: 1px solid #404040;
         flex-shrink: 0; /* 防止右侧面板被压缩 */
     `;
     
-    const promptContent = document.createElement('div');
-    promptContent.style.cssText = `
-        flex: 1; padding: 16px; overflow-y: auto; min-height: 0;
+    // 创建标签页标题栏
+    const tabHeader = document.createElement('div');
+    tabHeader.style.cssText = `
+        display: flex; background: #333; border-bottom: 1px solid #404040;
     `;
     
-    promptContent.innerHTML = `
-        <!-- 下拉复选框式图层编辑器 -->
+    // 标签页按钮
+    const tabs = [
+        { id: 'layers-tab', text: '🔴 图层', key: 'tab_layers' },
+        { id: 'controls-tab', text: '🎛️ 控制', key: 'tab_controls' },
+        { id: 'ai-enhancer-tab', text: '🤖 AI增强', key: 'tab_ai_enhancer' }
+    ];
+    
+    tabs.forEach((tab, index) => {
+        const tabButton = document.createElement('button');
+        tabButton.id = tab.id;
+        tabButton.className = 'vpe-tab-button';
+        tabButton.style.cssText = `
+            flex: 1; padding: 12px 8px; background: #444; color: #ccc; border: none;
+            cursor: pointer; font-size: 11px; transition: all 0.3s ease;
+            border-right: ${index < tabs.length - 1 ? '1px solid #555' : 'none'};
+        `;
+        tabButton.innerHTML = tab.text;
+        tabButton.setAttribute('data-i18n', tab.key);
+        
+        // 默认激活第一个标签
+        if (index === 0) {
+            tabButton.style.background = '#10b981';
+            tabButton.style.color = 'white';
+            tabButton.classList.add('active');
+        }
+        
+        tabHeader.appendChild(tabButton);
+    });
+    
+    // 标签页内容容器
+    const tabContent = document.createElement('div');
+    tabContent.id = 'tab-content-container';
+    tabContent.className = 'tab-content';
+    tabContent.style.cssText = `
+        flex: 1; overflow-y: auto; min-height: 0; padding: 8px;
+    `;
+    
+    // 默认显示图层标签页内容
+    tabContent.appendChild(createLayersTabContent());
+    
+    promptArea.appendChild(tabHeader);
+    promptArea.appendChild(tabContent);
+    
+    return promptArea;
+}
+
+/**
+ * 创建图层标签页内容
+ */
+export function createLayersTabContent() {
+    const layersContent = document.createElement('div');
+    layersContent.id = 'layers-tab-content';
+    layersContent.style.cssText = `
+        padding: 16px; display: block;
+    `;
+    
+    layersContent.innerHTML = `
+        <!-- 图层选择和管理 -->
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
             <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
                 <span data-i18n="layer_selection_operations">🎯 Layer Selection & Operations</span>
                 <span id="selection-count" style="color: #888; font-size: 11px;">0 selected</span>
             </div>
             
-            <!-- 图层选择下拉框 -->
+            <!-- 图层直接选择列表 -->
             <div style="margin-bottom: 16px;">
-                <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="select_layers">📋 Select Layers (Optional for Global/Professional)</label>
-                <div style="position: relative;">
-                    <div id="layer-dropdown" style="width: 100%; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-                        <span id="dropdown-text" style="color: #aaa; font-size: 12px;" data-i18n="placeholder_select_layers">Click to select layers...</span>
-                        <span id="dropdown-arrow" style="transition: transform 0.2s ease;">▼</span>
+                <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 8px; font-weight: 500;" data-i18n="select_layers">📋 Available Layers</label>
+                <div id="layers-list-container" style="background: #2b2b2b; border: 1px solid #555; border-radius: 6px; max-height: 300px; overflow-y: auto;">
+                    <div id="layers-list" style="padding: 8px;">
+                        <!-- 图层列表将在这里动态生成 -->
                     </div>
-                    <div id="layer-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #2b2b2b; border: 1px solid #555; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 1000;">
-                        <div id="dropdown-options" style="padding: 4px;"></div>
-                    </div>
+                </div>
+                <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+                    <button id="select-all-layers" style="padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;" data-i18n="btn_select_all">
+                        📋 Select All
+                    </button>
+                    <button id="clear-selection" style="padding: 6px 12px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;" data-i18n="btn_clear_selection">
+                        🗑️ Clear
+                    </button>
+                    <span id="selection-count-info" style="color: #888; font-size: 11px; margin-left: auto;">0 selected</span>
                 </div>
             </div>
             
@@ -469,9 +531,6 @@ export function createPromptArea() {
                     <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_apply_to_selected">
                         ✅ Apply to Selected
                     </button>
-                    <button id="select-all-layers" style="padding: 10px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_select_all">
-                        📋 Select All
-                    </button>
                 </div>
             </div>
             
@@ -482,7 +541,23 @@ export function createPromptArea() {
                 <div style="font-size: 11px;" data-i18n="no_layers_subtitle">Create annotations to start editing</div>
             </div>
         </div>
-        
+    `;
+    
+    return layersContent;
+}
+
+/**
+ * 创建控制标签页内容
+ */
+export function createControlsTabContent() {
+    const controlsContent = document.createElement('div');
+    controlsContent.id = 'controls-tab-content';
+    controlsContent.style.cssText = `
+        padding: 16px; display: block;
+    `;
+    
+    controlsContent.innerHTML = `
+        <!-- 编辑控制 -->
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
             <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px;" data-i18n="edit_control">🎯 Edit Control</div>
             
@@ -525,6 +600,7 @@ export function createPromptArea() {
             </button>
         </div>
         
+        <!-- 生成的描述 -->
         <div style="background: #333; padding: 16px; border-radius: 8px;">
             <div style="color: #FF9800; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                 <span data-i18n="generated_description">📝 Generated Description</span>
@@ -547,8 +623,196 @@ export function createPromptArea() {
         </div>
     `;
     
-    promptArea.appendChild(promptContent);
-    return promptArea;
+    return controlsContent;
+}
+
+/**
+ * 创建AI增强器标签页内容
+ */
+export function createAIEnhancerTabContent() {
+    const aiContent = document.createElement('div');
+    aiContent.id = 'ai-enhancer-tab-content';
+    aiContent.style.cssText = `
+        padding: 8px; display: block;
+    `;
+    
+    // AI增强器内容 - 调整宽度使其填满容器
+    aiContent.innerHTML = `
+        <!-- AI增强器选择 -->
+        <div style="background: #333; border-radius: 6px; padding: 18px; margin-bottom: 16px; width: 100%; box-sizing: border-box;">
+            <div style="color: #10b981; font-weight: bold; margin-bottom: 14px; font-size: 15px; text-align: left;" data-i18n="ai_select_enhancer">🚀 选择增强器</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div class="enhancer-card" data-enhancer="api" style="background: #10b981; color: white; border-radius: 4px; padding: 12px; cursor: pointer; text-align: center; font-size: 12px; transition: all 0.3s ease;" data-i18n="ai_enhancer_api">
+                    API云端
+                </div>
+                <div class="enhancer-card" data-enhancer="ollama" style="background: #555; color: #ccc; border-radius: 4px; padding: 12px; cursor: pointer; text-align: center; font-size: 12px; transition: all 0.3s ease;" data-i18n="ai_enhancer_ollama">
+                    Ollama本地
+                </div>
+                <div class="enhancer-card" data-enhancer="textgen" style="background: #555; color: #ccc; border-radius: 4px; padding: 12px; cursor: pointer; text-align: center; font-size: 12px; transition: all 0.3s ease;" data-i18n="ai_enhancer_textgen">
+                    TextGen
+                </div>
+            </div>
+        </div>
+        
+        <!-- API配置面板 -->
+        <div id="enhancer-config-container" style="background: #333; border-radius: 6px; padding: 18px; margin-bottom: 16px; width: 100%; box-sizing: border-box;">
+            <div id="enhancer-config-toggle" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 14px;">
+                <div style="color: #10b981; font-weight: bold; font-size: 15px;" data-i18n="ai_api_settings">⚙️ API设置</div>
+                <div id="config-arrow" style="color: #10b981; font-size: 14px; transition: transform 0.3s ease; transform: rotate(-90deg);">▼</div>
+            </div>
+            
+            <div id="enhancer-config" style="max-height: 0px; overflow: hidden; transition: max-height 0.3s ease-out;">
+                <!-- API云端配置 -->
+                <div id="api-config" style="display: block;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="api_key_label">API Key:</label>
+                        <input type="password" id="api-key-input" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;" placeholder="输入您的API Key" data-i18n-placeholder="api_key_placeholder">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="api_model_label">模型选择:</label>
+                        <select id="api-model-select" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <option value="claude-3">Claude 3</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button onclick="testAPIConnection()" style="background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;" data-i18n="test_connection">测试连接</button>
+                        <div id="api-status" style="color: #666; font-size: 11px;">● 未测试</div>
+                    </div>
+                </div>
+                
+                <!-- Ollama本地配置 -->
+                <div id="ollama-config" style="display: none;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ollama_url_label">服务地址:</label>
+                        <input type="text" id="ollama-url-input" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;" placeholder="http://localhost:11434" value="http://localhost:11434" data-i18n-placeholder="ollama_url_placeholder">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ollama_model_label">模型选择:</label>
+                        <select id="ollama-model-select" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                            <option value="llama3.1:8b">Llama 3.1 8B</option>
+                            <option value="llama3.1:70b">Llama 3.1 70B</option>
+                            <option value="mistral:7b">Mistral 7B</option>
+                            <option value="codellama:7b">CodeLlama 7B</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button onclick="testOllamaConnection()" style="background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;" data-i18n="test_connection">测试连接</button>
+                        <div id="ollama-status" style="color: #666; font-size: 11px;">● 未测试</div>
+                    </div>
+                </div>
+                
+                <!-- TextGen配置 -->
+                <div id="textgen-config" style="display: none;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="textgen_url_label">服务地址:</label>
+                        <input type="text" id="textgen-url-input" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;" placeholder="http://localhost:5000" value="http://localhost:5000" data-i18n-placeholder="textgen_url_placeholder">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="textgen_model_label">模型选择:</label>
+                        <select id="textgen-model-select" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                            <option value="llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
+                            <option value="llama-3.1-70b-instruct">Llama 3.1 70B Instruct</option>
+                            <option value="mistral-7b-instruct">Mistral 7B Instruct</option>
+                            <option value="codellama-7b-instruct">CodeLlama 7B Instruct</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button onclick="testTextGenConnection()" style="background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;" data-i18n="test_connection">测试连接</button>
+                        <div id="textgen-status" style="color: #666; font-size: 11px;">● 未测试</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 编辑输入 -->
+        <div style="background: #333; border-radius: 6px; padding: 18px; margin-bottom: 16px; width: 100%; box-sizing: border-box;">
+            <div style="color: #10b981; font-weight: bold; margin-bottom: 14px; font-size: 15px;" data-i18n="ai_edit_description">✏️ 编辑描述</div>
+            <textarea id="edit-description" style="width: 100%; height: 80px; background: #222; border: 1px solid #555; color: white; padding: 12px; border-radius: 4px; font-size: 13px; resize: vertical; box-sizing: border-box; font-family: inherit;" data-i18n-placeholder="ai_placeholder_description">将红色标记区域的天空颜色改成深蓝色的晚霞效果</textarea>
+        </div>
+        
+        <!-- 参数控制 -->
+        <div style="background: #333; border-radius: 6px; padding: 18px; margin-bottom: 16px; width: 100%; box-sizing: border-box;">
+            <div style="color: #10b981; font-weight: bold; margin-bottom: 14px; font-size: 15px;" data-i18n="ai_parameter_settings">🎛️ 参数设置</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div>
+                    <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ai_edit_intent">编辑意图</label>
+                    <select id="edit-intent" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                        <option value="general_editing" selected data-i18n="ai_intent_general_editing">通用编辑</option>
+                        <option value="product_showcase" data-i18n="ai_intent_product_showcase">产品展示优化</option>
+                        <option value="portrait_enhancement" data-i18n="ai_intent_portrait_enhancement">人像美化</option>
+                        <option value="creative_design" data-i18n="ai_intent_creative_design">创意设计</option>
+                        <option value="architectural_photo" data-i18n="ai_intent_architectural_photo">建筑摄影</option>
+                        <option value="food_styling" data-i18n="ai_intent_food_styling">美食摄影</option>
+                        <option value="fashion_retail" data-i18n="ai_intent_fashion_retail">时尚零售</option>
+                        <option value="landscape_nature" data-i18n="ai_intent_landscape_nature">风景自然</option>
+                        <option value="professional_editing" data-i18n="ai_intent_professional_editing">专业图像编辑</option>
+                        <option value="custom" data-i18n="ai_intent_custom">自定义</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ai_processing_style">处理风格</label>
+                    <select id="processing-style" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                        <option value="auto_smart" selected data-i18n="ai_style_auto_smart">智能自动</option>
+                        <option value="efficient_fast" data-i18n="ai_style_efficient_fast">高效快速</option>
+                        <option value="creative_artistic" data-i18n="ai_style_creative_artistic">创意艺术</option>
+                        <option value="precise_technical" data-i18n="ai_style_precise_technical">精确技术</option>
+                        <option value="custom_guidance" data-i18n="ai_style_custom_guidance">自定义指引</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ai_temperature">Temperature</label>
+                    <select id="temperature" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                        <option value="0.3" data-i18n="ai_temp_conservative">0.3 (保守)</option>
+                        <option value="0.7" selected data-i18n="ai_temp_creative">0.7 (创意)</option>
+                        <option value="0.9" data-i18n="ai_temp_random">0.9 (随机)</option>
+                        <option value="1.0" data-i18n="ai_temp_maximum">1.0 (最大)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: #ccc; font-size: 12px; margin-bottom: 6px; display: block; font-weight: 500;" data-i18n="ai_random_seed">随机种子</label>
+                    <select id="seed" style="width: 100%; background: #222; border: 1px solid #555; color: white; padding: 10px; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                        <option value="42" selected data-i18n="ai_seed_default">42 (默认)</option>
+                        <option value="-1" data-i18n="ai_seed_random">随机 (-1)</option>
+                        <option value="123">123</option>
+                        <option value="999">999</option>
+                        <option value="2024">2024</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 生成按钮 -->
+        <button id="generate-ai-prompt" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 16px; font-size: 14px; box-sizing: border-box; transition: all 0.3s ease;" data-i18n="ai_generate_prompt">
+            🚀 生成提示词
+        </button>
+        
+        <!-- 预览区域 -->
+        <div style="background: #222; border: 2px solid #10b981; border-radius: 6px; padding: 18px; min-height: 120px; width: 100%; box-sizing: border-box; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="color: #10b981; font-weight: bold; font-size: 13px;" data-i18n="ai_prompt_preview">📝 提示词预览</div>
+                <div id="preview-status" style="color: #666; font-size: 11px; padding: 4px 8px; background: rgba(255,255,255,0.1); border-radius: 12px;" data-i18n="ai_status_pending">待生成</div>
+            </div>
+            <div id="preview-content" style="color: #ccc; font-size: 12px; line-height: 1.5; min-height: 60px; border-top: 1px dashed #555; padding-top: 12px;" data-i18n="ai_prompt_placeholder">
+                点击"🚀 生成提示词"按钮开始生成专业提示词...
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; box-sizing: border-box;">
+            <button id="regenerate-ai-prompt" style="background: #f59e0b; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.3s ease;" disabled data-i18n="ai_regenerate">
+                🔄 重新生成
+            </button>
+            <button id="confirm-ai-prompt" style="background: #10b981; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.3s ease;" disabled data-i18n="ai_confirm_apply">
+                ✅ 确认应用
+            </button>
+        </div>
+    `;
+    
+    return aiContent;
 }
 
 /**
@@ -578,3 +842,869 @@ export function showControlInfo(modal) {
         canvasContainer.appendChild(controlInfo);
     }
 }
+
+/**
+ * 初始化标签页功能
+ */
+export function initializeTabSwitching() {
+    console.log('🎯 开始初始化标签页切换功能');
+    
+    // 查找所有标签页按钮
+    const tabs = document.querySelectorAll('.vpe-tab-button');
+    console.log('📋 找到标签页按钮数量:', tabs.length);
+    
+    if (tabs.length === 0) {
+        console.warn('⚠️ 未找到标签页按钮，跳过初始化');
+        return;
+    }
+    
+    // 预创建所有标签页内容
+    const tabContents = {
+        'tab_layers': createLayersTabContent(),
+        'tab_controls': createControlsTabContent(),
+        'tab_ai_enhancer': createAIEnhancerTabContent()
+    };
+    
+    console.log('📝 标签页内容已预创建:', Object.keys(tabContents));
+    
+    tabs.forEach((tab, index) => {
+        const tabKey = tab.getAttribute('data-i18n');
+        console.log(`🔘 为标签页 ${index + 1} 添加点击事件，key: ${tabKey}`);
+        
+        tab.addEventListener('click', function() {
+            console.log(`🖱️ 点击标签页: ${tabKey}`);
+            switchToTab(tabKey, tabContents);
+            
+            // 更新标签激活状态
+            tabs.forEach(t => {
+                t.style.background = '#444';
+                t.style.color = '#ccc';
+                t.classList.remove('active');
+            });
+            this.style.background = '#10b981';
+            this.style.color = 'white';
+            this.classList.add('active');
+            
+            console.log(`✅ 标签页切换完成: ${tabKey}`);
+        });
+    });
+    
+    console.log('✅ 标签页切换功能初始化完成');
+}
+
+/**
+ * 切换到指定标签页
+ */
+function switchToTab(tabKey, tabContents) {
+    console.log(`🔄 Switching to tab: ${tabKey}`);
+    
+    const tabContentContainer = document.getElementById('tab-content-container');
+    if (!tabContentContainer) {
+        console.error('❌ Tab content container not found: #tab-content-container');
+        return;
+    }
+    
+    if (!tabContents[tabKey]) {
+        console.error(`❌ Tab content not found: ${tabKey}`);
+        return;
+    }
+    
+    console.log(`📄 Updating tab content container`);
+    
+    // 清空当前内容
+    tabContentContainer.innerHTML = '';
+    
+    // 添加新内容
+    tabContentContainer.appendChild(tabContents[tabKey]);
+    
+    console.log(`✅ Tab content updated: ${tabKey}`);
+    
+    // 获取modal引用以便重新绑定事件
+    const modal = tabContentContainer.closest('#unified-editor-modal');
+    
+    // 🔴 立即应用翻译到新添加的内容
+    if (modal && typeof window.updateAllUITexts === 'function') {
+        window.updateAllUITexts(modal);
+        console.log(`✅ Translations applied immediately after tab switch: ${tabKey}`);
+    }
+    
+    // 根据不同标签页执行特定的初始化
+    if (tabKey === 'tab_layers') {
+        console.log('🔴 Reinitializing layers tab functionality');
+        setTimeout(() => {
+            // 重新绑定图层下拉选择器事件
+            if (modal && typeof window.bindCanvasInteractionEvents === 'function') {
+                window.bindCanvasInteractionEvents(modal);
+                console.log('✅ Layer dropdown events rebound');
+            }
+        }, 100);
+    } else if (tabKey === 'tab_controls') {
+        console.log('🎛️ Reinitializing controls tab functionality');
+        setTimeout(() => {
+            // 重新绑定控制面板事件
+            if (modal && typeof window.bindPromptEvents === 'function') {
+                // 获取node实例以访问getObjectInfo函数
+                const node = window.currentVPENode;
+                const getObjectInfoFunction = node ? node.getObjectInfo : null;
+                window.bindPromptEvents(modal, getObjectInfoFunction);
+                console.log('✅ Controls tab events rebound');
+            }
+        }, 100);
+    } else if (tabKey === 'tab_ai_enhancer') {
+        console.log('🤖 Initializing AI enhancer functionality');
+        setTimeout(() => {
+            initializeAIEnhancerFeatures();
+            
+            // 强制更新AI增强器的翻译
+            if (modal && typeof window.updateSelectOptions === 'function') {
+                window.updateSelectOptions(modal);
+                console.log('🔄 AI enhancer translations updated');
+            }
+            
+            console.log('✅ AI enhancer features initialized');
+        }, 100);
+    }
+}
+
+/**
+ * 初始化AI增强器功能
+ */
+function initializeAIEnhancerFeatures() {
+    // 防止重复初始化
+    if (window._aiEnhancerInitialized) {
+        console.log('🔄 AI增强器已初始化，跳过重复初始化');
+        return;
+    }
+    
+    console.log('🤖 开始初始化AI增强器功能');
+    let currentEnhancer = 'api';
+    let isGenerating = false;
+    
+    // 增强器选择功能
+    const enhancerCards = document.querySelectorAll('.enhancer-card');
+    console.log(`📋 找到 ${enhancerCards.length} 个增强器卡片`);
+    
+    enhancerCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const enhancerType = this.getAttribute('data-enhancer');
+            if (enhancerType) {
+                console.log(`🎯 用户选择增强器: ${enhancerType}`);
+                selectEnhancer(enhancerType);
+                currentEnhancer = enhancerType;
+            }
+        });
+    });
+    
+    // 默认选择API增强器
+    console.log('🔧 设置默认增强器: api');
+    selectEnhancer('api');
+    
+    // 配置面板折叠功能
+    const configToggle = document.getElementById('enhancer-config-toggle');
+    if (configToggle) {
+        console.log('🔧 绑定配置面板折叠事件');
+        configToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🖱️ 配置面板折叠按钮被点击');
+            toggleEnhancerConfig();
+        });
+    } else {
+        console.warn('⚠️ 未找到配置面板折叠按钮');
+    }
+    
+    // 生成按钮功能
+    const generateBtn = document.getElementById('generate-ai-prompt');
+    if (generateBtn) {
+        generateBtn.addEventListener('click', () => generatePrompt(currentEnhancer));
+    }
+    
+    // 重新生成按钮
+    const regenerateBtn = document.getElementById('regenerate-ai-prompt');
+    if (regenerateBtn) {
+        regenerateBtn.addEventListener('click', () => generatePrompt(currentEnhancer));
+    }
+    
+    // 确认应用按钮
+    const confirmBtn = document.getElementById('confirm-ai-prompt');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmPrompt);
+    }
+    
+    // 参数实时更新功能（防抖处理）
+    setupRealtimePreview(currentEnhancer);
+    
+    // 标记为已初始化
+    window._aiEnhancerInitialized = true;
+    console.log('✅ AI增强器功能初始化完成');
+}
+
+/**
+ * 选择增强器
+ */
+function selectEnhancer(enhancerType) {
+    // 更新选择状态
+    const enhancerCards = document.querySelectorAll('.enhancer-card');
+    enhancerCards.forEach(card => {
+        const cardType = card.getAttribute('data-enhancer');
+        if (cardType === enhancerType) {
+            card.style.borderColor = '#10b981';
+            card.style.background = 'rgba(16, 185, 129, 0.1)';
+        } else {
+            card.style.borderColor = '#444';
+            card.style.background = '#1a1a1a';
+        }
+    });
+    
+    // 显示对应的配置面板
+    const configPanels = ['api-config', 'ollama-config', 'textgen-config'];
+    configPanels.forEach(panelId => {
+        const panel = document.getElementById(panelId);
+        if (panel) {
+            panel.style.display = panelId === `${enhancerType}-config` ? 'block' : 'none';
+        }
+    });
+    
+    console.log(`🔧 选择增强器: ${enhancerType}`);
+}
+
+/**
+ * 切换增强器配置面板
+ */
+function toggleEnhancerConfig() {
+    console.log('🔧 toggleEnhancerConfig 函数被调用');
+    const configContent = document.getElementById('enhancer-config');
+    const arrow = document.getElementById('config-arrow');
+    
+    console.log('🔍 查找配置元素:', {
+        configContent: !!configContent,
+        arrow: !!arrow,
+        currentMaxHeight: configContent?.style.maxHeight
+    });
+    
+    if (configContent && arrow) {
+        const isHidden = configContent.style.maxHeight === '0px' || !configContent.style.maxHeight;
+        console.log(`🔄 面板状态: ${isHidden ? '隐藏' : '显示'}`);
+        
+        if (isHidden) {
+            configContent.style.maxHeight = configContent.scrollHeight + 'px';
+            arrow.style.transform = 'rotate(0deg)';
+            console.log('📂 展开配置面板');
+        } else {
+            configContent.style.maxHeight = '0px';
+            arrow.style.transform = 'rotate(-90deg)';
+            console.log('📁 折叠配置面板');
+        }
+    } else {
+        console.warn('❌ 配置面板元素未找到');
+    }
+}
+
+/**
+ * 生成提示词
+ */
+async function generatePrompt(enhancerType) {
+    const generateBtn = document.getElementById('generate-ai-prompt');
+    const regenerateBtn = document.getElementById('regenerate-ai-prompt');
+    const confirmBtn = document.getElementById('confirm-ai-prompt');
+    const previewStatus = document.getElementById('preview-status');
+    const previewContent = document.getElementById('preview-content');
+    
+    if (!generateBtn || !previewStatus || !previewContent) return;
+    
+    // 更新按钮状态
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<span style="animation: spin 1s linear infinite; display: inline-block;">⚙️</span> 正在生成...';
+    if (regenerateBtn) regenerateBtn.disabled = true;
+    if (confirmBtn) confirmBtn.disabled = true;
+    
+    // 更新状态
+    previewStatus.textContent = '生成中...';
+    previewStatus.style.background = 'rgba(245, 158, 11, 0.2)';
+    previewStatus.style.color = '#f59e0b';
+    
+    // 收集参数
+    const params = {
+        enhancer: enhancerType,
+        description: document.getElementById('edit-description')?.value || '',
+        intent: document.getElementById('edit-intent')?.value || 'general_editing',
+        style: document.getElementById('processing-style')?.value || 'auto_smart',
+        temperature: document.getElementById('temperature')?.value || '0.7',
+        seed: document.getElementById('seed')?.value || '42'
+    };
+    
+    console.log('生成参数:', params);
+    
+    try {
+        // 尝试调用实际的增强器API
+        const result = await callEnhancerAPI(enhancerType, params);
+        
+        if (result.success) {
+            // 更新预览内容
+            displayEnhancedPrompt(result.prompt, previewContent);
+            
+            // 更新状态
+            previewStatus.textContent = '生成完成';
+            previewStatus.style.background = 'rgba(16, 185, 129, 0.2)';
+            previewStatus.style.color = '#10b981';
+            
+            // 添加质量分析
+            analyzePromptQuality(result.prompt);
+        } else {
+            throw new Error(result.error || '生成失败');
+        }
+        
+    } catch (error) {
+        console.warn('AI增强器调用失败，使用示例提示词:', error);
+        
+        // 回退到示例提示词
+        const samplePrompts = [
+            "Transform the red rectangular marked area into a beautiful deep blue evening sky with stunning sunset colors, maintaining natural lighting transitions and ensuring seamless blending with the surrounding environment while preserving the overall atmospheric quality of the image.",
+            "Change the red annotated region to display a magnificent twilight sky in deep blue tones, creating a dramatic evening atmosphere with natural color gradients and smooth transitions that integrate harmoniously with the existing lighting conditions.",
+            "Convert the marked red area to showcase a breathtaking deep blue evening sky with warm sunset undertones, ensuring professional quality color blending and maintaining realistic lighting consistency throughout the scene."
+        ];
+        
+        const randomPrompt = samplePrompts[Math.floor(Math.random() * samplePrompts.length)];
+        
+        // 更新预览
+        displayEnhancedPrompt(randomPrompt, previewContent);
+        
+        // 更新状态
+        previewStatus.textContent = '生成完成（示例）';
+        previewStatus.style.background = 'rgba(16, 185, 129, 0.2)';
+        previewStatus.style.color = '#10b981';
+        
+        // 添加质量分析（示例模式）
+        analyzePromptQuality(randomPrompt, true);
+    } finally {
+        // 恢复按钮状态
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '🚀 生成提示词';
+        if (regenerateBtn) regenerateBtn.disabled = false;
+        if (confirmBtn) confirmBtn.disabled = false;
+    }
+}
+
+/**
+ * 调用增强器API
+ */
+async function callEnhancerAPI(enhancerType, params) {
+    try {
+        // 构建annotation数据
+        const modal = document.getElementById('unified-editor-modal');
+        const annotationData = modal?.annotations || [];
+        
+        // 构建请求数据
+        const requestData = {
+            annotation_data: JSON.stringify({
+                annotations: annotationData,
+                include_annotation_numbers: false
+            }),
+            edit_description: params.description,
+            editing_intent: params.intent,
+            processing_style: params.style,
+            seed: parseInt(params.seed) || 42,
+            temperature: parseFloat(params.temperature) || 0.7
+        };
+        
+        // 根据增强器类型调用不同的API端点
+        let endpoint = '';
+        switch (enhancerType) {
+            case 'api':
+                endpoint = '/kontext/api_enhance';
+                // 添加API特定参数
+                requestData.api_provider = getAPIConfig().provider || 'siliconflow';
+                requestData.api_key = getAPIConfig().apiKey || '';
+                requestData.model_preset = getAPIConfig().model || 'deepseek-ai/DeepSeek-V3';
+                break;
+            case 'ollama':
+                endpoint = '/kontext/ollama_enhance';
+                // 添加Ollama特定参数
+                requestData.ollama_base_url = getOllamaConfig().baseUrl || 'http://localhost:11434';
+                requestData.model_name = getOllamaConfig().model || 'llama3.1:8b';
+                break;
+            case 'textgen':
+                endpoint = '/kontext/textgen_enhance';
+                // 添加TextGen特定参数
+                requestData.base_url = getTextGenConfig().baseUrl || 'http://localhost:5000';
+                requestData.model_name = getTextGenConfig().model || 'llama-3.1-8b-instruct';
+                break;
+            default:
+                throw new Error('不支持的增强器类型');
+        }
+        
+        // 发送请求
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            return {
+                success: true,
+                prompt: result.enhanced_prompt || result.result || result.prompt
+            };
+        } else {
+            throw new Error(result.error || result.message || '未知错误');
+        }
+        
+    } catch (error) {
+        console.error('增强器API调用失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * 映射意图值到增强器参数
+ */
+function mapIntentValue(intent) {
+    const mapping = {
+        'change_color': 'general_editing',
+        'replace_object': 'creative_design',
+        'remove_object': 'professional_editing',
+        'add_object': 'creative_design',
+        'change_style': 'creative_design',
+        'enhance_quality': 'professional_editing',
+        'adjust_lighting': 'professional_editing'
+    };
+    return mapping[intent] || 'general_editing';
+}
+
+/**
+ * 映射风格值到增强器参数
+ */
+function mapStyleValue(style) {
+    const mapping = {
+        'natural_realistic': 'auto_smart',
+        'artistic_creative': 'creative_artistic',
+        'technical_precise': 'precise_technical'
+    };
+    return mapping[style] || 'auto_smart';
+}
+
+/**
+ * 获取API配置
+ */
+function getAPIConfig() {
+    return {
+        provider: document.querySelector('#api-config select')?.value || 'siliconflow',
+        apiKey: document.querySelector('#api-config input[type="password"]')?.value || '',
+        model: document.querySelector('#api-config select')?.value || 'deepseek-ai/DeepSeek-V3',
+        baseUrl: document.querySelector('#api-config input[placeholder*="https://api"]')?.value || 'https://api.openai.com/v1'
+    };
+}
+
+/**
+ * 获取Ollama配置
+ */
+function getOllamaConfig() {
+    return {
+        baseUrl: document.querySelector('#ollama-url-input')?.value || 'http://localhost:11434',
+        model: document.querySelector('#ollama-model-select')?.value || 'llama3.1:8b'
+    };
+}
+
+/**
+ * 获取TextGen配置
+ */
+function getTextGenConfig() {
+    return {
+        baseUrl: document.querySelector('#textgen-url-input')?.value || 'http://localhost:5000',
+        model: document.querySelector('#textgen-model-select')?.value || 'llama-3.1-8b-instruct'
+    };
+}
+
+/**
+ * 确认应用提示词
+ */
+function confirmPrompt() {
+    const previewContent = document.getElementById('preview-content');
+    if (previewContent) {
+        const promptText = previewContent.textContent;
+        
+        if (!promptText || promptText.includes('点击上方')) {
+            alert('⚠️ 请先生成提示词后再确认应用！');
+            return;
+        }
+        
+        // 将提示词应用到工作流
+        applyPromptToWorkflow(promptText);
+    }
+}
+
+/**
+ * 将提示词应用到工作流
+ */
+function applyPromptToWorkflow(promptText) {
+    try {
+        // 获取当前节点实例
+        const currentNode = window.currentVPENode;
+        if (!currentNode) {
+            console.error('无法获取当前节点实例');
+            alert('❌ 应用失败：无法获取当前节点实例');
+            return;
+        }
+
+        // 更新节点的输出widgets
+        const promptWidget = currentNode.widgets?.find(w => w.name === "enhanced_prompt");
+        if (promptWidget) {
+            promptWidget.value = promptText;
+            console.log('✅ 提示词已更新到enhanced_prompt widget');
+        }
+
+        // 更新annotation_data widget（如果存在标注数据）
+        const modal = document.getElementById('unified-editor-modal');
+        if (modal?.annotations && modal.annotations.length > 0) {
+            const annotationWidget = currentNode.widgets?.find(w => w.name === "annotation_data");
+            if (annotationWidget) {
+                const annotationData = {
+                    annotations: modal.annotations,
+                    include_annotation_numbers: false,
+                    enhanced_prompt: promptText,
+                    timestamp: new Date().toISOString()
+                };
+                annotationWidget.value = JSON.stringify(annotationData);
+                console.log('✅ 标注数据已更新到annotation_data widget');
+            }
+        }
+
+        // 触发节点更新
+        if (currentNode.onPropertyChanged) {
+            currentNode.onPropertyChanged("enhanced_prompt", promptText);
+        }
+
+        // 标记节点为已修改
+        if (currentNode.setDirtyCanvas) {
+            currentNode.setDirtyCanvas(true);
+        }
+
+        // 显示成功消息
+        const successMsg = `✅ 提示词已确认并应用到工作流！
+
+📝 生成的提示词：
+${promptText.substring(0, 100)}${promptText.length > 100 ? '...' : ''}
+
+🔄 请继续您的ComfyUI工作流程。`;
+
+        alert(successMsg);
+        
+        // 关闭弹窗
+        const closeBtn = document.getElementById('vpe-close');
+        if (closeBtn) {
+            setTimeout(() => {
+                closeBtn.click();
+            }, 1000);
+        }
+
+        console.log('✅ 提示词应用完成');
+
+    } catch (error) {
+        console.error('应用提示词到工作流时出错:', error);
+        alert('❌ 应用失败：' + error.message);
+    }
+}
+
+/**
+ * 设置实时预览功能（防抖处理）
+ */
+function setupRealtimePreview(enhancerType) {
+    let debounceTimer;
+    
+    const inputElements = [
+        document.getElementById('edit-description'),
+        document.getElementById('edit-intent'),
+        document.getElementById('processing-style'),
+        document.getElementById('temperature'),
+        document.getElementById('seed')
+    ];
+    
+    inputElements.forEach(element => {
+        if (element) {
+            const eventType = element.tagName === 'TEXTAREA' || element.type === 'text' ? 'input' : 'change';
+            element.addEventListener(eventType, () => {
+                clearTimeout(debounceTimer);
+                
+                // 显示正在更新状态
+                const previewStatus = document.getElementById('preview-status');
+                if (previewStatus) {
+                    previewStatus.textContent = '参数已更新';
+                    previewStatus.style.background = 'rgba(59, 130, 246, 0.2)';
+                    previewStatus.style.color = '#3b82f6';
+                }
+                
+                // 500ms后触发预览更新
+                debounceTimer = setTimeout(() => {
+                    console.log('参数更新，可以触发预览生成');
+                    // 这里可以添加自动预览功能，如果用户启用了该选项
+                }, 500);
+            });
+        }
+    });
+}
+
+/**
+ * 显示增强的提示词预览
+ */
+function displayEnhancedPrompt(promptText, previewContainer) {
+    if (!previewContainer || !promptText) return;
+    
+    // 创建增强的显示格式
+    const displayHTML = `
+        <div style="color: #10b981; line-height: 1.4; font-size: 10px; margin-bottom: 8px;">
+            ${promptText}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #555;">
+            <div style="font-size: 8px; color: #666;">
+                字符数: ${promptText.length} | 词汇数: ${promptText.split(' ').length}
+            </div>
+            <div style="font-size: 8px;">
+                <span style="color: #10b981; cursor: pointer;" onclick="copyPromptToClipboard('${promptText.replace(/'/g, "\\'")}')">📋 复制</span>
+            </div>
+        </div>
+    `;
+    
+    previewContainer.innerHTML = displayHTML;
+}
+
+/**
+ * 分析提示词质量
+ */
+function analyzePromptQuality(promptText, isExample = false) {
+    try {
+        const analysis = {
+            length: promptText.length,
+            wordCount: promptText.split(' ').length,
+            hasColorTerms: /\b(color|blue|red|green|yellow|purple|orange|pink|black|white|gray|grey)\b/i.test(promptText),
+            hasQualityTerms: /\b(beautiful|stunning|professional|natural|smooth|seamless|realistic|high.quality)\b/i.test(promptText),
+            hasActionTerms: /\b(transform|change|convert|maintain|ensure|create|blend|integrate)\b/i.test(promptText),
+            hasLocationTerms: /\b(area|region|section|zone|marked|rectangular|circular)\b/i.test(promptText)
+        };
+        
+        // 计算质量分数
+        let qualityScore = 0;
+        if (analysis.length > 50 && analysis.length < 300) qualityScore += 25;
+        if (analysis.wordCount > 10 && analysis.wordCount < 50) qualityScore += 25;
+        if (analysis.hasColorTerms) qualityScore += 15;
+        if (analysis.hasQualityTerms) qualityScore += 15;
+        if (analysis.hasActionTerms) qualityScore += 10;
+        if (analysis.hasLocationTerms) qualityScore += 10;
+        
+        console.log(`📊 提示词质量分析 ${isExample ? '(示例)' : ''}:`, {
+            质量分数: `${qualityScore}/100`,
+            字符数: analysis.length,
+            词汇数: analysis.wordCount,
+            包含颜色词汇: analysis.hasColorTerms,
+            包含质量词汇: analysis.hasQualityTerms,
+            包含动作词汇: analysis.hasActionTerms,
+            包含位置词汇: analysis.hasLocationTerms
+        });
+        
+        // 可以在这里添加更多的质量反馈逻辑
+        if (qualityScore >= 80) {
+            console.log('✅ 提示词质量优秀');
+        } else if (qualityScore >= 60) {
+            console.log('⚠️ 提示词质量良好，建议优化');
+        } else {
+            console.log('❌ 提示词质量有待提升');
+        }
+        
+    } catch (error) {
+        console.warn('提示词质量分析失败:', error);
+    }
+}
+
+/**
+ * 复制提示词到剪贴板
+ */
+function copyPromptToClipboard(promptText) {
+    if (!promptText) return;
+    
+    navigator.clipboard.writeText(promptText).then(() => {
+        console.log('✅ 提示词已复制到剪贴板');
+        
+        // 显示临时提示
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 30000;
+            background: #10b981; color: white; padding: 8px 16px;
+            border-radius: 6px; font-size: 12px; font-weight: bold;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            animation: slideInFromRight 0.3s ease;
+        `;
+        toast.textContent = '✅ 提示词已复制！';
+        
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInFromRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+            style.remove();
+        }, 2000);
+        
+    }).catch(error => {
+        console.error('复制到剪贴板失败:', error);
+        alert('复制失败，请手动复制提示词内容');
+    });
+}
+
+/**
+ * 增强器连接测试
+ */
+async function testEnhancerConnection(enhancerType) {
+    console.log(`🔍 测试${enhancerType}增强器连接...`);
+    
+    try {
+        let endpoint = '';
+        let testData = {};
+        
+        switch (enhancerType) {
+            case 'api':
+                endpoint = '/kontext/api_test';
+                const apiConfig = getAPIConfig();
+                testData = {
+                    api_provider: apiConfig.provider,
+                    api_key: apiConfig.apiKey,
+                    base_url: apiConfig.baseUrl
+                };
+                break;
+            case 'ollama':
+                endpoint = '/kontext/ollama_test';
+                const ollamaConfig = getOllamaConfig();
+                testData = {
+                    ollama_base_url: ollamaConfig.baseUrl
+                };
+                break;
+            case 'textgen':
+                endpoint = '/kontext/textgen_test';
+                const textgenConfig = getTextGenConfig();
+                testData = {
+                    base_url: textgenConfig.baseUrl
+                };
+                break;
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`✅ ${enhancerType}增强器连接成功`);
+            return { success: true, message: '连接正常' };
+        } else {
+            console.warn(`❌ ${enhancerType}增强器连接失败:`, result.error);
+            return { success: false, message: result.error };
+        }
+        
+    } catch (error) {
+        console.error(`❌ ${enhancerType}增强器连接测试失败:`, error);
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * 测试API连接
+ */
+async function testAPIConnection() {
+    console.log('🔍 测试API连接...');
+    const statusElement = document.getElementById('api-status');
+    if (statusElement) {
+        statusElement.textContent = '● 测试中...';
+        statusElement.style.color = '#f59e0b';
+    }
+    
+    const result = await testEnhancerConnection('api');
+    
+    if (statusElement) {
+        if (result.success) {
+            statusElement.textContent = '● 连接正常';
+            statusElement.style.color = '#10b981';
+        } else {
+            statusElement.textContent = '● 连接失败';
+            statusElement.style.color = '#ef4444';
+            console.warn('API连接测试失败:', result.message);
+        }
+    }
+}
+
+/**
+ * 测试Ollama连接
+ */
+async function testOllamaConnection() {
+    console.log('🔍 测试Ollama连接...');
+    const statusElement = document.getElementById('ollama-status');
+    if (statusElement) {
+        statusElement.textContent = '● 测试中...';
+        statusElement.style.color = '#f59e0b';
+    }
+    
+    const result = await testEnhancerConnection('ollama');
+    
+    if (statusElement) {
+        if (result.success) {
+            statusElement.textContent = '● 连接正常';
+            statusElement.style.color = '#10b981';
+        } else {
+            statusElement.textContent = '● 连接失败';
+            statusElement.style.color = '#ef4444';
+            console.warn('Ollama连接测试失败:', result.message);
+        }
+    }
+}
+
+/**
+ * 测试TextGen连接
+ */
+async function testTextGenConnection() {
+    console.log('🔍 测试TextGen连接...');
+    const statusElement = document.getElementById('textgen-status');
+    if (statusElement) {
+        statusElement.textContent = '● 测试中...';
+        statusElement.style.color = '#f59e0b';
+    }
+    
+    const result = await testEnhancerConnection('textgen');
+    
+    if (statusElement) {
+        if (result.success) {
+            statusElement.textContent = '● 连接正常';
+            statusElement.style.color = '#10b981';
+        } else {
+            statusElement.textContent = '● 连接失败';
+            statusElement.style.color = '#ef4444';
+            console.warn('TextGen连接测试失败:', result.message);
+        }
+    }
+}
+
+// 在window对象上暴露函数，以便在HTML中调用
+window.toggleEnhancerConfig = toggleEnhancerConfig;
+window.copyPromptToClipboard = copyPromptToClipboard;
+window.testEnhancerConnection = testEnhancerConnection;
+window.testAPIConnection = testAPIConnection;
+window.testOllamaConnection = testOllamaConnection;
+window.testTextGenConnection = testTextGenConnection;

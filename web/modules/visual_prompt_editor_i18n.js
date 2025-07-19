@@ -197,8 +197,104 @@ export const I18N_TEXTS = {
     
     // 表单标签
     'select_layers': {
-        'en': '📋 Select Layers (Optional for Global/Professional)',
-        'zh': '📋 选择图层 (全局/专业操作可选)'
+        'en': '📋 Available Layers',
+        'zh': '📋 可用图层'
+    },
+    'btn_clear_selection': {
+        'en': '🗑️ Clear',
+        'zh': '🗑️ 清除'
+    },
+    'layer_name': {
+        'en': 'Layer',
+        'zh': '图层'
+    },
+    'no_description': {
+        'en': 'No description',
+        'zh': '无描述'
+    },
+    'no_layers_message': {
+        'en': 'No layers available',
+        'zh': '暂无图层'
+    },
+    'selected_count': {
+        'en': 'selected',
+        'zh': '已选择'
+    },
+    'layers_selected': {
+        'en': 'layers selected',
+        'zh': '个图层已选择'
+    },
+    
+    // 操作类型翻译
+    'op_add_object': {
+        'en': 'Add Object',
+        'zh': '添加对象'
+    },
+    'op_change_color': {
+        'en': 'Change Color',
+        'zh': '更改颜色'
+    },
+    'op_change_style': {
+        'en': 'Change Style',
+        'zh': '更改风格'
+    },
+    'op_replace_object': {
+        'en': 'Replace Object',
+        'zh': '替换对象'
+    },
+    'op_remove_object': {
+        'en': 'Remove Object',
+        'zh': '移除对象'
+    },
+    
+    // 形状类型翻译
+    'shape_rectangle': {
+        'en': 'rectangle',
+        'zh': '矩形'
+    },
+    'shape_circle': {
+        'en': 'circle',
+        'zh': '圆形'
+    },
+    'shape_arrow': {
+        'en': 'arrow',
+        'zh': '箭头'
+    },
+    'shape_freehand': {
+        'en': 'freehand',
+        'zh': '自由绘制'
+    },
+    'shape_brush': {
+        'en': 'brush',
+        'zh': '画笔'
+    },
+    
+    // 编辑模式翻译
+    'individual_editing': {
+        'en': 'Individual editing',
+        'zh': '单独编辑'
+    },
+    
+    // 颜色翻译
+    'color_red': {
+        'en': 'Red',
+        'zh': '红色'
+    },
+    'color_green': {
+        'en': 'Green',
+        'zh': '绿色'
+    },
+    'color_blue': {
+        'en': 'Blue',
+        'zh': '蓝色'
+    },
+    'color_yellow': {
+        'en': 'Yellow',
+        'zh': '黄色'
+    },
+    'color_orange': {
+        'en': 'Orange',
+        'zh': '橙色'
     },
     'operation_type': {
         'en': '⚙️ Operation Type',
@@ -1669,6 +1765,228 @@ export const I18N_TEXTS = {
     'decorative_custom_4': {
         'en': 'customized perfection',
         'zh': '定制完美'
+    },
+    
+    // 标签页翻译
+    'tab_layers': {
+        'en': '🔴 Layers',
+        'zh': '🔴 图层'
+    },
+    'tab_controls': {
+        'en': '🎛️ Controls',
+        'zh': '🎛️ 控制'
+    },
+    'tab_ai_enhancer': {
+        'en': '🤖 AI Enhancer',
+        'zh': '🤖 AI增强'
+    },
+    
+    // AI增强器相关翻译
+    'ai_select_enhancer': {
+        'en': '🚀 Select Enhancer',
+        'zh': '🚀 选择增强器'
+    },
+    'ai_edit_description': {
+        'en': '✏️ Edit Description',
+        'zh': '✏️ 编辑描述'
+    },
+    'ai_parameter_settings': {
+        'en': '🎛️ Parameter Settings',
+        'zh': '🎛️ 参数设置'
+    },
+    'ai_enhancer_api': {
+        'en': 'API Cloud',
+        'zh': 'API云端'
+    },
+    'ai_enhancer_ollama': {
+        'en': 'Ollama Local',
+        'zh': 'Ollama本地'
+    },
+    'ai_enhancer_textgen': {
+        'en': 'TextGen',
+        'zh': 'TextGen'
+    },
+    'ai_edit_intent': {
+        'en': 'Edit Intent',
+        'zh': '编辑意图'
+    },
+    'ai_processing_style': {
+        'en': 'Processing Style',
+        'zh': '处理风格'
+    },
+    'ai_temperature': {
+        'en': 'Temperature',
+        'zh': 'Temperature'
+    },
+    'ai_random_seed': {
+        'en': 'Random Seed',
+        'zh': '随机种子'
+    },
+    'ai_generate_prompt': {
+        'en': '🚀 Generate Prompt',
+        'zh': '🚀 生成提示词'
+    },
+    'ai_prompt_preview': {
+        'en': '📝 Prompt Preview',
+        'zh': '📝 提示词预览'
+    },
+    'ai_regenerate': {
+        'en': '🔄 Regenerate',
+        'zh': '🔄 重新生成'
+    },
+    'ai_confirm_apply': {
+        'en': '✅ Confirm Apply',
+        'zh': '✅ 确认应用'
+    },
+    'ai_placeholder_description': {
+        'en': 'Describe the editing effect you want...',
+        'zh': '描述您想要的编辑效果...'
+    },
+    'ai_prompt_placeholder': {
+        'en': 'Click "🚀 Generate Prompt" to start generating professional prompts...',
+        'zh': '点击"🚀 生成提示词"按钮开始生成专业提示词...'
+    },
+    'ai_status_pending': {
+        'en': 'Pending',
+        'zh': '待生成'
+    },
+    'ai_intent_change_color': {
+        'en': 'Change Color',
+        'zh': '改变颜色'
+    },
+    'ai_intent_replace_object': {
+        'en': 'Replace Object',
+        'zh': '替换对象'
+    },
+    'ai_intent_remove_object': {
+        'en': 'Remove Object',
+        'zh': '移除对象'
+    },
+    'ai_intent_add_object': {
+        'en': 'Add Object',
+        'zh': '添加对象'
+    },
+    'ai_intent_change_style': {
+        'en': 'Change Style',
+        'zh': '改变风格'
+    },
+    'ai_intent_enhance_quality': {
+        'en': 'Enhance Quality',
+        'zh': '增强质量'
+    },
+    'ai_style_natural': {
+        'en': 'Natural Realistic',
+        'zh': '自然真实'
+    },
+    'ai_style_artistic': {
+        'en': 'Artistic Creative',
+        'zh': '艺术创意'
+    },
+    'ai_style_technical': {
+        'en': 'Technical Precise',
+        'zh': '技术精确'
+    },
+    'ai_temp_conservative': {
+        'en': '0.3 (Conservative)',
+        'zh': '0.3 (保守)'
+    },
+    'ai_temp_creative': {
+        'en': '0.7 (Creative)',
+        'zh': '0.7 (创意)'
+    },
+    'ai_temp_random': {
+        'en': '0.9 (Random)',
+        'zh': '0.9 (随机)'
+    },
+    'ai_temp_maximum': {
+        'en': '1.0 (Maximum)',
+        'zh': '1.0 (最大)'
+    },
+    'ai_seed_default': {
+        'en': '42 (Default)',
+        'zh': '42 (默认)'
+    },
+    'ai_seed_random': {
+        'en': 'Random (-1)',
+        'zh': '随机 (-1)'
+    },
+    
+    // AI增强器 - 编辑意图
+    'ai_intent_general_editing': {
+        'en': 'General Editing',
+        'zh': '通用编辑'
+    },
+    'ai_intent_product_showcase': {
+        'en': 'Product Showcase',
+        'zh': '产品展示优化'
+    },
+    'ai_intent_portrait_enhancement': {
+        'en': 'Portrait Enhancement',
+        'zh': '人像美化'
+    },
+    'ai_intent_creative_design': {
+        'en': 'Creative Design',
+        'zh': '创意设计'
+    },
+    'ai_intent_architectural_photo': {
+        'en': 'Architectural Photo',
+        'zh': '建筑摄影'
+    },
+    'ai_intent_food_styling': {
+        'en': 'Food Styling',
+        'zh': '美食摄影'
+    },
+    'ai_intent_fashion_retail': {
+        'en': 'Fashion Retail',
+        'zh': '时尚零售'
+    },
+    'ai_intent_landscape_nature': {
+        'en': 'Landscape Nature',
+        'zh': '风景自然'
+    },
+    'ai_intent_professional_editing': {
+        'en': 'Professional Editing',
+        'zh': '专业图像编辑'
+    },
+    'ai_intent_custom': {
+        'en': 'Custom',
+        'zh': '自定义'
+    },
+    
+    // AI增强器 - 处理风格
+    'ai_style_auto_smart': {
+        'en': 'Auto Smart',
+        'zh': '智能自动'
+    },
+    'ai_style_efficient_fast': {
+        'en': 'Efficient Fast',
+        'zh': '高效快速'
+    },
+    'ai_style_creative_artistic': {
+        'en': 'Creative Artistic',
+        'zh': '创意艺术'
+    },
+    'ai_style_precise_technical': {
+        'en': 'Precise Technical',
+        'zh': '精确技术'
+    },
+    'ai_style_custom_guidance': {
+        'en': 'Custom Guidance',
+        'zh': '自定义指引'
+    },
+    
+    // API配置占位符
+    'api_key_placeholder': {
+        'en': 'Enter your API Key',
+        'zh': '输入您的API Key'
+    },
+    'ollama_url_placeholder': {
+        'en': 'http://localhost:11434',
+        'zh': 'http://localhost:11434'
+    },
+    'textgen_url_placeholder': {
+        'en': 'http://localhost:5000',
+        'zh': 'http://localhost:5000'
     }
 };
 

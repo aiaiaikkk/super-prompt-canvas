@@ -5,7 +5,92 @@
 
 import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_NAMES, mouseToSVGCoordinates } from './visual_prompt_editor_utils.js';
 import { updatePromptSelectors } from './visual_prompt_editor_prompts.js';
+import { t } from './visual_prompt_editor_i18n.js';
 // Note: setActiveTool will be passed as parameter to avoid circular dependency
+
+// 安全的翻译函数包装器
+const safeT = (key, fallback) => {
+    try {
+        if (typeof t === 'function') {
+            const result = t(key);
+            return result !== key ? result : (fallback || key);
+        }
+        return fallback || key;
+    } catch (e) {
+        console.warn('Translation error for key:', key, e);
+        return fallback || key;
+    }
+};
+
+// 翻译操作类型
+const translateOperationType = (operationType) => {
+    const operationKey = `op_${operationType}`;
+    return safeT(operationKey, operationType);
+};
+
+// 翻译形状类型
+const translateShapeType = (shapeType) => {
+    const shapeKey = `shape_${shapeType}`;
+    return safeT(shapeKey, shapeType);
+};
+
+// 恢复提示词选择状态
+const restorePromptSelections = (modal, annotation) => {
+    console.log('🔄 开始恢复提示词选择状态', {
+        annotationId: annotation.id,
+        layerNumber: annotation.number + 1,
+        constraintPrompts: annotation.constraintPrompts,
+        decorativePrompts: annotation.decorativePrompts
+    });
+    
+    // 先清空所有复选框状态
+    const allConstraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]');
+    const allDecorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]');
+    
+    console.log(`🧹 清空状态: ${allConstraintCheckboxes.length} 个约束性 + ${allDecorativeCheckboxes.length} 个修饰性复选框`);
+    
+    // 清空所有约束性提示词
+    allConstraintCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // 清空所有修饰性提示词
+    allDecorativeCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // 恢复约束性提示词
+    if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
+        console.log(`📋 开始恢复 ${annotation.constraintPrompts.length} 个约束性提示词`);
+        
+        allConstraintCheckboxes.forEach(checkbox => {
+            const isChecked = annotation.constraintPrompts.includes(checkbox.value);
+            if (isChecked) {
+                checkbox.checked = true;
+                console.log(`📋 ✅ 约束性提示词已勾选: ${checkbox.value}`);
+            }
+        });
+    } else {
+        console.log(`📋 没有约束性提示词需要恢复`);
+    }
+    
+    // 恢复修饰性提示词
+    if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
+        console.log(`🎨 开始恢复 ${annotation.decorativePrompts.length} 个修饰性提示词`);
+        
+        allDecorativeCheckboxes.forEach(checkbox => {
+            const isChecked = annotation.decorativePrompts.includes(checkbox.value);
+            if (isChecked) {
+                checkbox.checked = true;
+                console.log(`🎨 ✅ 修饰性提示词已勾选: ${checkbox.value}`);
+            }
+        });
+    } else {
+        console.log(`🎨 没有修饰性提示词需要恢复`);
+    }
+    
+    console.log('✅ 提示词状态恢复完成');
+};
 
 /**
  * 同步创建箭头marker
@@ -126,6 +211,15 @@ function getNextAnnotationNumber(modal) {
 
 export function bindCanvasInteractionEvents(modal) {
     console.log('🎨 绑定画布交互事件开始');
+    
+    // 无论是否已绑定事件，都要更新图层选择器 - 重要：确保标签页切换后选择器正常工作
+    updateObjectSelector(modal);
+    
+    // 检查是否已经绑定过事件，避免重复绑定
+    if (modal._canvasEventsBindFlag) {
+        console.log('⚠️ 画布交互事件已绑定，跳过重复绑定');
+        return;
+    }
     
     // 检查绘制层是否存在
     const drawingLayer = modal.querySelector('#drawing-layer');
@@ -475,6 +569,9 @@ export function bindCanvasInteractionEvents(modal) {
         
         return false;
     });
+    
+    // 标记事件已绑定
+    modal._canvasEventsBindFlag = true;
 }
 
 /**
@@ -575,6 +672,13 @@ function finishFreehandDrawing(modal) {
         return;
     }
     
+    // 防止重复调用
+    if (modal._freehandProcessing) {
+        console.log('⚠️ 自由绘制正在处理中，跳过重复调用');
+        return;
+    }
+    modal._freehandProcessing = true;
+    
     console.log('✨ 完成自由绘制，点数:', modal.freehandPoints.length);
     
     const drawingLayer = modal.querySelector('#drawing-layer');
@@ -644,6 +748,7 @@ function finishFreehandDrawing(modal) {
     modal.isDrawingFreehand = false;
     modal.freehandPoints = [];
     modal.currentFreehandPath = null;
+    modal._freehandProcessing = false;
 }
 
 /**
@@ -838,6 +943,13 @@ function continueBrushStroke(modal, point) {
 function finishBrushStroke(modal) {
     if (!modal.currentBrushStroke) return;
     
+    // 防止重复调用
+    if (modal._brushProcessing) {
+        console.log('⚠️ 画笔绘制正在处理中，跳过重复调用');
+        return;
+    }
+    modal._brushProcessing = true;
+    
     console.log('🖌️ 完成画笔绘制，点数:', modal.currentBrushStroke.points.length);
     
     const brushStroke = modal.currentBrushStroke;
@@ -850,6 +962,7 @@ function finishBrushStroke(modal) {
             brushStroke.path.remove();
         }
         modal.currentBrushStroke = null;
+        modal._brushProcessing = false;
         return;
     }
     
@@ -897,16 +1010,27 @@ function finishBrushStroke(modal) {
     
     // 清理
     modal.currentBrushStroke = null;
+    modal._brushProcessing = false;
 }
 
 /**
  * 完成绘制
  */
 function finishDrawing(modal, startPoint, endPoint, tool, color) {
+    // 防止重复调用
+    if (modal._drawingProcessing) {
+        console.log('⚠️ 绘制正在处理中，跳过重复调用');
+        return;
+    }
+    modal._drawingProcessing = true;
+    
     const drawingLayer = modal.querySelector('#drawing-layer');
     const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
     
-    if (!svg) return;
+    if (!svg) {
+        modal._drawingProcessing = false;
+        return;
+    }
     
     // 移除预览
     const existingPreview = svg.querySelector('.shape-preview');
@@ -1031,6 +1155,9 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         console.log('📋 VPE当前标注数量:', modal.annotations.length);
         updateObjectSelector(modal);
     }
+    
+    // 重置处理标志
+    modal._drawingProcessing = false;
 }
 
 /**
@@ -1060,7 +1187,7 @@ function addNumberLabel(svg, point, number, color) {
         'stroke-width': '2',
         'paint-order': 'stroke fill'  // 确保描边在填充之下
     });
-    text.textContent = number.toString();
+    text.textContent = (number + 1).toString();
     
     group.appendChild(text);
     svg.appendChild(group);
@@ -1073,109 +1200,107 @@ function addNumberLabel(svg, point, number, color) {
  * 更新下拉复选框式图层选择器
  */
 export function updateObjectSelector(modal) {
-    const dropdownOptions = modal.querySelector('#dropdown-options');
+    const layersList = modal.querySelector('#layers-list');
     const layerOperations = modal.querySelector('#layer-operations');
     const noLayersMessage = modal.querySelector('#no-layers-message');
     const selectionCount = modal.querySelector('#selection-count');
+    const selectionCountInfo = modal.querySelector('#selection-count-info');
     
-    if (!dropdownOptions) return;
+    if (!layersList) {
+        console.warn('⚠️ Layers list container not found, skipping update');
+        return;
+    }
     
     if (!modal.annotations || modal.annotations.length === 0) {
-        dropdownOptions.innerHTML = '';
+        layersList.innerHTML = `<div style="color: #888; text-align: center; padding: 20px; font-size: 12px;">${safeT('no_layers_message', 'No layers available') || 'No layers available'}</div>`;
         if (layerOperations) layerOperations.style.display = 'none';
         if (noLayersMessage) noLayersMessage.style.display = 'block';
         if (selectionCount) selectionCount.textContent = '0 selected';
+        if (selectionCountInfo) selectionCountInfo.textContent = '0 selected';
         return;
     }
     
     // 隐藏空消息，显示操作区域
     if (noLayersMessage) noLayersMessage.style.display = 'none';
     
-    // 清空现有选项
-    dropdownOptions.innerHTML = '';
+    // 清空现有列表
+    layersList.innerHTML = '';
     
-    // 检查下拉框绑定状态 - 只有在绑定损坏时才重置
-    const dropdown = modal.querySelector('#layer-dropdown');
-    if (dropdown) {
-        const modalId = modal.id || 'default-modal';
-        const bindingKey = `dropdown-bound-${modalId}`;
-        
-        // 检查是否需要重置绑定状态
-        const isCurrentlyBound = modal[bindingKey] === true && dropdown.dataset.bound === 'true';
-        
-        if (isCurrentlyBound) {
-            console.log('✅ 下拉框事件已正确绑定，无需重置', { modalId, bindingKey });
-        } else {
-            console.log('🧹 下拉框绑定状态异常，重置绑定状态', { modalId, bindingKey });
-            modal[bindingKey] = false;
-            dropdown.dataset.bound = 'false';
-        }
-    }
-    
-    // 创建下拉选项
+    // 创建图层列表项
     modal.annotations.forEach((annotation, index) => {
-        console.log(`🔍 创建选项 ${index}: 编号=${annotation.number}, ID=${annotation.id}, 奇偶=${annotation.number % 2 === 0 ? '偶数' : '奇数'}`);
+        console.log(`🔍 Creating layer item ${index}: number=${annotation.number}, ID=${annotation.id}`);
         
         const objectInfo = getObjectInfo(annotation, index);
         
-        const option = document.createElement('div');
-        option.style.cssText = `
-            display: flex; align-items: center; gap: 4px; padding: 2px 6px; 
-            cursor: pointer; margin: 0; height: 20px;
-            transition: background 0.2s ease; 
-            border-bottom: 1px solid #444;
+        const layerItem = document.createElement('div');
+        layerItem.style.cssText = `
+            display: flex; align-items: center; gap: 8px; padding: 8px; 
+            cursor: pointer; margin-bottom: 4px; 
+            background: #333; border-radius: 4px;
+            transition: all 0.2s ease; 
+            border: 1px solid #555;
         `;
         
         const isSelected = modal.selectedLayers?.has(annotation.id) || false;
+        if (isSelected) {
+            layerItem.style.background = '#4a3a6a';
+            layerItem.style.borderColor = '#673AB7';
+        }
         
-        // 极简信息显示
-        const layerName = `Layer ${annotation.number}`;
+        // 显示图层信息
+        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
         const operationType = annotation.operationType || 'add_object';
+        const translatedOperationType = translateOperationType(operationType);
+        const description = annotation.description || safeT('no_description', 'No description');
         
-        option.innerHTML = `
+        layerItem.innerHTML = `
             <input type="checkbox" ${isSelected ? 'checked' : ''} 
-                   style="width: 10px; height: 10px; cursor: pointer; margin: 0; flex-shrink: 0;" 
+                   style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0; accent-color: #673AB7;" 
                    data-annotation-id="${annotation.id}">
-            <span style="font-size: 10px; flex-shrink: 0;">${objectInfo.icon}</span>
-            <span style="color: white; font-size: 10px; font-weight: 500; flex-shrink: 0;">
-                ${layerName}
-            </span>
-            <span style="color: #666; font-size: 9px; flex-shrink: 0;">•</span>
-            <span style="color: #aaa; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${operationType}
-            </span>
+            <span style="font-size: 14px; flex-shrink: 0;">${objectInfo.icon}</span>
+            <div style="flex: 1; min-width: 0;">
+                <div style="color: white; font-size: 12px; font-weight: 600;">
+                    ${layerName}
+                </div>
+                <div style="color: #aaa; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${translatedOperationType} • ${description.substring(0, 30)}${description.length > 30 ? '...' : ''}
+                </div>
+            </div>
         `;
         
         // 悬停效果
-        option.addEventListener('mouseenter', function() {
-            this.style.background = 'rgba(255,255,255,0.1)';
+        layerItem.addEventListener('mouseenter', function() {
+            if (!this.querySelector('input[type="checkbox"]').checked) {
+                this.style.background = '#3a3a3a';
+            }
         });
-        option.addEventListener('mouseleave', function() {
-            this.style.background = 'transparent';
+        layerItem.addEventListener('mouseleave', function() {
+            if (!this.querySelector('input[type="checkbox"]').checked) {
+                this.style.background = '#333';
+            }
         });
         
-        dropdownOptions.appendChild(option);
+        layersList.appendChild(layerItem);
         
-        // 绑定复选框事件（每次重新创建时都会重新绑定，无需防重复）
-        const checkbox = option.querySelector('input[type="checkbox"]');
+        // 绑定复选框事件
+        const checkbox = layerItem.querySelector('input[type="checkbox"]');
         if (checkbox) {
-            console.log(`📋 绑定复选框事件: 编号=${annotation.number}, ID=${annotation.id}`);
+            console.log(`📋 Binding checkbox event: number=${annotation.number}, ID=${annotation.id}`);
             checkbox.addEventListener('change', function(e) {
-                console.log(`✅ 复选框改变: 编号=${annotation.number}, 选中=${this.checked}`);
+                console.log(`✅ Checkbox changed: number=${annotation.number}, checked=${this.checked}`);
                 e.stopPropagation();
                 toggleLayerSelection(modal, annotation.id, this.checked);
+                updateLayerItemStyle(layerItem, this.checked);
             });
-        } else {
-            console.log(`⚠️ 未找到复选框: 编号=${annotation.number}`);
         }
         
-        // 绑定选项点击事件（切换复选框）
-        option.addEventListener('click', function(e) {
-            console.log(`👆 选项点击: 编号=${annotation.number}, 目标类型=${e.target.type}`);
+        // 绑定图层项点击事件（切换复选框）
+        layerItem.addEventListener('click', function(e) {
             if (e.target.type !== 'checkbox') {
                 checkbox.checked = !checkbox.checked;
-                console.log(`🔄 切换复选框: 编号=${annotation.number}, 新状态=${checkbox.checked}`);
+                console.log(`🔄 Toggle checkbox: number=${annotation.number}, new state=${checkbox.checked}`);
                 toggleLayerSelection(modal, annotation.id, checkbox.checked);
+                updateLayerItemStyle(layerItem, checkbox.checked);
             }
         });
     });
@@ -1185,12 +1310,11 @@ export function updateObjectSelector(modal) {
         modal.selectedLayers = new Set();
     }
     
-    // 更新选中计数和下拉框文本
+    // 更新选中计数
     updateSelectionCount(modal);
-    updateDropdownText(modal);
     
-    // 绑定下拉框相关事件
-    bindDropdownEvents(modal);
+    // 绑定按钮事件
+    bindLayerListEvents(modal);
     
     // 恢复高亮状态 - 根据当前选中的图层
     const selectedIds = Array.from(modal.selectedLayers || []);
@@ -1198,7 +1322,87 @@ export function updateObjectSelector(modal) {
         highlightSelectedAnnotations(modal, selectedIds);
     }
     
-    console.log('✅ 下拉复选框式图层选择器已更新，共', modal.annotations.length, '个图层');
+    console.log('✅ Layer list updated with', modal.annotations.length, 'layers');
+}
+
+/**
+ * 更新图层项的视觉样式
+ */
+function updateLayerItemStyle(layerItem, isSelected) {
+    if (isSelected) {
+        layerItem.style.background = '#4a3a6a';
+        layerItem.style.borderColor = '#673AB7';
+    } else {
+        layerItem.style.background = '#333';
+        layerItem.style.borderColor = '#555';
+    }
+}
+
+/**
+ * 绑定图层列表相关事件
+ */
+function bindLayerListEvents(modal) {
+    // 绑定"Select All"按钮
+    const selectAllBtn = modal.querySelector('#select-all-layers');
+    if (selectAllBtn) {
+        // 移除旧的事件监听器（如果有）
+        selectAllBtn.replaceWith(selectAllBtn.cloneNode(true));
+        const newSelectAllBtn = modal.querySelector('#select-all-layers');
+        
+        newSelectAllBtn.addEventListener('click', function() {
+            console.log('📋 Select all layers clicked');
+            const layerCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"]');
+            
+            layerCheckboxes.forEach(checkbox => {
+                if (!checkbox.checked) {
+                    checkbox.checked = true;
+                    const annotationId = checkbox.getAttribute('data-annotation-id');
+                    toggleLayerSelection(modal, annotationId, true);
+                    const layerItem = checkbox.closest('div');
+                    if (layerItem) updateLayerItemStyle(layerItem, true);
+                }
+            });
+        });
+    }
+    
+    // 绑定"Clear Selection"按钮
+    const clearBtn = modal.querySelector('#clear-selection');
+    if (clearBtn) {
+        // 移除旧的事件监听器（如果有）
+        clearBtn.replaceWith(clearBtn.cloneNode(true));
+        const newClearBtn = modal.querySelector('#clear-selection');
+        
+        newClearBtn.addEventListener('click', function() {
+            console.log('🗑️ Clear selection clicked');
+            const layerCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"]');
+            
+            layerCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    checkbox.checked = false;
+                    const annotationId = checkbox.getAttribute('data-annotation-id');
+                    toggleLayerSelection(modal, annotationId, false);
+                    const layerItem = checkbox.closest('div');
+                    if (layerItem) updateLayerItemStyle(layerItem, false);
+                }
+            });
+        });
+    }
+    
+    // 绑定"应用到选中图层"按钮
+    const applyBtn = modal.querySelector('#apply-to-selected');
+    if (applyBtn) {
+        console.log('🔍 找到应用按钮，绑定事件');
+        // 移除旧的事件监听器（如果有）
+        applyBtn.replaceWith(applyBtn.cloneNode(true));
+        const newApplyBtn = modal.querySelector('#apply-to-selected');
+        
+        newApplyBtn.addEventListener('click', function() {
+            console.log('🎯 Apply button clicked!');
+            applyToSelectedLayers(modal);
+        });
+    } else {
+        console.log('❌ 没有找到应用按钮 #apply-to-selected');
+    }
 }
 
 /**
@@ -1217,14 +1421,15 @@ function updateDropdownText(modal) {
         const selectedId = Array.from(modal.selectedLayers)[0];
         const annotation = modal.annotations.find(ann => ann.id === selectedId);
         if (annotation) {
-            const layerName = `Layer ${annotation.number}`;
+            const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
             const operationType = annotation.operationType || 'add_object';
-            dropdownText.textContent = `${layerName} • ${operationType}`;
+            const translatedOperationType = translateOperationType(operationType);
+            dropdownText.textContent = `${layerName} • ${translatedOperationType}`;
             dropdownText.style.color = 'white';
             dropdownText.style.fontSize = '12px';
         }
     } else {
-        dropdownText.textContent = `${selectedCount} layers selected`;
+        dropdownText.textContent = `${selectedCount} ${safeT('layers_selected', 'layers selected')}`;
         dropdownText.style.color = 'white';
         dropdownText.style.fontSize = '12px';
     }
@@ -1249,6 +1454,9 @@ function toggleLayerSelection(modal, annotationId, isSelected) {
     
     // 更新选中计数
     updateSelectionCount(modal);
+    
+    // 恢复图层设置（包括约束性和修饰性提示词）
+    restoreLayerSettings(modal);
     
     // 更新图层操作显示
     updateLayerOperationsDisplay(modal);
@@ -1298,9 +1506,14 @@ function updateLayerEditor(modal, annotation) {
  */
 function updateSelectionCount(modal) {
     const selectionCount = modal.querySelector('#selection-count');
-    if (selectionCount && modal.selectedLayers) {
+    const selectionCountInfo = modal.querySelector('#selection-count-info');
+    
+    if (modal.selectedLayers) {
         const count = modal.selectedLayers.size;
-        selectionCount.textContent = `${count} selected`;
+        const countText = `${count} ${safeT('selected_count', 'selected')}`;
+        
+        if (selectionCount) selectionCount.textContent = countText;
+        if (selectionCountInfo) selectionCountInfo.textContent = countText;
     }
 }
 
@@ -1366,13 +1579,7 @@ function bindDropdownEvents(modal) {
         });
     }
     
-    // 绑定应用按钮
-    const applyBtn = modal.querySelector('#apply-to-selected');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', () => {
-            applyToSelectedLayers(modal);
-        });
-    }
+    // 应用按钮事件在 bindLayerListEvents 中绑定
     
     console.log('✅ 下拉框事件已绑定');
 }
@@ -1453,46 +1660,83 @@ function selectAllLayers(modal) {
  * 显示成功提示
  */
 function showSuccessNotification(message) {
+    console.log('📢 开始显示成功通知:', message);
+    
     // 移除之前的提示（如果存在）
     const existingNotification = document.querySelector('.success-notification');
     if (existingNotification) {
         existingNotification.remove();
     }
     
-    // 找到按钮容器作为参考位置
-    const buttonsContainer = document.querySelector('#apply-to-selected')?.parentElement;
+    // 从Modal内部查找按钮
+    const modal = document.querySelector('#unified-editor-modal');
+    const applyButton = modal ? modal.querySelector('#apply-to-selected') : null;
+    const buttonsContainer = applyButton?.parentElement;
+    
+    console.log('🔍 查找按钮容器:', {
+        modal: !!modal,
+        applyButton: !!applyButton,
+        buttonsContainer: !!buttonsContainer,
+        containerTagName: buttonsContainer?.tagName,
+        containerClasses: buttonsContainer?.className
+    });
+    
     if (!buttonsContainer) {
-        console.warn('未找到按钮容器，无法显示提示');
+        console.warn('未找到按钮容器，使用模态窗口显示通知');
+        // 降级到模态窗口通知
+        showModalNotification(message);
         return;
     }
+    
+    // 使用按钮上方的通知位置
+    console.log('🔄 使用按钮上方通知位置');
     
     // 创建新的提示
     const notification = document.createElement('div');
     notification.className = 'success-notification';
     notification.style.cssText = `
-        position: absolute; top: -50px; left: 0; right: 0;
-        background: #4CAF50; color: white; padding: 8px 12px; 
-        border-radius: 4px; z-index: 1000;
-        font-weight: 600; font-size: 12px; text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        animation: slideDown 0.3s ease-out;
+        position: absolute; top: -60px; left: 0; right: 0;
+        background: linear-gradient(135deg, #4CAF50, #45A049); 
+        color: white; padding: 12px 16px; 
+        border-radius: 8px; z-index: 10000;
+        font-weight: 600; font-size: 14px; text-align: center;
+        box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+        animation: notificationSlideDown 0.4s ease-out;
+        border: 2px solid #45A049;
+        transform: translateY(0);
     `;
     notification.textContent = message;
     
     // 添加CSS动画
     const style = document.createElement('style');
     style.textContent = `
-        @keyframes slideDown {
-            from { transform: translateY(-10px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+        @keyframes notificationSlideDown {
+            from { 
+                transform: translateY(-20px); 
+                opacity: 0; 
+                scale: 0.9;
+            }
+            to { 
+                transform: translateY(0); 
+                opacity: 1; 
+                scale: 1;
+            }
         }
-        @keyframes slideUp {
-            from { transform: translateY(0); opacity: 1; }
-            to { transform: translateY(-10px); opacity: 0; }
+        @keyframes notificationSlideUp {
+            from { 
+                transform: translateY(0); 
+                opacity: 1; 
+                scale: 1;
+            }
+            to { 
+                transform: translateY(-20px); 
+                opacity: 0; 
+                scale: 0.9;
+            }
         }
     `;
-    if (!document.querySelector('style[data-notification]')) {
-        style.setAttribute('data-notification', 'true');
+    if (!document.querySelector('style[data-notification-above-button]')) {
+        style.setAttribute('data-notification-above-button', 'true');
         document.head.appendChild(style);
     }
     
@@ -1504,25 +1748,98 @@ function showSuccessNotification(message) {
     
     buttonsContainer.appendChild(notification);
     
-    // 2.5秒后自动移除
+    console.log('✅ 成功通知已添加到DOM:', {
+        notificationElement: notification,
+        parentContainer: buttonsContainer,
+        notificationText: message,
+        containerPosition: buttonsContainer.style.position
+    });
+    
+    // 3秒后自动移除
     setTimeout(() => {
         if (notification && notification.parentNode) {
-            notification.style.animation = 'slideUp 0.3s ease-out';
+            notification.style.animation = 'notificationSlideUp 0.4s ease-out';
             setTimeout(() => {
                 if (notification && notification.parentNode) {
                     notification.remove();
                 }
+            }, 400);
+        }
+    }, 3000);
+}
+
+/**
+ * Fallback notification function for modal display
+ */
+function showModalNotification(message) {
+    console.log('📢 显示模态通知:', message);
+    
+    // Create notification at top-right of modal
+    const modal = document.querySelector('#unified-editor-modal');
+    if (!modal) return;
+    
+    // Remove existing modal notifications
+    const existingNotifications = modal.querySelectorAll('.modal-notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = 'modal-notification';
+    notification.style.cssText = `
+        position: fixed; top: 80px; right: 20px;
+        background: #4CAF50; color: white; padding: 12px 20px; 
+        border-radius: 8px; z-index: 30000;
+        font-weight: 600; font-size: 14px;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        animation: slideInFromRight 0.3s ease-out;
+        max-width: 300px;
+    `;
+    notification.textContent = message;
+    
+    // Add animation styles if not exists
+    if (!document.querySelector('style[data-modal-notification]')) {
+        const style = document.createElement('style');
+        style.setAttribute('data-modal-notification', 'true');
+        style.textContent = `
+            @keyframes slideInFromRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutToRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification && notification.parentNode) {
+            notification.style.animation = 'slideOutToRight 0.3s ease-out';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
             }, 300);
         }
-    }, 2500);
+    }, 3000);
 }
 
 /**
  * 应用到选中的图层
  */
 function applyToSelectedLayers(modal) {
+    console.log('🎯 applyToSelectedLayers 函数被调用', {
+        modal: !!modal,
+        selectedLayers: modal?.selectedLayers,
+        selectedLayersSize: modal?.selectedLayers?.size || 0
+    });
+    
     if (!modal.selectedLayers || modal.selectedLayers.size === 0) {
         alert('请先选择图层');
+        console.log('❌ 没有选中的图层，终止应用操作');
         return;
     }
     
@@ -1539,15 +1856,19 @@ function applyToSelectedLayers(modal) {
     // 收集选中的约束性提示词
     const constraintPrompts = [];
     const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]:checked');
+    console.log(`📋 找到 ${constraintCheckboxes.length} 个被勾选的约束性提示词复选框`);
     constraintCheckboxes.forEach(checkbox => {
         constraintPrompts.push(checkbox.value);
+        console.log(`📋 保存约束性提示词: ${checkbox.value}`);
     });
     
     // 收集选中的修饰性提示词
     const decorativePrompts = [];
     const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]:checked');
+    console.log(`🎨 找到 ${decorativeCheckboxes.length} 个被勾选的修饰性提示词复选框`);
     decorativeCheckboxes.forEach(checkbox => {
         decorativePrompts.push(checkbox.value);
+        console.log(`🎨 保存修饰性提示词: ${checkbox.value}`);
     });
     
     // 应用到所有选中的图层
@@ -1558,6 +1879,13 @@ function applyToSelectedLayers(modal) {
             annotation.description = description;
             annotation.constraintPrompts = [...constraintPrompts]; // 保存约束性提示词
             annotation.decorativePrompts = [...decorativePrompts]; // 保存修饰性提示词
+            
+            console.log(`💾 已保存到图层 ${annotation.number + 1}:`, {
+                operationType: operation,
+                constraintPrompts: annotation.constraintPrompts,
+                decorativePrompts: annotation.decorativePrompts,
+                description: description
+            });
         }
     });
     
@@ -1572,6 +1900,7 @@ function applyToSelectedLayers(modal) {
     });
     
     // 显示成功提示
+    console.log('🎯 准备显示成功提示...');
     showSuccessNotification(`✅ 已应用设置到 ${modal.selectedLayers.size} 个图层`);
 }
 
@@ -1602,25 +1931,32 @@ function restoreLayerSettings(modal) {
                 // 更新提示词选择器
                 updatePromptSelectors(modal, annotation.operationType);
                 
-                // 恢复约束性提示词选择
-                setTimeout(() => {
-                    if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
+                // 使用新的恢复函数，带重试机制
+                const tryRestorePrompts = (retries = 3) => {
+                    setTimeout(() => {
                         const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]');
-                        constraintCheckboxes.forEach(checkbox => {
-                            checkbox.checked = annotation.constraintPrompts.includes(checkbox.value);
-                        });
-                        console.log(`🔄 恢复约束性提示词: ${annotation.constraintPrompts.length}个`);
-                    }
-                    
-                    // 恢复修饰性提示词选择
-                    if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
                         const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]');
-                        decorativeCheckboxes.forEach(checkbox => {
-                            checkbox.checked = annotation.decorativePrompts.includes(checkbox.value);
+                        
+                        console.log(`🔍 第${4-retries}次尝试恢复提示词状态`, {
+                            constraintCount: constraintCheckboxes.length,
+                            decorativeCount: decorativeCheckboxes.length,
+                            hasConstraints: !!(annotation.constraintPrompts && annotation.constraintPrompts.length),
+                            hasDecorative: !!(annotation.decorativePrompts && annotation.decorativePrompts.length)
                         });
-                        console.log(`🔄 恢复修饰性提示词: ${annotation.decorativePrompts.length}个`);
-                    }
-                }, 100); // 延迟确保复选框已生成
+                        
+                        // 如果复选框还没有生成，并且还有重试次数，则重试
+                        if ((constraintCheckboxes.length === 0 || decorativeCheckboxes.length === 0) && retries > 0) {
+                            console.log(`⏳ 复选框还未生成完成，${retries}次重试剩余`);
+                            tryRestorePrompts(retries - 1);
+                            return;
+                        }
+                        
+                        // 执行恢复
+                        restorePromptSelections(modal, annotation);
+                    }, 150);
+                };
+                
+                tryRestorePrompts();
                 
             } else {
                 // 首次选择，使用默认操作类型
@@ -1718,24 +2054,59 @@ function bindTabEvents(modal) {
         operationSelect.hasEventListener = true;
         
         operationSelect.addEventListener('change', function() {
-            console.log(`🎯 Layer Operation Type切换事件触发: ${this.value}`);
+            console.log(`🎯 Layer Operation Type changed: ${this.value}`);
             
-            const currentAnnotation = modal.annotations.find(ann => ann.id === modal.currentLayerId);
-            console.log(`🔍 当前标注查找结果:`, {
-                currentLayerId: modal.currentLayerId,
-                currentAnnotation: !!currentAnnotation,
-                annotationsCount: modal.annotations?.length
-            });
-            
-            if (currentAnnotation) {
-                currentAnnotation.operationType = this.value;
-                console.log(`🎯 更新当前图层操作类型为: ${this.value}`);
+            // 获取当前选中的图层
+            if (modal.selectedLayers && modal.selectedLayers.size > 0) {
+                // 更新所有选中图层的操作类型
+                modal.selectedLayers.forEach(annotationId => {
+                    const annotation = modal.annotations.find(ann => ann.id === annotationId);
+                    if (annotation) {
+                        annotation.operationType = this.value;
+                        console.log(`🎯 Updated operation type for layer ${annotation.number + 1}: ${this.value}`);
+                    }
+                });
                 
-                // 更新图层编辑区域的约束和修饰性提示词
-                console.log(`🔄 即将调用updatePromptSelectors: ${this.value}`);
+                // 更新图层显示
+                updateObjectSelector(modal);
+                
+                // 更新约束和修饰性提示词
                 updatePromptSelectors(modal, this.value);
+                
+                // 延迟恢复提示词状态（如果是单个图层选择）
+                if (modal.selectedLayers.size === 1) {
+                    const selectedId = Array.from(modal.selectedLayers)[0];
+                    const annotation = modal.annotations.find(a => a.id === selectedId);
+                    if (annotation) {
+                        // 使用重试机制恢复提示词状态
+                        const tryRestoreAfterOperation = (retries = 3) => {
+                            setTimeout(() => {
+                                const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]');
+                                const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]');
+                                
+                                console.log(`🔍 操作类型变更后第${4-retries}次尝试恢复`, {
+                                    operationType: this.value,
+                                    constraintCount: constraintCheckboxes.length,
+                                    decorativeCount: decorativeCheckboxes.length
+                                });
+                                
+                                // 如果复选框还没有生成，并且还有重试次数，则重试
+                                if ((constraintCheckboxes.length === 0 || decorativeCheckboxes.length === 0) && retries > 0) {
+                                    console.log(`⏳ 操作类型变更后复选框未生成，${retries}次重试剩余`);
+                                    tryRestoreAfterOperation(retries - 1);
+                                    return;
+                                }
+                                
+                                // 执行恢复
+                                restorePromptSelections(modal, annotation);
+                            }, 200); // 操作类型变更后需要更长的延迟
+                        };
+                        
+                        tryRestoreAfterOperation();
+                    }
+                }
             } else {
-                console.warn(`⚠️ 未找到当前标注，无法更新操作类型`);
+                console.warn(`⚠️ No layers selected, cannot update operation type`);
             }
         });
         

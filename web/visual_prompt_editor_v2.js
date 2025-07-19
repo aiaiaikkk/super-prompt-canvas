@@ -17,7 +17,8 @@ import {
     createMainArea, 
     createCanvasArea, 
     createPromptArea,
-    showControlInfo
+    showControlInfo,
+    initializeTabSwitching
 } from './modules/visual_prompt_editor_ui.js';
 import { 
     initCanvasDrawing, 
@@ -40,6 +41,7 @@ import {
     initializeLanguageSystem,
     updateCompleteUI
 } from './modules/visual_prompt_editor_language.js';
+import { updateAllUITexts, t } from './modules/visual_prompt_editor_i18n.js';
 
 console.log("🌐 Loading Visual Prompt Editor extension (Modular Version)...");
 
@@ -49,6 +51,22 @@ console.log("KontextUtils:", typeof KontextUtils);
 console.log("createMainModal:", typeof createMainModal);
 console.log("initCanvasDrawing:", typeof initCanvasDrawing);
 console.log("bindCanvasInteractionEvents:", typeof bindCanvasInteractionEvents);
+console.log("updateAllUITexts:", typeof updateAllUITexts);
+console.log("t function:", typeof t);
+
+// 安全的翻译函数包装器
+const safeT = (key, fallback) => {
+    try {
+        if (typeof t === 'function') {
+            const result = t(key);
+            return result !== key ? result : (fallback || key);
+        }
+        return fallback || key;
+    } catch (e) {
+        console.warn('Translation error for key:', key, e);
+        return fallback || key;
+    }
+};
 
 app.registerExtension({
     name: "Kontext.VisualPromptEditor.V2",
@@ -59,6 +77,8 @@ app.registerExtension({
             console.log("🎨 Registering Visual Prompt Editor Node (V2)");
             console.log("🎨 NodeType prototype:", nodeType.prototype);
             console.log("🎨 Original onDblClick:", typeof nodeType.prototype.onDblClick);
+            
+            try {
             
             // 添加节点创建时的回调
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -127,7 +147,7 @@ app.registerExtension({
                         
                         // 更新选中对象计数
                         if (countWidget) {
-                            countWidget.value = `${metadata.selected_count} objects selected`;
+                            countWidget.value = `${metadata.selected_count} ${safeT('selected_count', 'selected')}`;
                         }
                         
                     } catch (e) {
@@ -462,6 +482,17 @@ app.registerExtension({
                         console.error('❌ 语言系统初始化失败:', error);
                     }
                 }, 50);
+
+                // 初始化标签页切换功能 - 延迟更长时间确保DOM完全就绪
+                setTimeout(() => {
+                    console.log('🎯 初始化标签页切换功能...');
+                    try {
+                        initializeTabSwitching();
+                        console.log('✅ 标签页切换功能初始化完成');
+                    } catch (error) {
+                        console.error('❌ 标签页切换功能初始化失败:', error);
+                    }
+                }, 300);
                 
                 // 初始化画布绘制 - 延长时间确保DOM完全就绪
                 setTimeout(() => {
@@ -507,6 +538,12 @@ app.registerExtension({
                     setTimeout(() => {
                         console.log('🎨 绑定画布交互事件...');
                         bindCanvasInteractionEvents(modal);
+                        
+                        // 🔴 将关键函数暴露到全局范围，确保标签页切换时能够重新绑定事件
+                        window.bindCanvasInteractionEvents = bindCanvasInteractionEvents;
+                        window.updateObjectSelector = updateObjectSelector;
+                        window.updateAllUITexts = updateAllUITexts;
+                        console.log('✅ bindCanvasInteractionEvents, updateObjectSelector and updateAllUITexts exposed to global scope');
                     }, 50);
                 }, 200);
                 
@@ -514,6 +551,10 @@ app.registerExtension({
                 setTimeout(() => {
                     console.log('🎨 绑定提示词事件...');
                     bindPromptEvents(modal, this.getObjectInfo);
+                    
+                    // 🔴 将bindPromptEvents也暴露到全局范围
+                    window.bindPromptEvents = bindPromptEvents;
+                    console.log('✅ bindPromptEvents exposed to global scope');
                 }, 100);
                 
                 // 绑定基础事件
@@ -669,14 +710,14 @@ app.registerExtension({
                     const selectedId = Array.from(modal.selectedLayers)[0];
                     const annotation = modal.annotations.find(ann => ann.id === selectedId);
                     if (annotation) {
-                        const layerName = `Layer ${annotation.number + 1}`;
+                        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                         const operationType = annotation.operationType || 'add_object';
                         dropdownText.textContent = `${layerName} • ${operationType}`;
                         dropdownText.style.color = 'white';
                         dropdownText.style.fontSize = '12px';
                     }
                 } else {
-                    dropdownText.textContent = `${selectedCount} layers selected`;
+                    dropdownText.textContent = `${selectedCount} ${safeT('layers_selected', 'layers selected')}`;
                     dropdownText.style.color = 'white';
                     dropdownText.style.fontSize = '12px';
                 }
@@ -689,7 +730,7 @@ app.registerExtension({
                 const selectionCount = modal.querySelector('#selection-count');
                 if (selectionCount && modal.selectedLayers) {
                     const count = modal.selectedLayers.size;
-                    selectionCount.textContent = `${count} selected`;
+                    selectionCount.textContent = `${count} ${safeT('selected_count', 'selected')}`;
                     console.log('🔢 选中计数已更新:', count);
                 }
             };
@@ -715,7 +756,7 @@ app.registerExtension({
                         dropdownOptions.innerHTML = '';
                         if (layerOperations) layerOperations.style.display = 'none';
                         if (noLayersMessage) noLayersMessage.style.display = 'block';
-                        if (selectionCount) selectionCount.textContent = '0 selected';
+                        if (selectionCount) selectionCount.textContent = `0 ${safeT('selected_count', 'selected')}`;
                         return;
                     }
                     
@@ -729,7 +770,7 @@ app.registerExtension({
                     modal.annotations.forEach((annotation, index) => {
                         const objectInfo = this.getObjectInfo ? this.getObjectInfo(annotation, index) : {
                             icon: this.getSimpleIcon(annotation.type),
-                            description: `Layer ${annotation.number + 1}`
+                            description: `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`
                         };
                         
                         const option = document.createElement('div');
@@ -743,7 +784,7 @@ app.registerExtension({
                         const isSelected = modal.selectedLayers?.has(annotation.id) || false;
                         
                         // 极简信息显示 - 与标准版本保持一致
-                        const layerName = `Layer ${annotation.number}`;
+                        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                         const operationType = annotation.operationType || 'add_object';
                         
                         option.innerHTML = `
@@ -831,7 +872,7 @@ app.registerExtension({
                 const selectionCount = modal.querySelector('#selection-count');
                 if (selectionCount && modal.selectedLayers) {
                     const count = modal.selectedLayers.size;
-                    selectionCount.textContent = `${count} selected`;
+                    selectionCount.textContent = `${count} ${safeT('selected_count', 'selected')}`;
                 }
             };
             
@@ -849,14 +890,14 @@ app.registerExtension({
                     const selectedId = Array.from(modal.selectedLayers)[0];
                     const annotation = modal.annotations.find(ann => ann.id === selectedId);
                     if (annotation) {
-                        const layerName = `Layer ${annotation.number}`;
+                        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                         const operationType = annotation.operationType || 'add_object';
                         dropdownText.textContent = `${layerName} • ${operationType}`;
                         dropdownText.style.color = 'white';
                         dropdownText.style.fontSize = '12px';
                     }
                 } else {
-                    dropdownText.textContent = `${selectedCount} layers selected`;
+                    dropdownText.textContent = `${selectedCount} ${safeT('layers_selected', 'layers selected')}`;
                     dropdownText.style.color = 'white';
                     dropdownText.style.fontSize = '12px';
                 }
@@ -967,7 +1008,7 @@ app.registerExtension({
                         `;
                         
                         const icon = this.getSimpleIcon(annotation.type);
-                        const layerName = `Layer ${annotation.number + 1}`; // 从1开始显示
+                        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`; // 从1开始显示
                         const operationType = annotation.operationType || 'add_object';
                         
                         option.innerHTML = `
@@ -1030,7 +1071,7 @@ app.registerExtension({
                     // 更新选中计数
                     const selectionCount = modal.querySelector('#selection-count');
                     if (selectionCount) {
-                        selectionCount.textContent = '0 selected';
+                        selectionCount.textContent = `0 ${safeT('selected_count', 'selected')}`;
                     }
                     
                     console.log('✅ 下拉复选框更新完成，共创建', modal.annotations.length, '个选项');
@@ -1635,7 +1676,7 @@ app.registerExtension({
                             modal.annotations.forEach((annotation, index) => {
                                 const objectInfo = this.getRestoredObjectInfo ? this.getRestoredObjectInfo(annotation, index) : {
                                     icon: this.getAnnotationIcon ? this.getAnnotationIcon(annotation.type) : this.getSimpleIcon(annotation.type),
-                                    description: `Layer ${annotation.number}`
+                                    description: `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`
                                 };
                                 
                                 const option = document.createElement('div');
@@ -1646,7 +1687,7 @@ app.registerExtension({
                                     border-bottom: 1px solid #444;
                                 `;
                                 
-                                const layerName = `Layer ${annotation.number}`;
+                                const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                                 const operationType = annotation.operationType || 'add_object';
                                 
                                 option.innerHTML = `
@@ -1682,7 +1723,7 @@ app.registerExtension({
                             // 更新选中计数
                             const selectionCount = modal.querySelector('#selection-count');
                             if (selectionCount) {
-                                selectionCount.textContent = '0 selected';
+                                selectionCount.textContent = `0 ${safeT('selected_count', 'selected')}`;
                             }
                             
                             console.log('✅ 内联更新图层选择器完成，共', modal.annotations.length, '个图层');
@@ -2426,7 +2467,6 @@ app.registerExtension({
             // 绑定基础事件
             nodeType.prototype.bindBasicEvents = function(modal) {
                 // 🔗 初始化时同步后端节点参数到前端UI
-                const textPromptWidget = this.widgets?.find(w => w.name === "text_prompt");
                 const promptTemplateWidget = this.widgets?.find(w => w.name === "prompt_template");
                 
                 const operationType = modal.querySelector('#operation-type');
@@ -2435,11 +2475,6 @@ app.registerExtension({
                 if (promptTemplateWidget && operationType && promptTemplateWidget.value) {
                     operationType.value = promptTemplateWidget.value;
                     console.log('🔄 已从后端同步操作类型到前端:', promptTemplateWidget.value);
-                }
-                
-                if (textPromptWidget && targetInput && textPromptWidget.value) {
-                    targetInput.value = textPromptWidget.value;
-                    console.log('🔄 已从后端同步文本提示到前端:', textPromptWidget.value);
                 }
                 
                 // 关闭按钮
@@ -2502,7 +2537,6 @@ app.registerExtension({
                             // 实际保存逻辑：保存到节点的annotation_data widget并同步到后端节点参数
                             try {
                                 const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
-                                const textPromptWidget = this.widgets?.find(w => w.name === "text_prompt");
                                 const promptTemplateWidget = this.widgets?.find(w => w.name === "prompt_template");
                                 
                                 if (annotationDataWidget) {
@@ -2532,11 +2566,6 @@ app.registerExtension({
                                     if (operationType && promptTemplateWidget && operationType.value !== promptTemplateWidget.value) {
                                         promptTemplateWidget.value = operationType.value;
                                         console.log('🔄 已同步操作类型到后端:', operationType.value);
-                                    }
-                                    
-                                    if (targetInput && textPromptWidget && targetInput.value !== textPromptWidget.value) {
-                                        textPromptWidget.value = targetInput.value;
-                                        console.log('🔄 已同步文本提示到后端:', targetInput.value);
                                     }
                                     
                                     // 标记节点为已修改，触发重新计算
@@ -3379,11 +3408,57 @@ app.registerExtension({
             
             // 获取对象信息（从annotations模块获取）
             nodeType.prototype.getObjectInfo = function(annotation, index) {
-                // 这个函数在annotations模块中实现
-                // 这里提供一个简化版本作为后备
+                // 获取形状图标
+                const getShapeIcon = (type) => {
+                    const icons = {
+                        'rectangle': '🔴▭',
+                        'circle': '🟡⭕',
+                        'arrow': '🔵➡️',
+                        'freehand': '🟢🔗',
+                        'brush': '🟠🖌️'
+                    };
+                    return icons[type] || '📍';
+                };
+                
+                const icon = getShapeIcon(annotation.type);
+                const translatedType = safeT(`shape_${annotation.type}`, annotation.type);
+                
+                // 生成详细描述
+                let description = `[${annotation.number}] `;
+                if (annotation.color) {
+                    const getColorName = (color) => {
+                        const colorMap = {
+                            '#ff0000': 'color_red',
+                            '#00ff00': 'color_green', 
+                            '#0000ff': 'color_blue',
+                            '#ffff00': 'color_yellow',
+                            '#ff8000': 'color_orange'
+                        };
+                        const colorKey = colorMap[color.toLowerCase()];
+                        return colorKey ? safeT(colorKey, 'Color') : 'Color';
+                    };
+                    
+                    const colorName = getColorName(annotation.color);
+                    const shapeName = annotation.type.charAt(0).toUpperCase() + annotation.type.slice(1);
+                    description += `${colorName}${shapeName} `;
+                }
+                
+                // 添加尺寸信息
+                if (annotation.geometry && annotation.geometry.coordinates) {
+                    const coords = annotation.geometry.coordinates;
+                    if (annotation.type === 'rectangle' && coords.length >= 4) {
+                        const width = Math.abs(coords[2] - coords[0]);
+                        const height = Math.abs(coords[3] - coords[1]);
+                        description += `${Math.round(width)}×${Math.round(height)} `;
+                        description += `(${Math.round(coords[0])},${Math.round(coords[1])})`;
+                    }
+                }
+                
+                description += `\n${safeT('individual_editing', 'Individual editing')} • ${translatedType}`;
+                
                 return {
-                    icon: '📍',
-                    description: `[${index}] Annotation ${annotation.type}`
+                    icon: icon,
+                    description: description
                 };
             };
             
@@ -3626,7 +3701,7 @@ app.registerExtension({
                     dropdownOptions.innerHTML = '';
                     if (layerOperations) layerOperations.style.display = 'none';
                     if (noLayersMessage) noLayersMessage.style.display = 'block';
-                    if (selectionCount) selectionCount.textContent = '0 selected';
+                    if (selectionCount) selectionCount.textContent = `0 ${safeT('selected_count', 'selected')}`;
                     return;
                 }
                 
@@ -3651,7 +3726,7 @@ app.registerExtension({
                     const isSelected = modal.selectedLayers?.has(annotation.id) || false;
                     
                     // 极简信息显示
-                    const layerName = `Layer ${annotation.number}`;
+                    const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                     const operationType = annotation.operationType || 'add_object';
                     
                     option.innerHTML = `
@@ -3734,7 +3809,7 @@ app.registerExtension({
                 const selectionCount = modal.querySelector('#selection-count');
                 if (selectionCount && modal.selectedLayers) {
                     const count = modal.selectedLayers.size;
-                    selectionCount.textContent = `${count} selected`;
+                    selectionCount.textContent = `${count} ${safeT('selected_count', 'selected')}`;
                 }
             };
             
@@ -3752,14 +3827,14 @@ app.registerExtension({
                     const selectedId = Array.from(modal.selectedLayers)[0];
                     const annotation = modal.annotations.find(ann => ann.id === selectedId);
                     if (annotation) {
-                        const layerName = `Layer ${annotation.number}`;
+                        const layerName = `${safeT('layer_name', 'Layer')} ${annotation.number + 1}`;
                         const operationType = annotation.operationType || 'add_object';
                         dropdownText.textContent = `${layerName} • ${operationType}`;
                         dropdownText.style.color = 'white';
                         dropdownText.style.fontSize = '12px';
                     }
                 } else {
-                    dropdownText.textContent = `${selectedCount} layers selected`;
+                    dropdownText.textContent = `${selectedCount} ${safeT('layers_selected', 'layers selected')}`;
                     dropdownText.style.color = 'white';
                     dropdownText.style.fontSize = '12px';
                 }
@@ -3946,6 +4021,11 @@ app.registerExtension({
                 
                 console.log('📊 统计信息:', statsInfo);
             };
+            
+            } catch (error) {
+                console.error("❌ Error initializing Visual Prompt Editor node:", error);
+                console.error("Stack trace:", error.stack);
+            }
         }
     }
 });

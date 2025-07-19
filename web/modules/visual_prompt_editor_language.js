@@ -18,7 +18,13 @@ export function initializeLanguageSystem(modal) {
         // 绑定点击事件
         languageToggle.addEventListener('click', () => {
             const newLang = toggleLanguage();
+            
+            // 强制更新所有UI文本
             updateAllUITexts(modal);
+            
+            // 强制重新生成动态内容
+            forceDynamicContentRefresh(modal);
+            
             console.log(`🌐 语言切换为: ${newLang}`);
             
             // 显示切换提示
@@ -156,6 +162,70 @@ export function updateSelectOptions(modal) {
             }
         });
     }
+    
+    // 更新AI增强器编辑意图选项
+    const editIntentSelect = modal.querySelector('#edit-intent');
+    if (editIntentSelect) {
+        console.log('🔄 更新AI增强器编辑意图选项');
+        const options = editIntentSelect.querySelectorAll('option');
+        options.forEach(option => {
+            const value = option.value;
+            const textKey = `ai_intent_${value}`;
+            const translatedText = t(textKey);
+            if (translatedText !== textKey) {
+                option.textContent = translatedText;
+                console.log(`🔄 已更新意图选项: ${value} -> ${translatedText}`);
+            }
+        });
+    }
+    
+    // 更新AI增强器处理风格选项
+    const processingStyleSelect = modal.querySelector('#processing-style');
+    if (processingStyleSelect) {
+        console.log('🔄 更新AI增强器处理风格选项');
+        const options = processingStyleSelect.querySelectorAll('option');
+        options.forEach(option => {
+            const value = option.value;
+            const textKey = `ai_style_${value}`;
+            const translatedText = t(textKey);
+            if (translatedText !== textKey) {
+                option.textContent = translatedText;
+                console.log(`🔄 已更新风格选项: ${value} -> ${translatedText}`);
+            }
+        });
+    }
+    
+    // 更新AI增强器Temperature选项
+    const temperatureSelect = modal.querySelector('#temperature');
+    if (temperatureSelect) {
+        console.log('🔄 更新AI增强器Temperature选项');
+        const options = temperatureSelect.querySelectorAll('option');
+        options.forEach(option => {
+            const dataI18n = option.getAttribute('data-i18n');
+            if (dataI18n) {
+                const translatedText = t(dataI18n);
+                if (translatedText !== dataI18n) {
+                    option.textContent = translatedText;
+                }
+            }
+        });
+    }
+    
+    // 更新AI增强器随机种子选项
+    const seedSelect = modal.querySelector('#seed');
+    if (seedSelect) {
+        console.log('🔄 更新AI增强器随机种子选项');
+        const options = seedSelect.querySelectorAll('option');
+        options.forEach(option => {
+            const dataI18n = option.getAttribute('data-i18n');
+            if (dataI18n) {
+                const translatedText = t(dataI18n);
+                if (translatedText !== dataI18n) {
+                    option.textContent = translatedText;
+                }
+            }
+        });
+    }
 }
 
 /**
@@ -193,6 +263,46 @@ export function updateDynamicTexts(modal) {
 }
 
 /**
+ * 强制刷新动态内容
+ */
+function forceDynamicContentRefresh(modal) {
+    console.log('🔄 强制刷新动态内容');
+    
+    // 重新生成图层列表以使用新的翻译
+    try {
+        // 导入必要的函数（在运行时导入避免循环依赖）
+        if (window.updateObjectSelector && typeof window.updateObjectSelector === 'function') {
+            console.log('📋 重新生成图层列表');
+            window.updateObjectSelector(modal);
+        } else {
+            console.log('⚠️ updateObjectSelector 函数不可用');
+        }
+    } catch (e) {
+        console.warn('更新图层列表时出错:', e);
+    }
+    
+    // 更新下拉选项
+    updateSelectOptions(modal);
+    
+    // 更新动态文本
+    updateDynamicTexts(modal);
+    
+    // 强制更新所有带有计数的元素
+    const countElements = modal.querySelectorAll('[id*="count"], [class*="count"]');
+    countElements.forEach(element => {
+        const text = element.textContent;
+        const numberMatch = text.match(/(\d+)/);
+        if (numberMatch) {
+            const number = numberMatch[1];
+            const translatedText = `${number} ${t('selected_count')}`;
+            element.textContent = translatedText;
+        }
+    });
+    
+    console.log('✅ 动态内容刷新完成');
+}
+
+/**
  * 完整的UI更新函数
  */
 export function updateCompleteUI(modal) {
@@ -201,3 +311,8 @@ export function updateCompleteUI(modal) {
     updateSelectOptions(modal);
     updateDynamicTexts(modal);
 }
+
+// 暴露函数到全局，以便其他模块使用
+window.updateSelectOptions = updateSelectOptions;
+window.updateDynamicTexts = updateDynamicTexts;
+window.updateCompleteUI = updateCompleteUI;

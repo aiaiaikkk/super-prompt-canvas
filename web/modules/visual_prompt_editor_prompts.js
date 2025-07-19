@@ -979,6 +979,11 @@ function updateConstraintPrompts(containerElement, operationType) {
         checkbox.value = constraint;
         checkbox.style.cssText = 'margin-top: 2px; cursor: pointer;';
         
+        // Add auto-save event handler for real-time constraint prompt saving
+        checkbox.addEventListener('change', function() {
+            autoSavePromptSelections();
+        });
+        
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
         label.textContent = t(`constraint_${operationType}_${index + 1}`, constraint);
@@ -1029,6 +1034,11 @@ function updateDecorativePrompts(containerElement, operationType) {
         checkbox.id = `decorative-${operationType}-${index}`;
         checkbox.value = decorative;
         checkbox.style.cssText = 'margin-top: 2px; cursor: pointer;';
+        
+        // Add auto-save event handler for real-time decorative prompt saving
+        checkbox.addEventListener('change', function() {
+            autoSavePromptSelections();
+        });
         
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
@@ -1157,6 +1167,51 @@ function updateLayerSelectionLabel(modal, category) {
 function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     // 这里可以添加UI通知显示逻辑
+}
+
+/**
+ * Auto-save prompt selections to the currently selected layer(s)
+ */
+function autoSavePromptSelections() {
+    console.log('💾 Auto-saving prompt selections...');
+    
+    const modal = document.querySelector('#unified-editor-modal');
+    if (!modal || !modal.selectedLayers || modal.selectedLayers.size === 0) {
+        console.log('ℹ️ No layers selected for auto-save');
+        return;
+    }
+    
+    // Collect constraint prompts
+    const constraintPrompts = [];
+    const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]:checked');
+    constraintCheckboxes.forEach(checkbox => {
+        constraintPrompts.push(checkbox.value);
+        console.log(`📋 Auto-saved constraint prompt: ${checkbox.value}`);
+    });
+    
+    // Collect decorative prompts
+    const decorativePrompts = [];
+    const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]:checked');
+    decorativeCheckboxes.forEach(checkbox => {
+        decorativePrompts.push(checkbox.value);
+        console.log(`🎨 Auto-saved decorative prompt: ${checkbox.value}`);
+    });
+    
+    // Save to all selected layers
+    modal.selectedLayers.forEach(annotationId => {
+        const annotation = modal.annotations.find(a => a.id === annotationId);
+        if (annotation) {
+            annotation.constraintPrompts = [...constraintPrompts];
+            annotation.decorativePrompts = [...decorativePrompts];
+            
+            console.log(`💾 Auto-saved prompts to layer ${annotation.number + 1}:`, {
+                constraintPrompts: annotation.constraintPrompts,
+                decorativePrompts: annotation.decorativePrompts
+            });
+        }
+    });
+    
+    console.log(`✅ Auto-save completed for ${modal.selectedLayers.size} layer(s)`);
 }
 
 // 导出需要在其他模块中使用的函数

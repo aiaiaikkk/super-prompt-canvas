@@ -32,7 +32,6 @@ class VisualPromptEditor:
             },
             "optional": {
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
-                "text_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Additional text instructions for the edit"}),
                 "prompt_template": ([
                     # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
                     "change_color", "change_style", "replace_object", "add_object", "remove_object",
@@ -72,13 +71,14 @@ class VisualPromptEditor:
     DESCRIPTION = "🎨 Kontext Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
     
     def visual_prompt_edit(self, image: torch.Tensor, annotation_data: str = None,
-                          text_prompt: str = "", prompt_template: str = "object_edit"):
+                          prompt_template: str = "change_color"):
         """Unified visual prompt editing functionality"""
         
         try:
             # Process annotation data
             layers_data = []
             include_annotation_numbers = True  # Default to including numbers
+            text_prompt = ""  # Initialize text_prompt from annotation data
             # Initialize enhanced prompts with defaults - 🔴 支持多选格式
             constraint_prompts = []
             decorative_prompts = []
