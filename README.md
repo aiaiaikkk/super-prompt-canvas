@@ -1,4 +1,4 @@
-# Kontext Visual Prompt Editor - 智能可视化提示编辑器
+# Kontext Super Prompt - 智能超级提示词工具
 
 **[🇨🇳 中文说明](#chinese-docs) | [🇺🇸 English Manual](#english-docs)**
 
@@ -8,7 +8,7 @@
 
 ### 📖 产品介绍
 
-Kontext Visual Prompt Editor 是一款图像编辑辅助工具，帮助用户轻松创建AI图像编辑指令。您只需在图片上标记想要修改的区域，描述您的想法，工具会自动生成专业的编辑指令，无需学习复杂的提示词语法。
+Kontext Super Prompt 是一款智能超级提示词工具，专为AI图像编辑而设计。您只需在图片上标记想要修改的区域，描述您的想法，工具会自动生成专业的编辑指令，无需学习复杂的提示词语法。
 
 🎥 **视频教程**：[详细使用演示](https://www.bilibili.com/video/BV1e1u6zjE6H/)
 
@@ -327,7 +327,7 @@ AI增强节点上的下拉控件可以帮助您指导AI更好地理解您的创�
 
 ### 📖 Product Introduction
 
-Kontext Visual Prompt Editor is an image editing assistant tool that helps users easily create AI image editing instructions. Simply mark the areas you want to modify on the image, describe your ideas, and the tool will automatically generate professional editing instructions without needing to learn complex prompt syntax.
+Kontext Super Prompt is an intelligent super prompt tool designed specifically for AI image editing. Simply mark the areas you want to modify on the image, describe your ideas, and the tool will automatically generate professional editing instructions without needing to learn complex prompt syntax.
 
 🎥 **Video Tutorial**: [Detailed Usage Demo](https://www.bilibili.com/video/BV1e1u6zjE6H/)
 
