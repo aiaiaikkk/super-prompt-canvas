@@ -61,7 +61,7 @@ Kontext Super Prompt 是一款智能超级提示词工具，专为AI图像编辑
 #### 🤖 TextGen WebUI本地增强器 🆕
 支持Text Generation WebUI的高级模型管理和多格式兼容，为本地AI提供更多选择：
 
-- **多格式支持**：兼容GGUF、GPTQ、AWQ、ExLlama等量化格式
+- **多格式支持**：兼容GGUF/GGML、GPTQ、AWQ、ExLlama/ExLlamaV2、Transformers、RWKV、4bit/8bit量化、Safetensors、PyTorch等多种模型格式
 - **专业控制**：提供精细的模型参数调节和优化选项
 - **无缝集成**：与Text Generation WebUI生态系统完美融合
 - **智能引导**：优化的提示系统，生成更精确的编辑指令
