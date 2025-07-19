@@ -1,8 +1,8 @@
 {
   "id": "7cbcec68-7fa6-47bb-a38a-da689949a001",
   "revision": 0,
-  "last_node_id": 236,
-  "last_link_id": 383,
+  "last_node_id": 268,
+  "last_link_id": 452,
   "nodes": [
     {
       "id": 39,
@@ -17,7 +17,7 @@
       ],
       "flags": {},
       "order": 0,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
@@ -63,8 +63,8 @@
       "flags": {
         "collapsed": false
       },
-      "order": 40,
-      "mode": 0,
+      "order": 49,
+      "mode": 4,
       "inputs": [
         {
           "label": "conditioning",
@@ -103,14 +103,14 @@
         474
       ],
       "flags": {},
-      "order": 43,
-      "mode": 0,
+      "order": 52,
+      "mode": 4,
       "inputs": [
         {
           "label": "model",
           "name": "model",
           "type": "MODEL",
-          "link": 350
+          "link": 399
         },
         {
           "label": "positive",
@@ -149,7 +149,7 @@
         "widget_ue_connectable": {}
       },
       "widgets_values": [
-        166625110315425,
+        402808421904588,
         "randomize",
         20,
         1,
@@ -171,7 +171,7 @@
       ],
       "flags": {},
       "order": 1,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "About Flux Kontext Edit",
@@ -198,8 +198,8 @@
       "flags": {
         "collapsed": false
       },
-      "order": 42,
-      "mode": 0,
+      "order": 51,
+      "mode": 4,
       "inputs": [
         {
           "label": "conditioning",
@@ -242,7 +242,7 @@
       ],
       "flags": {},
       "order": 2,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "About VRAM",
@@ -268,7 +268,7 @@
       ],
       "flags": {},
       "order": 3,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "Flux Kontext Prompt Techniques",
@@ -294,7 +294,7 @@
       ],
       "flags": {},
       "order": 4,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "Flux Kontext 提示词技巧",
@@ -320,7 +320,7 @@
       ],
       "flags": {},
       "order": 5,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "Model links",
@@ -346,7 +346,7 @@
       ],
       "flags": {},
       "order": 6,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "✨ New ComfyUI feature for Flux.1 Kontext Dev",
@@ -372,7 +372,7 @@
       ],
       "flags": {},
       "order": 7,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [],
       "title": "About multiple images reference",
@@ -398,7 +398,7 @@
       ],
       "flags": {},
       "order": 8,
-      "mode": 4,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -433,7 +433,7 @@
       ],
       "flags": {},
       "order": 9,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
@@ -473,134 +473,6 @@
       "bgcolor": "#533"
     },
     {
-      "id": 147,
-      "type": "LoadImageOutput",
-      "pos": [
-        -50,
-        770
-      ],
-      "size": [
-        320,
-        374
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 4,
-      "inputs": [],
-      "outputs": [
-        {
-          "label": "IMAGE",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            250
-          ]
-        },
-        {
-          "label": "MASK",
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.40",
-        "Node name for S&R": "LoadImageOutput",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": [
-        "ComfyUI_00326_.png [output]",
-        false,
-        "refresh",
-        "image"
-      ],
-      "color": "#322",
-      "bgcolor": "#533"
-    },
-    {
-      "id": 136,
-      "type": "SaveImage",
-      "pos": [
-        760,
-        510
-      ],
-      "size": [
-        650,
-        660
-      ],
-      "flags": {},
-      "order": 45,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "images",
-          "name": "images",
-          "type": "IMAGE",
-          "link": 240
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.39",
-        "Node name for S&R": "SaveImage",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": [
-        "ComfyUI"
-      ]
-    },
-    {
-      "id": 8,
-      "type": "VAEDecode",
-      "pos": [
-        286.0468444824219,
-        368.765625
-      ],
-      "size": [
-        190,
-        46
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 44,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "samples",
-          "name": "samples",
-          "type": "LATENT",
-          "link": 52
-        },
-        {
-          "label": "vae",
-          "name": "vae",
-          "type": "VAE",
-          "link": 61
-        }
-      ],
-      "outputs": [
-        {
-          "label": "IMAGE",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "slot_index": 0,
-          "links": [
-            240
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.38",
-        "Node name for S&R": "VAEDecode",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
       "id": 173,
       "type": "PreviewImage",
       "pos": [
@@ -612,8 +484,8 @@
         310
       ],
       "flags": {},
-      "order": 39,
-      "mode": 0,
+      "order": 48,
+      "mode": 4,
       "inputs": [
         {
           "label": "images",
@@ -632,62 +504,6 @@
       "widgets_values": []
     },
     {
-      "id": 6,
-      "type": "CLIPTextEncode",
-      "pos": [
-        327.6550598144531,
-        560.2886352539062
-      ],
-      "size": [
-        400,
-        220
-      ],
-      "flags": {},
-      "order": 37,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "clip",
-          "name": "clip",
-          "type": "CLIP",
-          "link": 59
-        },
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "widget": {
-            "name": "text"
-          },
-          "link": 383
-        }
-      ],
-      "outputs": [
-        {
-          "label": "CONDITIONING",
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "slot_index": 0,
-          "links": [
-            237,
-            340
-          ]
-        }
-      ],
-      "title": "CLIP Text Encode (Positive Prompt)",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.38",
-        "Node name for S&R": "CLIPTextEncode",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": [
-        "Replace the woman’s face with a man’s face,add a red flower to the woman’s arm."
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
       "id": 177,
       "type": "ReferenceLatent",
       "pos": [
@@ -699,8 +515,8 @@
         46
       ],
       "flags": {},
-      "order": 41,
-      "mode": 0,
+      "order": 50,
+      "mode": 4,
       "inputs": [
         {
           "label": "conditioning",
@@ -748,8 +564,8 @@
       "flags": {
         "collapsed": false
       },
-      "order": 38,
-      "mode": 0,
+      "order": 47,
+      "mode": 4,
       "inputs": [
         {
           "label": "pixels",
@@ -797,8 +613,8 @@
       "flags": {
         "collapsed": false
       },
-      "order": 36,
-      "mode": 0,
+      "order": 44,
+      "mode": 4,
       "inputs": [
         {
           "label": "image",
@@ -827,6 +643,347 @@
       "widgets_values": []
     },
     {
+      "id": 209,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -4151.24951171875,
+        -356.92303466796875
+      ],
+      "size": [
+        363.92352294921875,
+        132.54635620117188
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 353
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\n  \"annotations\": [\n    {\n      \"id\": \"annotation_1752728039209_27thl1uv6\",\n      \"type\": \"rectangle\",\n      \"color\": \"#ff0000\",\n      \"fillMode\": \"filled\",\n      \"opacity\": 100,\n      \"number\": 0,\n      \"geometry\": {\n        \"type\": \"rectangle\",\n        \"coordinates\": [\n          267.308948610491,\n          617.5652675209434,\n          606.6038435912343,\n          692.1705975072243\n        ]\n      },\n      \"start\": {\n        \"x\": 267.308948610491,\n        \"y\": 617.5652675209434\n      },\n      \"end\": {\n        \"x\": 606.6038435912343,\n        \"y\": 692.1705975072243\n      }\n    }\n  ],\n  \"operation_type\": \"global_color_grade\",\n  \"target_description\": \"\",\n  \"constraint_prompts\": [\n    \"respecting spatial relationships\"\n  ],\n  \"decorative_prompts\": [\n    \"natural positioning\"\n  ],\n  \"selected_annotations\": [\n    {\n      \"id\": \"annotation_1752728039209_27thl1uv6\",\n      \"operationType\": \"add_object\",\n      \"description\": \"bridge\",\n      \"type\": \"rectangle\",\n      \"color\": \"#ff0000\",\n      \"number\": 0,\n      \"constraintPrompts\": [\n        \"respecting spatial relationships\"\n      ],\n      \"decorativePrompts\": [\n        \"natural positioning\"\n      ]\n    }\n  ],\n  \"multi_layer_operations\": false\n}"
+      ]
+    },
+    {
+      "id": 210,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -4157.14404296875,
+        -132.1768798828125
+      ],
+      "size": [
+        371.4630432128906,
+        139.33189392089844
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 354
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "OPERATION: add bridge to the red rectangular marked area, respecting spatial relationships, natural positioning | CONSTRAINTS: respecting spatial relationships | STYLE: natural positioning | METADATA: annotations_count: 1; operations: add_object(1)"
+      ]
+    },
+    {
+      "id": 211,
+      "type": "PreviewImage",
+      "pos": [
+        -3756.190673828125,
+        -619.8499145507812
+      ],
+      "size": [
+        308.890625,
+        509.82257080078125
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 355
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "PreviewImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 212,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3395.645263671875,
+        529.5010375976562
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 389
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Generate image editing instructions in Flux Kontext format.\n\nEDITING STRATEGY: style_coherent\nFocus on:\n- Visual style consistency\n- Color harmony and palette coherence\n- Texture and material uniformity\n- Lighting and shadow consistency\n- Overall aesthetic unity\n\nOUTPUT FORMAT:\nOutput clean, natural language descriptions without technical details, annotation numbers, or structured formatting. Focus on the core editing action using color and spatial descriptions (e.g., 'transform the red area into blue', 'remove the object in the center'). Avoid any annotation references like 'annotation 0' or technical instructions.\n\nRules:\n- Output ONLY the formatted instructions\n- Do NOT include code, explanations, or comments\n- Apply the specific editing strategy focus areas listed above\n- Ensure instructions match the strategy requirements"
+      ]
+    },
+    {
+      "id": 213,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3405.30029296875,
+        -619.8499145507812
+      ],
+      "size": [
+        420.7154541015625,
+        247.98983764648438
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 357
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "add bridge to the red rectangular marked area, respecting spatial relationships, natural positioning"
+      ]
+    },
+    {
+      "id": 215,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3390.112548828125,
+        234.70379638671875
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 388
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "将红色区域增加一座桥梁"
+      ]
+    },
+    {
+      "id": 217,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3390.6240234375,
+        1243.7945556640625
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 396
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Error: Please provide siliconflow API key"
+      ]
+    },
+    {
+      "id": 219,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3390.6240234375,
+        963.8931274414062
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 395
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 233,
+      "type": "Note",
+      "pos": [
+        -3377.853271484375,
+        -261.1710205078125
+      ],
+      "size": [
+        394.9114685058594,
+        180.85443115234375
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "三选一，另外两个需要屏蔽"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
       "id": 146,
       "type": "ImageStitch",
       "pos": [
@@ -838,14 +995,14 @@
         150
       ],
       "flags": {},
-      "order": 32,
-      "mode": 0,
+      "order": 40,
+      "mode": 4,
       "inputs": [
         {
           "label": "image1",
           "name": "image1",
           "type": "IMAGE",
-          "link": 371
+          "link": 452
         },
         {
           "label": "image2",
@@ -879,6 +1036,45 @@
       ]
     },
     {
+      "id": 204,
+      "type": "NunchakuFluxDiTLoader",
+      "pos": [
+        -507.3382568359375,
+        -261.8520812988281
+      ],
+      "size": [
+        275.7613220214844,
+        202
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-nunchaku",
+        "ver": "aee38dd7ee8f88bf5db0a7ce813da67a4f969c88",
+        "Node name for S&R": "NunchakuFluxDiTLoader",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "nunchaku/svdq-int4_r32-flux.1-kontext-dev.safetensors",
+        0.12000000000000002,
+        "nunchaku-fp16",
+        "auto",
+        0,
+        "float16",
+        "enabled"
+      ]
+    },
+    {
       "id": 37,
       "type": "UNETLoader",
       "pos": [
@@ -890,15 +1086,17 @@
         82
       ],
       "flags": {},
-      "order": 11,
-      "mode": 0,
+      "order": 12,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
           "label": "MODEL",
           "name": "MODEL",
           "type": "MODEL",
-          "links": []
+          "links": [
+            399
+          ]
         }
       ],
       "properties": {
@@ -922,60 +1120,155 @@
       "bgcolor": "#533"
     },
     {
-      "id": 204,
-      "type": "NunchakuFluxDiTLoader",
+      "id": 8,
+      "type": "VAEDecode",
       "pos": [
-        -507.3382568359375,
-        -261.8520812988281
+        286.0468444824219,
+        368.765625
       ],
       "size": [
-        275.7613220214844,
-        202
+        190,
+        46
       ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 53,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 52
+        },
+        {
+          "label": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 61
+        }
+      ],
       "outputs": [
         {
-          "label": "MODEL",
-          "name": "MODEL",
-          "type": "MODEL",
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
           "links": [
-            350
+            400
           ]
         }
       ],
       "properties": {
-        "cnr_id": "ComfyUI-nunchaku",
-        "ver": "aee38dd7ee8f88bf5db0a7ce813da67a4f969c88",
-        "Node name for S&R": "NunchakuFluxDiTLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.38",
+        "Node name for S&R": "VAEDecode",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 239,
+      "type": "PreviewImage",
+      "pos": [
+        858.9091796875,
+        481.2742614746094
+      ],
+      "size": [
+        410.0351867675781,
+        462.0704040527344
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 400
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "Node name for S&R": "PreviewImage",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        327.6550598144531,
+        560.2886352539062
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "flags": {},
+      "order": 46,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 59
+        },
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 418
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            237,
+            340
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.38",
+        "Node name for S&R": "CLIPTextEncode",
         "widget_ue_connectable": {}
       },
       "widgets_values": [
-        "nunchaku/svdq-int4_r32-flux.1-kontext-dev.safetensors",
-        0.12000000000000002,
-        "flash-attention2",
-        "auto",
-        0,
-        "float16",
-        "enabled"
-      ]
+        "Replace the woman’s face with a man’s face,add a red flower to the woman’s arm."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
     },
     {
       "id": 208,
       "type": "PreviewImage",
       "pos": [
-        -4127.501953125,
-        529.4447631835938
+        -4138.43017578125,
+        534.3018188476562
       ],
       "size": [
         211.1578826904297,
         258.7719421386719
       ],
       "flags": {},
-      "order": 26,
-      "mode": 0,
+      "order": 29,
+      "mode": 4,
       "inputs": [
         {
           "label": "images",
@@ -994,134 +1287,344 @@
       "widgets_values": []
     },
     {
-      "id": 209,
-      "type": "ShowText|pysssss",
+      "id": 220,
+      "type": "VisualPromptEditor",
       "pos": [
-        -4151.24951171875,
-        -356.92303466796875
+        -4157.1689453125,
+        247.33741760253906
       ],
       "size": [
-        363.92352294921875,
-        132.54635620117188
-      ],
-      "flags": {},
-      "order": 24,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 353
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 210,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -4157.14404296875,
-        -132.1768798828125
-      ],
-      "size": [
-        371.4630432128906,
-        139.33189392089844
-      ],
-      "flags": {},
-      "order": 25,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 354
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 211,
-      "type": "PreviewImage",
-      "pos": [
-        -3756.190673828125,
-        -619.8499145507812
-      ],
-      "size": [
-        308.890625,
-        509.82257080078125
+        351.06854248046875,
+        220
       ],
       "flags": {},
       "order": 22,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 381
+        }
+      ],
+      "outputs": [
+        {
+          "label": "processed_image",
+          "name": "processed_image",
+          "type": "IMAGE",
+          "links": [
+            352,
+            387,
+            447
+          ]
+        },
+        {
+          "label": "structured_prompt",
+          "name": "structured_prompt",
+          "type": "STRING",
+          "links": [
+            386
+          ]
+        },
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "label": "model_instruction",
+          "name": "model_instruction",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "Node name for S&R": "VisualPromptEditor",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-17T04:52:30.297Z\"}",
+        "",
+        "global_color_grade",
+        "Visual Editor Ready"
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8"
+    },
+    {
+      "id": 214,
+      "type": "VisualPromptEditor",
+      "pos": [
+        -4149.259765625,
+        -619.8499145507812
+      ],
+      "size": [
+        351.06854248046875,
+        220
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 380
+        }
+      ],
+      "outputs": [
+        {
+          "label": "processed_image",
+          "name": "processed_image",
+          "type": "IMAGE",
+          "links": [
+            355,
+            446
+          ]
+        },
+        {
+          "label": "structured_prompt",
+          "name": "structured_prompt",
+          "type": "STRING",
+          "links": [
+            357,
+            413
+          ]
+        },
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "links": [
+            353
+          ]
+        },
+        {
+          "label": "model_instruction",
+          "name": "model_instruction",
+          "type": "STRING",
+          "links": [
+            354
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
+        "Node name for S&R": "VisualPromptEditor",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752728039209_27thl1uv6\",\"operationType\":\"add_object\",\"description\":\"bridge\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[\"respecting spatial relationships\"],\"decorativePrompts\":[\"natural positioning\"]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[\"respecting spatial relationships\"],\"decorative_prompts\":[\"natural positioning\"],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752728039209_27thl1uv6\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":100,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[267.308948610491,617.5652675209434,606.6038435912343,692.1705975072243]},\"start\":{\"x\":267.308948610491,\"y\":617.5652675209434},\"end\":{\"x\":606.6038435912343,\"y\":692.1705975072243}}],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-17T04:55:33.593Z\"}",
+        "",
+        "global_color_grade",
+        "Visual Editor Ready"
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8"
+    },
+    {
+      "id": 237,
+      "type": "OllamaFluxKontextEnhancerV2",
+      "pos": [
+        -3755.194091796875,
+        240.8064422607422
+      ],
+      "size": [
+        307.2640075683594,
+        600
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "link": 386
+        },
+        {
+          "label": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 387
+        }
+      ],
+      "outputs": [
+        {
+          "label": "flux_edit_instructions",
+          "name": "flux_edit_instructions",
+          "type": "STRING",
+          "links": [
+            388,
+            414
+          ]
+        },
+        {
+          "label": "system_prompt",
+          "name": "system_prompt",
+          "type": "STRING",
+          "links": [
+            389
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OllamaFluxKontextEnhancerV2",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "红色区域增加一座桥梁",
+        "deepseek-r1:1.5b",
+        "refresh",
+        false,
+        "creative_design",
+        "auto_smart",
+        "http://127.0.0.1:11434",
+        0.7,
+        false,
+        1077098704,
+        "randomize",
+        "none",
+        false,
+        "My Guidance",
+        ""
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8",
+      "boxcolor": "#673AB7",
+      "model_selection": "deepseek-r1:1.5b"
+    },
+    {
+      "id": 238,
+      "type": "APIFluxKontextEnhancer",
+      "pos": [
+        -3719.823974609375,
+        973.15966796875
+      ],
+      "size": [
+        299.6490173339844,
+        460.83258056640625
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "link": 393
+        },
+        {
+          "label": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 394
+        }
+      ],
+      "outputs": [
+        {
+          "label": "flux_edit_instructions",
+          "name": "flux_edit_instructions",
+          "type": "STRING",
+          "links": [
+            395,
+            415
+          ]
+        },
+        {
+          "label": "system_prompt",
+          "name": "system_prompt",
+          "type": "STRING",
+          "links": [
+            396,
+            398
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "APIFluxKontextEnhancer",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "",
+        "siliconflow",
+        "",
+        "deepseek-ai/DeepSeek-V3",
+        "",
+        "general_editing",
+        "auto_smart",
+        1057416776926191,
+        "randomize",
+        "",
+        "none",
+        "",
+        false
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8",
+      "boxcolor": "#673AB7"
+    },
+    {
+      "id": 246,
+      "type": "PreviewImage",
+      "pos": [
+        -4123.41650390625,
+        1970.455078125
+      ],
+      "size": [
+        211.1578826904297,
+        258.7719421386719
+      ],
+      "flags": {},
+      "order": 32,
       "mode": 0,
       "inputs": [
         {
           "label": "images",
           "name": "images",
           "type": "IMAGE",
-          "link": 355
+          "link": 419
         }
       ],
       "outputs": [],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.43",
-        "Node name for S&R": "PreviewImage",
-        "widget_ue_connectable": {}
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
       },
       "widgets_values": []
     },
     {
-      "id": 212,
+      "id": 247,
       "type": "ShowText|pysssss",
       "pos": [
-        -3395.645263671875,
-        529.5010375976562
+        -3391.559326171875,
+        1970.51123046875
       ],
       "size": [
         450.62799072265625,
         188.0995330810547
       ],
       "flags": {},
-      "order": 31,
+      "order": 43,
       "mode": 0,
       "inputs": [
         {
           "label": "text",
           "name": "text",
           "type": "STRING",
-          "link": 356
+          "link": 433
         }
       ],
       "outputs": [
@@ -1136,306 +1639,313 @@
       "properties": {
         "cnr_id": "comfyui-custom-scripts",
         "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 213,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -3405.30029296875,
-        -619.8499145507812
-      ],
-      "size": [
-        420.7154541015625,
-        247.98983764648438
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 357
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 215,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -3390.112548828125,
-        234.70379638671875
-      ],
-      "size": [
-        450.62799072265625,
-        188.0995330810547
-      ],
-      "flags": {},
-      "order": 30,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 359
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 217,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -3390.6240234375,
-        1243.7945556640625
-      ],
-      "size": [
-        450.62799072265625,
-        188.0995330810547
-      ],
-      "flags": {},
-      "order": 35,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 361
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 219,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -3390.6240234375,
-        963.8931274414062
-      ],
-      "size": [
-        450.62799072265625,
-        188.0995330810547
-      ],
-      "flags": {},
-      "order": 33,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "text",
-          "name": "text",
-          "type": "STRING",
-          "link": 364
-        }
-      ],
-      "outputs": [
-        {
-          "label": "STRING",
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 221,
-      "type": "OllamaFluxKontextEnhancerV2",
-      "pos": [
-        -3755.5654296875,
-        243.8777618408203
-      ],
-      "size": [
-        323.3683776855469,
-        560.1052856445312
-      ],
-      "flags": {},
-      "order": 27,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "annotation_data",
-          "name": "annotation_data",
-          "type": "STRING",
-          "link": 366
-        },
-        {
-          "label": "image",
-          "name": "image",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 367
-        }
-      ],
-      "outputs": [
-        {
-          "label": "flux_edit_instructions",
-          "name": "flux_edit_instructions",
-          "type": "STRING",
-          "links": [
-            359,
-            375
-          ]
-        },
-        {
-          "label": "system_prompt",
-          "name": "system_prompt",
-          "type": "STRING",
-          "links": [
-            356
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "aiaiaikkk/kontext-super-prompt",
-        "ver": "6afa261dc8f5e15e3936ba24c22c2911c823ff4f",
-        "Node name for S&R": "OllamaFluxKontextEnhancerV2",
-        "widget_ue_connectable": {}
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
       },
       "widgets_values": [
-        "false",
-        1782782225,
-        "randomize",
-        "",
-        "none",
-        "refresh",
-        "refresh",
-        "refresh",
-        "refresh",
-        "refresh",
-        "refresh",
-        "refresh",
-        "refresh"
-      ],
-      "model_selection": 1782782225
-    },
-    {
-      "id": 218,
-      "type": "APIFluxKontextEnhancer",
-      "pos": [
-        -3729.830078125,
-        962.4564819335938
-      ],
-      "size": [
-        312.1994934082031,
-        468.8416748046875
-      ],
-      "flags": {},
-      "order": 29,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "annotation_data",
-          "name": "annotation_data",
-          "type": "STRING",
-          "link": 362
-        },
-        {
-          "label": "image",
-          "name": "image",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 363
-        }
-      ],
-      "outputs": [
-        {
-          "label": "flux_edit_instructions",
-          "name": "flux_edit_instructions",
-          "type": "STRING",
-          "links": [
-            364,
-            376
-          ]
-        },
-        {
-          "label": "system_prompt",
-          "name": "system_prompt",
-          "type": "STRING",
-          "links": [
-            361
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "aiaiaikkk/kontext-super-prompt",
-        "ver": "6afa261dc8f5e15e3936ba24c22c2911c823ff4f",
-        "Node name for S&R": "APIFluxKontextEnhancer",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": [
-        "siliconflow",
-        "sk-nudgiksbzjuobuthzfbzwbucznpretxwjdhtegoubblfdtac",
-        "deepseek-ai/DeepSeek-R1",
-        "",
-        "将红色区域饱和度降低",
-        "auto_detect",
-        "template",
-        "architecture_photo",
-        450312153552203,
-        "randomize",
-        "",
-        "none"
+        "你是专业的图像编辑AI助手，请根据用户需求生成精确的编辑指令。\n\n\n## 操作分析\n- **操作类型**: adjust\n- **目标对象**: 对象\n- **目标属性**: 外观\n- **空间信息**: 指定区域\n- **用户描述**: 变暗\n\n## 专业要求\n### 质量标准\n- 自然真实\n- 无违和感\n- 高质量\n\n\n## 输出要求\n请根据以上分析，生成精确的Flux Kontext编辑指令。指令应该：\n1. 准确描述操作内容和目标\n2. 包含必要的质量和技术要求\n3. 考虑场景的整体协调性\n4. 使用专业的图像编辑术语\n5. 提供多样化的实现方案\n6. 确保专业级别的输出质量\n\n请确保指令具有可执行性、专业性和完整性，并遵循专业化指令的要求。"
       ]
+    },
+    {
+      "id": 248,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -3386.026611328125,
+        1675.714111328125
+      ],
+      "size": [
+        450.62799072265625,
+        188.0995330810547
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 432
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "Adjust the exposure of the red horizontal rectangle area to make it darker, ensuring the overall image remains natural and visually coherent."
+      ]
+    },
+    {
+      "id": 226,
+      "type": "Reroute",
+      "pos": [
+        -4811.189453125,
+        -91.72815704345703
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "",
+          "name": "",
+          "type": "*",
+          "link": 379
+        }
+      ],
+      "outputs": [
+        {
+          "label": "",
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            380,
+            381,
+            382,
+            425
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false,
+        "widget_ue_connectable": {}
+      }
+    },
+    {
+      "id": 236,
+      "type": "Note",
+      "pos": [
+        -4451.8076171875,
+        973.12255859375
+      ],
+      "size": [
+        251.38685607910156,
+        161.54998779296875
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "四选一，另外两个需要屏蔽"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 251,
+      "type": "Note",
+      "pos": [
+        -4445.19140625,
+        1713.47607421875
+      ],
+      "size": [
+        251.38685607910156,
+        161.54998779296875
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "四选一，另外两个需要屏蔽"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 252,
+      "type": "Note",
+      "pos": [
+        -4429.20751953125,
+        289.7669372558594
+      ],
+      "size": [
+        251.38685607910156,
+        161.54998779296875
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "四选一，另外两个需要屏蔽"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 253,
+      "type": "Note",
+      "pos": [
+        -4472.14453125,
+        -578.43505859375
+      ],
+      "size": [
+        251.38685607910156,
+        161.54998779296875
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "四选一，另外两个需要屏蔽"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 255,
+      "type": "TextGenWebUIFluxKontextEnhancer",
+      "pos": [
+        -3741.02880859375,
+        1684.053466796875
+      ],
+      "size": [
+        325.35882568359375,
+        533.712890625
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "annotation_data",
+          "name": "annotation_data",
+          "type": "STRING",
+          "link": 431
+        },
+        {
+          "label": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 430
+        }
+      ],
+      "outputs": [
+        {
+          "label": "flux_edit_instructions",
+          "name": "flux_edit_instructions",
+          "type": "STRING",
+          "links": [
+            432,
+            435
+          ]
+        },
+        {
+          "label": "system_prompt",
+          "name": "system_prompt",
+          "type": "STRING",
+          "links": [
+            433
+          ]
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextGenWebUIFluxKontextEnhancer"
+      },
+      "widgets_values": [
+        "变暗",
+        "Qwen_Qwen2.5-1.5B-Instruct",
+        "refresh",
+        false,
+        "general_editing",
+        "auto_smart",
+        "http://127.0.0.1:5000",
+        0.7,
+        2592958549,
+        "randomize",
+        false,
+        "none",
+        false,
+        "My Guidance",
+        ""
+      ],
+      "color": "#673AB7",
+      "bgcolor": "#512DA8",
+      "boxcolor": "#673AB7"
+    },
+    {
+      "id": 147,
+      "type": "LoadImageOutput",
+      "pos": [
+        -39.96500015258789,
+        771.0084228515625
+      ],
+      "size": [
+        320,
+        374
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            250
+          ]
+        },
+        {
+          "label": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.40",
+        "Node name for S&R": "LoadImageOutput",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "ComfyUI_00343_.png [output]",
+        false,
+        "refresh",
+        "image"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
     },
     {
       "id": 142,
@@ -1449,7 +1959,7 @@
         374
       ],
       "flags": {},
-      "order": 13,
+      "order": 18,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1475,7 +1985,7 @@
         "widget_ue_connectable": {}
       },
       "widgets_values": [
-        "ComfyUI_00326_.png [output]",
+        "大草原.jfif [output]",
         false,
         "refresh",
         "image"
@@ -1484,25 +1994,25 @@
       "bgcolor": "#533"
     },
     {
-      "id": 214,
+      "id": 249,
       "type": "VisualPromptEditor",
       "pos": [
-        -4149.259765625,
-        -619.8499145507812
+        -4140.26611328125,
+        1690.609375
       ],
       "size": [
         351.06854248046875,
         220
       ],
       "flags": {},
-      "order": 19,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
           "label": "image",
           "name": "image",
           "type": "IMAGE",
-          "link": 380
+          "link": 425
         }
       ],
       "outputs": [
@@ -1511,122 +2021,9 @@
           "name": "processed_image",
           "type": "IMAGE",
           "links": [
-            355,
-            368
-          ]
-        },
-        {
-          "label": "structured_prompt",
-          "name": "structured_prompt",
-          "type": "STRING",
-          "links": [
-            357,
-            374
-          ]
-        },
-        {
-          "label": "annotation_data",
-          "name": "annotation_data",
-          "type": "STRING",
-          "links": [
-            353
-          ]
-        },
-        {
-          "label": "model_instruction",
-          "name": "model_instruction",
-          "type": "STRING",
-          "links": [
-            354
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
-        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
-        "Node name for S&R": "VisualPromptEditor",
-        "widget_ue_connectable": {}
-      },
-      "widgets_values": [
-        "{\"positive_prompt\":\"add dog to the blue circular marked area in the lower right part of the image, and make the red rectangular marked area in the center part of the image blue\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752492595656_58cgz153s\",\"operationType\":\"add_object\",\"description\":\"dog\",\"type\":\"circle\",\"color\":\"#0000ff\",\"number\":1,\"constraintPrompts\":[\"respecting spatial relationships\"],\"decorativePrompts\":[\"natural positioning\"]},{\"id\":\"annotation_1752492586199_wrw4s8sci\",\"operationType\":\"change_color\",\"description\":\"blue\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[],\"decorativePrompts\":[]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752492586199_wrw4s8sci\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":100,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[371.84989831072477,171.1989242378861,770.7040896821325,609.0093233484685]},\"start\":{\"x\":371.84989831072477,\"y\":171.1989242378861},\"end\":{\"x\":770.7040896821325,\"y\":609.0093233484685}},{\"id\":\"annotation_1752492595656_58cgz153s\",\"type\":\"circle\",\"color\":\"#0000ff\",\"fillMode\":\"outline\",\"opacity\":100,\"number\":1,\"geometry\":{\"type\":\"circle\",\"coordinates\":[492.36699210640194,949.5285226566991,839.5710004225195,1307.2167572241685]},\"start\":{\"x\":492.36699210640194,\"y\":949.5285226566991},\"end\":{\"x\":839.5710004225195,\"y\":1307.2167572241685}}],\"quality_analysis\":{\"score\":65,\"word_count\":31,\"char_count\":156,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Good prompt, minor improvements possible\"],\"grade\":\"B\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-14T11:32:19.870Z\"}",
-        "",
-        "global_color_grade",
-        "Visual Editor Ready"
-      ],
-      "color": "#673AB7",
-      "bgcolor": "#512DA8"
-    },
-    {
-      "id": 226,
-      "type": "Reroute",
-      "pos": [
-        -4678.72607421875,
-        -645.8659057617188
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 18,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "",
-          "name": "",
-          "type": "*",
-          "link": 379
-        }
-      ],
-      "outputs": [
-        {
-          "label": "",
-          "name": "",
-          "type": "IMAGE",
-          "links": [
-            380,
-            381,
-            382
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false,
-        "widget_ue_connectable": {}
-      }
-    },
-    {
-      "id": 220,
-      "type": "VisualPromptEditor",
-      "pos": [
-        -4144.35205078125,
-        249.59925842285156
-      ],
-      "size": [
-        351.06854248046875,
-        220
-      ],
-      "flags": {},
-      "order": 20,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "image",
-          "name": "image",
-          "type": "IMAGE",
-          "link": 381
-        }
-      ],
-      "outputs": [
-        {
-          "label": "processed_image",
-          "name": "processed_image",
-          "type": "IMAGE",
-          "links": [
-            352,
-            367,
-            369
+            419,
+            430,
+            449
           ]
         },
         {
@@ -1640,7 +2037,7 @@
           "name": "annotation_data",
           "type": "STRING",
           "links": [
-            366
+            431
           ]
         },
         {
@@ -1652,18 +2049,88 @@
       ],
       "properties": {
         "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
-        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
+        "widget_ue_connectable": {},
         "Node name for S&R": "VisualPromptEditor",
-        "widget_ue_connectable": {}
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb"
       },
       "widgets_values": [
-        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752483207698_nrr40h4v5\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":50,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[412.0222629092838,311.41271218833407,805.1375450523261,591.84028808923]},\"start\":{\"x\":412.0222629092838,\"y\":311.41271218833407},\"end\":{\"x\":805.1375450523261,\"y\":591.84028808923}}],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-14T11:34:40.588Z\"}",
+        "{\"positive_prompt\":\"\",\"negative_prompt\":\"\",\"selected_annotations\":[{\"id\":\"annotation_1752905703264_drc4cdux0\",\"operationType\":\"add_object\",\"description\":\"\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"number\":0,\"constraintPrompts\":[],\"decorativePrompts\":[]}],\"global_operation_type\":\"global_color_grade\",\"global_description\":\"\",\"template_category\":\"global\",\"constraint_prompts\":[],\"decorative_prompts\":[],\"include_annotation_numbers\":false,\"annotations\":[{\"id\":\"annotation_1752905703264_drc4cdux0\",\"type\":\"rectangle\",\"color\":\"#ff0000\",\"fillMode\":\"filled\",\"opacity\":50,\"number\":0,\"geometry\":{\"type\":\"rectangle\",\"coordinates\":[105.14594733292991,127.65693394436498,499.32678120761693,271.8939052511749]},\"start\":{\"x\":105.14594733292991,\"y\":127.65693394436498},\"end\":{\"x\":499.32678120761693,\"y\":271.8939052511749}}],\"quality_analysis\":{\"score\":30,\"word_count\":1,\"char_count\":0,\"professional_terms\":0,\"descriptive_terms\":0,\"constraint_terms\":0,\"suggestions\":[\"Prompt needs improvement, add more specific details\",\"Prompt too short, add more details\"],\"grade\":\"D\"},\"editing_mode\":\"hybrid\",\"timestamp\":\"2025-07-19T06:15:04.003Z\"}",
         "",
         "global_color_grade",
         "Visual Editor Ready"
       ],
       "color": "#673AB7",
       "bgcolor": "#512DA8"
+    },
+    {
+      "id": 243,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -2590.711669921875,
+        78.02142333984375
+      ],
+      "size": [
+        250.08045959472656,
+        106
+      ],
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "label": "any_01",
+          "name": "any_01",
+          "type": "STRING",
+          "link": 413
+        },
+        {
+          "dir": 3,
+          "label": "any_02",
+          "name": "any_02",
+          "type": "STRING",
+          "link": 414
+        },
+        {
+          "dir": 3,
+          "label": "any_03",
+          "name": "any_03",
+          "type": "STRING",
+          "link": 415
+        },
+        {
+          "dir": 3,
+          "label": "any_04",
+          "name": "any_04",
+          "type": "STRING",
+          "link": 435
+        },
+        {
+          "dir": 3,
+          "name": "any_05",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": 4,
+          "label": "STRING",
+          "name": "*",
+          "shape": 3,
+          "type": "STRING",
+          "links": [
+            416,
+            418
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "1.0.2505182359",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
     },
     {
       "id": 216,
@@ -1677,8 +2144,8 @@
         220
       ],
       "flags": {},
-      "order": 21,
-      "mode": 0,
+      "order": 23,
+      "mode": 4,
       "inputs": [
         {
           "label": "image",
@@ -1693,22 +2160,25 @@
           "name": "processed_image",
           "type": "IMAGE",
           "links": [
-            363,
-            370
+            370,
+            394,
+            448
           ]
         },
         {
           "label": "structured_prompt",
           "name": "structured_prompt",
           "type": "STRING",
-          "links": []
+          "links": [
+            393
+          ]
         },
         {
           "label": "annotation_data",
           "name": "annotation_data",
           "type": "STRING",
           "links": [
-            362
+            392
           ]
         },
         {
@@ -1720,8 +2190,8 @@
       ],
       "properties": {
         "aux_id": "aiaiaikkk/Kontext-Visual-Prompt-Window",
-        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
         "Node name for S&R": "VisualPromptEditor",
+        "ver": "332100f6a29b84d947873210d82e08381a01acdb",
         "widget_ue_connectable": {}
       },
       "widgets_values": [
@@ -1734,244 +2204,172 @@
       "bgcolor": "#512DA8"
     },
     {
-      "id": 225,
-      "type": "ImpactSwitch",
+      "id": 267,
+      "type": "PreviewImage",
       "pos": [
-        -2453.890625,
-        -179.5556640625
+        -2186.774169921875,
+        -153.6050567626953
       ],
       "size": [
-        270,
-        142
+        140,
+        246
       ],
       "flags": {},
-      "order": 34,
+      "order": 39,
       "mode": 0,
       "inputs": [
         {
-          "label": "input1",
-          "name": "input1",
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 451
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 265,
+      "type": "CR Image Input Switch (4 way)",
+      "pos": [
+        -2589.497314453125,
+        -114.04407501220703
+      ],
+      "size": [
+        265.79486083984375,
+        118
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image1",
+          "name": "image1",
           "shape": 7,
-          "type": "*",
-          "link": 374
+          "type": "IMAGE",
+          "link": 446
         },
         {
-          "label": "input2",
-          "name": "input2",
-          "type": "STRING",
-          "link": 375
+          "label": "image2",
+          "name": "image2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 447
         },
         {
-          "label": "input3",
-          "name": "input3",
-          "type": "STRING",
-          "link": 376
+          "label": "image3",
+          "name": "image3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 448
         },
         {
-          "label": "input4",
-          "name": "input4",
-          "type": "STRING",
-          "link": null
+          "label": "image4",
+          "name": "image4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 449
         }
       ],
       "outputs": [
         {
-          "label": "selected_value",
-          "name": "selected_value",
-          "type": "*",
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            383
+            451,
+            452
           ]
         },
         {
-          "label": "selected_label",
-          "name": "selected_label",
+          "label": "show_help",
+          "name": "show_help",
           "type": "STRING",
-          "links": null
-        },
-        {
-          "label": "selected_index",
-          "name": "selected_index",
-          "type": "INT",
           "links": null
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-impact-pack",
-        "ver": "8.15.1",
-        "Node name for S&R": "ImpactSwitch",
-        "widget_ue_connectable": {}
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Image Input Switch (4 way)"
       },
       "widgets_values": [
-        1,
-        false
+        4
       ]
     },
     {
-      "id": 233,
-      "type": "Note",
+      "id": 244,
+      "type": "ShowText|pysssss",
       "pos": [
-        -3377.853271484375,
-        -261.1710205078125
+        -2227.033447265625,
+        282.31915283203125
       ],
       "size": [
-        394.9114685058594,
-        180.85443115234375
+        305.7446594238281,
+        138.31002807617188
       ],
       "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "三选一，另外两个需要屏蔽"
-      ],
-      "color": "#332922",
-      "bgcolor": "#593930"
-    },
-    {
-      "id": 234,
-      "type": "Note",
-      "pos": [
-        -4460.70166015625,
-        277.3669738769531
-      ],
-      "size": [
-        251.38685607910156,
-        161.54998779296875
-      ],
-      "flags": {},
-      "order": 15,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "三选一，另外两个需要屏蔽"
-      ],
-      "color": "#332922",
-      "bgcolor": "#593930"
-    },
-    {
-      "id": 235,
-      "type": "Note",
-      "pos": [
-        -4461.84521484375,
-        -454.94677734375
-      ],
-      "size": [
-        251.38685607910156,
-        161.54998779296875
-      ],
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "三选一，另外两个需要屏蔽"
-      ],
-      "color": "#332922",
-      "bgcolor": "#593930"
-    },
-    {
-      "id": 236,
-      "type": "Note",
-      "pos": [
-        -4443.72802734375,
-        1015.1428833007812
-      ],
-      "size": [
-        251.38685607910156,
-        161.54998779296875
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "三选一，另外两个需要屏蔽"
-      ],
-      "color": "#332922",
-      "bgcolor": "#593930"
-    },
-    {
-      "id": 222,
-      "type": "ImpactSwitch",
-      "pos": [
-        -2443.890625,
-        -409.55560302734375
-      ],
-      "size": [
-        270,
-        142
-      ],
-      "flags": {},
-      "order": 28,
+      "order": 45,
       "mode": 0,
       "inputs": [
         {
-          "label": "input1",
-          "name": "input1",
-          "shape": 7,
-          "type": "*",
-          "link": 368
-        },
-        {
-          "label": "input2",
-          "name": "input2",
-          "type": "IMAGE",
-          "link": 369
-        },
-        {
-          "label": "input3",
-          "name": "input3",
-          "type": "IMAGE",
-          "link": 370
-        },
-        {
-          "label": "input4",
-          "name": "input4",
-          "type": "IMAGE",
-          "link": null
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 416
         }
       ],
       "outputs": [
         {
-          "label": "selected_value",
-          "name": "selected_value",
-          "type": "*",
-          "links": [
-            371
-          ]
-        },
-        {
-          "label": "selected_label",
-          "name": "selected_label",
+          "label": "STRING",
+          "name": "STRING",
+          "shape": 6,
           "type": "STRING",
-          "links": null
-        },
-        {
-          "label": "selected_index",
-          "name": "selected_index",
-          "type": "INT",
           "links": null
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-impact-pack",
-        "ver": "8.15.1",
-        "Node name for S&R": "ImpactSwitch",
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
         "widget_ue_connectable": {}
       },
       "widgets_values": [
-        1,
-        false
+        "Adjust the exposure of the red horizontal rectangle area to make it darker, ensuring the overall image remains natural and visually coherent."
       ]
+    },
+    {
+      "id": 268,
+      "type": "Note",
+      "pos": [
+        -2588.392333984375,
+        -253.29251098632812
+      ],
+      "size": [
+        252.63304138183594,
+        88
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "四选一，左侧四个节点组用哪个Input就输入哪个"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
     }
   ],
   "links": [
@@ -2040,14 +2438,6 @@
       "CONDITIONING"
     ],
     [
-      240,
-      8,
-      0,
-      136,
-      0,
-      "IMAGE"
-    ],
-    [
       250,
       147,
       0,
@@ -2104,14 +2494,6 @@
       "CONDITIONING"
     ],
     [
-      350,
-      204,
-      0,
-      31,
-      0,
-      "MODEL"
-    ],
-    [
       352,
       220,
       0,
@@ -2144,14 +2526,6 @@
       "IMAGE"
     ],
     [
-      356,
-      221,
-      1,
-      212,
-      0,
-      "STRING"
-    ],
-    [
       357,
       214,
       1,
@@ -2160,116 +2534,12 @@
       "STRING"
     ],
     [
-      359,
-      221,
-      0,
-      215,
-      0,
-      "STRING"
-    ],
-    [
-      361,
-      218,
-      1,
-      217,
-      0,
-      "STRING"
-    ],
-    [
-      362,
-      216,
-      2,
-      218,
-      0,
-      "STRING"
-    ],
-    [
-      363,
-      216,
-      0,
-      218,
-      1,
-      "IMAGE"
-    ],
-    [
-      364,
-      218,
-      0,
-      219,
-      0,
-      "STRING"
-    ],
-    [
-      366,
-      220,
-      2,
-      221,
-      0,
-      "STRING"
-    ],
-    [
-      367,
-      220,
-      0,
-      221,
-      1,
-      "IMAGE"
-    ],
-    [
-      368,
-      214,
-      0,
-      222,
-      0,
-      "*"
-    ],
-    [
-      369,
-      220,
-      0,
-      222,
-      1,
-      "IMAGE"
-    ],
-    [
       370,
       216,
       0,
       222,
       2,
       "IMAGE"
-    ],
-    [
-      371,
-      222,
-      0,
-      146,
-      0,
-      "IMAGE"
-    ],
-    [
-      374,
-      214,
-      1,
-      225,
-      0,
-      "*"
-    ],
-    [
-      375,
-      221,
-      0,
-      225,
-      1,
-      "STRING"
-    ],
-    [
-      376,
-      218,
-      0,
-      225,
-      2,
-      "STRING"
     ],
     [
       379,
@@ -2304,12 +2574,244 @@
       "IMAGE"
     ],
     [
-      383,
+      386,
+      220,
+      1,
+      237,
+      0,
+      "STRING"
+    ],
+    [
+      387,
+      220,
+      0,
+      237,
+      1,
+      "IMAGE"
+    ],
+    [
+      388,
+      237,
+      0,
+      215,
+      0,
+      "STRING"
+    ],
+    [
+      389,
+      237,
+      1,
+      212,
+      0,
+      "STRING"
+    ],
+    [
+      392,
+      216,
+      2,
       225,
+      3,
+      "STRING"
+    ],
+    [
+      393,
+      216,
+      1,
+      238,
+      0,
+      "STRING"
+    ],
+    [
+      394,
+      216,
+      0,
+      238,
+      1,
+      "IMAGE"
+    ],
+    [
+      395,
+      238,
+      0,
+      219,
+      0,
+      "STRING"
+    ],
+    [
+      396,
+      238,
+      1,
+      217,
+      0,
+      "STRING"
+    ],
+    [
+      398,
+      238,
+      1,
+      225,
+      2,
+      "STRING"
+    ],
+    [
+      399,
+      37,
+      0,
+      31,
+      0,
+      "MODEL"
+    ],
+    [
+      400,
+      8,
+      0,
+      239,
+      0,
+      "IMAGE"
+    ],
+    [
+      413,
+      214,
+      1,
+      243,
+      0,
+      "*"
+    ],
+    [
+      414,
+      237,
+      0,
+      243,
+      1,
+      "STRING"
+    ],
+    [
+      415,
+      238,
+      0,
+      243,
+      2,
+      "STRING"
+    ],
+    [
+      416,
+      243,
+      0,
+      244,
+      0,
+      "STRING"
+    ],
+    [
+      418,
+      243,
       0,
       6,
       1,
       "STRING"
+    ],
+    [
+      419,
+      249,
+      0,
+      246,
+      0,
+      "IMAGE"
+    ],
+    [
+      425,
+      226,
+      0,
+      249,
+      0,
+      "IMAGE"
+    ],
+    [
+      430,
+      249,
+      0,
+      255,
+      1,
+      "IMAGE"
+    ],
+    [
+      431,
+      249,
+      2,
+      255,
+      0,
+      "STRING"
+    ],
+    [
+      432,
+      255,
+      0,
+      248,
+      0,
+      "STRING"
+    ],
+    [
+      433,
+      255,
+      1,
+      247,
+      0,
+      "STRING"
+    ],
+    [
+      435,
+      255,
+      0,
+      243,
+      3,
+      "STRING"
+    ],
+    [
+      446,
+      214,
+      0,
+      265,
+      0,
+      "IMAGE"
+    ],
+    [
+      447,
+      220,
+      0,
+      265,
+      1,
+      "IMAGE"
+    ],
+    [
+      448,
+      216,
+      0,
+      265,
+      2,
+      "IMAGE"
+    ],
+    [
+      449,
+      249,
+      0,
+      265,
+      3,
+      "IMAGE"
+    ],
+    [
+      451,
+      265,
+      0,
+      267,
+      0,
+      "IMAGE"
+    ],
+    [
+      452,
+      265,
+      0,
+      146,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -2405,13 +2907,13 @@
       "flags": {}
     },
     {
-      "id": 11,
-      "title": "选择器",
+      "id": 10,
+      "title": "TextGen WebUI FLUX Kontext Enhancer",
       "bounding": [
-        -2473.890625,
-        -493.55560302734375,
-        320,
-        475.99993896484375
+        -4492.90380859375,
+        1606.609375,
+        1586.6651611328125,
+        746.4227294921875
       ],
       "color": "#3f789e",
       "font_size": 24,
@@ -2421,10 +2923,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.15584707559785269,
+      "scale": 0.15772225476662968,
       "offset": [
-        7275.9123211171955,
-        1464.2850690781288
+        7831.53544299608,
+        1620.3686146360192
       ]
     },
     "frontendVersion": "1.23.4",
