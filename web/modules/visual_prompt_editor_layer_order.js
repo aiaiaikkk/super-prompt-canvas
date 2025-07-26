@@ -474,18 +474,50 @@ export class LayerOrderController {
         let annotationSVGContainer = modal.querySelector(`#annotation-svg-${annotationId}`);
         
         if (!annotationSVGContainer) {
+            // 🔧 修复坐标偏移：获取主绘制层的精确定位信息
+            const drawingLayer = modal.querySelector('#drawing-layer');
+            const drawingLayerRect = drawingLayer ? drawingLayer.getBoundingClientRect() : null;
+            const canvasRect = canvasContainer.getBoundingClientRect();
+            
             // 创建独立的SVG容器
             annotationSVGContainer = document.createElement('div');
             annotationSVGContainer.id = `annotation-svg-${annotationId}`;
-            annotationSVGContainer.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                z-index: ${zIndex};
-            `;
+            
+            // 🔧 关键修复：确保容器与主绘制层完全对齐
+            if (drawingLayerRect && canvasRect) {
+                const relativeLeft = drawingLayerRect.left - canvasRect.left;
+                const relativeTop = drawingLayerRect.top - canvasRect.top;
+                
+                annotationSVGContainer.style.cssText = `
+                    position: absolute;
+                    top: ${relativeTop}px;
+                    left: ${relativeLeft}px;
+                    width: ${drawingLayerRect.width}px;
+                    height: ${drawingLayerRect.height}px;
+                    pointer-events: none;
+                    z-index: ${zIndex};
+                `;
+                
+                console.log('🔧 [COORDINATE_FIX] 标注容器精确定位:', {
+                    annotationId,
+                    drawingLayerRect,
+                    canvasRect, 
+                    relativePosition: { left: relativeLeft, top: relativeTop },
+                    containerSize: { width: drawingLayerRect.width, height: drawingLayerRect.height }
+                });
+            } else {
+                // 备用方案：使用默认定位
+                annotationSVGContainer.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    pointer-events: none;
+                    z-index: ${zIndex};
+                `;
+                console.warn('🔧 [COORDINATE_FIX] 无法获取绘制层位置，使用默认定位');
+            }
             
             // 创建独立的SVG
             const newSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -498,9 +530,42 @@ export class LayerOrderController {
                 pointer-events: auto;
             `;
             
-            // 复制主SVG的viewBox和属性
-            newSVG.setAttribute('viewBox', mainSVG.getAttribute('viewBox') || '0 0 1920 1080');
-            newSVG.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            // 🔧 修复坐标偏移：完全复制主SVG的所有关键属性和变换
+            const mainViewBox = mainSVG.getAttribute('viewBox') || '0 0 1920 1080';
+            const mainPreserveAspectRatio = mainSVG.getAttribute('preserveAspectRatio') || 'xMidYMid meet';
+            const mainTransform = mainSVG.getAttribute('transform') || '';
+            
+            newSVG.setAttribute('viewBox', mainViewBox);
+            newSVG.setAttribute('preserveAspectRatio', mainPreserveAspectRatio);
+            if (mainTransform) {
+                newSVG.setAttribute('transform', mainTransform);
+            }
+            
+            // 🔧 关键修复：确保独立SVG与主SVG具有相同的样式和定位
+            const mainSVGStyle = window.getComputedStyle(mainSVG);
+            const mainSVGRect = mainSVG.getBoundingClientRect();
+            
+            // 复制关键样式属性
+            newSVG.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: auto;
+            `;
+            
+            console.log('🔧 [COORDINATE_FIX] 独立SVG坐标系统配置:', {
+                viewBox: mainViewBox,
+                preserveAspectRatio: mainPreserveAspectRatio,
+                transform: mainTransform,
+                mainSVGRect: {
+                    width: mainSVGRect.width,
+                    height: mainSVGRect.height,
+                    left: mainSVGRect.left,
+                    top: mainSVGRect.top
+                }
+            });
             
             annotationSVGContainer.appendChild(newSVG);
             
@@ -574,8 +639,46 @@ export class LayerOrderController {
             }
             
             if (annotationGroup && independentSVG) {
+                // 🔧 关键修复：在移动前记录坐标信息用于验证
+                const beforeMove = {
+                    mainSVGRect: mainSVG.getBoundingClientRect(),
+                    independentSVGRect: independentSVG.getBoundingClientRect(),
+                    mainSVGViewBox: mainSVG.getAttribute('viewBox'),
+                    independentSVGViewBox: independentSVG.getAttribute('viewBox'),
+                    annotationBBox: annotationGroup.getBBox ? annotationGroup.getBBox() : null
+                };
+                
+                console.log('🔧 [COORDINATE_FIX] 移动前坐标系统对比:', {
+                    annotationId,
+                    mainSVG: {
+                        rect: beforeMove.mainSVGRect,
+                        viewBox: beforeMove.mainSVGViewBox
+                    },
+                    independentSVG: {
+                        rect: beforeMove.independentSVGRect,
+                        viewBox: beforeMove.independentSVGViewBox
+                    },
+                    annotation: beforeMove.annotationBBox
+                });
+                
                 // 将标注组从主SVG移动到独立SVG
                 independentSVG.appendChild(annotationGroup);
+                
+                // 🔧 移动后验证坐标系统一致性
+                const afterMove = {
+                    annotationBBox: annotationGroup.getBBox ? annotationGroup.getBBox() : null,
+                    annotationParent: annotationGroup.parentElement,
+                    parentViewBox: annotationGroup.parentElement ? annotationGroup.parentElement.getAttribute('viewBox') : null
+                };
+                
+                console.log('🔧 [COORDINATE_FIX] 移动后验证:', {
+                    annotationId,
+                    newParent: afterMove.annotationParent ? afterMove.annotationParent.tagName : 'unknown',
+                    newViewBox: afterMove.parentViewBox,
+                    annotationBBox: afterMove.annotationBBox,
+                    coordinateConsistency: beforeMove.mainSVGViewBox === afterMove.parentViewBox ? '✅ 一致' : '❌ 不一致'
+                });
+                
                 console.log(`🔄 ✅ 标注 ${annotationId} 已从主SVG移动到独立SVG容器`);
                 return;
             }

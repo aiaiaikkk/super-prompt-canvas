@@ -7,7 +7,8 @@ export class CoordinateSystem {
     constructor(modal) {
         this.modal = modal;
         this.canvasContainer = modal.querySelector('#image-canvas');
-        this.mainImage = modal.querySelector('#vpe-main-image');
+        // 🔧 修复：移除一次性主图引用，改为动态获取以确保一致性
+        // this.mainImage = modal.querySelector('#vpe-main-image'); // 不再需要
         this.drawingLayer = modal.querySelector('#drawing-layer');
         
         // 缓存计算结果，避免重复计算
@@ -18,7 +19,7 @@ export class CoordinateSystem {
             imageRect: null
         };
         
-        console.log('🎯 [COORDS] CoordinateSystem 初始化');
+        console.log('🎯 [COORDS] CoordinateSystem 初始化（复合缩放系统模式）');
     }
     
     /**
@@ -87,12 +88,14 @@ export class CoordinateSystem {
             return this.cache.imageRect;
         }
         
-        if (!this.mainImage) {
+        // 🔧 修复：动态获取主图元素，确保引用有效
+        const mainImage = this.modal.querySelector('#vpe-main-image');
+        if (!mainImage) {
             console.error('❌ [COORDS] 主图未找到');
             return null;
         }
         
-        const imageRect = this.mainImage.getBoundingClientRect();
+        const imageRect = mainImage.getBoundingClientRect();
         const scale = this.getImageScale();
         
         // 计算逻辑尺寸（未缩放前的尺寸）
@@ -116,7 +119,7 @@ export class CoordinateSystem {
             scale: scale
         };
         
-        console.log('🖼️ [COORDS] 图像信息:', this.cache.imageRect);
+        console.log('🖼️ [COORDS] 图像信息（动态获取，备用）:', this.cache.imageRect);
         return this.cache.imageRect;
     }
     
@@ -212,6 +215,56 @@ export class CoordinateSystem {
     }
     
     /**
+     * 获取所有缩放因子（复合缩放系统）
+     * @returns {Object} 全面缩放信息
+     */
+    getAllScaleFactors() {
+        let zoomScale = 1;
+        let layerScale = 1;
+        let totalScale = 1;
+        
+        // 1. 获取zoom-container的缩放因子
+        const zoomContainer = this.modal.querySelector('#zoom-container');
+        if (zoomContainer) {
+            const transform = window.getComputedStyle(zoomContainer).transform;
+            if (transform && transform !== 'none') {
+                const scaleMatch = transform.match(/scale\(([0-9.]+)\)/);
+                if (scaleMatch) {
+                    zoomScale = parseFloat(scaleMatch[1]);
+                }
+            }
+        }
+        
+        // 2. 获取canvas-layer的缩放因子
+        const firstLayer = this.modal.querySelector('[id^="canvas-layer-"]');
+        if (firstLayer) {
+            const transform = window.getComputedStyle(firstLayer).transform;
+            if (transform && transform !== 'none') {
+                const scaleMatch = transform.match(/scale\(([0-9.]+)\)/);
+                if (scaleMatch) {
+                    layerScale = parseFloat(scaleMatch[1]);
+                }
+            }
+        }
+        
+        // 3. 计算总体缩放因子
+        totalScale = zoomScale * layerScale;
+        
+        console.log('🔍 [COORDS] 复合缩放分析:', {
+            zoomScale,
+            layerScale,
+            totalScale,
+            calculation: `${zoomScale} * ${layerScale} = ${totalScale}`
+        });
+        
+        return {
+            zoomScale,
+            layerScale,
+            totalScale
+        };
+    }
+    
+    /**
      * 获取SVG绘制层的坐标转换信息
      * @returns {Object} SVG坐标转换信息
      */
@@ -228,10 +281,14 @@ export class CoordinateSystem {
         const canvasRect = this.getCanvasRect();
         const viewBox = svg.viewBox.baseVal;
         
+        // 🔧 关键修复：获取所有缩放因子
+        const scaleFactors = this.getAllScaleFactors();
+        
         return {
             svgRect,
             canvasRect,
             viewBox,
+            ...scaleFactors, // 包含zoomScale, layerScale, totalScale
             // SVG相对于画布的位置
             svgRelativeLeft: svgRect.left - canvasRect.left,
             svgRelativeTop: svgRect.top - canvasRect.top
@@ -250,32 +307,50 @@ export class CoordinateSystem {
             return { x: 0, y: 0 };
         }
         
-        // 先转换为图像逻辑坐标，再转换为SVG坐标
-        const imageCoords = this.mouseToImageCoords(clientX, clientY);
-        const imageInfo = this.getImageInfo();
+        // 🔧 终极修复：考虑所有缩放层级的复合缩放系统
+        const svgRelativeX = clientX - svgInfo.svgRect.left;
+        const svgRelativeY = clientY - svgInfo.svgRect.top;
         
-        if (!imageInfo) {
-            // 回退到旧方法
-            const svgRelativeX = clientX - svgInfo.svgRect.left;
-            const svgRelativeY = clientY - svgInfo.svgRect.top;
-            const scaleX = svgRelativeX / svgInfo.svgRect.width;
-            const scaleY = svgRelativeY / svgInfo.svgRect.height;
-            const svgX = scaleX * svgInfo.viewBox.width;
-            const svgY = scaleY * svgInfo.viewBox.height;
-            return { x: svgX, y: svgY };
-        }
+        // 计算鼠标在SVG中的相对位置比例
+        const scaleX = svgRelativeX / svgInfo.svgRect.width;
+        const scaleY = svgRelativeY / svgInfo.svgRect.height;
         
-        // 将图像逻辑坐标转换为SVG viewBox坐标
-        // 假设SVG viewBox与图像逻辑尺寸匹配
-        const svgX = (imageCoords.x / imageInfo.logicalSize.width) * svgInfo.viewBox.width;
-        const svgY = (imageCoords.y / imageInfo.logicalSize.height) * svgInfo.viewBox.height;
+        // 🔜 关键修复：使用总体缩放因子（zoom * layer * object-fit）
+        // 这解决了复合缩放系统导致的坐标偏移问题
+        const adjustedScaleX = scaleX / svgInfo.totalScale;
+        const adjustedScaleY = scaleY / svgInfo.totalScale;
         
-        console.log('📐 [COORDS] 鼠标到SVG坐标转换（新方法）:', {
-            mouse: { x: clientX, y: clientY },
-            imageCoords: imageCoords,
-            imageLogicalSize: imageInfo.logicalSize,
-            viewBox: { width: svgInfo.viewBox.width, height: svgInfo.viewBox.height },
-            final: { x: svgX, y: svgY }
+        // 转换为SVG viewBox坐标（使用复合缩政调整后的比例）
+        const svgX = adjustedScaleX * svgInfo.viewBox.width;
+        const svgY = adjustedScaleY * svgInfo.viewBox.height;
+        
+        console.log('🔍 [COORDINATE_DEBUG] 详细坐标转换过程:', {
+            // 原始输入
+            input: {
+                mouse: { x: clientX, y: clientY }
+            },
+            // SVG信息
+            svgInfo: {
+                rect: { left: svgInfo.svgRect.left, top: svgInfo.svgRect.top, width: svgInfo.svgRect.width, height: svgInfo.svgRect.height },
+                viewBox: { width: svgInfo.viewBox.width, height: svgInfo.viewBox.height }
+            },
+            // 坐标转换每一步
+            transformSteps: {
+                step1_relative: { x: svgRelativeX, y: svgRelativeY, desc: '鼠标相对SVG位置' },
+                step2_scale: { x: scaleX, y: scaleY, desc: '在SVG中的比例位置' },
+                step3_adjusted: { x: adjustedScaleX, y: adjustedScaleY, desc: '缩放调整后的比例' },
+                step4_final: { x: svgX, y: svgY, desc: 'viewBox坐标' }
+            },
+            // 缩放因子
+            scaleFactors: {
+                zoom: svgInfo.zoomScale,
+                layer: svgInfo.layerScale,
+                total: svgInfo.totalScale,
+                applied: `原始比例 / ${svgInfo.totalScale} = 调整后比例`
+            },
+            // 最终结果
+            result: { x: svgX, y: svgY },
+            timestamp: Date.now()
         });
         
         return { x: svgX, y: svgY };

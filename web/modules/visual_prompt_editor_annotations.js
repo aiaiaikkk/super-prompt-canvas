@@ -323,12 +323,17 @@ export function bindCanvasInteractionEvents(modal) {
         // 使用工具函数进行精确坐标转换
         const svgCoords = mouseToSVGCoordinates(e, modal);
         
-        console.log('📐 坐标映射:', {
-            mouse: { x: e.clientX, y: e.clientY },
-            finalSVG: svgCoords
+        // 🔍 调试：详细记录鼠标按下时的坐标转换
+        console.log('🔴 [MOUSEDOWN] 鼠标按下坐标转换:', {
+            rawMouse: { x: e.clientX, y: e.clientY },
+            svgCoords: svgCoords,
+            event: 'mousedown',
+            timestamp: Date.now()
         });
         
         startPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey };
+        
+        console.log('🔴 [START_POINT] 起始点设置:', startPoint);
         
         // 画笔工具特殊处理：开始绘制路径
         if (tool === 'brush') {
@@ -393,6 +398,15 @@ export function bindCanvasInteractionEvents(modal) {
             const svgCoords = mouseToSVGCoordinates(e, modal);
             const endPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey || startPoint.shiftKey };
             
+            // 🔍 调试：记录鼠标移动时的坐标
+            console.log('🟡 [MOUSEMOVE] 鼠标移动坐标:', {
+                rawMouse: { x: e.clientX, y: e.clientY },
+                svgCoords: svgCoords,
+                startPoint: startPoint,
+                endPoint: endPoint,
+                event: 'mousemove'
+            });
+            
             if (currentTool === 'brush') {
                 continueBrushStroke(modal, svgCoords);
             } else if (currentTool !== 'freehand') {
@@ -412,12 +426,17 @@ export function bindCanvasInteractionEvents(modal) {
         
         // 使用工具函数进行坐标转换
         const svgCoords = mouseToSVGCoordinates(e, modal);
-        
-        console.log('VPE画布坐标:', svgCoords);
-        
         const endPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey || startPoint.shiftKey };
         
-        console.log('📍 VPE结束绘制位置:', endPoint);
+        // 🔍 调试：详细记录鼠标释放时的坐标转换
+        console.log('🔴 [MOUSEUP] 鼠标释放坐标转换:', {
+            rawMouse: { x: e.clientX, y: e.clientY },
+            svgCoords: svgCoords,
+            startPoint: startPoint,
+            endPoint: endPoint,
+            event: 'mouseup',
+            timestamp: Date.now()
+        });
         console.log('✨ VPE尝试完成绘制');
         
         if (modal.currentTool === 'brush') {
@@ -685,6 +704,17 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
     
     if (!svg) return;
     
+    // 🔍 调试：记录预览坐标
+    console.log('🟠 [PREVIEW] 预览坐标:', {
+        startPoint: startPoint,
+        endPoint: endPoint,
+        tool: tool,
+        svgInfo: {
+            viewBox: svg.getAttribute('viewBox'),
+            clientRect: svg.getBoundingClientRect()
+        }
+    });
+    
     // 移除现有预览
     const existingPreview = svg.querySelector('.shape-preview');
     if (existingPreview) {
@@ -707,10 +737,15 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
             'class': 'shape-preview'
         });
         
+        // 🔍 调试：记录预览矩形的实际属性
+        console.log('🟠 [PREVIEW_RECT] 预览矩形属性:', {
+            x, y, width, height,
+            calculatedFrom: { startPoint, endPoint }
+        });
+        
         // 应用预览样式
         const fillMode = modal.fillMode || 'filled';
         const opacity = modal.currentOpacity || 50;
-        console.log('🎨 矩形预览应用填充样式:', { color, fillMode, opacity });
         applyPreviewStyle(shape, color, fillMode, opacity);
     } else if (tool === 'circle') {
         const cx = (startPoint.x + endPoint.x) / 2;
@@ -753,7 +788,13 @@ function updatePreview(modal, startPoint, endPoint, tool, color) {
     }
     
     if (shape) {
+        // 🔧 预览使用与最终绘制相同的方法，确保位置一致
         svg.appendChild(shape);
+        console.log('🟠 [PREVIEW_ADDED] 预览元素已添加:', {
+            svgContainer: svg.id || 'drawing-layer-svg',
+            shapeClass: shape.getAttribute('class'),
+            boundingBox: shape.getBBox ? shape.getBBox() : 'N/A'
+        });
     }
 }
 
@@ -993,6 +1034,18 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         return;
     }
     
+    // 🔍 调试：记录最终绘制坐标
+    console.log('🔴 [FINAL] 最终绘制坐标:', {
+        startPoint: startPoint,
+        endPoint: endPoint,
+        tool: tool,
+        svgInfo: {
+            viewBox: svg.getAttribute('viewBox'),
+            clientRect: svg.getBoundingClientRect()
+        },
+        timestamp: now
+    });
+    
     // 移除预览
     const existingPreview = svg.querySelector('.shape-preview');
     if (existingPreview) {
@@ -1022,10 +1075,16 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
             'data-annotation-id': annotationId
         });
         
+        // 🔍 调试：记录最终矩形的实际属性
+        console.log('🔴 [FINAL_RECT] 最终矩形属性:', {
+            x, y, width, height,
+            calculatedFrom: { startPoint, endPoint },
+            annotationId
+        });
+        
         // 应用填充样式
         const fillMode = modal.fillMode || 'filled';
         const opacity = modal.currentOpacity || 50;
-        console.log('🎨 矩形应用填充样式:', { color, fillMode, opacity });
         applyFillStyle(shape, color, fillMode, opacity);
         
     } else if (tool === 'circle') {
@@ -1087,21 +1146,20 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         // 获取正确的编号（考虑已恢复的annotations）
         const annotationNumber = getNextAnnotationNumber(modal);
         
-        // 使用新的分组方式添加标注
-        try {
-            // 🔒 修复：使用传入的nodeInstance，不要重新查找
-            const nodeInstance = window.currentVPEInstance || window.currentVPENode;
-            if (nodeInstance && typeof nodeInstance.addAnnotationToSVGWithGrouping === 'function') {
-                console.log(`📝 🆕 SHAPE - 使用传入的节点实例添加标注: ${annotationId}`);
-                nodeInstance.addAnnotationToSVGWithGrouping(svg, shape, annotationId);
-            } else {
-                console.log(`⚠️ SHAPE - 节点方法不可用，使用传统方式: ${annotationId}`);
-                svg.appendChild(shape);
-            }
-        } catch (error) {
-            console.warn('⚠️ 使用分组添加标注时出错，使用默认方式:', error);
-            svg.appendChild(shape);
-        }
+        // 🔧 关键修复：统一使用简单的appendChild，确保预览和最终位置一致
+        svg.appendChild(shape);
+        
+        console.log('🔴 [FINAL_ADDED] 最终元素已添加:', {
+            annotationId,
+            svgContainer: svg.id || 'drawing-layer-svg',
+            shapeClass: shape.getAttribute('class'),
+            boundingBox: shape.getBBox ? shape.getBBox() : 'N/A',
+            method: 'appendChild - 统一方法'
+        });
+        
+        // 注释原有的复杂分组逻辑，避免容器不一致
+        // 原因：addAnnotationToSVGWithGrouping创建独立的SVG容器在#image-canvas中
+        // 而预览使用#drawing-layer中的SVG，导致坐标系统不同
         
         // 添加编号标签
         addNumberLabel(svg, startPoint, annotationNumber, color);
