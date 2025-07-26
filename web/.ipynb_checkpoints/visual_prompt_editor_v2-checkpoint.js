@@ -60,8 +60,7 @@ import {
     initZoomAndPanControls, 
     renderImageCanvas, 
     setActiveTool,
-    updateSVGViewBox,
-    getImageFromWidget
+    updateSVGViewBox
 } from './modules/visual_prompt_editor_canvas.js';
 import { 
     bindCanvasInteractionEvents,
@@ -266,7 +265,16 @@ app.registerExtension({
                 return r;
             };
             
+            // 从LoadImage节点获取图像 - 需要在调用前定义
+            // 从LoadImage节点获取图像 - 委托给file_manager模块
+            nodeType.prototype.getImageFromLoadImageNode = function(loadImageNode) {
+                return getImageFromLoadImageNode(loadImageNode);
+            };
             
+            // 从其他节点获取图像 - 委托给file_manager模块
+            nodeType.prototype.tryGetImageFromNode = function(sourceNode) {
+                return tryGetImageFromNode(sourceNode);
+            };
             
             // 添加右键菜单选项
             const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
@@ -318,20 +326,6 @@ app.registerExtension({
                 return true;
             };
             
-            // 确保变换控制模块
-            nodeType.prototype.ensureTransformControls = function() {
-                if (!this.transformControls) {
-                    try {
-                        this.transformControls = createTransformControls(this);
-                        console.log('✅ 变换控制器创建成功');
-                    } catch (error) {
-                        handleError('懒加载变换控制模块', error);
-                        return null;
-                    }
-                }
-                return this.transformControls;
-            };
-            
             nodeType.prototype.openUnifiedEditor = function() {
                 console.log("🎨 Opening Unified Visual Prompt Editor V2...");
                 console.log("🎨 Node instance check:", this);
@@ -379,12 +373,12 @@ app.registerExtension({
                                 if (sourceNode) {
                                     // 尝试获取LoadImage节点的图像
                                     if (sourceNode.type === 'LoadImage') {
-                                        imageData = getImageFromLoadImageNode(sourceNode);
+                                        imageData = this.getImageFromLoadImageNode(sourceNode);
                                         console.log('🖼️ 从LoadImage节点获取图像:', !!imageData);
                                     } else {
                                         // 尝试从其他节点获取
                                         console.log('🔍 尝试从其他节点类型获取图像:', sourceNode.type);
-                                        imageData = tryGetImageFromNode(sourceNode);
+                                        imageData = this.tryGetImageFromNode(sourceNode);
                                     }
                                 }
                             }
@@ -397,7 +391,7 @@ app.registerExtension({
                     // 方法2：从widget获取
                     if (!imageData || (typeof imageData === 'object' && Object.keys(imageData).length === 0)) {
                         console.log('⚠️ 未从输入连接获取到图像，尝试从widget获取');
-                        imageData = getImageFromWidget(this);
+                        imageData = this.getImageFromWidget();
                     } else {
                     }
                     
@@ -453,6 +447,16 @@ app.registerExtension({
                 
                 // 创建模态弹窗
                 console.log('🚀 即将创建统一模态弹窗...');
+                this.createUnifiedModal(imageData, layersData);
+            };
+            
+            // 创建统一模态弹窗
+            // 创建统一模态弹窗 - 委托给modal_core模块
+            nodeType.prototype.createUnifiedModal = function(imageData, layersData) {
+                console.log('🎯 Main createUnifiedModal called with:', { 
+                    hasImageData: !!imageData, 
+                    hasLayersData: !!layersData 
+                });
                 
                 try {
                     const modal = createUnifiedModal(imageData, layersData, this);
@@ -466,6 +470,7 @@ app.registerExtension({
                         // 初始化画布
                         const zoomContainer = elements.zoomContainer();
                         console.log('🎯 Zoom container found:', !!zoomContainer);
+                        
                         if (zoomContainer) {
                             const imageCanvas = createElement('div', {
                                 id: 'image-canvas',
@@ -484,17 +489,7 @@ app.registerExtension({
                         
                         // 初始化功能模块
                         console.log('🎯 About to init modal functionality...');
-                        initModalFunctionality(modal, layersData, this);
-                        
-                        // 在模态框完全初始化后初始化缩放和拖拽控制
-                        console.log('🎯 About to init zoom and pan controls...');
-                        initZoomAndPanControls(modal);
-                        
-                        // 初始化变换控制器
-                        console.log('🎯 About to init transform controls...');
-                        if (this.ensureTransformControls()) {
-                            this.transformControls.initializeTransformControls(modal);
-                        }
+                        this.initModalFunctionality(modal, layersData);
                         
                         console.log('✅ Modal setup complete!');
                     } else {
@@ -506,9 +501,17 @@ app.registerExtension({
             };
             
             
-            
+            // 初始化模态弹窗功能 - 委托给modal_core模块
+            nodeType.prototype.initModalFunctionality = function(modal, layersData) {
+                initModalFunctionality(modal, layersData, this);
+            };
             
 
+            // 🎨 初始化集成图层系统
+            // 初始化集成图层系统 - 委托给modal_core模块
+            nodeType.prototype.initializeIntegratedLayerSystem = function(modal) {
+                initializeIntegratedLayerSystem(modal, this);
+            };
             
             
             // 🎨 设置图层画布显示系统
@@ -557,6 +560,10 @@ app.registerExtension({
             
             
             
+            // 🎨 创建图层列表项 - 已迁移到UI模块
+            nodeType.prototype.createLayerListItem = function(layer, layerId, type) {
+                return createLayerListItem(layer, layerId, type, this);
+            };
             
             // 🎨 绑定图层可见性事件
             nodeType.prototype.bindLayerVisibilityEvents = function(modal) {
@@ -627,29 +634,40 @@ app.registerExtension({
             
             // 激活图层自由变换模式
             nodeType.prototype.activateLayerTransform = function(modal, layerId, layerType) {
-                console.log(`🔄 [MAIN] 激活自由变换模式: ${layerId} (${layerType})`);
+                console.log(`🔄 激活自由变换模式: ${layerId} (${layerType})`);
                 
-                try {
-                    // 使用变换控制模块启动变换（包含完整的操作框功能）
-                    const transformControls = this.ensureTransformControls();
-                    console.log(`🔧 [MAIN] TransformControls实例获取结果:`, transformControls);
-                    
-                    if (!transformControls) {
-                        console.error(`❌ [MAIN] TransformControls实例获取失败`);
-                        return;
-                    }
-                    
-                    if (typeof transformControls.activateLayerTransform !== 'function') {
-                        console.error(`❌ [MAIN] activateLayerTransform方法不存在`, transformControls);
-                        return;
-                    }
-                    
-                    transformControls.activateLayerTransform(modal, layerId, layerType, this);
-                    
-                    console.log(`✅ [MAIN] 自由变换模式已激活 - 可直接在画布上拖拽`);
-                } catch (error) {
-                    console.error(`❌ [MAIN] 激活变换模式失败:`, error);
+                // 🔧 清除之前的变换状态（使用新的变换控制模块）
+                if (this.transformControls) {
+                    this.transformControls.clearTransformState(modal);
                 }
+                
+                // 获取图层元素
+                const layerElement = this.getLayerElement(modal, layerId, layerType);
+                if (!layerElement) {
+                    console.warn(`⚠️ 无法找到图层元素: ${layerId}`);
+                    return;
+                }
+                
+                // 创建变换控制器
+                this.createTransformController(modal, layerElement, layerId, layerType);
+                
+                // 设置变换状态
+                modal.transformState = {
+                    active: true,
+                    layerId: layerId,
+                    layerType: layerType,
+                    element: layerElement,
+                    originalTransform: this.getLayerTransform(layerElement),
+                    isTransforming: false
+                };
+                
+                // 高亮选中的图层
+                this.highlightSelectedLayer(modal, layerElement);
+                
+                // 显示操作提示
+                this.showTransformHint(modal);
+                
+                console.log(`✅ 自由变换模式已激活 - 可直接在画布上拖拽`);
             };
             
             
@@ -3484,16 +3502,13 @@ app.registerExtension({
                 }
                 
                 // 检查是否点击在图层上
-                console.log(`🖱️ [DEBUG] 变换模式点击事件: (${e.clientX}, ${e.clientY})`);
                 const clickedLayer = this.getLayerAtPosition(modal, e.clientX, e.clientY);
-                console.log(`🔍 [DEBUG] getLayerAtPosition 结果:`, clickedLayer);
-                
                 if (clickedLayer) {
-                    console.log(`🎯 [CLICK] 变换模式：选中图层 ${clickedLayer.id} (${clickedLayer.type})`);
+                    console.log(`🎯 变换模式：选中图层 ${clickedLayer.id} (${clickedLayer.type})`);
                     this.activateLayerTransform(modal, clickedLayer.id, clickedLayer.type);
                 } else {
                     // 🔧 点击空白区域，清除选择（使用新的变换控制模块）
-                    console.log(`🎯 [CLICK] 变换模式：点击空白区域，清除变换状态`);
+                    console.log(`🎯 变换模式：点击空白区域，清除变换状态`);
                     if (this.transformControls) {
                         this.transformControls.clearTransformState(modal);
                     }
@@ -3566,20 +3581,23 @@ app.registerExtension({
             console.log(`🔍 查找图层元素: ${layerId} (${layerType})`);
             
             let element = null;
-            if (layerType === 'IMAGE_LAYER' || layerType === 'connected') {
-                // 连接图层 - 支持两种类型名称
+            if (layerType === 'IMAGE_LAYER') {
+                // 连接图层
                 element = modal.querySelector(`#canvas-layer-${layerId}`);
-                console.log(`🔍 ${layerType}查找结果:`, element);
+                console.log(`🔍 IMAGE_LAYER查找结果:`, element);
                 
-                // 对于变换操作，返回容器元素（可以移动），而不是内部的img元素
+                // 如果找到元素，尝试查找其中的实际图像内容
                 if (element) {
-                    console.log(`📦 找到图层容器，返回容器元素用于变换`);
-                    return element; // 返回容器元素，这样可以移动整个图层
+                    const img = element.querySelector('img');
+                    if (img) {
+                        console.log(`🖼️ 找到图像元素，使用图像边界`);
+                        return img; // 返回实际的图像元素而不是容器
+                    }
                 }
-            } else if (layerType === 'ANNOTATION' || layerType === 'annotation') {
-                // 标注图层 - 查找独立SVG容器，支持两种类型名称
+            } else if (layerType === 'ANNOTATION') {
+                // 标注图层 - 查找独立SVG容器
                 element = modal.querySelector(`#annotation-svg-${layerId}`);
-                console.log(`🔍 ${layerType}查找结果:`, element);
+                console.log(`🔍 ANNOTATION查找结果:`, element);
                 
                 // 对于标注，我们需要找到SVG内实际的图形元素
                 if (element) {
@@ -3676,6 +3694,532 @@ app.registerExtension({
             
             // 简单解析，实际应用可能需要更复杂的矩阵计算
             return defaultTransform;
+        };
+        
+        // 创建变换控制器
+        nodeType.prototype.createTransformController = function(modal, layerElement, layerId, layerType) {
+            console.log(`🎯 创建变换控制器: ${layerId}`);
+            
+            // 移除已存在的控制器
+            const existingController = modal.querySelector('#transform-controller');
+            if (existingController) {
+                existingController.remove();
+            }
+            
+            // 获取图层的基础边界信息
+            const layerRect = layerElement.getBoundingClientRect();
+            console.log(`🔍 图层边界信息 ${layerId}:`, {
+                type: layerType,
+                rect: { left: layerRect.left, top: layerRect.top, width: layerRect.width, height: layerRect.height },
+                elementId: layerElement.id,
+                elementTag: layerElement.tagName
+            });
+            
+            // 简化边界计算：直接使用图层元素的边界，只添加小边距
+            const padding = 3;
+            const contentBounds = {
+                left: layerRect.left - padding,
+                top: layerRect.top - padding,
+                width: layerRect.width + (padding * 2),
+                height: layerRect.height + (padding * 2)
+            };
+            
+            console.log(`📐 计算后的内容边界:`, contentBounds);
+            
+            // 获取canvas和zoom容器信息 - 使用缓存元素减少DOM查询
+            const elements = modal.cachedElements || createModalElementsCache(modal);
+            const canvasContainer = elements.imageCanvas();
+            const canvasRect = canvasContainer.getBoundingClientRect();
+            const zoomContainer = elements.zoomContainer();
+            
+            // 获取zoom容器的变换矩阵来计算实际缩放比例
+            let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
+            if (zoomContainer) {
+                const transform = window.getComputedStyle(zoomContainer).transform;
+                if (transform && transform !== 'none') {
+                    const matrix = new DOMMatrix(transform);
+                    scaleX = matrix.a;
+                    scaleY = matrix.d;
+                    translateX = matrix.e;
+                    translateY = matrix.f;
+                }
+            }
+            
+            // 计算相对于canvas的位置，考虑zoom变换，使用优化后的内容边界
+            const relativeX = (contentBounds.left - canvasRect.left - translateX) / scaleX;
+            const relativeY = (contentBounds.top - canvasRect.top - translateY) / scaleY;
+            const width = contentBounds.width / scaleX;
+            const height = contentBounds.height / scaleY;
+            
+            // 创建控制器容器
+            const controller = createElement('div', {
+                id: 'transform-controller',
+                style: {
+                    position: 'absolute',
+                    left: `${relativeX}px`,
+                    top: `${relativeY}px`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    border: '2px solid #2196F3',
+                    pointerEvents: 'none',
+                    zIndex: 10000,
+                    boxSizing: 'border-box'
+                }
+            });
+            
+            // 创建8个控制点
+            const controlPoints = [
+                { name: 'nw', x: 0, y: 0, cursor: 'nw-resize' },       // 西北角
+                { name: 'n', x: 0.5, y: 0, cursor: 'n-resize' },       // 北边
+                { name: 'ne', x: 1, y: 0, cursor: 'ne-resize' },       // 东北角
+                { name: 'e', x: 1, y: 0.5, cursor: 'e-resize' },       // 东边
+                { name: 'se', x: 1, y: 1, cursor: 'se-resize' },       // 东南角
+                { name: 's', x: 0.5, y: 1, cursor: 's-resize' },       // 南边
+                { name: 'sw', x: 0, y: 1, cursor: 'sw-resize' },       // 西南角
+                { name: 'w', x: 0, y: 0.5, cursor: 'w-resize' }        // 西边
+            ];
+            
+            controlPoints.forEach(point => {
+                const handle = document.createElement('div');
+                handle.className = `transform-handle transform-handle-${point.name}`;
+                handle.style.cssText = `
+                    position: absolute;
+                    width: 8px;
+                    height: 8px;
+                    background: #2196F3;
+                    border: 1px solid white;
+                    border-radius: 50%;
+                    pointer-events: auto;
+                    cursor: ${point.cursor};
+                    left: ${point.x * 100}%;
+                    top: ${point.y * 100}%;
+                    transform: translate(-50%, -50%);
+                    z-index: 10001;
+                `;
+                
+                // 绑定拖拽事件
+                this.bindTransformHandleEvents(modal, handle, point.name, layerId, layerType);
+                
+                controller.appendChild(handle);
+            });
+            
+            // 创建旋转手柄
+            const rotateHandle = document.createElement('div');
+            rotateHandle.className = 'transform-rotate-handle';
+            rotateHandle.style.cssText = `
+                position: absolute;
+                width: 8px;
+                height: 8px;
+                background: #FF9800;
+                border: 1px solid white;
+                border-radius: 50%;
+                pointer-events: auto;
+                cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M8 1l3 3-3 3V5H4v2H2V5c0-1.1.9-2 2-2h4V1zm0 14l-3-3 3-3v2h4V9h2v2c0 1.1-.9 2-2 2H8v2z" fill="black"/></svg>'), auto;
+                left: 50%;
+                top: -20px;
+                transform: translate(-50%, -50%);
+                z-index: 10001;
+            `;
+            
+            this.bindRotateHandleEvents(modal, rotateHandle, layerId, layerType);
+            controller.appendChild(rotateHandle);
+            
+            // 添加到image-canvas而不是canvas-container，确保正确的层级
+            const imageCanvas = modal.querySelector('#image-canvas');
+            imageCanvas.appendChild(controller);
+            
+            // 添加图层直接拖拽功能
+            this.bindLayerDirectDrag(modal, layerElement, layerId, layerType);
+            
+            // 添加键盘事件监听
+            this.bindTransformKeyboardEvents(modal, layerId, layerType);
+            
+            console.log(`✅ 变换控制器已创建`);
+        };
+        
+        // 绑定图层直接拖拽
+        nodeType.prototype.bindLayerDirectDrag = function(modal, layerElement, layerId, layerType) {
+            const self = this;
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+            
+            // 使图层元素可拖拽（只在变换模式下）
+            layerElement.style.cursor = 'move';
+            layerElement.style.pointerEvents = 'auto';
+            
+            bindEvent(layerElement, 'mousedown', (e) => {
+                // 检查是否在变换模式
+                if (!modal.transformState || !modal.transformState.active) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = layerElement.getBoundingClientRect();
+                const imageCanvas = modal.querySelector('#image-canvas');
+                const canvasRect = imageCanvas.getBoundingClientRect();
+                
+                startLeft = rect.left - canvasRect.left;
+                startTop = rect.top - canvasRect.top;
+                
+                console.log(`🎯 开始拖拽图层: ${layerId}`);
+                
+                bindEvent(document, 'mousemove', onMouseMove);
+                bindEvent(document, 'mouseup', onMouseUp);
+            });
+            
+            function onMouseMove(e) {
+                if (!isDragging) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                const newLeft = startLeft + deltaX;
+                const newTop = startTop + deltaY;
+                
+                // 更新图层位置
+                layerElement.style.left = newLeft + 'px';
+                layerElement.style.top = newTop + 'px';
+                
+                // 同步更新变换控制器位置
+                const controller = modal.querySelector('#transform-controller');
+                if (controller) {
+                    controller.style.left = newLeft + 'px';
+                    controller.style.top = newTop + 'px';
+                }
+                
+                console.log(`📐 拖拽图层到: x:${newLeft}, y:${newTop}`);
+            }
+            
+            function onMouseUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    console.log(`✅ 拖拽完成: ${layerId}`);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+            }
+        };
+        
+        // 绑定变换手柄事件
+        nodeType.prototype.bindTransformHandleEvents = function(modal, handle, handleType, layerId, layerType) {
+            const self = this;
+            let isDragging = false;
+            let startX, startY, startWidth, startHeight, startLeft, startTop;
+            
+            bindEvent(handle, 'mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const controller = modal.querySelector('#transform-controller');
+                const rect = controller.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                startWidth = rect.width;
+                startHeight = rect.height;
+                
+                console.log(`🎯 开始变换: ${handleType}`);
+                
+                bindEvent(document, 'mousemove', onMouseMove);
+                bindEvent(document, 'mouseup', onMouseUp);
+            });
+            
+            function onMouseMove(e) {
+                if (!isDragging) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                self.updateTransform(modal, handleType, deltaX, deltaY, startLeft, startTop, startWidth, startHeight, layerId, layerType);
+            }
+            
+            function onMouseUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    console.log(`✅ 变换完成: ${handleType}`);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+            }
+        };
+        
+        // 绑定旋转手柄事件
+        nodeType.prototype.bindRotateHandleEvents = function(modal, handle, layerId, layerType) {
+            const self = this;
+            let isRotating = false;
+            let startAngle = 0;
+            let centerX, centerY;
+            
+            bindEvent(handle, 'mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                isRotating = true;
+                
+                const controller = modal.querySelector('#transform-controller');
+                const rect = controller.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+                
+                startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+                
+                console.log(`🔄 开始旋转: ${layerId}`);
+                
+                bindEvent(document, 'mousemove', onMouseMove);
+                bindEvent(document, 'mouseup', onMouseUp);
+            });
+            
+            function onMouseMove(e) {
+                if (!isRotating) return;
+                
+                const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+                const deltaAngle = currentAngle - startAngle;
+                const degrees = deltaAngle * (180 / Math.PI);
+                
+                self.applyRotation(modal, degrees, layerId, layerType);
+            }
+            
+            function onMouseUp() {
+                if (isRotating) {
+                    isRotating = false;
+                    console.log(`✅ 旋转完成: ${layerId}`);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+            }
+        };
+        
+        // 更新变换
+        nodeType.prototype.updateTransform = function(modal, handleType, deltaX, deltaY, startLeft, startTop, startWidth, startHeight, layerId, layerType) {
+            const controller = modal.querySelector('#transform-controller');
+            if (!controller) return;
+            
+            let newLeft = startLeft;
+            let newTop = startTop;
+            let newWidth = startWidth;
+            let newHeight = startHeight;
+            
+            // 根据手柄类型计算新的尺寸和位置
+            switch (handleType) {
+                case 'nw': // 西北角
+                    newLeft = startLeft + deltaX;
+                    newTop = startTop + deltaY;
+                    newWidth = startWidth - deltaX;
+                    newHeight = startHeight - deltaY;
+                    break;
+                case 'n': // 北边
+                    newTop = startTop + deltaY;
+                    newHeight = startHeight - deltaY;
+                    break;
+                case 'ne': // 东北角
+                    newTop = startTop + deltaY;
+                    newWidth = startWidth + deltaX;
+                    newHeight = startHeight - deltaY;
+                    break;
+                case 'e': // 东边
+                    newWidth = startWidth + deltaX;
+                    break;
+                case 'se': // 东南角
+                    newWidth = startWidth + deltaX;
+                    newHeight = startHeight + deltaY;
+                    break;
+                case 's': // 南边
+                    newHeight = startHeight + deltaY;
+                    break;
+                case 'sw': // 西南角
+                    newLeft = startLeft + deltaX;
+                    newWidth = startWidth - deltaX;
+                    newHeight = startHeight + deltaY;
+                    break;
+                case 'w': // 西边
+                    newLeft = startLeft + deltaX;
+                    newWidth = startWidth - deltaX;
+                    break;
+            }
+            
+            // 限制最小尺寸
+            if (newWidth < 20) newWidth = 20;
+            if (newHeight < 20) newHeight = 20;
+            
+            // 更新控制器
+            const canvasContainer = modal.querySelector('#image-canvas');
+            const canvasRect = canvasContainer.getBoundingClientRect();
+            
+            controller.style.left = (newLeft - canvasRect.left) + 'px';
+            controller.style.top = (newTop - canvasRect.top) + 'px';
+            controller.style.width = newWidth + 'px';
+            controller.style.height = newHeight + 'px';
+            
+            // 应用变换到实际图层
+            this.applyTransformToLayer(modal, layerId, layerType, {
+                x: newLeft - canvasRect.left,
+                y: newTop - canvasRect.top,
+                width: newWidth,
+                height: newHeight
+            });
+        };
+        
+        // 应用旋转
+        nodeType.prototype.applyRotation = function(modal, degrees, layerId, layerType) {
+            const layerElement = this.getLayerElement(modal, layerId, layerType);
+            if (!layerElement) return;
+            
+            // 获取当前transform
+            const currentTransform = layerElement.style.transform || '';
+            const rotateMatch = currentTransform.match(/rotate\\(([^)]+)\\)/);
+            const currentRotation = rotateMatch ? parseFloat(rotateMatch[1]) : 0;
+            
+            const newRotation = currentRotation + degrees;
+            const newTransform = currentTransform.replace(/rotate\\([^)]+\\)/, '').trim() + ` rotate(${newRotation}deg)`;
+            
+            layerElement.style.transform = newTransform;
+            console.log(`🔄 应用旋转: ${newRotation}度`);
+        };
+        
+        // 应用变换到图层
+        nodeType.prototype.applyTransformToLayer = function(modal, layerId, layerType, transform) {
+            const layerElement = this.getLayerElement(modal, layerId, layerType);
+            if (!layerElement) return;
+            
+            if (layerType === 'IMAGE_LAYER') {
+                // 连接图层变换
+                layerElement.style.left = transform.x + 'px';
+                layerElement.style.top = transform.y + 'px';
+                layerElement.style.width = transform.width + 'px';
+                layerElement.style.height = transform.height + 'px';
+            } else if (layerType === 'ANNOTATION') {
+                // 标注图层变换
+                layerElement.style.left = transform.x + 'px';
+                layerElement.style.top = transform.y + 'px';
+                layerElement.style.width = transform.width + 'px';
+                layerElement.style.height = transform.height + 'px';
+                
+                // 更新SVG viewBox
+                const svg = layerElement.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', transform.width);
+                    svg.setAttribute('height', transform.height);
+                }
+            }
+            
+            console.log(`📐 应用变换: ${layerId}, x:${transform.x}, y:${transform.y}, w:${transform.width}, h:${transform.height}`);
+        };
+        
+        // 绑定键盘事件
+        nodeType.prototype.bindTransformKeyboardEvents = function(modal, layerId, layerType) {
+            const self = this;
+            
+            function onKeyDown(e) {
+                if (!modal.transformState || !modal.transformState.active) return;
+                
+                if (e.key === 'Enter') {
+                    // 🔧 确认变换（使用新的变换控制模块）
+                    console.log(`✅ 确认变换: ${layerId}`);
+                    if (self.transformControls) {
+                        self.transformControls.clearTransformState(modal);
+                    }
+                } else if (e.key === 'Escape') {
+                    // 取消变换
+                    console.log(`❌ 取消变换: ${layerId}`);
+                    self.cancelTransform(modal, layerId, layerType);
+                }
+            }
+            
+            bindEvent(document, 'keydown', onKeyDown);
+            
+            // 保存事件引用以便清理
+            modal.transformKeydownHandler = onKeyDown;
+        };
+        
+        // 显示变换操作提示
+        nodeType.prototype.showTransformHint = function(modal) {
+            // 移除已存在的提示
+            const existingHint = modal.querySelector('#transform-hint');
+            if (existingHint) existingHint.remove();
+            
+            const hint = document.createElement('div');
+            hint.id = 'transform-hint';
+            hint.style.cssText = `
+                position: absolute;
+                top: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(33, 150, 243, 0.9);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 25px;
+                font-size: 14px;
+                font-weight: 500;
+                z-index: 10002;
+                pointer-events: none;
+                animation: fadeIn 0.3s ease;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.2);
+            `;
+            
+            hint.innerHTML = `
+                🎯 <strong>变换模式</strong> • 拖拽图层移动 • 拖拽控制点缩放 • 拖拽橙色点旋转 • Enter确认 • Esc取消
+            `;
+            
+            const imageCanvas = modal.querySelector('#image-canvas');
+            imageCanvas.appendChild(hint);
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                if (hint.parentNode) {
+                    hint.style.opacity = '0';
+                    hint.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => hint.remove(), 300);
+                }
+            }, 3000);
+        };
+        
+        // 高亮选中的图层
+        nodeType.prototype.highlightSelectedLayer = function(modal, layerElement) {
+            // 清除之前的高亮
+            const imageCanvas = modal.querySelector('#image-canvas');
+            const allLayers = imageCanvas.querySelectorAll('[id^="canvas-layer-"], [id^="annotation-svg-"]');
+            allLayers.forEach(layer => {
+                layer.style.outline = 'none';
+                layer.style.cursor = 'default';
+            });
+            
+            // 高亮当前选中的图层
+            layerElement.style.outline = '2px solid #2196F3';
+            layerElement.style.cursor = 'move';
+            
+            console.log('✨ 图层已高亮显示');
+        };
+        
+        // 取消变换
+        nodeType.prototype.cancelTransform = function(modal, layerId, layerType) {
+            if (modal.transformState && modal.transformState.originalTransform) {
+                // 恢复原始变换
+                const layerElement = this.getLayerElement(modal, layerId, layerType);
+                if (layerElement) {
+                    // 这里应该恢复到原始状态，简化实现
+                    console.log(`🔄 恢复到原始状态`);
+                }
+            }
+            
+            // 🔧 清理变换状态（使用新的变换控制模块）
+            if (this.transformControls) {
+                this.transformControls.clearTransformState(modal);
+            }
+            
+            // 清理键盘事件
+            if (modal.transformKeydownHandler) {
+                document.removeEventListener('keydown', modal.transformKeydownHandler);
+                modal.transformKeydownHandler = null;
+            }
         };
     },
     

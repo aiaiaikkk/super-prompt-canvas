@@ -8,6 +8,53 @@ import { createSVGElement, getCanvasCoordinates, generateId, clamp } from './vis
 // Note: deleteAnnotation will be passed as parameter to avoid circular dependency
 
 /**
+ * 同步连接图层的缩放
+ */
+function syncLayersZoom(modal, zoomLevel) {
+    console.log(`🔄 同步连接图层缩放: ${zoomLevel}`);
+    
+    const layersContainer = modal.querySelector('#layers-display-container');
+    if (!layersContainer) {
+        console.log('⚠️ 未找到图层显示容器');
+        return;
+    }
+    
+    // 获取所有连接图层元素
+    const layerElements = layersContainer.querySelectorAll('.canvas-layer-display');
+    console.log(`🔍 找到 ${layerElements.length} 个连接图层元素`);
+    
+    layerElements.forEach((layerElement, index) => {
+        // 获取图层的原始变换信息
+        const layerId = layerElement.id.replace('canvas-layer-', '');
+        
+        // 从modal的连接图层数据中获取原始变换
+        let originalScale = 1.0;
+        let originalX = 0;
+        let originalY = 0;
+        
+        // 尝试从连接图层数据中获取原始变换（如果可用）
+        if (modal.connectedImageLayers) {
+            const layerData = modal.connectedImageLayers.find(l => l.id === layerId);
+            if (layerData && layerData.transform) {
+                originalScale = layerData.transform.scale || 1.0;
+                originalX = layerData.transform.x || 0;
+                originalY = layerData.transform.y || 0;
+            }
+        }
+        
+        // 计算最终的缩放：原始缩放 * 画布缩放
+        const finalScale = originalScale * zoomLevel;
+        
+        // 重建变换字符串：先平移，再缩放
+        const newTransform = `scale(${finalScale}) translate(${originalX}px, ${originalY}px)`;
+        
+        layerElement.style.transform = newTransform;
+        
+        console.log(`✅ 图层 ${layerElement.id} 缩放已更新: ${originalScale} * ${zoomLevel} = ${finalScale}`);
+    });
+}
+
+/**
  * 初始化画布绘制功能
  */
 export function initCanvasDrawing(modal) {
@@ -25,7 +72,7 @@ export function initCanvasDrawing(modal) {
             drawingLayer.id = 'drawing-layer';
             drawingLayer.style.cssText = `
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                pointer-events: none; z-index: 10;
+                pointer-events: none; z-index: 50;
             `;
             imageCanvas.appendChild(drawingLayer);
             console.log('✅ VPE绘制层已创建');
@@ -57,7 +104,7 @@ export function initCanvasDrawing(modal) {
             viewBox: `0 0 ${viewBoxWidth} ${viewBoxHeight}`,
             preserveAspectRatio: 'xMidYMid meet'
         });
-        svg.style.cssText = 'width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: auto; z-index: 1000;';
+        svg.style.cssText = 'width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: auto; z-index: 100;';
         
         // 添加箭头标记定义容器
         const defs = createSVGElement('defs');
@@ -209,6 +256,9 @@ export function initZoomAndPanControls(modal) {
         if (modal) {
             modal.currentZoom = currentZoom;
         }
+        
+        // 同步更新连接图层的缩放
+        syncLayersZoom(modal, currentZoom);
     };
     
     // 适应屏幕按钮
@@ -258,6 +308,11 @@ export function initZoomAndPanControls(modal) {
     
     // 鼠标滚轮缩放和中键拖动事件
     const mainCanvasContainer = modal.querySelector('#canvas-container');
+    if (!mainCanvasContainer) {
+        console.warn('⚠️ Canvas container not found, skipping zoom and pan controls initialization');
+        return { setZoom, currentZoom: () => currentZoom };
+    }
+    
     // 使用modal上的isPanning变量
     let panStartX = 0;
     let panStartY = 0;
@@ -461,7 +516,7 @@ export function renderImageCanvas(imageCanvas, imageData, nodeInstance = null) {
         drawingLayer.id = 'drawing-layer';
         drawingLayer.style.cssText = `
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: auto; z-index: 1000;
+            pointer-events: auto; z-index: 50;
         `;
         
         imageCanvas.appendChild(drawingLayer);
@@ -481,7 +536,7 @@ export function renderImageCanvas(imageCanvas, imageData, nodeInstance = null) {
         drawingLayer.id = 'drawing-layer';
         drawingLayer.style.cssText = `
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: auto; z-index: 1000;
+            pointer-events: auto; z-index: 50;
         `;
         imageCanvas.appendChild(drawingLayer);
         
@@ -931,7 +986,7 @@ function findUpstreamImageSource(node, visited = new Set()) {
 /**
  * 从节点widget获取图像
  */
-function getImageFromWidget(nodeInstance) {
+export function getImageFromWidget(nodeInstance) {
     try {
         console.log('🔍 尝试从widget获取图像', { hasNodeInstance: !!nodeInstance });
         

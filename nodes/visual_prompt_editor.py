@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
 
 try:
     import comfy.model_management as model_management
@@ -32,6 +33,12 @@ class VisualPromptEditor:
             },
             "optional": {
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
+                # 🎨 新增图层管理支持 - 可选图层输入
+                "layer_1": ("IMAGE", {"tooltip": "图层1 - 可选的额外图层"}),
+                "layer_2": ("IMAGE", {"tooltip": "图层2 - 可选的额外图层"}), 
+                "layer_3": ("IMAGE", {"tooltip": "图层3 - 可选的额外图层"}),
+                "layer_config": ("STRING", {"tooltip": "图层配置JSON - 位置、大小、透明度等"}),
+                "enable_layer_management": ("BOOLEAN", {"default": False, "tooltip": "启用图层管理功能"}),
                 "prompt_template": ([
                     # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
                     "change_color", "change_style", "replace_object", "add_object", "remove_object",
@@ -71,6 +78,8 @@ class VisualPromptEditor:
     DESCRIPTION = "🎨 Kontext Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
     
     def visual_prompt_edit(self, image: torch.Tensor, annotation_data: str = None,
+                          layer_1: torch.Tensor = None, layer_2: torch.Tensor = None, layer_3: torch.Tensor = None,
+                          layer_config: str = None, enable_layer_management: bool = False,
                           prompt_template: str = "change_color"):
         """Unified visual prompt editing functionality"""
         
@@ -168,11 +177,23 @@ class VisualPromptEditor:
                 )
                 print(f"🤖 Using auto-generated prompt: {structured_prompt[:100]}...")
             
-            # If there's layer data, render annotations on image
-            if layers_data and len(layers_data) > 0:
-                output_image = self._render_annotations_on_image(image, layers_data, include_annotation_numbers)
+            # 🎨 图层管理功能集成 - 安全且向后兼容
+            if enable_layer_management and (layer_1 is not None or layer_2 is not None or layer_3 is not None):
+                # 新的图层合成功能
+                print("🎨 启用图层管理模式，开始图层合成...")
+                output_image = self._compose_layers_with_annotations(
+                    base_image=image,
+                    layers=[layer_1, layer_2, layer_3],
+                    layer_config=layer_config,
+                    annotation_layers=layers_data,
+                    include_numbers=include_annotation_numbers
+                )
             else:
-                output_image = image
+                # 原有的标注渲染逻辑 - 保持向后兼容
+                if layers_data and len(layers_data) > 0:
+                    output_image = self._render_annotations_on_image(image, layers_data, include_annotation_numbers)
+                else:
+                    output_image = image
             
             # Create annotation data output
             annotation_output = json.dumps({
@@ -945,6 +966,185 @@ class VisualPromptEditor:
         complete_instruction = " | ".join(instruction_parts)
         
         return complete_instruction
+    
+    def _compose_layers_with_annotations(self, base_image: torch.Tensor, layers: List[torch.Tensor], 
+                                       layer_config: str, annotation_layers: List[Dict], 
+                                       include_numbers: bool) -> torch.Tensor:
+        """
+        🎨 图层合成函数 - 安全集成图层管理功能
+        
+        Args:
+            base_image: 基础图像 (背景)
+            layers: 图层列表 [layer_1, layer_2, layer_3]
+            layer_config: 图层配置JSON字符串
+            annotation_layers: 标注图层数据
+            include_numbers: 是否包含标注编号
+            
+        Returns:
+            合成后的图像tensor
+        """
+        try:
+            import numpy as np
+            from PIL import Image
+            
+            # 解析图层配置
+            config = {}
+            if layer_config and layer_config.strip():
+                try:
+                    config = json.loads(layer_config)
+                except json.JSONDecodeError as e:
+                    print(f"⚠️ 图层配置解析失败: {e}")
+                    config = {}
+            
+            # 转换基础图像为PIL格式
+            base_pil = self._tensor_to_pil(base_image)
+            canvas_width, canvas_height = base_pil.size
+            print(f"🖼️ 画布大小: {canvas_width}x{canvas_height}")
+            
+            # 创建合成画布
+            composed_image = base_pil.copy()
+            
+            # 处理每个图层
+            for i, layer_tensor in enumerate(layers):
+                if layer_tensor is not None:
+                    layer_name = f"layer_{i+1}"
+                    layer_settings = config.get(layer_name, {})
+                    
+                    print(f"🎨 处理 {layer_name}, 设置: {layer_settings}")
+                    
+                    # 合成图层
+                    composed_image = self._blend_single_layer(
+                        canvas=composed_image,
+                        layer_tensor=layer_tensor,
+                        settings=layer_settings,
+                        layer_name=layer_name
+                    )
+            
+            # 将PIL图像转换回tensor
+            composed_tensor = self._pil_to_tensor(composed_image)
+            
+            # 在合成后的图像上渲染标注
+            if annotation_layers and len(annotation_layers) > 0:
+                print("📍 在合成图像上渲染标注...")
+                final_image = self._render_annotations_on_image(composed_tensor, annotation_layers, include_numbers)
+            else:
+                final_image = composed_tensor
+            
+            print("✅ 图层合成完成")
+            return final_image
+            
+        except Exception as e:
+            print(f"❌ 图层合成失败: {e}")
+            # 安全回退：如果图层合成失败，使用原有的标注渲染逻辑
+            if annotation_layers and len(annotation_layers) > 0:
+                return self._render_annotations_on_image(base_image, annotation_layers, include_numbers)
+            else:
+                return base_image
+    
+    def _blend_single_layer(self, canvas: Image.Image, layer_tensor: torch.Tensor, 
+                           settings: Dict, layer_name: str) -> Image.Image:
+        """合成单个图层到画布"""
+        try:
+            # 默认设置
+            default_settings = {
+                "visible": True,
+                "opacity": 1.0,
+                "x": 0,
+                "y": 0,
+                "scale": 1.0,
+                "rotation": 0
+            }
+            
+            # 合并设置
+            layer_config = {**default_settings, **settings}
+            
+            # 检查图层是否可见
+            if not layer_config.get("visible", True):
+                print(f"⚪ {layer_name} 不可见，跳过")
+                return canvas
+            
+            # 转换图层为PIL图像
+            layer_pil = self._tensor_to_pil(layer_tensor)
+            original_size = layer_pil.size
+            
+            # 应用缩放
+            scale = layer_config.get("scale", 1.0)
+            if scale != 1.0:
+                new_width = int(original_size[0] * scale)
+                new_height = int(original_size[1] * scale)
+                layer_pil = layer_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                print(f"🔄 {layer_name} 缩放到: {new_width}x{new_height}")
+            
+            # 应用旋转
+            rotation = layer_config.get("rotation", 0)
+            if rotation != 0:
+                layer_pil = layer_pil.rotate(rotation, expand=True)
+                print(f"🔄 {layer_name} 旋转: {rotation}度")
+            
+            # 应用透明度
+            opacity = layer_config.get("opacity", 1.0)
+            if opacity < 1.0 and layer_pil.mode != 'RGBA':
+                layer_pil = layer_pil.convert('RGBA')
+                alpha = layer_pil.split()[-1]
+                alpha = alpha.point(lambda p: int(p * opacity))
+                layer_pil.putalpha(alpha)
+                print(f"🔍 {layer_name} 透明度: {opacity}")
+            
+            # 计算粘贴位置
+            paste_x = int(layer_config.get("x", 0))
+            paste_y = int(layer_config.get("y", 0))
+            
+            # 合成到画布
+            canvas_width, canvas_height = canvas.size
+            if paste_x < canvas_width and paste_y < canvas_height:
+                if layer_pil.mode == 'RGBA':
+                    canvas.paste(layer_pil, (paste_x, paste_y), layer_pil)
+                else:
+                    canvas.paste(layer_pil, (paste_x, paste_y))
+                print(f"✅ {layer_name} 已合成到位置: ({paste_x}, {paste_y})")
+            else:
+                print(f"⚠️ {layer_name} 位置超出画布范围: ({paste_x}, {paste_y})")
+            
+            return canvas
+            
+        except Exception as e:
+            print(f"❌ {layer_name} 合成失败: {e}")
+            return canvas
+    
+    def _tensor_to_pil(self, tensor: torch.Tensor) -> Image.Image:
+        """将tensor转换为PIL图像"""
+        if tensor.dim() == 4:
+            tensor = tensor.squeeze(0)
+        
+        if tensor.dim() == 3 and tensor.shape[0] in [1, 3, 4]:
+            tensor = tensor.permute(1, 2, 0)
+        
+        numpy_image = tensor.cpu().numpy()
+        numpy_image = (numpy_image * 255).astype(np.uint8)
+        
+        if numpy_image.shape[2] == 1:
+            numpy_image = numpy_image[:, :, 0]
+            return Image.fromarray(numpy_image, mode='L')
+        elif numpy_image.shape[2] == 3:
+            return Image.fromarray(numpy_image, mode='RGB')
+        elif numpy_image.shape[2] == 4:
+            return Image.fromarray(numpy_image, mode='RGBA')
+        else:
+            return Image.fromarray(numpy_image[:, :, :3], mode='RGB')
+    
+    def _pil_to_tensor(self, pil_image: Image.Image) -> torch.Tensor:
+        """将PIL图像转换为tensor"""
+        if pil_image.mode != 'RGB':
+            pil_image = pil_image.convert('RGB')
+        
+        numpy_image = np.array(pil_image).astype(np.float32) / 255.0
+        tensor = torch.from_numpy(numpy_image)
+        
+        if tensor.dim() == 2:
+            tensor = tensor.unsqueeze(-1)
+        
+        tensor = tensor.unsqueeze(0)  # 添加batch维度
+        return tensor
     
     def _create_fallback_output(self, image: torch.Tensor, error_msg: str):
         """Create fallback output"""

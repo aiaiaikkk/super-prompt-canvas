@@ -6,36 +6,14 @@
 import { createSVGElement, generateId, getCanvasCoordinates, TOOL_NAMES, COLOR_NAMES, mouseToSVGCoordinates } from './visual_prompt_editor_utils.js';
 import { updatePromptSelectors } from './visual_prompt_editor_prompts.js';
 import { t } from './visual_prompt_editor_i18n.js';
-// Note: setActiveTool will be passed as parameter to avoid circular dependency
-
-// 安全的翻译函数包装器
-const safeT = (key, fallback) => {
-    try {
-        if (typeof t === 'function') {
-            const result = t(key);
-            return result !== key ? result : (fallback || key);
-        }
-        return fallback || key;
-    } catch (e) {
-        console.warn('Translation error for key:', key, e);
-        return fallback || key;
-    }
-};
-
-// 翻译操作类型
-const translateOperationType = (operationType) => {
-    const operationKey = `op_${operationType}`;
-    return safeT(operationKey, operationType);
-};
-
-// 翻译形状类型
-const translateShapeType = (shapeType) => {
-    const shapeKey = `shape_${shapeType}`;
-    return safeT(shapeKey, shapeType);
-};
+import { setActiveTool } from './visual_prompt_editor_canvas.js';
+import { safeT, translateOperationType, translateShapeType } from './visual_prompt_editor_translation_utils.js';
+import { createArrowheadMarkerSync, applyFillStyle, applyPreviewStyle, getNextAnnotationNumber, addNumberLabel } from './visual_prompt_editor_svg_utils.js';
+import { deleteAnnotation, isLabelNearAnnotation, addAnnotationToArray, findAnnotationById, getAllAnnotations } from './visual_prompt_editor_annotation_crud.js';
+// Note: app will be accessed via window.app or passed as parameter
 
 // 恢复提示词选择状态
-const restorePromptSelections = (modal, annotation) => {
+export const restorePromptSelections = (modal, annotation) => {
     console.log('🔄 开始恢复提示词选择状态', {
         annotationId: annotation.id,
         layerNumber: annotation.number + 1,
@@ -91,119 +69,6 @@ const restorePromptSelections = (modal, annotation) => {
     
     console.log('✅ 提示词状态恢复完成');
 };
-
-/**
- * 同步创建箭头marker
- */
-function createArrowheadMarkerSync(modal, color, opacity) {
-    const svg = modal.querySelector('#drawing-layer svg');
-    const defs = svg ? svg.querySelector('defs') : null;
-    
-    if (!defs) {
-        console.warn('⚠️ 未找到defs容器，使用默认箭头marker');
-        return `arrowhead-${color.replace('#', '')}`;
-    }
-    
-    // 生成唯一的marker ID
-    const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
-    
-    // 检查是否已存在
-    const existingMarker = defs.querySelector(`#${markerId}`);
-    if (existingMarker) {
-        return markerId;
-    }
-    
-    // 创建新的marker
-    const marker = createSVGElement('marker', {
-        id: markerId,
-        markerWidth: '10',
-        markerHeight: '7',
-        refX: '9',
-        refY: '3.5',
-        orient: 'auto'
-    });
-    
-    const fillOpacity = Math.min((opacity + 30) / 100, 1.0); // 与箭身不透明度保持一致
-    const polygon = createSVGElement('polygon', {
-        points: '0 0, 10 3.5, 0 7',
-        fill: color,
-        'fill-opacity': fillOpacity.toString()
-    });
-    
-    marker.appendChild(polygon);
-    defs.appendChild(marker);
-    
-    console.log(`🏹 创建箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
-    return markerId;
-}
-
-/**
- * 应用填充样式到SVG形状
- */
-function applyFillStyle(shape, color, fillMode, opacity = 50) {
-    // 计算不透明度值 (0-1)
-    const fillOpacity = opacity / 100;
-    const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0); // 边框稍微更不透明一些
-    
-    if (fillMode === 'outline') {
-        // 空心样式
-        shape.setAttribute('fill', 'none');
-        shape.setAttribute('stroke', color);
-        shape.setAttribute('stroke-width', '3');
-        shape.setAttribute('stroke-opacity', strokeOpacity);
-    } else {
-        // 实心样式 (默认)
-        shape.setAttribute('fill', color);
-        shape.setAttribute('fill-opacity', fillOpacity);
-        shape.setAttribute('stroke', 'none');
-    }
-}
-
-/**
- * 应用预览样式到SVG形状
- */
-function applyPreviewStyle(shape, color, fillMode, opacity = 50) {
-    // 预览时使用完全不透明
-    const previewOpacity = 1.0; // 预览时完全不透明
-    const strokeOpacity = 1.0;   // 边框也完全不透明
-    
-    if (fillMode === 'outline') {
-        // 空心预览样式
-        shape.setAttribute('fill', 'none');
-        shape.setAttribute('stroke', color);
-        shape.setAttribute('stroke-width', '2');
-        shape.setAttribute('stroke-opacity', strokeOpacity);
-        shape.setAttribute('stroke-dasharray', '5,5');
-    } else {
-        // 实心预览样式 (默认)
-        shape.setAttribute('fill', color);
-        shape.setAttribute('fill-opacity', previewOpacity);
-        shape.setAttribute('stroke', color);
-        shape.setAttribute('stroke-width', '2');
-        shape.setAttribute('stroke-dasharray', '5,5');
-    }
-}
-
-/**
- * 获取下一个annotation编号
- */
-function getNextAnnotationNumber(modal) {
-    if (!modal.annotations) {
-        modal.annotations = [];
-    }
-    
-    // 找到当前最大的编号
-    let maxNumber = -1;
-    modal.annotations.forEach(annotation => {
-        if (annotation.number !== undefined && annotation.number > maxNumber) {
-            maxNumber = annotation.number;
-        }
-    });
-    
-    const nextNumber = maxNumber + 1;
-    console.log('🔢 获取下一个annotation编号:', nextNumber, '(当前最大编号:', maxNumber, ')');
-    return nextNumber;
-}
 
 /**
  * 绑定画布交互事件
@@ -323,6 +188,18 @@ export function bindCanvasInteractionEvents(modal) {
     // 绘制鼠标按下事件
     canvasContainer.addEventListener('mousedown', function(e) {
         if (modal.isPanning) return; // 如果正在拖动，不处理绘制
+        
+        // 🔧 新增：如果变换模式已激活，只允许变换操作，不处理绘制事件
+        if (modal.transformModeActive) {
+            // 检查是否点击在变换控制器上
+            const isTransformControl = e.target.closest('#transform-controller, .transform-handle, .transform-rotate-handle');
+            if (!isTransformControl) {
+                console.log('🔄 变换模式下非变换控制器点击，跳过绘制事件');
+                return;
+            }
+            // 如果是变换控制器，让事件继续传播到变换处理器
+            console.log('🎯 变换模式下点击变换控制器，允许事件继续');
+        }
         
         const tool = modal.currentTool || 'rectangle';
         const color = modal.currentColor || currentColor;
@@ -570,6 +447,9 @@ export function bindCanvasInteractionEvents(modal) {
         return false;
     });
     
+    // 绑定多选事件
+    bindMultiSelectEvents(modal);
+    
     // 标记事件已绑定
     modal._canvasEventsBindFlag = true;
 }
@@ -712,7 +592,21 @@ function finishFreehandDrawing(modal) {
     console.log('🎨 多边形应用填充样式:', { color: modal.currentColor, fillMode, opacity });
     applyFillStyle(polygon, modal.currentColor, fillMode, opacity);
     
-    svg.appendChild(polygon);
+    // 使用新的分组方式添加多边形标注
+    try {
+        // 🔒 修复：使用传入的nodeInstance，不要重新查找
+        const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+        if (nodeInstance && typeof nodeInstance.addAnnotationToSVGWithGrouping === 'function') {
+            console.log(`📝 🆕 POLYGON - 使用节点方法添加多边形: ${annotationId}`);
+            nodeInstance.addAnnotationToSVGWithGrouping(svg, polygon, annotationId);
+        } else {
+            console.log(`⚠️ POLYGON - 节点方法不可用，使用传统方式: ${annotationId}`);
+            svg.appendChild(polygon);
+        }
+    } catch (error) {
+        console.warn('⚠️ 使用分组添加多边形标注时出错，使用默认方式:', error);
+        svg.appendChild(polygon);
+    }
     
     // 计算多边形的中心点用于放置编号
     const centerX = modal.freehandPoints.reduce((sum, p) => sum + p.x, 0) / modal.freehandPoints.length;
@@ -732,19 +626,50 @@ function finishFreehandDrawing(modal) {
         opacity: opacity,
         number: annotationNumber,
         centerPoint: centerPoint,
-        // 新增：独立的操作类型和描述
-        operationType: 'add_object',  // 默认操作类型
-        description: '',  // 独立的描述文本
-        category: 'local'  // 模板分类
+        operationType: 'add_object',
+        description: '',
+        category: 'local'
     });
     
     console.log('✅ VPE自由绘制标注已添加:', annotationId, '编号:', annotationNumber);
     console.log('📋 VPE当前标注数量:', modal.annotations.length);
-    
-    // 更新对象选择器
     updateObjectSelector(modal);
     
-    // 重置状态
+    // V6修复 - 直接从节点实例获取现有的连接图层
+    try {
+        // 🔒 修复：使用传入的nodeInstance，不要重新查找
+        const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+        if (nodeInstance) {
+            // 默认显示所有图层（连接图层+标注图层）
+            const showConnected = true;
+            console.log('🔍 默认显示所有图层（连接图层+标注图层）');
+            
+            // 直接使用节点实例中已有的连接图层数据
+            console.log('🔍 现有连接图层数据:', nodeInstance.connectedImageLayers);
+            
+            // 更新图层列表显示
+            if (nodeInstance.layerListManager && typeof nodeInstance.layerListManager.updateIntegratedLayersList === 'function') {
+                nodeInstance.layerListManager.updateIntegratedLayersList(modal);
+                console.log('🔄 已触发完整图层列表刷新 (V6)');
+            }
+            
+            // 确保标注在独立容器中
+            setTimeout(() => {
+                if (typeof nodeInstance.ensureAnnotationsInIndependentContainers === 'function') {
+                    nodeInstance.ensureAnnotationsInIndependentContainers(modal);
+                }
+                if (typeof nodeInstance.bindLayerVisibilityEvents === 'function') {
+                    nodeInstance.bindLayerVisibilityEvents(modal);
+                }
+                if (typeof nodeInstance.bindLayerOrderEvents === 'function') {
+                    nodeInstance.bindLayerOrderEvents(modal);
+                }
+            }, 10);
+        }
+    } catch (error) {
+        console.error('❌ 图层更新失败:', error);
+    }
+    
     modal.isDrawingFreehand = false;
     modal.freehandPoints = [];
     modal.currentFreehandPath = null;
@@ -993,10 +918,9 @@ function finishBrushStroke(modal) {
             opacity: brushStroke.opacity,
             fillMode: modal.fillMode,
             number: annotationNumber,
-            // 新增：独立的操作类型和描述
-            operationType: 'add_object',  // 默认操作类型
-            description: '',  // 独立的描述文本
-            category: 'local',  // 模板分类
+            operationType: 'add_object',
+            description: '',
+            category: 'local',
             pathData: brushStroke.path.getAttribute('d')
         });
         
@@ -1006,6 +930,43 @@ function finishBrushStroke(modal) {
         
         console.log('✅ 画笔标注已添加:', annotationId, '编号:', annotationNumber);
         updateObjectSelector(modal);
+        
+        // V6修复 - 直接从节点实例获取现有的连接图层
+        try {
+            const app = window.app;
+            if (app && app.graph && app.graph._nodes) {
+                const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+                if (nodeInstance) {
+                    // 默认显示所有图层（连接图层+标注图层）
+                    const showConnected = true;
+                    console.log('🔍 默认显示所有图层（连接图层+标注图层）');
+                    
+                    // 直接使用节点实例中已有的连接图层数据
+                    console.log('🔍 现有连接图层数据:', nodeInstance.connectedImageLayers);
+                    
+                    // 更新图层列表显示
+                    if (nodeInstance.layerListManager && typeof nodeInstance.layerListManager.updateIntegratedLayersList === 'function') {
+                        nodeInstance.layerListManager.updateIntegratedLayersList(modal);
+                        console.log('🔄 已触发完整图层列表刷新 (V6)');
+                    }
+                    
+                    // 确保标注在独立容器中
+                    setTimeout(() => {
+                        if (typeof nodeInstance.ensureAnnotationsInIndependentContainers === 'function') {
+                            nodeInstance.ensureAnnotationsInIndependentContainers(modal);
+                        }
+                        if (typeof nodeInstance.bindLayerVisibilityEvents === 'function') {
+                            nodeInstance.bindLayerVisibilityEvents(modal);
+                        }
+                        if (typeof nodeInstance.bindLayerOrderEvents === 'function') {
+                            nodeInstance.bindLayerOrderEvents(modal);
+                        }
+                    }, 10);
+                }
+            }
+        } catch (error) {
+            console.error('❌ 图层更新失败:', error);
+        }
     }
     
     // 清理
@@ -1017,18 +978,18 @@ function finishBrushStroke(modal) {
  * 完成绘制
  */
 function finishDrawing(modal, startPoint, endPoint, tool, color) {
-    // 防止重复调用
-    if (modal._drawingProcessing) {
-        console.log('⚠️ 绘制正在处理中，跳过重复调用');
+    // 防止重复调用 - 使用时间戳来避免短时间内的重复调用
+    const now = Date.now();
+    if (modal._lastDrawingTime && (now - modal._lastDrawingTime) < 100) {
+        console.log('⚠️ 绘制间隔太短，跳过重复调用');
         return;
     }
-    modal._drawingProcessing = true;
+    modal._lastDrawingTime = now;
     
     const drawingLayer = modal.querySelector('#drawing-layer');
     const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
     
     if (!svg) {
-        modal._drawingProcessing = false;
         return;
     }
     
@@ -1126,7 +1087,21 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         // 获取正确的编号（考虑已恢复的annotations）
         const annotationNumber = getNextAnnotationNumber(modal);
         
-        svg.appendChild(shape);
+        // 使用新的分组方式添加标注
+        try {
+            // 🔒 修复：使用传入的nodeInstance，不要重新查找
+            const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+            if (nodeInstance && typeof nodeInstance.addAnnotationToSVGWithGrouping === 'function') {
+                console.log(`📝 🆕 SHAPE - 使用传入的节点实例添加标注: ${annotationId}`);
+                nodeInstance.addAnnotationToSVGWithGrouping(svg, shape, annotationId);
+            } else {
+                console.log(`⚠️ SHAPE - 节点方法不可用，使用传统方式: ${annotationId}`);
+                svg.appendChild(shape);
+            }
+        } catch (error) {
+            console.warn('⚠️ 使用分组添加标注时出错，使用默认方式:', error);
+            svg.appendChild(shape);
+        }
         
         // 添加编号标签
         addNumberLabel(svg, startPoint, annotationNumber, color);
@@ -1154,47 +1129,48 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         console.log('✅ VPE标注已添加:', annotationId, '编号:', annotationNumber);
         console.log('📋 VPE当前标注数量:', modal.annotations.length);
         updateObjectSelector(modal);
+        
+        // V6修复 - 直接从节点实例获取现有的连接图层
+        try {
+            const app = window.app;
+            if (app && app.graph && app.graph._nodes) {
+                const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+                if (nodeInstance) {
+                    // 默认显示所有图层（连接图层+标注图层）
+                    const showConnected = true;
+                    console.log('🔍 默认显示所有图层（连接图层+标注图层）');
+                    
+                    // 直接使用节点实例中已有的连接图层数据
+                    console.log('🔍 现有连接图层数据:', nodeInstance.connectedImageLayers);
+                    
+                    // 更新图层列表显示
+                    if (nodeInstance.layerListManager && typeof nodeInstance.layerListManager.updateIntegratedLayersList === 'function') {
+                        nodeInstance.layerListManager.updateIntegratedLayersList(modal);
+                        console.log('🔄 已触发完整图层列表刷新 (V6)');
+                    }
+                    
+                    // 确保标注在独立容器中
+                    setTimeout(() => {
+                        if (typeof nodeInstance.ensureAnnotationsInIndependentContainers === 'function') {
+                            nodeInstance.ensureAnnotationsInIndependentContainers(modal);
+                        }
+                        if (typeof nodeInstance.bindLayerVisibilityEvents === 'function') {
+                            nodeInstance.bindLayerVisibilityEvents(modal);
+                        }
+                        if (typeof nodeInstance.bindLayerOrderEvents === 'function') {
+                            nodeInstance.bindLayerOrderEvents(modal);
+                        }
+                        
+                        // 新标注创建后重新绑定多选事件
+                        bindMultiSelectEvents(modal);
+                    }, 10);
+                }
+            }
+        } catch (error) {
+            console.error('❌ 图层更新失败:', error);
+        }
     }
-    
-    // 重置处理标志
-    modal._drawingProcessing = false;
 }
-
-/**
- * 添加编号标签
- */
-function addNumberLabel(svg, point, number, color) {
-    const group = createSVGElement('g', {
-        'class': 'annotation-label',
-        'data-annotation-number': number
-    });
-    
-    // 优化位置 - 在标注左上角
-    const labelX = point.x + 8;
-    const labelY = point.y - 8;
-    
-    // 数字文本 - 直接显示数字，无背景圆圈
-    const text = createSVGElement('text', {
-        'x': labelX,
-        'y': labelY,
-        'text-anchor': 'middle',
-        'dominant-baseline': 'central',
-        'fill': '#fff',
-        'font-family': 'Arial, sans-serif',
-        'font-size': '24',
-        'font-weight': 'bold',
-        'stroke': '#000',
-        'stroke-width': '2',
-        'paint-order': 'stroke fill'  // 确保描边在填充之下
-    });
-    text.textContent = (number + 1).toString();
-    
-    group.appendChild(text);
-    svg.appendChild(group);
-    
-    console.log('🔢 VPE添加编号标签:', number, '位置:', { labelX, labelY });
-}
-
 
 /**
  * 更新下拉复选框式图层选择器
@@ -1209,6 +1185,28 @@ export function updateObjectSelector(modal) {
     if (!layersList) {
         console.warn('⚠️ Layers list container not found, skipping update');
         return;
+    }
+    
+    // 🔧 修复：检查是否启用了连接图层显示
+    // 默认显示所有图层（连接图层+标注图层）
+    const shouldShowConnectedLayers = true;
+    
+    // 如果启用了连接图层显示，尝试使用集成图层系统
+    if (shouldShowConnectedLayers) {
+        try {
+            const app = window.app;
+            if (app && app.graph && app.graph._nodes) {
+                const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+                if (nodeInstance && typeof nodeInstance.refreshLayersList === 'function') {
+                    // 直接使用refreshLayersList，它会正确处理连接图层
+                    nodeInstance.refreshLayersList(modal);
+                    console.log('🔍 使用refreshLayersList更新图层列表');
+                    return; // 成功调用集成图层系统，直接返回
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ 尝试使用集成图层系统失败，回退到标准模式:', error);
+        }
     }
     
     if (!modal.annotations || modal.annotations.length === 0) {
@@ -1233,6 +1231,7 @@ export function updateObjectSelector(modal) {
         const objectInfo = getObjectInfo(annotation, index);
         
         const layerItem = document.createElement('div');
+        layerItem.className = 'layer-list-item';
         layerItem.style.cssText = `
             display: flex; align-items: center; gap: 8px; padding: 8px; 
             cursor: pointer; margin-bottom: 4px; 
@@ -1253,56 +1252,199 @@ export function updateObjectSelector(modal) {
         const translatedOperationType = translateOperationType(operationType);
         const description = annotation.description || safeT('no_description', 'No description');
         
-        layerItem.innerHTML = `
-            <input type="checkbox" ${isSelected ? 'checked' : ''} 
-                   style="width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0; accent-color: #673AB7;" 
-                   data-annotation-id="${annotation.id}">
-            <span style="font-size: 14px; flex-shrink: 0;">${objectInfo.icon}</span>
-            <div style="flex: 1; min-width: 0;">
-                <div style="color: white; font-size: 12px; font-weight: 600;">
-                    ${layerName}
-                </div>
-                <div style="color: #aaa; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    ${translatedOperationType} • ${description.substring(0, 30)}${description.length > 30 ? '...' : ''}
-                </div>
-            </div>
-        `;
+        // 创建标签元素来包裹复选框
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.style.cssText = 'display: flex; align-items: center; margin: 0; cursor: pointer; position: relative; z-index: 1000;';
+        
+        // 创建复选框元素
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = isSelected;
+        checkbox.style.cssText = 'width: 20px; height: 20px; cursor: pointer; margin: 0; flex-shrink: 0; accent-color: #673AB7; pointer-events: auto; border: 3px solid yellow; background: red;';
+        checkbox.setAttribute('data-annotation-id', annotation.id);
+        checkbox.setAttribute('data-layer-id', annotation.id);
+        
+        // 将复选框添加到标签
+        checkboxLabel.appendChild(checkbox);
+        
+        // 创建图标元素
+        const iconSpan = document.createElement('span');
+        iconSpan.style.cssText = 'font-size: 14px; flex-shrink: 0; margin-left: 8px;';
+        iconSpan.textContent = objectInfo.icon;
+        
+        // 创建内容区域
+        const contentDiv = document.createElement('div');
+        contentDiv.style.cssText = 'flex: 1; min-width: 0; margin-left: 8px;';
+        
+        const titleDiv = document.createElement('div');
+        titleDiv.style.cssText = 'color: white; font-size: 12px; font-weight: 600;';
+        titleDiv.textContent = layerName;
+        
+        const subtitleDiv = document.createElement('div');
+        subtitleDiv.style.cssText = 'color: #aaa; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+        subtitleDiv.textContent = `${translatedOperationType} • ${description.substring(0, 30)}${description.length > 30 ? '...' : ''}`;
+        
+        contentDiv.appendChild(titleDiv);
+        contentDiv.appendChild(subtitleDiv);
+        
+        // 组装图层项 - 直接添加复选框，不使用标签包装
+        layerItem.appendChild(checkbox);
+        layerItem.appendChild(iconSpan);
+        layerItem.appendChild(contentDiv);
         
         // 悬停效果
         layerItem.addEventListener('mouseenter', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
+            if (!checkbox.checked) {
                 this.style.background = '#3a3a3a';
             }
         });
         layerItem.addEventListener('mouseleave', function() {
-            if (!this.querySelector('input[type="checkbox"]').checked) {
+            if (!checkbox.checked) {
                 this.style.background = '#333';
             }
         });
         
-        layersList.appendChild(layerItem);
-        
-        // 绑定复选框事件
-        const checkbox = layerItem.querySelector('input[type="checkbox"]');
-        if (checkbox) {
-            console.log(`📋 Binding checkbox event: number=${annotation.number}, ID=${annotation.id}`);
-            checkbox.addEventListener('change', function(e) {
-                console.log(`✅ Checkbox changed: number=${annotation.number}, checked=${this.checked}`);
-                e.stopPropagation();
-                toggleLayerSelection(modal, annotation.id, this.checked);
-                updateLayerItemStyle(layerItem, this.checked);
-            });
-        }
-        
-        // 绑定图层项点击事件（切换复选框）
+        // 添加图层项点击处理 - 点击图层项的任何地方都能切换选择
         layerItem.addEventListener('click', function(e) {
-            if (e.target.type !== 'checkbox') {
+            console.log(`🎯 Layer item clicked for annotation ${annotation.number}`);
+            console.log(`🎯 Click target:`, e.target);
+            console.log(`🎯 Event already handled by checkbox: ${e.defaultPrevented}`);
+            
+            // 如果事件还没有被处理，则处理它
+            if (!e.defaultPrevented) {
+                console.log(`🔄 Toggling checkbox from layer item click`);
                 checkbox.checked = !checkbox.checked;
-                console.log(`🔄 Toggle checkbox: number=${annotation.number}, new state=${checkbox.checked}`);
-                toggleLayerSelection(modal, annotation.id, checkbox.checked);
+                
+                const checkboxId = checkbox.getAttribute('data-annotation-id') || checkbox.getAttribute('data-layer-id');
+                const finalId = annotation.id || checkboxId;
+                toggleLayerSelection(modal, finalId, checkbox.checked);
                 updateLayerItemStyle(layerItem, checkbox.checked);
             }
         });
+        
+        layersList.appendChild(layerItem);
+        if (checkbox) {
+            console.log(`📋 Binding checkbox event: number=${annotation.number}, ID=${annotation.id}`);
+            console.log(`🔍 Checkbox data-annotation-id: ${checkbox.getAttribute('data-annotation-id')}`);
+            console.log(`🔍 Checkbox initial checked state: ${checkbox.checked}`);
+            
+            // Check parent containers for pointer-events issues
+            let parent = checkbox.parentElement;
+            let depth = 0;
+            while (parent && depth < 5) {
+                const styles = window.getComputedStyle(parent);
+                if (styles.pointerEvents === 'none') {
+                    console.warn(`⚠️ Parent element has pointer-events: none at depth ${depth}:`, parent);
+                }
+                parent = parent.parentElement;
+                depth++;
+            }
+            
+            // 如果复选框初始是选中状态，同步状态
+            if (checkbox.checked) {
+                const checkboxId = checkbox.getAttribute('data-annotation-id') || checkbox.getAttribute('data-layer-id');
+                const finalId = annotation.id || checkboxId;
+                console.log(`🔄 Initial sync for checked checkbox: ${finalId}`);
+                toggleLayerSelection(modal, finalId, true);
+                updateLayerItemStyle(layerItem, true);
+            }
+            
+            // 移除 mousedown 处理，因为它可能阻止了默认的 click 事件
+            
+            // 直接在复选框上处理点击事件，使用捕获阶段
+            checkbox.addEventListener('click', function(e) {
+                e.stopPropagation();
+                console.log(`🔥 CHECKBOX CLICK for annotation ${annotation.number}, checked will be: ${!this.checked}`);
+                
+                // 让浏览器自然切换复选框状态，然后处理业务逻辑
+                setTimeout(() => {
+                    const checkboxId = this.getAttribute('data-annotation-id') || this.getAttribute('data-layer-id');
+                    const finalId = annotation.id || checkboxId;
+                    
+                    console.log(`✅ Checkbox toggled: ID=${finalId}, checked=${this.checked}`);
+                    toggleLayerSelection(modal, finalId, this.checked);
+                    updateLayerItemStyle(layerItem, this.checked);
+                }, 0);
+            }, true); // 使用捕获阶段
+            
+            // Removed change event handler to avoid conflicts with mousedown
+            
+            // Add programmatic test
+            setTimeout(() => {
+                console.log(`🧪 Testing checkbox ${annotation.number} programmatically...`);
+                console.log(`🧪 Checkbox element:`, checkbox);
+                console.log(`🧪 Checkbox parent:`, checkbox.parentElement);
+                console.log(`🧪 Checkbox computed style:`, {
+                    pointerEvents: window.getComputedStyle(checkbox).pointerEvents,
+                    zIndex: window.getComputedStyle(checkbox).zIndex,
+                    position: window.getComputedStyle(checkbox).position,
+                    display: window.getComputedStyle(checkbox).display
+                });
+                
+                // Test programmatic click
+                window[`testCheckbox${annotation.number}`] = () => {
+                    console.log(`🧪 Programmatic click test for checkbox ${annotation.number}`);
+                    checkbox.click();
+                };
+                
+                // Direct selection test
+                window[`testSelect${annotation.number}`] = () => {
+                    console.log(`🧪 Direct selection test for layer ${annotation.number}`);
+                    const checkboxId = checkbox.getAttribute('data-annotation-id') || checkbox.getAttribute('data-layer-id');
+                    const finalId = annotation.id || checkboxId;
+                    console.log(`🧪 Using ID: ${finalId}`);
+                    checkbox.checked = true;
+                    toggleLayerSelection(modal, finalId, true);
+                    updateLayerItemStyle(layerItem, true);
+                };
+                
+                console.log(`🧪 Created test functions: testCheckbox${annotation.number}() and testSelect${annotation.number}()`);
+                
+                // 创建事件调试函数
+                window[`debugCheckbox${annotation.number}`] = () => {
+                    console.log(`🔍 Debugging checkbox ${annotation.number}:`);
+                    console.log(`  - Element:`, checkbox);
+                    console.log(`  - Parent:`, checkbox.parentElement);
+                    console.log(`  - Disabled:`, checkbox.disabled);
+                    console.log(`  - ReadOnly:`, checkbox.readOnly);
+                    console.log(`  - Checked:`, checkbox.checked);
+                    console.log(`  - Style pointer-events:`, checkbox.style.pointerEvents);
+                    console.log(`  - Computed pointer-events:`, window.getComputedStyle(checkbox).pointerEvents);
+                    
+                    // 检查是否有覆盖元素
+                    const rect = checkbox.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const elementAtCenter = document.elementFromPoint(centerX, centerY);
+                    console.log(`  - Element at center:`, elementAtCenter);
+                    console.log(`  - Is same element:`, elementAtCenter === checkbox);
+                };
+            }, 100);
+            
+            // Mousedown handler moved above
+            
+        }
+        
+        // 简化的点击处理方案 - 移除这部分，因为可能与上面的事件监听器冲突
+        // const handleLayerClick = () => {
+        //     console.log(`🔥 Handle layer click for: ${annotation.id}`);
+        //     const wasChecked = checkbox.checked;
+        //     checkbox.checked = !wasChecked;
+        //     toggleLayerSelection(modal, annotation.id, checkbox.checked);
+        //     updateLayerItemStyle(layerItem, checkbox.checked);
+        // };
+        
+        // // 绑定到多个元素确保能捕获点击
+        // checkbox.onclick = (e) => {
+        //     e.stopPropagation();
+        //     handleLayerClick();
+        // };
+        
+        // layerItem.onclick = (e) => {
+        //     if (e.target.type !== 'checkbox') {
+        //         handleLayerClick();
+        //     }
+        // };
     });
     
     // 初始化选中状态管理
@@ -1320,6 +1462,57 @@ export function updateObjectSelector(modal) {
     const selectedIds = Array.from(modal.selectedLayers || []);
     if (selectedIds.length > 0) {
         highlightSelectedAnnotations(modal, selectedIds);
+    }
+    
+    // 更新图层操作面板显示状态
+    updateLayerOperationsDisplay(modal);
+    
+    // Add global click debugging and handle checkbox clicks here if needed
+    if (!modal.globalClickDebugger) {
+        modal.globalClickDebugger = true;
+        layersList.addEventListener('click', function(e) {
+            console.log(`🌍 GLOBAL CLICK in layers list:`, {
+                target: e.target,
+                tagName: e.target.tagName,
+                type: e.target.type,
+                isCheckbox: e.target.type === 'checkbox',
+                clientX: e.clientX,
+                clientY: e.clientY,
+                targetId: e.target.id,
+                targetClass: e.target.className
+            });
+            
+            // 如果是复选框点击，在这里直接处理
+            if (e.target.type === 'checkbox') {
+                console.log(`🌍 GLOBAL handling checkbox click`);
+                const checkbox = e.target;
+                const annotationId = checkbox.getAttribute('data-annotation-id') || checkbox.getAttribute('data-layer-id');
+                
+                if (annotationId) {
+                    // 让复选框状态改变，然后处理业务逻辑
+                    setTimeout(() => {
+                        console.log(`🌍 Global checkbox toggle: ID=${annotationId}, checked=${checkbox.checked}`);
+                        toggleLayerSelection(modal, annotationId, checkbox.checked);
+                        
+                        // 更新视觉样式
+                        const layerItem = checkbox.closest('.layer-list-item') || checkbox.parentElement;
+                        if (layerItem) {
+                            updateLayerItemStyle(layerItem, checkbox.checked);
+                        }
+                    }, 0);
+                }
+            }
+            
+            // 检查事件传播路径
+            console.log(`🌍 Event propagation path:`);
+            let currentElement = e.target;
+            let depth = 0;
+            while (currentElement && depth < 5) {
+                console.log(`  Level ${depth}:`, currentElement.tagName, currentElement.id || '(no id)', currentElement.className || '(no class)');
+                currentElement = currentElement.parentElement;
+                depth++;
+            }
+        }, true);
     }
     
     console.log('✅ Layer list updated with', modal.annotations.length, 'layers');
@@ -1352,15 +1545,22 @@ function bindLayerListEvents(modal) {
         newSelectAllBtn.addEventListener('click', function() {
             console.log('📋 Select all layers clicked');
             const layerCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"]');
+            console.log(`🔍 Found ${layerCheckboxes.length} checkboxes`);
             
-            layerCheckboxes.forEach(checkbox => {
-                if (!checkbox.checked) {
-                    checkbox.checked = true;
-                    const annotationId = checkbox.getAttribute('data-annotation-id');
-                    toggleLayerSelection(modal, annotationId, true);
-                    const layerItem = checkbox.closest('div');
-                    if (layerItem) updateLayerItemStyle(layerItem, true);
-                }
+            layerCheckboxes.forEach((checkbox, index) => {
+                const annotationId = checkbox.getAttribute('data-annotation-id') || checkbox.getAttribute('data-layer-id');
+                console.log(`🔍 Checkbox ${index}:`, {
+                    checked: checkbox.checked,
+                    annotationId: annotationId,
+                    outerHTML: checkbox.outerHTML.substring(0, 100)
+                });
+                
+                // 强制选择所有图层，不管当前状态
+                checkbox.checked = true;
+                console.log(`🔄 Forcing selection: ${annotationId}`);
+                toggleLayerSelection(modal, annotationId, true);
+                const layerItem = checkbox.closest('div');
+                if (layerItem) updateLayerItemStyle(layerItem, true);
             });
         });
     }
@@ -1439,33 +1639,65 @@ function updateDropdownText(modal) {
  * 切换图层选中状态
  */
 function toggleLayerSelection(modal, annotationId, isSelected) {
+    console.log(`🔄 toggleLayerSelection called: annotationId=${annotationId}, isSelected=${isSelected}`);
+    console.log(`🔍 toggleLayerSelection parameters:`, {
+        modalId: modal.id,
+        annotationId: annotationId,
+        annotationIdType: typeof annotationId,
+        isSelected: isSelected,
+        isSelectedType: typeof isSelected,
+        modalHasSelectedLayers: !!modal.selectedLayers,
+        currentSelectedLayersSize: modal.selectedLayers ? modal.selectedLayers.size : 'undefined'
+    });
+    
     if (!modal.selectedLayers) {
         modal.selectedLayers = new Set();
+        console.log(`🆕 Created new selectedLayers Set`);
     }
+    
+    const beforeSize = modal.selectedLayers.size;
+    const beforeIds = Array.from(modal.selectedLayers);
     
     if (isSelected) {
         modal.selectedLayers.add(annotationId);
+        console.log(`➕ Added ${annotationId} to selected layers`);
     } else {
         modal.selectedLayers.delete(annotationId);
+        console.log(`➖ Removed ${annotationId} from selected layers`);
     }
     
+    const afterSize = modal.selectedLayers.size;
+    const afterIds = Array.from(modal.selectedLayers);
+    
+    console.log(`📊 Selected layers change:`, {
+        before: { size: beforeSize, ids: beforeIds },
+        after: { size: afterSize, ids: afterIds },
+        changed: beforeSize !== afterSize
+    });
+    
     // 更新下拉框显示文本
+    console.log(`🔄 Calling updateDropdownText...`);
     updateDropdownText(modal);
     
     // 更新选中计数
+    console.log(`🔄 Calling updateSelectionCount...`);
     updateSelectionCount(modal);
     
     // 恢复图层设置（包括约束性和修饰性提示词）
+    console.log(`🔄 Calling restoreLayerSettings...`);
     restoreLayerSettings(modal);
     
     // 更新图层操作显示
+    console.log(`🔄 About to call updateLayerOperationsDisplay with ${afterSize} selected layers...`);
     updateLayerOperationsDisplay(modal);
+    console.log(`✅ updateLayerOperationsDisplay call completed`);
     
     // 高亮选中的标注
     const selectedIds = Array.from(modal.selectedLayers);
+    console.log(`🔄 Calling highlightSelectedAnnotations with IDs: [${selectedIds.join(', ')}]`);
     highlightSelectedAnnotations(modal, selectedIds);
     
-    console.log(`${isSelected ? '✅' : '❌'} 图层 ${annotationId} 选中状态: ${isSelected}`);
+    console.log(`${isSelected ? '✅' : '❌'} 图层 ${annotationId} 选中状态: ${isSelected} - FINAL STATUS: ${afterSize} layers selected`);
 }
 
 /**
@@ -1928,8 +2160,23 @@ function restoreLayerSettings(modal) {
                 operationSelect.value = annotation.operationType;
                 console.log(`🔄 恢复操作类型: ${annotation.operationType}`);
                 
-                // 更新提示词选择器
-                updatePromptSelectors(modal, annotation.operationType);
+                // 更新提示词选择器 - 增强错误处理
+                try {
+                    console.log(`🔄 准备调用 updatePromptSelectors:`, {
+                        operationType: annotation.operationType,
+                        modalId: modal.id,
+                        updatePromptSelectorsType: typeof updatePromptSelectors
+                    });
+                    updatePromptSelectors(modal, annotation.operationType);
+                    console.log(`✅ updatePromptSelectors 调用成功`);
+                } catch (error) {
+                    console.error(`❌ updatePromptSelectors 调用失败:`, error);
+                    console.error(`🔍 错误详情:`, {
+                        stack: error.stack,
+                        message: error.message,
+                        operationType: annotation.operationType
+                    });
+                }
                 
                 // 使用新的恢复函数，带重试机制
                 const tryRestorePrompts = (retries = 3) => {
@@ -1962,7 +2209,19 @@ function restoreLayerSettings(modal) {
                 // 首次选择，使用默认操作类型
                 const defaultOperation = operationSelect.options[0].value;
                 operationSelect.value = defaultOperation;
-                updatePromptSelectors(modal, defaultOperation);
+                
+                // 更新提示词选择器 - 增强错误处理
+                try {
+                    console.log(`🔄 默认操作类型调用 updatePromptSelectors:`, {
+                        defaultOperation,
+                        modalId: modal.id
+                    });
+                    updatePromptSelectors(modal, defaultOperation);
+                    console.log(`✅ 默认操作类型 updatePromptSelectors 调用成功`);
+                } catch (error) {
+                    console.error(`❌ 默认操作类型 updatePromptSelectors 调用失败:`, error);
+                }
+                
                 console.log(`🚀 首次选择图层，使用默认操作类型: ${defaultOperation}`);
             }
             
@@ -1987,22 +2246,74 @@ function restoreLayerSettings(modal) {
  * 更新图层操作显示
  */
 function updateLayerOperationsDisplay(modal) {
+    console.log(`🔄 updateLayerOperationsDisplay called`);
+    console.log(`🔍 Modal object:`, {
+        id: modal.id,
+        hasSelectedLayers: !!modal.selectedLayers,
+        selectedLayersType: typeof modal.selectedLayers,
+        selectedLayersSize: modal.selectedLayers ? modal.selectedLayers.size : 'undefined'
+    });
+    
     const layerOperations = modal.querySelector('#layer-operations');
     const currentLayerInfo = modal.querySelector('#current-layer-info');
     
+    console.log(`🔍 DOM elements search results:`, {
+        layerOperations: !!layerOperations,
+        currentLayerInfo: !!currentLayerInfo,
+        layerOperationsDisplay: layerOperations ? layerOperations.style.display : 'null',
+        currentLayerInfoDisplay: currentLayerInfo ? currentLayerInfo.style.display : 'null'
+    });
+    
+    // Additional element debugging
+    if (layerOperations) {
+        console.log(`🔍 layerOperations element details:`, {
+            id: layerOperations.id,
+            className: layerOperations.className,
+            currentDisplay: layerOperations.style.display,
+            computedDisplay: window.getComputedStyle(layerOperations).display
+        });
+    }
+    
+    if (currentLayerInfo) {
+        console.log(`🔍 currentLayerInfo element details:`, {
+            id: currentLayerInfo.id,
+            className: currentLayerInfo.className,
+            currentDisplay: currentLayerInfo.style.display,
+            computedDisplay: window.getComputedStyle(currentLayerInfo).display
+        });
+    }
+    
     if (!layerOperations || !currentLayerInfo) {
+        console.warn(`⚠️ Missing DOM elements: layerOperations=${!!layerOperations}, currentLayerInfo=${!!currentLayerInfo}`);
+        
+        // Try to find all elements with similar IDs
+        const allLayerOps = modal.querySelectorAll('[id*="layer-operations"], [id*="operations"]');
+        const allLayerInfo = modal.querySelectorAll('[id*="layer-info"], [id*="current-layer"]');
+        console.log(`🔍 Similar elements found:`, {
+            layerOpsLike: Array.from(allLayerOps).map(el => el.id),
+            layerInfoLike: Array.from(allLayerInfo).map(el => el.id)
+        });
         return;
     }
     
     const selectedCount = modal.selectedLayers ? modal.selectedLayers.size : 0;
+    console.log(`📊 Selected count: ${selectedCount}, Selected IDs: [${modal.selectedLayers ? Array.from(modal.selectedLayers).join(', ') : 'none'}]`);
     
     if (selectedCount === 0) {
+        console.log(`🙈 Hiding operation panels (no selection)`);
         layerOperations.style.display = 'none';
         currentLayerInfo.style.display = 'none';
         modal.currentLayerId = null;  // 清空当前图层ID
+        console.log(`🙈 Panels hidden - layerOps: ${layerOperations.style.display}, currentInfo: ${currentLayerInfo.style.display}`);
     } else {
+        console.log(`👁️ Showing operation panels (${selectedCount} selected)`);
+        console.log(`👁️ BEFORE: layerOps display = ${layerOperations.style.display}, currentInfo display = ${currentLayerInfo.style.display}`);
+        
         layerOperations.style.display = 'block';
         currentLayerInfo.style.display = 'block';
+        
+        console.log(`👁️ AFTER: layerOps display = ${layerOperations.style.display}, currentInfo display = ${currentLayerInfo.style.display}`);
+        console.log(`👁️ COMPUTED: layerOps computed = ${window.getComputedStyle(layerOperations).display}, currentInfo computed = ${window.getComputedStyle(currentLayerInfo).display}`);
         
         // 设置当前图层ID
         if (selectedCount === 1) {
@@ -2015,11 +2326,17 @@ function updateLayerOperationsDisplay(modal) {
         }
         
         // 恢复或初始化图层编辑区域的设置
+        console.log(`🔄 Calling restoreLayerSettings...`);
         restoreLayerSettings(modal);
         
         // 更新信息标题
         const layerTitle = modal.querySelector('#layer-title');
         const layerSubtitle = modal.querySelector('#layer-subtitle');
+        
+        console.log(`🔍 Title elements:`, {
+            layerTitle: !!layerTitle,
+            layerSubtitle: !!layerSubtitle
+        });
         
         if (layerTitle && layerSubtitle) {
             if (selectedCount === 1) {
@@ -2029,12 +2346,23 @@ function updateLayerOperationsDisplay(modal) {
                     const objectInfo = getObjectInfo(annotation, 0);
                     layerTitle.textContent = `${objectInfo.icon} ${objectInfo.description}`;
                     layerSubtitle.textContent = `Individual editing • ${annotation.type}`;
+                    console.log(`📝 Updated title: ${layerTitle.textContent}`);
+                } else {
+                    console.warn(`⚠️ Annotation not found for selectedId: ${selectedId}`);
                 }
             } else {
                 layerTitle.textContent = `${selectedCount} Layers Selected`;
                 layerSubtitle.textContent = `Batch editing mode • Multiple layers`;
+                console.log(`📝 Updated title for batch mode: ${layerTitle.textContent}`);
             }
         }
+        
+        // Final verification
+        console.log(`✅ updateLayerOperationsDisplay completed - Final states:`, {
+            layerOperationsVisible: layerOperations.style.display === 'block',
+            currentLayerInfoVisible: currentLayerInfo.style.display === 'block',
+            currentLayerId: modal.currentLayerId
+        });
     }
 }
 
@@ -2070,8 +2398,17 @@ function bindTabEvents(modal) {
                 // 更新图层显示
                 updateObjectSelector(modal);
                 
-                // 更新约束和修饰性提示词
-                updatePromptSelectors(modal, this.value);
+                // 更新约束和修饰性提示词 - 增强错误处理
+                try {
+                    console.log(`🔄 操作类型变更调用 updatePromptSelectors:`, {
+                        newValue: this.value,
+                        modalId: modal.id
+                    });
+                    updatePromptSelectors(modal, this.value);
+                    console.log(`✅ 操作类型变更 updatePromptSelectors 调用成功`);
+                } catch (error) {
+                    console.error(`❌ 操作类型变更 updatePromptSelectors 调用失败:`, error);
+                }
                 
                 // 延迟恢复提示词状态（如果是单个图层选择）
                 if (modal.selectedLayers.size === 1) {
@@ -2281,42 +2618,47 @@ function getObjectInfo(annotation, index) {
 /**
  * 绑定多选事件
  */
-function bindMultiSelectEvents(modal) {
+export function bindMultiSelectEvents(modal) {
     // 全选按钮事件
     const selectAllBtn = modal.querySelector('#select-all-objects');
     if (selectAllBtn) {
         selectAllBtn.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
-            const annotationCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
+            const annotationCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"][data-annotation-id]');
             
             annotationCheckboxes.forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
             
-            // 更新视觉高亮
             updateMultiSelection(modal);
-            console.log(isChecked ? '✅ 全选所有标注' : '❌ 取消全选');
         });
     }
     
-    // 标注复选框事件
-    const annotationContainer = modal.querySelector('#annotation-objects');
-    if (annotationContainer) {
-        annotationContainer.addEventListener('change', (e) => {
-            if (e.target.type === 'checkbox' && e.target.dataset.annotationId) {
-                updateMultiSelection(modal);
-                
-                // 更新全选状态
-                const allCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
-                const checkedCount = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').length;
-                const selectAllBtn = modal.querySelector('#select-all-objects');
-                
-                if (selectAllBtn) {
-                    selectAllBtn.checked = checkedCount === allCheckboxes.length;
-                    selectAllBtn.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
-                }
+    // 绑定到正确的容器 #layers-list
+    const layersListContainer = modal.querySelector('#layers-list');
+    if (layersListContainer) {
+        // 移除现有事件监听器（避免重复绑定）
+        layersListContainer.removeEventListener('change', handleLayerCheckboxChange);
+        
+        // 添加新的事件监听器
+        layersListContainer.addEventListener('change', handleLayerCheckboxChange);
+    }
+    
+    // 事件处理函数
+    function handleLayerCheckboxChange(e) {
+        if (e.target.type === 'checkbox' && e.target.dataset.annotationId) {
+            updateMultiSelection(modal);
+            
+            // 更新全选状态
+            const allCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"][data-annotation-id]');
+            const checkedCount = modal.querySelectorAll('#layers-list input[type="checkbox"][data-annotation-id]:checked').length;
+            const selectAllBtn = modal.querySelector('#select-all-objects');
+            
+            if (selectAllBtn) {
+                selectAllBtn.checked = checkedCount === allCheckboxes.length;
+                selectAllBtn.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
             }
-        });
+        }
     }
     
     // 工具栏图层选择器事件
@@ -2369,9 +2711,21 @@ function bindMultiSelectEvents(modal) {
 /**
  * 更新多选状态
  */
-function updateMultiSelection(modal) {
+export function updateMultiSelection(modal) {
     const selectedAnnotationIds = getSelectedAnnotationIds(modal);
-    console.log('🎯 VPE当前选中的标注:', selectedAnnotationIds);
+    
+    // 更新modal.selectedLayers
+    if (!modal.selectedLayers) {
+        modal.selectedLayers = new Set();
+    }
+    
+    // 清空现有选择并添加新选择
+    modal.selectedLayers.clear();
+    selectedAnnotationIds.forEach(id => {
+        if (id) {
+            modal.selectedLayers.add(id);
+        }
+    });
     
     // 更新视觉高亮
     highlightSelectedAnnotations(modal, selectedAnnotationIds);
@@ -2379,13 +2733,27 @@ function updateMultiSelection(modal) {
     // 更新选中计数显示
     updateSelectionCount(modal, selectedAnnotationIds.length);
     
+    // 调用updateLayerOperationsDisplay显示操作面板
+    updateLayerOperationsDisplay(modal);
+    
 }
 
 /**
  * 获取选中的标注ID列表
  */
 function getSelectedAnnotationIds(modal) {
-    // 优先使用新的下拉复选框界面
+    // 从正确的容器 #layers-list 中查找选中的复选框
+    const layersListCheckboxes = modal.querySelectorAll('#layers-list input[type="checkbox"]:checked[data-annotation-id]');
+    
+    if (layersListCheckboxes.length > 0) {
+        const ids = Array.from(layersListCheckboxes).map(checkbox => {
+            return checkbox.dataset.annotationId;
+        }).filter(id => id && id.startsWith('annotation_')); // 只选择真正的标注ID
+        
+        return ids;
+    }
+    
+    // 备用方案：优先使用新的下拉复选框界面
     const dropdownCheckboxes = modal.querySelectorAll('#dropdown-options input[type="checkbox"]:checked');
     if (dropdownCheckboxes.length > 0) {
         return Array.from(dropdownCheckboxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
@@ -2561,119 +2929,6 @@ function addAnnotation(modal, annotation) {
     
     updateObjectSelector(modal);
     console.log('✅ 标注已添加 ID:', annotation.id, 'type:', annotation.type);
-}
-
-/**
- * 删除指定标注 (v2.2.1 双重删除策略)
- */
-export function deleteAnnotation(modal, annotation) {
-    try {
-        // 从数组中移除
-        const index = modal.annotations.findIndex(ann => ann.id === annotation.id);
-        if (index !== -1) {
-            modal.annotations.splice(index, 1);
-            console.log('📝 从数组中移除标注，剩余:', modal.annotations.length);
-        }
-        
-        // 从SVG中移除
-        const drawingLayer = modal.querySelector('#drawing-layer');
-        if (drawingLayer) {
-            const svg = drawingLayer.querySelector('svg');
-            if (svg) {
-                // 移除标注形状
-                const shapeElement = svg.querySelector(`[data-annotation-id="${annotation.id}"]`);
-                if (shapeElement) {
-                    shapeElement.remove();
-                    console.log('🗑️ 移除SVG形状元素');
-                }
-                
-                // 移除相关标签 - 增强版本（优先按编号删除）
-                console.log('🔍 查找并删除相关标签...', {
-                    annotationId: annotation.id,
-                    annotationNumber: annotation.number
-                });
-                
-                let removedLabelCount = 0;
-                
-                // 方法1: 优先按编号删除（最可靠）
-                if (annotation.number !== undefined) {
-                    console.log('🔍 尝试按编号删除标签:', annotation.number);
-                    const numberLabels = svg.querySelectorAll(`[data-annotation-number="${annotation.number}"]`);
-                    console.log('📊 找到', numberLabels.length, '个编号标签');
-                    
-                    numberLabels.forEach((label, index) => {
-                        console.log(`🗑️ 删除编号标签 ${index}:`, label.tagName);
-                        label.remove();
-                        removedLabelCount++;
-                    });
-                    
-                    console.log('📊 按编号删除了', removedLabelCount, '个标签');
-                }
-                
-                // 方法2: 如果按编号没找到，再按位置查找
-                if (removedLabelCount === 0) {
-                    console.log('🔍 按编号未找到标签，尝试按位置查找...');
-                    const labels = svg.querySelectorAll('circle, text');
-                    console.log('📊 总共找到', labels.length, '个标签元素');
-                    
-                    labels.forEach((label, index) => {
-                        const isNear = isLabelNearAnnotation(label, annotation);
-                        if (isNear) {
-                            console.log(`🗑️ 按位置删除标签 ${index}:`, label.tagName);
-                            label.remove();
-                            removedLabelCount++;
-                        }
-                    });
-                    
-                    console.log('📊 按位置删除了', removedLabelCount, '个标签');
-                }
-                
-                console.log('✅ 标签删除总计:', removedLabelCount, '个');
-            }
-        }
-        
-        // 更新对象选择器
-        updateObjectSelector(modal);
-        
-        console.log('✅ 标注删除完成');
-        
-    } catch (e) {
-        console.error('❌ 删除标注失败:', e);
-    }
-}
-
-/**
- * 判断标签是否靠近指定标注
- */
-function isLabelNearAnnotation(labelElement, annotation) {
-    try {
-        const tolerance = 20; // 容差像素
-        
-        if (labelElement.tagName.toLowerCase() === 'circle') {
-            const cx = parseFloat(labelElement.getAttribute('cx'));
-            const cy = parseFloat(labelElement.getAttribute('cy'));
-            
-            // 计算标注的参考位置
-            let refX, refY;
-            if (annotation.start && annotation.end) {
-                refX = Math.min(annotation.start.x, annotation.end.x) + 5;
-                refY = Math.min(annotation.start.y, annotation.end.y) + 15;
-            } else if (annotation.points && annotation.points.length > 0) {
-                refX = annotation.points[0].x + 5;
-                refY = annotation.points[0].y + 15;
-            } else {
-                return false;
-            }
-            
-            const distance = Math.sqrt(Math.pow(cx - refX, 2) + Math.pow(cy - refY, 2));
-            return distance <= tolerance;
-        }
-        
-        return false;
-    } catch (e) {
-        console.error('判断标签位置时出错:', e);
-        return false;
-    }
 }
 
 // 导出关键函数到全局范围，以便其他模块可以调用

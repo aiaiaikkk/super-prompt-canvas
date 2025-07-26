@@ -38,7 +38,12 @@ function shouldRequireLayerSelection(category, operationType) {
  * 绑定提示词相关事件
  */
 export function bindPromptEvents(modal, getObjectInfoFunction) {
+    console.log('🔧 bindPromptEvents函数被调用');
+    console.log('  - modal:', modal ? '✅ 存在' : '❌ 不存在');
+    console.log('  - getObjectInfoFunction:', getObjectInfoFunction ? '✅ 存在' : '❌ 不存在');
+    
     // 初始化分类选择器
+    console.log('🔧 开始调用initializeCategorySelector...');
     initializeCategorySelector(modal);
     
     // 生成按钮
@@ -844,12 +849,43 @@ export function exportPromptData(modal) {
  * 初始化分类选择器
  */
 function initializeCategorySelector(modal) {
-    const categorySelect = modal.querySelector('#template-category');
-    const operationSelect = modal.querySelector('#operation-type');
+    console.log('🔧 开始初始化分类选择器...');
+    
+    // 更健壮的DOM查询 - 先尝试在modal中查找，然后尝试在整个文档中查找
+    let categorySelect = modal.querySelector('#template-category');
+    let operationSelect = modal.querySelector('#operation-type');
+    
+    // 如果在modal中找不到，尝试在整个文档中查找
+    if (!categorySelect) {
+        categorySelect = document.querySelector('#template-category');
+        console.log('🔍 在document中查找categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
+    }
+    
+    if (!operationSelect) {
+        operationSelect = document.querySelector('#operation-type');
+        console.log('🔍 在document中查找operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
+    }
+    
+    console.log('🔍 查找DOM元素结果:');
+    console.log('  - categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
+    console.log('  - operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
     
     if (!categorySelect || !operationSelect) {
         console.warn('⚠️ 分类选择器或操作选择器未找到');
-        return;
+        console.log('🔍 尝试查找controls标签页内容...');
+        const controlsTab = modal.querySelector('#controls-tab-content') || document.querySelector('#controls-tab-content');
+        if (controlsTab) {
+            console.log('🔍 找到controls标签页内容，重新查找选择器...');
+            categorySelect = controlsTab.querySelector('#template-category');
+            operationSelect = controlsTab.querySelector('#operation-type');
+            console.log('  - 在controls标签页中找到categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
+            console.log('  - 在controls标签页中找到operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
+        }
+        
+        if (!categorySelect || !operationSelect) {
+            console.log('🔍 当前modal结构预览:', modal.innerHTML.substring(0, 1000));
+            return;
+        }
     }
     
     // 初始化为全局调整模板（第一个选项）
@@ -875,16 +911,18 @@ function initializeCategorySelector(modal) {
             console.log(`🔄 自动选择第一个操作: ${firstOperation}`);
             operationSelect.value = firstOperation;  // 设置选中值
         }
-        
-        // 清空描述文本框（可选）
-        const targetInput = modal.querySelector('#target-input');
-        if (targetInput) {
-            targetInput.placeholder = getCategoryPlaceholder(selectedCategory);
-        }
-        
-        // 显示分类提示
-        showCategoryInfo(modal, selectedCategory);
     });
+    
+    // 绑定操作类型选择器事件
+    operationSelect.addEventListener('change', function() {
+        const selectedOperation = this.value;
+        console.log(`⚙️ 切换操作类型: ${selectedOperation}`);
+        
+        // 可以在这里添加操作类型切换的逻辑
+        // 例如更新UI显示或预填充描述模板
+    });
+    
+    console.log('✅ 分类和操作类型选择器事件绑定完成');
     
     // 初始化时也更新标签
     updateLayerSelectionLabel(modal, categorySelect.value);
@@ -924,7 +962,7 @@ function showCategoryInfo(modal, category) {
 /**
  * 更新约束性和修饰性提示词选择器 - 🔴 支持复选框容器
  */
-function updatePromptSelectors(modal, operationType) {
+export function updatePromptSelectors(modal, operationType) {
     console.log(`🔄 开始更新提示词选择器: ${operationType}`);
     
     // 只查找图层编辑区域的容器（Edit Control区域已移除提示词面板）
@@ -1215,4 +1253,4 @@ function autoSavePromptSelections() {
 }
 
 // 导出需要在其他模块中使用的函数
-export { updatePromptSelectors };
+// updatePromptSelectors 已在第927行直接导出，此处删除重复导出

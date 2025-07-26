@@ -120,6 +120,7 @@ export function createToolbar() {
             <!-- 编辑操作组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="edit">Edit:</span>
+                <button id="vpe-transform-mode" style="font-size: 11px; padding: 4px 8px; background: #444; border: 1px solid #666;" title="Toggle Transform Mode (Click layers to transform)" data-i18n="btn_transform" data-i18n-title="tooltip_transform">🔄 Transform</button>
                 <button id="vpe-undo" style="font-size: 11px; padding: 4px 8px;" title="Undo" data-i18n="btn_undo" data-i18n-title="tooltip_undo">↶ Undo</button>
                 <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All" data-i18n="btn_clear" data-i18n-title="tooltip_clear">🗂️ Clear</button>
             </div>
@@ -437,17 +438,20 @@ export function createLayersTabContent() {
     
     layersContent.innerHTML = `
         <!-- 图层选择和管理 -->
+        <!-- 统一的图层选择与操作 - 集成标注图层和连接图层 -->
         <div style="background: #333; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
             <div style="color: #4CAF50; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
                 <span data-i18n="layer_selection_operations">🎯 Layer Selection & Operations</span>
-                <span id="selection-count" style="color: #888; font-size: 11px;">0 selected</span>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span id="selection-count" style="color: #888; font-size: 11px;">0 selected</span>
+                </div>
             </div>
             
             <!-- 图层直接选择列表 -->
             <div style="margin-bottom: 16px;">
                 <label id="layer-selection-label" style="display: block; color: #aaa; font-size: 12px; margin-bottom: 8px; font-weight: 500;" data-i18n="select_layers">📋 Available Layers</label>
-                <div id="layers-list-container" style="background: #2b2b2b; border: 1px solid #555; border-radius: 6px; max-height: 300px; overflow-y: auto;">
-                    <div id="layers-list" style="padding: 8px;">
+                <div id="layers-list-container" style="background: #2b2b2b; border: 1px solid #555; border-radius: 6px; max-height: 300px; overflow-y: auto; position: relative; z-index: 100;">
+                    <div id="layers-list" style="padding: 8px; position: relative; z-index: 101;">
                         <!-- 图层列表将在这里动态生成 -->
                     </div>
                 </div>
@@ -541,6 +545,7 @@ export function createLayersTabContent() {
                 <div style="font-size: 11px;" data-i18n="no_layers_subtitle">Create annotations to start editing</div>
             </div>
         </div>
+        
     `;
     
     return layersContent;
@@ -937,19 +942,140 @@ function switchToTab(tabKey, tabContents) {
                 window.bindCanvasInteractionEvents(modal);
                 console.log('✅ Layer dropdown events rebound');
             }
+            
+            // 🔧 重要：重新加载图层数据并恢复图层顺序
+            console.log('🔄 重新加载图层数据并恢复顺序...');
+            if (modal && window.currentVPEInstance) {
+                const nodeInstance = window.currentVPEInstance;
+                
+                // 🔧 重要：优先尝试恢复保存的图层顺序
+                if (nodeInstance.layerOrderController && typeof nodeInstance.layerOrderController.restoreSavedLayerOrder === 'function') {
+                    const restored = nodeInstance.layerOrderController.restoreSavedLayerOrder(modal);
+                    if (restored) {
+                        console.log('✅ 图层顺序已恢复');
+                    } else {
+                        console.log('📋 没有保存的图层顺序，使用默认刷新');
+                        // 如果没有保存的顺序，则使用默认刷新
+                        if (typeof nodeInstance.refreshLayersList === 'function') {
+                            nodeInstance.refreshLayersList(modal);
+                            console.log('✅ 图层列表已刷新（默认顺序）');
+                        }
+                    }
+                } else if (typeof nodeInstance.refreshLayersList === 'function') {
+                    // 回退到原有的刷新方法
+                    nodeInstance.refreshLayersList(modal);
+                    console.log('✅ 图层列表已刷新（通过refreshLayersList）');
+                } else {
+                    console.warn('⚠️ 图层顺序恢复和刷新方法都不存在');
+                }
+                
+                // 重新绑定图层事件
+                if (typeof nodeInstance.bindLayerEvents === 'function') {
+                    nodeInstance.bindLayerEvents(modal);
+                    console.log('✅ 图层事件已重新绑定');
+                }
+                
+                // 🔴 重要：重新更新图层选择器和操作面板
+                if (typeof window.updateObjectSelector === 'function') {
+                    window.updateObjectSelector(modal);
+                    console.log('✅ 图层选择器已重新更新');
+                }
+            } else {
+                console.warn('⚠️ 无法获取VPE实例，跳过图层数据重新加载');
+            }
         }, 100);
     } else if (tabKey === 'tab_controls') {
         console.log('🎛️ Reinitializing controls tab functionality');
+        console.log('🔍 检查window对象上的函数:');
+        console.log('  - bindPromptEvents:', typeof window.bindPromptEvents);
+        console.log('  - updateObjectSelector:', typeof window.updateObjectSelector);
+        console.log('  - updateOperationTypeSelect:', typeof window.updateOperationTypeSelect);
+        console.log('  - currentVPENode:', !!window.currentVPENode);
+        console.log('  - currentVPEInstance:', !!window.currentVPEInstance);
         setTimeout(() => {
-            // 重新绑定控制面板事件
-            if (modal && typeof window.bindPromptEvents === 'function') {
-                // 获取node实例以访问getObjectInfo函数
-                const node = window.currentVPENode;
-                const getObjectInfoFunction = node ? node.getObjectInfo : null;
-                window.bindPromptEvents(modal, getObjectInfoFunction);
-                console.log('✅ Controls tab events rebound');
+            console.log('⏰ setTimeout回调执行开始...');
+            console.log('🔍 modal存在:', !!modal);
+            console.log('🔍 window.bindPromptEvents类型:', typeof window.bindPromptEvents);
+            
+            // 重新绑定控制面板事件 - 使用动态导入避免循环依赖
+            if (modal) {
+                console.log('✅ 开始重新绑定控制面板事件...');
+                
+                // 首先尝试使用window对象上的函数（如果已暴露）
+                if (typeof window.bindPromptEvents === 'function') {
+                    console.log('🔧 使用window.bindPromptEvents...');
+                    const node = window.currentVPENode;
+                    const getObjectInfoFunction = node ? node.getObjectInfo : null;
+                    window.bindPromptEvents(modal, getObjectInfoFunction);
+                    console.log('✅ Controls tab events rebound via window object');
+                } else {
+                    console.log('🔧 window.bindPromptEvents不存在，使用动态导入...');
+                    // 备用方案：动态导入
+                    import('./visual_prompt_editor_prompts.js').then(module => {
+                        console.log('📦 动态导入prompts模块成功');
+                        const node = window.currentVPENode;
+                        const getObjectInfoFunction = node ? node.getObjectInfo : null;
+                        module.bindPromptEvents(modal, getObjectInfoFunction);
+                        console.log('✅ Controls tab events rebound via dynamic import');
+                    }).catch(err => {
+                        console.error('❌ 动态导入失败:', err);
+                    });
+                }
             }
-        }, 100);
+            
+            // 🔧 修复：确保下拉框选项正确填充
+            const templateCategory = modal.querySelector('#template-category') || document.querySelector('#template-category');
+            const operationType = modal.querySelector('#operation-type') || document.querySelector('#operation-type'); 
+            
+            console.log('🔧 强制重新初始化controls面板下拉框...');
+            console.log('  - templateCategory:', templateCategory ? '✅ 找到' : '❌ 未找到');
+            console.log('  - operationType:', operationType ? '✅ 找到' : '❌ 未找到');
+            
+            if (templateCategory && operationType) {
+                // 尝试使用window对象上的函数
+                if (typeof window.updateOperationTypeSelect === 'function') {
+                    console.log('🔧 使用window.updateOperationTypeSelect...');
+                    window.updateOperationTypeSelect(operationType, 'global');
+                    console.log('✅ 下拉框选项已更新');
+                } else {
+                    console.log('🔧 window.updateOperationTypeSelect不存在，使用动态导入...');
+                    // 备用方案：动态导入
+                    import('./visual_prompt_editor_utils.js').then(module => {
+                        console.log('📦 动态导入utils模块成功');
+                        module.updateOperationTypeSelect(operationType, 'global');
+                        console.log('✅ 下拉框选项已更新（动态导入）');
+                    }).catch(err => {
+                        console.error('❌ 动态导入utils失败:', err);
+                        console.log('⚠️ 使用手动填充方案...');
+                        // 最后的备用方案：手动填充下拉框
+                        operationType.innerHTML = `
+                            <option value="global_color_grade">Color Grading</option>
+                            <option value="global_style_transfer">Style Transfer</option>
+                            <option value="global_brightness_contrast">Brightness & Contrast</option>
+                            <option value="global_enhance">Global Enhance</option>
+                        `;
+                    });
+                }
+                
+                // 手动触发change事件来填充operation-type下拉框
+                const changeEvent = new Event('change', { bubbles: true });
+                templateCategory.dispatchEvent(changeEvent);
+                console.log('✅ 分类选择器change事件已触发，operation-type应该已填充');
+            } else {
+                console.warn('⚠️ 无法找到template-category或operation-type元素');
+                // 尝试延迟查找
+                setTimeout(() => {
+                    const delayedCategory = document.querySelector('#template-category');
+                    const delayedOperation = document.querySelector('#operation-type');
+                    if (delayedCategory && delayedOperation) {
+                        console.log('🔄 延迟查找成功，重新初始化...');
+                        if (typeof window.updateOperationTypeSelect === 'function') {
+                            window.updateOperationTypeSelect(delayedOperation, 'global');
+                        }
+                    }
+                }, 300);
+            }
+        }, 150); // 🔧 增加延迟时间确保DOM完全渲染
     } else if (tabKey === 'tab_ai_enhancer') {
         console.log('🤖 Initializing AI enhancer functionality');
         setTimeout(() => {
@@ -1698,6 +1824,153 @@ async function testTextGenConnection() {
             statusElement.style.color = '#ef4444';
             console.warn('TextGen连接测试失败:', result.message);
         }
+    }
+}
+
+/**
+ * 创建图层列表项
+ * 从主文件迁移的UI创建逻辑
+ */
+export function createLayerListItem(layer, layerId, type, nodeInstance) {
+    const layerItem = document.createElement('div');
+    layerItem.className = 'layer-list-item vpe-layer-item';
+    layerItem.setAttribute('data-layer-id', layerId);
+    layerItem.setAttribute('data-layer-type', type);
+    layerItem.setAttribute('draggable', 'true');
+    layerItem.style.position = 'relative';
+    
+    let icon, description, statusColor;
+    // 直接使用layer.visible，默认为true
+    const isVisible = layer.visible !== false; // 默认为可见
+    
+    if (type === 'IMAGE_LAYER') {
+        icon = '🖼️';
+        description = layer.name;
+        statusColor = '#10b981';
+    } else {
+        // 为annotation保持一致的图标，基于type生成但保存到layer对象中以便复用
+        if (!layer.cachedIcon) {
+            layer.cachedIcon = nodeInstance?.getSimpleIcon ? nodeInstance.getSimpleIcon(layer.type) : '📝';
+        }
+        icon = layer.cachedIcon;
+        description = `${layer.type} annotation ${layer.number + 1}`;
+        statusColor = '#4CAF50';
+    }
+    
+    layerItem.innerHTML = `
+        <div class="layer-drag-handle" 
+             style="cursor: grab; margin-right: 8px; padding: 4px; color: #888; font-size: 14px; user-select: none;"
+             title="Drag to reorder">
+            ⋮⋮
+        </div>
+        <button class="layer-visibility-btn" data-layer-id="${layerId}" data-layer-type="${type}"
+                style="background: none; border: none; cursor: pointer; margin-right: 8px; font-size: 16px; padding: 2px;">
+            ${isVisible ? '👁️' : '🙈'}
+        </button>
+        <input type="checkbox" data-annotation-id="${layerId}" data-layer-id="${layerId}" data-layer-type="${type}"
+               style="margin-right: 8px; accent-color: ${statusColor};">
+        <span style="margin-right: 8px; font-size: 16px;">${icon}</span>
+        <span style="flex: 1; color: white; font-size: 12px; opacity: ${isVisible ? '1' : '0.5'};">${description}</span>
+        <div class="layer-controls" style="display: flex; align-items: center; margin-left: 8px; gap: 4px;">
+            <div class="layer-order-controls" style="display: flex; flex-direction: column;">
+                <button class="layer-move-up" data-layer-id="${layerId}" data-layer-type="${type}"
+                        style="background: none; border: none; cursor: pointer; color: #888; font-size: 10px; line-height: 1; padding: 1px 3px;"
+                        title="Move Up">
+                    ▲
+                </button>
+                <button class="layer-move-down" data-layer-id="${layerId}" data-layer-type="${type}"
+                        style="background: none; border: none; cursor: pointer; color: #888; font-size: 10px; line-height: 1; padding: 1px 3px;"
+                        title="Move Down">
+                    ▼
+                </button>
+            </div>
+        </div>
+        <span style="color: ${statusColor}; font-size: 10px; margin-left: 8px; opacity: ${isVisible ? '1' : '0.5'};">
+            ${type === 'IMAGE_LAYER' ? 'LAYER' : 'ANNOTATION'}
+        </span>
+    `;
+    
+    return layerItem;
+}
+
+/**
+ * 加载图层到面板
+ * 从主文件迁移的UI更新逻辑
+ */
+export function loadLayersToPanel(modal, layers) {
+    console.log('🔍 loadLayersToPanel called with layers:', layers?.length || 0);
+    
+    // Safety checks
+    if (!modal) {
+        console.error('❌ loadLayersToPanel: modal is null/undefined');
+        return;
+    }
+
+    // Find the layers container - use correct element ID from UI module
+    const layersList = modal.querySelector('#annotation-objects');
+    
+    if (!layersList) {
+        console.error('❌ loadLayersToPanel: #annotation-objects element not found');
+        console.log('🔍 Available elements with IDs:', Array.from(modal.querySelectorAll('*[id]')).map(el => el.id));
+        return;
+    }
+    
+    if (!Array.isArray(layers) || layers.length === 0) {
+        layersList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No layers detected<br><small>Draw annotations to see them here</small></div>';
+        console.log('✅ Empty state set in layers panel');
+        return;
+    }
+    
+    try {
+        layersList.innerHTML = '';
+        console.log('✅ Layers panel cleared, processing', layers.length, 'layers');
+        
+        layers.forEach((layer, index) => {
+        const layerItem = document.createElement('div');
+        layerItem.style.cssText = `
+            margin: 8px 0; padding: 12px; background: #2b2b2b;
+            border-radius: 6px; cursor: pointer; border: 2px solid transparent;
+            transition: all 0.2s;
+        `;
+        
+        layerItem.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="color: white; font-weight: 600; margin-bottom: 4px;">${layer.class_name || 'Annotation'}</div>
+                    <div style="font-size: 12px; color: #888;">
+                        ID: ${layer.id || index} | Type: ${layer.type || 'manual'}
+                    </div>
+                    ${layer.area ? `<div style="font-size: 12px; color: #888;">Area: ${layer.area} px</div>` : ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" ${index < 3 ? 'checked' : ''} data-layer-id="${layer.id || index}" 
+                           style="transform: scale(1.2);">
+                </div>
+            </div>
+        `;
+        
+        // 点击选择图层
+        layerItem.onclick = (e) => {
+            if (e.target.type !== 'checkbox') {
+                const checkbox = layerItem.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+            }
+            
+            // 更新视觉反馈
+            const isSelected = layerItem.querySelector('input[type="checkbox"]').checked;
+            layerItem.style.borderColor = isSelected ? '#673AB7' : 'transparent';
+            layerItem.style.background = isSelected ? '#3a2a5c' : '#2b2b2b';
+            
+            console.log('🎯 VPE选中图层:', layer.id || index);
+        };
+        
+        layersList.appendChild(layerItem);
+    });
+    
+        console.log('✅ VPE图层列表已更新:', layers.length);
+    } catch (error) {
+        console.error('❌ Error in loadLayersToPanel:', error);
+        console.error('❌ Error stack:', error.stack);
     }
 }
 

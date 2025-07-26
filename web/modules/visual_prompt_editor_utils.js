@@ -1,4 +1,5 @@
 import { t } from './visual_prompt_editor_i18n.js';
+import { getCoordinateSystem } from './shared/coordinate_system.js';
 
 /**
  * Visual Prompt Editor - 工具函数模块
@@ -554,31 +555,49 @@ export const DECORATIVE_PROMPTS = {
  * 根据分类获取模板选项
  */
 export function getTemplatesByCategory(category) {
+    console.log(`🔍 getTemplatesByCategory被调用，分类: ${category}`);
+    
     if (!TEMPLATE_CATEGORIES[category]) {
+        console.warn(`❌ 分类 ${category} 不存在于TEMPLATE_CATEGORIES中`);
+        console.log('📋 可用的分类:', Object.keys(TEMPLATE_CATEGORIES));
         return [];
     }
     
-    return TEMPLATE_CATEGORIES[category].templates.map(templateId => {
+    const categoryData = TEMPLATE_CATEGORIES[category];
+    console.log(`📂 分类 ${category} 的模板数量: ${categoryData.templates.length}`);
+    console.log('📋 模板ID列表:', categoryData.templates);
+    
+    const result = categoryData.templates.map(templateId => {
         const template = OPERATION_TEMPLATES[templateId];
+        console.log(`🔍 处理模板 ${templateId}:`, template ? '✅ 找到' : '❌ 未找到');
         return {
             id: templateId,
             label: template?.label || templateId,
             template: template
         };
     });
+    
+    console.log(`✅ getTemplatesByCategory返回 ${result.length} 个模板:`, result.map(r => `${r.id}(${r.label})`));
+    return result;
 }
 
 /**
  * 更新操作类型选择器
  */
 export function updateOperationTypeSelect(selectElement, category) {
-    if (!selectElement) return;
+    console.log(`🔧 更新操作类型选择器，分类: ${category}`);
+    if (!selectElement) {
+        console.warn('❌ selectElement为空，无法更新');
+        return;
+    }
     
     // 清空现有选项
     selectElement.innerHTML = '';
+    console.log('🧹 已清空现有选项');
     
     // 获取分类下的模板
     const templates = getTemplatesByCategory(category);
+    console.log(`📋 获取到 ${templates.length} 个模板:`, templates.map(t => t.id));
     
     // 添加选项
     templates.forEach(({ id, label }) => {
@@ -586,6 +605,7 @@ export function updateOperationTypeSelect(selectElement, category) {
         option.value = id;
         option.textContent = t(`op_${id}`, label);
         selectElement.appendChild(option);
+        console.log(`➕ 添加选项: ${id} - ${label}`);
     });
     
     // 添加自定义选项
@@ -594,7 +614,10 @@ export function updateOperationTypeSelect(selectElement, category) {
         customOption.value = 'custom';
         customOption.textContent = t('op_custom', 'Custom Operation');
         selectElement.appendChild(customOption);
+        console.log('➕ 添加自定义选项');
     }
+    
+    console.log(`✅ 操作类型选择器更新完成，共${selectElement.options.length}个选项`);
 }
 
 /**
@@ -681,54 +704,9 @@ export function isPointInRect(point, rect) {
  * 将鼠标坐标转换为SVG viewBox坐标 - 避免transform累积问题
  */
 export function mouseToSVGCoordinates(e, modal) {
-    const drawingLayer = modal.querySelector('#drawing-layer');
-    const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
+    console.log('📐 [UNIFIED] 使用统一坐标系统进行SVG坐标转换');
     
-    if (!svg) return { x: 0, y: 0 };
-    
-    // 获取多个容器的位置信息进行对比
-    const canvasContainer = modal.querySelector('#canvas-container');
-    const zoomContainer = modal.querySelector('#zoom-container');
-    const imageCanvas = modal.querySelector('#image-canvas');
-    const image = modal.querySelector('#vpe-main-image');
-    
-    if (!canvasContainer) return { x: 0, y: 0 };
-    
-    // 获取各个容器的边界框
-    const canvasContainerRect = canvasContainer.getBoundingClientRect();
-    const svgRect = svg.getBoundingClientRect();
-    const drawingLayerRect = drawingLayer.getBoundingClientRect();
-    
-    console.log('🔍 容器位置对比:', {
-        mouse: { x: e.clientX, y: e.clientY },
-        canvasContainer: { left: canvasContainerRect.left, top: canvasContainerRect.top, width: canvasContainerRect.width, height: canvasContainerRect.height },
-        svgRect: { left: svgRect.left, top: svgRect.top, width: svgRect.width, height: svgRect.height },
-        drawingLayer: { left: drawingLayerRect.left, top: drawingLayerRect.top, width: drawingLayerRect.width, height: drawingLayerRect.height }
-    });
-    
-    if (image) {
-        const imageRect = image.getBoundingClientRect();
-        console.log('🖼️ 图片位置:', { left: imageRect.left, top: imageRect.top, width: imageRect.width, height: imageRect.height });
-    }
-    
-    // 使用SVG自身的边界框进行坐标转换
-    const svgRelativeX = e.clientX - svgRect.left;
-    const svgRelativeY = e.clientY - svgRect.top;
-    
-    // 计算相对位置的比例 (0-1)
-    const scaleX = svgRelativeX / svgRect.width;
-    const scaleY = svgRelativeY / svgRect.height;
-    
-    // 映射到SVG viewBox坐标系
-    const svgX = scaleX * svg.viewBox.baseVal.width;
-    const svgY = scaleY * svg.viewBox.baseVal.height;
-    
-    console.log('🖱️ SVG坐标转换:', {
-        svgRelative: { x: svgRelativeX, y: svgRelativeY },
-        scale: { x: scaleX, y: scaleY },
-        viewBox: { width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height },
-        final: { x: svgX, y: svgY }
-    });
-    
-    return { x: svgX, y: svgY };
+    // 使用新的统一坐标系统
+    const coordinateSystem = getCoordinateSystem(modal);
+    return coordinateSystem.mouseToSVGCoords(e.clientX, e.clientY);
 }
