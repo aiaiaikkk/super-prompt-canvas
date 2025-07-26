@@ -1,6 +1,6 @@
 # Kontext 可视化提示词窗口
 
-![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
+![Kontext Visual Prompt Window](images/visual_editor1.png)
 
 🎨 渐进式智能图像编辑系统，通过三个发展阶段逐步实现从**手动标注**到**智能分割**再到**专业调色**的完整工作流。
 
@@ -241,7 +241,7 @@ LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLigh
 7. **保存应用**: 点击"Save & Apply"保存数据
 
 #### 多图编辑支持
-![多图编辑示例](../images/multi_images_edit.png)
+![多图编辑示例](images/multi_images_edit.png)
 
 **Visual Prompt Editor 支持多图像同时编辑**：
 - 🖼️ **多图输入**: 节点支持接收多张图像的IMAGE输入
@@ -292,7 +292,7 @@ MIT License - 详见LICENSE文件
 
 # Kontext Visual Prompt Window
 
-![Kontext Visual Prompt Window](images/KontextVisualPromptWindow.png)
+![Kontext Visual Prompt Window](images/visual_editor1.png)
 
 🎨 A progressive intelligent image editing system that evolves through three development stages from **manual annotation** to **intelligent segmentation** to **professional color grading**.
 
@@ -464,7 +464,7 @@ LoadImage → GlobalColorGrading → LocalAnnotationEditing → ProfessionalLigh
 7. **Save & Apply**: Click "Save & Apply" to save data
 
 #### Multi-Image Editing Support
-![Multi-Image Editing Example](../images/multi_images_edit.png)
+![Multi-Image Editing Example](images/multi_images_edit.png)
 
 **Visual Prompt Editor supports simultaneous multi-image editing**:
 - 🖼️ **Multi-image Input**: Node supports receiving multiple images via IMAGE input
