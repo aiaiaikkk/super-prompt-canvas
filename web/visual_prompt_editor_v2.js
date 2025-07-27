@@ -382,46 +382,71 @@ app.registerExtension({
                 }
                 
                 // 方法3：从节点widget加载已保存的annotation数据（用于持久化）
+                // 🔍 重要修复：只有在有实际的层连接时才加载保存的annotation数据
                 try {
-                    const savedData = this.dataManager.loadAnnotationData();
-                    if (savedData) {
-                        console.log('🔍 解析后的数据结构:', savedData);
-                        
-                        if (savedData && savedData.annotations && savedData.annotations.length > 0) {
-                            layersData = savedData.annotations;
+                    // 检查是否有任何layer1-3的连接
+                    let hasLayerConnections = false;
+                    if (this.inputs) {
+                        for (let i = 1; i <= 3; i++) { // 检查layer1, layer2, layer3输入端口
+                            const layerInput = this.inputs.find(inp => inp.name === `layer${i}` || inp.name === `layer_${i}`);
+                            if (layerInput && layerInput.link !== null) {
+                                hasLayerConnections = true;
+                                console.log(`🔗 检测到layer${i}已连接，允许加载annotation数据`);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (hasLayerConnections) {
+                        console.log('✅ 检测到layer连接，开始加载保存的annotation数据...');
+                        const savedData = this.dataManager.loadAnnotationData();
+                        if (savedData) {
+                            console.log('🔍 解析后的数据结构:', savedData);
                             
-                            // 详细检查每个annotation的结构并修复数据
-                            layersData = layersData.map((annotation, index) => {
-                                console.log(`🔍 Annotation ${index + 1} 原始结构:`, {
-                                    id: annotation.id,
-                                    type: annotation.type,
-                                    color: annotation.color,
-                                    geometry: annotation.geometry,
-                                    hasCoordinates: !!(annotation.coordinates),
-                                    hasStart: !!(annotation.start),
-                                    hasEnd: !!(annotation.end),
-                                    hasArea: !!(annotation.area),
-                                    allKeys: Object.keys(annotation)
+                            if (savedData && savedData.annotations && savedData.annotations.length > 0) {
+                                layersData = savedData.annotations;
+                                
+                                // 详细检查每个annotation的结构并修复数据
+                                layersData = layersData.map((annotation, index) => {
+                                    console.log(`🔍 Annotation ${index + 1} 原始结构:`, {
+                                        id: annotation.id,
+                                        type: annotation.type,
+                                        color: annotation.color,
+                                        geometry: annotation.geometry,
+                                        hasCoordinates: !!(annotation.coordinates),
+                                        hasStart: !!(annotation.start),
+                                        hasEnd: !!(annotation.end),
+                                        hasArea: !!(annotation.area),
+                                        allKeys: Object.keys(annotation)
+                                    });
+                                    
+                                    // 修复annotation数据结构
+                                    const fixedAnnotation = this.dataManager.normalizeAnnotationData(annotation);
+                                    console.log(`🔧 Annotation ${index + 1} 修复后结构:`, {
+                                        id: fixedAnnotation.id,
+                                        type: fixedAnnotation.type,
+                                        color: fixedAnnotation.color,
+                                        geometry: fixedAnnotation.geometry,
+                                        hasGeometry: !!fixedAnnotation.geometry,
+                                        hasCoordinates: !!(fixedAnnotation.geometry && fixedAnnotation.geometry.coordinates)
+                                    });
+                                    
+                                    return fixedAnnotation;
                                 });
                                 
-                                // 修复annotation数据结构
-                                const fixedAnnotation = this.dataManager.normalizeAnnotationData(annotation);
-                                console.log(`🔧 Annotation ${index + 1} 修复后结构:`, {
-                                    id: fixedAnnotation.id,
-                                    type: fixedAnnotation.type,
-                                    color: fixedAnnotation.color,
-                                    geometry: fixedAnnotation.geometry,
-                                    hasGeometry: !!fixedAnnotation.geometry,
-                                    hasCoordinates: !!(fixedAnnotation.geometry && fixedAnnotation.geometry.coordinates)
-                                });
-                                
-                                return fixedAnnotation;
-                            });
-                            
-                            console.log('✅ 已修复所有annotation数据结构');
+                                console.log('✅ 已修复所有annotation数据结构');
+                            }
+                        } else {
+                            console.log('🔍 未找到已保存的annotation数据或数据为空');
                         }
                     } else {
-                        console.log('🔍 未找到已保存的annotation数据或数据为空');
+                        console.log('🚫 没有检测到layer1-3连接，跳过加载annotation数据');
+                        // 🧹 如果没有layer连接，清理可能存在的旧annotation数据
+                        const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
+                        if (annotationDataWidget && annotationDataWidget.value) {
+                            console.log('🗑️ 清理无效的annotation数据');
+                            annotationDataWidget.value = "";
+                        }
                     }
                 } catch (e) {
                     console.log('❌ 加载已保存annotation数据时出错:', e);
@@ -1701,6 +1726,59 @@ app.registerExtension({
                 const closeBtn = modal.querySelector('#vpe-close');
                 if (closeBtn) {
                     bindEvent(closeBtn, 'click', () => {
+                        // 🧹 清理所有缓存数据，确保下次打开时重新检测和加载
+                        console.log('🧹 关闭弹窗时清理所有缓存数据...');
+                        
+                        // 清理节点实例中的连接图层数据
+                        if (this.connectedImageLayers) {
+                            console.log('🗑️ 清理 nodeInstance.connectedImageLayers');
+                            delete this.connectedImageLayers;
+                        }
+                        
+                        // 清理modal中的连接图层缓存
+                        if (modal._persistentConnectedLayers) {
+                            console.log('🗑️ 清理 modal._persistentConnectedLayers');
+                            delete modal._persistentConnectedLayers;
+                        }
+                        
+                        if (modal._cachedConnectedLayers) {
+                            console.log('🗑️ 清理 modal._cachedConnectedLayers');
+                            delete modal._cachedConnectedLayers;
+                        }
+                        
+                        // 清理图层系统核心中的连接图层数据
+                        if (this.layerSystemCore && this.layerSystemCore.connectedImageLayers) {
+                            console.log('🗑️ 清理 layerSystemCore.connectedImageLayers');
+                            this.layerSystemCore.connectedImageLayers = [];
+                        }
+                        
+                        // 🗑️ 清理保存的标注数据（重要：清理持久化的annotation_data）
+                        try {
+                            const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
+                            if (annotationDataWidget && annotationDataWidget.value) {
+                                console.log('🗑️ 清理保存的标注数据 (annotation_data widget)');
+                                annotationDataWidget.value = "";
+                                console.log('✅ 标注数据已清理');
+                            }
+                        } catch (error) {
+                            console.warn('⚠️ 清理标注数据时出错:', error);
+                        }
+                        
+                        // 🗑️ 清理dataManager中的缓存数据
+                        if (this.dataManager && this.dataManager.dataCache) {
+                            console.log('🗑️ 清理 dataManager 缓存数据');
+                            this.dataManager.dataCache.clear();
+                        }
+                        
+                        // 🗑️ 清理modal中的标注数据
+                        if (modal.annotations) {
+                            console.log('🗑️ 清理 modal.annotations');
+                            modal.annotations = [];
+                        }
+                        
+                        console.log('✅ 所有缓存数据清理完成');
+                        
+                        // 移除modal DOM
                         document.body.removeChild(modal);
                     });
                 }

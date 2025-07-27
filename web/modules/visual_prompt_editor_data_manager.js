@@ -55,12 +55,46 @@ export class DataManager {
     }
 
     /**
+     * 检查layer1-3输入端口是否有连接
+     * 只有在有实际层连接时才允许加载标注数据
+     */
+    hasLayerConnections() {
+        console.log('🔍 检查layer1-3输入端口连接状态...');
+        
+        if (!this.nodeInstance.inputs) {
+            console.log('⚠️ 节点没有输入端口');
+            return false;
+        }
+        
+        // 检查layer1, layer2, layer3输入端口
+        for (let i = 1; i <= 3; i++) {
+            const layerInput = this.nodeInstance.inputs.find(inp => 
+                inp.name === `layer${i}` || inp.name === `layer_${i}`
+            );
+            
+            if (layerInput && layerInput.link !== null) {
+                console.log(`🔗 检测到layer${i}已连接，允许加载annotation数据`);
+                return true;
+            }
+        }
+        
+        console.log('🚫 没有检测到任何layer1-3连接，禁止加载标注数据');
+        return false;
+    }
+
+    /**
      * 加载标注数据从节点widget
      */
     loadAnnotationData() {
         console.log('📤 从节点widget加载标注数据...');
         
         try {
+            // 🔍 重要修复：只有在有实际的层连接时才加载保存的annotation数据
+            if (!this.hasLayerConnections()) {
+                console.log('🚫 layer1-3未连接，跳过加载保存的标注数据');
+                return null;
+            }
+            
             const annotationDataWidget = this.nodeInstance.widgets?.find(w => w.name === "annotation_data");
             
             if (!annotationDataWidget || !annotationDataWidget.value) {

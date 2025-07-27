@@ -315,10 +315,19 @@ export class CoordinateSystem {
         const scaleX = svgRelativeX / svgInfo.svgRect.width;
         const scaleY = svgRelativeY / svgInfo.svgRect.height;
         
-        // 🔜 关键修复：使用总体缩放因子（zoom * layer * object-fit）
-        // 这解决了复合缩放系统导致的坐标偏移问题
-        const adjustedScaleX = scaleX / svgInfo.totalScale;
-        const adjustedScaleY = scaleY / svgInfo.totalScale;
+        // 🔧 坐标错位修复：简化缩放计算，避免过度除法导致的坐标偏移
+        // 问题：之前的除法计算可能导致坐标被错误缩放
+        console.log('🐛 [COORDS_DEBUG] 坐标转换调试:', {
+            clientX, clientY,
+            svgRelativeX, svgRelativeY,
+            scaleX, scaleY,
+            totalScale: svgInfo.totalScale,
+            viewBox: `${svgInfo.viewBox.width}x${svgInfo.viewBox.height}`
+        });
+        
+        // 直接使用比例，不进行复杂的缩放调整
+        const adjustedScaleX = scaleX;
+        const adjustedScaleY = scaleY;
         
         // 转换为SVG viewBox坐标（使用复合缩政调整后的比例）
         const svgX = adjustedScaleX * svgInfo.viewBox.width;

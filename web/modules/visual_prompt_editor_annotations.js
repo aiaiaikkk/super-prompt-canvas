@@ -1140,20 +1140,28 @@ function finishDrawing(modal, startPoint, endPoint, tool, color) {
         // 获取正确的编号（考虑已恢复的annotations）
         const annotationNumber = getNextAnnotationNumber(modal);
         
-        // 🔧 关键修复：统一使用简单的appendChild，确保预览和最终位置一致
-        svg.appendChild(shape);
+        // 🔧 关键修复：统一使用addAnnotationToSVGWithGrouping，确保与多边形相同的容器系统
+        try {
+            const nodeInstance = window.currentVPEInstance || window.currentVPENode;
+            if (nodeInstance && typeof nodeInstance.addAnnotationToSVGWithGrouping === 'function') {
+                console.log(`📝 🆕 ${tool.toUpperCase()} - 使用节点方法添加标注: ${annotationId}`);
+                nodeInstance.addAnnotationToSVGWithGrouping(svg, shape, annotationId);
+            } else {
+                console.log(`⚠️ ${tool.toUpperCase()} - 节点方法不可用，使用传统方式: ${annotationId}`);
+                svg.appendChild(shape);
+            }
+        } catch (error) {
+            console.warn('⚠️ 使用分组添加标注时出错，使用默认方式:', error);
+            svg.appendChild(shape);
+        }
         
         console.log('🔴 [FINAL_ADDED] 最终元素已添加:', {
             annotationId,
-            svgContainer: svg.id || 'drawing-layer-svg',
+            svgContainer: svg.id || 'drawing-layer-svg', 
             shapeClass: shape.getAttribute('class'),
             boundingBox: shape.getBBox ? shape.getBBox() : 'N/A',
-            method: 'appendChild - 统一方法'
+            method: 'addAnnotationToSVGWithGrouping - 统一分组方法'
         });
-        
-        // 注释原有的复杂分组逻辑，避免容器不一致
-        // 原因：addAnnotationToSVGWithGrouping创建独立的SVG容器在#image-canvas中
-        // 而预览使用#drawing-layer中的SVG，导致坐标系统不同
         
         // 添加编号标签
         addNumberLabel(svg, startPoint, annotationNumber, color);
