@@ -498,13 +498,7 @@ export class LayerOrderController {
                     z-index: ${zIndex};
                 `;
                 
-                console.log('🔧 [COORDINATE_FIX] 标注容器精确定位:', {
-                    annotationId,
-                    drawingLayerRect,
-                    canvasRect, 
-                    relativePosition: { left: relativeLeft, top: relativeTop },
-                    containerSize: { width: drawingLayerRect.width, height: drawingLayerRect.height }
-                });
+                // 标注容器定位调试日志已移除
             } else {
                 // 备用方案：使用默认定位
                 annotationSVGContainer.style.cssText = `
@@ -555,17 +549,7 @@ export class LayerOrderController {
                 pointer-events: auto;
             `;
             
-            console.log('🔧 [COORDINATE_FIX] 独立SVG坐标系统配置:', {
-                viewBox: mainViewBox,
-                preserveAspectRatio: mainPreserveAspectRatio,
-                transform: mainTransform,
-                mainSVGRect: {
-                    width: mainSVGRect.width,
-                    height: mainSVGRect.height,
-                    left: mainSVGRect.left,
-                    top: mainSVGRect.top
-                }
-            });
+            // 独立SVG坐标系统配置调试日志已移除
             
             annotationSVGContainer.appendChild(newSVG);
             
@@ -648,18 +632,7 @@ export class LayerOrderController {
                     annotationBBox: annotationGroup.getBBox ? annotationGroup.getBBox() : null
                 };
                 
-                console.log('🔧 [COORDINATE_FIX] 移动前坐标系统对比:', {
-                    annotationId,
-                    mainSVG: {
-                        rect: beforeMove.mainSVGRect,
-                        viewBox: beforeMove.mainSVGViewBox
-                    },
-                    independentSVG: {
-                        rect: beforeMove.independentSVGRect,
-                        viewBox: beforeMove.independentSVGViewBox
-                    },
-                    annotation: beforeMove.annotationBBox
-                });
+                // 移动前坐标系统对比调试日志已移除
                 
                 // 将标注组从主SVG移动到独立SVG
                 independentSVG.appendChild(annotationGroup);
@@ -671,13 +644,7 @@ export class LayerOrderController {
                     parentViewBox: annotationGroup.parentElement ? annotationGroup.parentElement.getAttribute('viewBox') : null
                 };
                 
-                console.log('🔧 [COORDINATE_FIX] 移动后验证:', {
-                    annotationId,
-                    newParent: afterMove.annotationParent ? afterMove.annotationParent.tagName : 'unknown',
-                    newViewBox: afterMove.parentViewBox,
-                    annotationBBox: afterMove.annotationBBox,
-                    coordinateConsistency: beforeMove.mainSVGViewBox === afterMove.parentViewBox ? '✅ 一致' : '❌ 不一致'
-                });
+                // 移动后验证调试日志已移除
                 
                 console.log(`🔄 ✅ 标注 ${annotationId} 已从主SVG移动到独立SVG容器`);
                 return;

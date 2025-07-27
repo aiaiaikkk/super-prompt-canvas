@@ -1,2 +1,0 @@
-# This directory contains ES6 modules that should not be loaded directly by ComfyUI
-# They are imported by the main extension files

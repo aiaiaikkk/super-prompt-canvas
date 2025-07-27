@@ -324,34 +324,7 @@ export class CoordinateSystem {
         const svgX = adjustedScaleX * svgInfo.viewBox.width;
         const svgY = adjustedScaleY * svgInfo.viewBox.height;
         
-        console.log('🔍 [COORDINATE_DEBUG] 详细坐标转换过程:', {
-            // 原始输入
-            input: {
-                mouse: { x: clientX, y: clientY }
-            },
-            // SVG信息
-            svgInfo: {
-                rect: { left: svgInfo.svgRect.left, top: svgInfo.svgRect.top, width: svgInfo.svgRect.width, height: svgInfo.svgRect.height },
-                viewBox: { width: svgInfo.viewBox.width, height: svgInfo.viewBox.height }
-            },
-            // 坐标转换每一步
-            transformSteps: {
-                step1_relative: { x: svgRelativeX, y: svgRelativeY, desc: '鼠标相对SVG位置' },
-                step2_scale: { x: scaleX, y: scaleY, desc: '在SVG中的比例位置' },
-                step3_adjusted: { x: adjustedScaleX, y: adjustedScaleY, desc: '缩放调整后的比例' },
-                step4_final: { x: svgX, y: svgY, desc: 'viewBox坐标' }
-            },
-            // 缩放因子
-            scaleFactors: {
-                zoom: svgInfo.zoomScale,
-                layer: svgInfo.layerScale,
-                total: svgInfo.totalScale,
-                applied: `原始比例 / ${svgInfo.totalScale} = 调整后比例`
-            },
-            // 最终结果
-            result: { x: svgX, y: svgY },
-            timestamp: Date.now()
-        });
+        // 坐标转换调试日志已移除
         
         return { x: svgX, y: svgY };
     }

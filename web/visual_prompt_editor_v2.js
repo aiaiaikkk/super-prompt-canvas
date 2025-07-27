@@ -19,30 +19,6 @@ import {
     EventManager
 } from './modules/shared/dom_helpers.js';
 
-// ✅ 动态添加统一的CSS样式 - 避免重复的内联样式
-const addCommonStyles = () => {
-    const styleId = 'vpe-common-styles';
-    if (document.getElementById(styleId)) return; // 避免重复添加
-    
-    const cssText = `
-        .vpe-layer-item {
-            display: flex !important;
-            align-items: center !important;
-            padding: 8px !important;
-            margin-bottom: 4px !important;
-            background: #2b2b2b !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
-            border: 1px solid #444 !important;
-            transition: all 0.2s ease !important;
-        }
-        .vpe-layer-item:hover {
-            background: #333 !important;
-        }
-    `;
-    
-    DOMFactory.createStyle(styleId, cssText);
-};
 import { 
     createMainModal, 
     createTitleBar, 
@@ -777,29 +753,6 @@ app.registerExtension({
                 return addAnnotationToSVGWithGrouping(svg, annotationElement, annotationId, this);
             };
             
-            // 传统的添加标注方法（作为后备）
-            nodeType.prototype.addAnnotationToSVGWithGroupingLegacy = function(svg, annotationElement, annotationId) {
-                // 检查是否已存在该标注的分组
-                let annotationGroup = svg.querySelector(`[data-annotation-group="${annotationId}"]`);
-                
-                if (!annotationGroup) {
-                    // 创建新的分组 - 使用统一创建函数
-                    annotationGroup = createSVG('g');
-                    annotationGroup.setAttribute('data-annotation-group', annotationId);
-                    
-                    // 给新标注分配一个默认的高Z-index（会在排序时被重新计算）
-                    const defaultZIndex = 110;
-                    annotationGroup.style.cssText = `z-index: ${defaultZIndex}`;
-                    
-                    svg.appendChild(annotationGroup);
-                }
-                
-                // 将标注元素添加到分组中
-                annotationGroup.appendChild(annotationElement);
-                
-                console.log(`📝 标注 ${annotationId} 已添加到传统SVG分组`);
-                return annotationGroup;
-            };
             
             // 刷新图层列表显示 - 委托给图层列表管理模块（懒加载）
             nodeType.prototype.refreshLayersList = function(modal) {
@@ -995,6 +948,9 @@ app.registerExtension({
                             ">
                         `;
                     } else {
+                        // 🔧 修复undefined显示问题：确保图层名称有合理的回退值
+                        const displayName = layer.name || layer.id || `Layer ${index + 1}` || 'Unknown Layer';
+                        
                         layerElement.innerHTML = `
                             <div style="
                                 width: 100%;
@@ -1007,7 +963,7 @@ app.registerExtension({
                                 color: #10b981;
                                 font-size: 14px;
                             ">
-                                🖼️ ${layer.name}<br>
+                                🖼️ ${displayName}<br>
                                 <small>Loading...</small>
                             </div>
                         `;
@@ -1116,9 +1072,12 @@ app.registerExtension({
                         layerElement.setAttribute('data-layer', layer.id);
                         StyleManager.applyPreset(layerElement, 'layerItem', { borderBottom: '1px solid #444' });
                         
+                        // 🔧 修复undefined显示问题：确保图层名称有合理的回退值
+                        const displayName = layer.name || layer.id || `Layer ${connectedLayers.indexOf(layer) + 1}` || 'Unknown Layer';
+                        
                         layerElement.innerHTML = `
                             <span class="layer-visibility" style="margin-right: 8px; cursor: pointer;">👁️</span>
-                            <span style="flex: 1; color: white; font-size: 12px;">🔗 ${layer.name}</span>
+                            <span style="flex: 1; color: white; font-size: 12px;">🔗 ${displayName}</span>
                             <span class="layer-opacity" style="color: #888; font-size: 10px;">100%</span>
                             <span style="color: #10b981; font-size: 9px; margin-left: 8px;">Connected</span>
                         `;
@@ -1373,21 +1332,6 @@ app.registerExtension({
                 }
             };
             
-            // 确保下拉框事件正常工作 - 已被annotations模块接管，此函数已废弃
-            nodeType.prototype.ensureDropdownEventsWork = function(modal) {
-                console.log('🔧 下拉框事件管理已迁移到annotations模块，跳过旧的绑定逻辑');
-                
-                // 检查新的绑定系统是否工作
-                const dropdown = modal.querySelector('#layer-dropdown');
-                if (dropdown && dropdown.dataset.bound === 'true') {
-                    console.log('✅ 新的下拉框事件系统正常工作');
-                } else {
-                    console.log('⚠️ 新的下拉框事件系统可能未正确初始化');
-                }
-                
-                // 不再执行旧的事件绑定逻辑
-                return;
-            };
             
             // 标准的下拉框事件绑定
             nodeType.prototype.standardBindDropdownEvents = function(modal) {
@@ -1993,250 +1937,13 @@ app.registerExtension({
                     console.log(`✅ 已高亮 ${highlightedCount}/${selectedIds.length} 个标注`);
                 };
                 
-                // 🔧 临时解决方案：直接定义函数避免时序问题
-                const undoLastAnnotation = (modal) => {
-                    console.log('↶ 尝试撤销最后一个标注...');
-                    
-                    if (!validateData.annotations(modal)) {
-                        console.log('⚠️ 没有可撤销的标注');
-                        return;
-                    }
-                    
-                    const lastAnnotation = modal.annotations.pop();
-                    console.log('↶ 撤销标注:', lastAnnotation.id, '类型:', lastAnnotation.type);
-                    
-                    // 🔍 调试：检查标注元素的所有可能位置
-                    console.log('🔍 === UNDO 调试开始 ===');
-                    console.log('🎯 要删除的标注:', lastAnnotation);
-                    
-                    // 从主SVG中移除标注形状
-                    const svg = modal.cachedElements?.drawingSvg || modal.querySelector('#drawing-layer svg');
-                    if (svg) {
-                        console.log('🔍 检查主SVG中的元素...');
-                        
-                        // 查找所有可能的相关元素
-                        const allAnnotationElements = svg.querySelectorAll(`*[data-annotation-id="${lastAnnotation.id}"]`);
-                        const allNumberElements = svg.querySelectorAll(`*[data-annotation-number="${lastAnnotation.number}"]`);
-                        const annotationGroups = svg.querySelectorAll(`[data-annotation-group="${lastAnnotation.id}"]`);
-                        
-                        console.log('📊 主SVG中找到的元素:', {
-                            'data-annotation-id': allAnnotationElements.length,
-                            'data-annotation-number': allNumberElements.length, 
-                            'data-annotation-group': annotationGroups.length
-                        });
-                        
-                        // 移除所有找到的元素
-                        [...allAnnotationElements, ...allNumberElements, ...annotationGroups].forEach(el => {
-                            console.log('🗑️ 从主SVG移除:', el.tagName, el.getAttribute('class'));
-                            el.remove();
-                        });
-                    } else {
-                        console.log('❌ 未找到主SVG');
-                    }
-                    
-                    // 🔑 关键修复：清空独立SVG容器中的标注元素
-                    const elements = modal.cachedElements || createModalElementsCache(modal);
-                    const imageCanvas = elements.imageCanvas();
-                    if (imageCanvas) {
-                        console.log('🔍 检查独立容器中的元素...');
-                        
-                        // 查找目标容器
-                        const annotationContainer = imageCanvas.querySelector(`#annotation-svg-${lastAnnotation.id}`);
-                        
-                        if (annotationContainer) {
-                            console.log('✅ 找到独立容器:', annotationContainer.id);
-                            annotationContainer.remove();
-                            console.log('✅ 已移除独立标注容器');
-                        } else {
-                            console.log('❌ 未找到独立容器: #annotation-svg-' + lastAnnotation.id);
-                            
-                            // 列出所有现有的独立容器
-                            const allContainers = imageCanvas.querySelectorAll('[id^="annotation-svg-"]');
-                            console.log('📋 现有的独立容器:', Array.from(allContainers).map(c => c.id));
-                        }
-                        
-                        // 额外的全局搜索和清理
-                        const allRelatedById = imageCanvas.querySelectorAll(`*[data-annotation-id="${lastAnnotation.id}"]`);
-                        const allRelatedByNumber = imageCanvas.querySelectorAll(`*[data-annotation-number="${lastAnnotation.number}"]`);
-                        const allRelatedByGroup = imageCanvas.querySelectorAll(`*[data-annotation-group="${lastAnnotation.id}"]`);
-                        
-                        console.log('📊 image-canvas全局搜索结果:', {
-                            'data-annotation-id': allRelatedById.length,
-                            'data-annotation-number': allRelatedByNumber.length,
-                            'data-annotation-group': allRelatedByGroup.length
-                        });
-                        
-                        // 移除所有找到的相关元素
-                        [...allRelatedById, ...allRelatedByNumber, ...allRelatedByGroup].forEach(el => {
-                            console.log('🗑️ 从image-canvas全局移除:', el.tagName, el.getAttribute('class'));
-                            el.remove();
-                        });
-                    } else {
-                        console.log('❌ 未找到image-canvas');
-                    }
-                    
-                    console.log('🔍 === UNDO 调试结束 ===');
-                    
-                    // 更新图层面板 - 使用内联函数避免依赖问题
-                    if (this.loadLayersToPanel) {
-                        this.loadLayersToPanel(modal, modal.annotations);
-                    } else {
-                        // 简化版本的图层面板更新
-                        const annotationObjects = modal.cachedElements?.annotationObjects || modal.querySelector('#annotation-objects');
-                        if (annotationObjects) {
-                            if (!validateData.annotations(modal)) {
-                                annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
-                            } else {
-                                // 重新加载图层列表
-                                annotationObjects.innerHTML = '';
-                                modal.annotations.forEach((layer, index) => {
-                                    const layerItem = document.createElement('div');
-                                    layerItem.className = 'layer-item vpe-layer-item';
-                                    
-                                    layerItem.innerHTML = `
-                                        <input type="checkbox" data-annotation-id="${layer.id}" data-layer-id="${layer.id}" 
-                                               style="margin-right: 8px; cursor: pointer;" checked>
-                                        <span style="font-size: 12px; color: #ddd;">
-                                            🔶 ${layer.type} annotation ${index + 1}
-                                        </span>
-                                    `;
-                                    
-                                    annotationObjects.appendChild(layerItem);
-                                });
-                            }
-                        }
-                    }
-                    
-                    // 更新Select All状态和高亮
-                    const selectAllCheckbox = modal.querySelector('#select-all-objects');
-                    if (selectAllCheckbox) {
-                        const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
-                        const checkedCount = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').length;
-                        
-                        if (checkedCount === 0) {
-                            selectAllCheckbox.checked = false;
-                            selectAllCheckbox.indeterminate = false;
-                        } else if (checkedCount === layerCheckboxes.length) {
-                            selectAllCheckbox.checked = true;
-                            selectAllCheckbox.indeterminate = false;
-                        } else {
-                            selectAllCheckbox.checked = false;
-                            selectAllCheckbox.indeterminate = true;
-                        }
-                        
-                        // 🔧 更新高亮状态
-                        const selectedAnnotationIds = [];
-                        modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked').forEach(checkbox => {
-                            const annotationId = checkbox.dataset.annotationId;
-                            if (annotationId) {
-                                selectedAnnotationIds.push(annotationId);
-                            }
-                        });
-                        highlightSelectedAnnotations(modal, selectedAnnotationIds);
-                    }
-                    
-                    console.log('✅ 撤销完成，剩余标注:', modal.annotations.length, '个');
-                };
                 
-                const clearAllAnnotations = (modal) => {
-                    console.log('🧹 开始清空所有标注...');
-                    
-                    // 清空annotations数组
-                    if (modal.annotations) {
-                        console.log('🗑️ 清空', modal.annotations.length, '个标注数据');
-                        modal.annotations = [];
-                    }
-                    
-                    // 清空主SVG中的标注元素
-                    const svg = modal.cachedElements?.drawingSvg || modal.querySelector('#drawing-layer svg');
-                    if (svg) {
-                        const shapes = svg.querySelectorAll('.annotation-shape');
-                        const labels = svg.querySelectorAll('.annotation-label');
-                        const texts = svg.querySelectorAll('text[data-annotation-number]');
-                        
-                        // 清除预览元素
-                        const previewElements = svg.querySelectorAll('.shape-preview, .freehand-preview, .brush-preview-path');
-                        
-                        // 清除箭头标记
-                        const defs = svg.querySelector('defs');
-                        let arrowMarkers = [];
-                        if (defs) {
-                            arrowMarkers = defs.querySelectorAll('marker[id^="arrowhead-"]');
-                        }
-                        
-                        console.log('🗑️ 清空主SVG元素:', {
-                            shapes: shapes.length,
-                            labels: labels.length, 
-                            texts: texts.length,
-                            previews: previewElements.length,
-                            arrows: arrowMarkers.length
-                        });
-                        
-                        // 移除所有相关元素
-                        shapes.forEach(el => el.remove());
-                        labels.forEach(el => el.remove());
-                        texts.forEach(el => el.remove());
-                        previewElements.forEach(el => el.remove());
-                        arrowMarkers.forEach(el => el.remove());
-                    }
-                    
-                    // 🔑 关键修复：清空独立SVG容器中的标注元素
-                    const elements = modal.cachedElements || createModalElementsCache(modal);
-                    const imageCanvas = elements.imageCanvas();
-                    if (imageCanvas) {
-                        const annotationContainers = imageCanvas.querySelectorAll('[id^="annotation-svg-"]');
-                        console.log('🗑️ 清空', annotationContainers.length, '个独立标注容器');
-                        annotationContainers.forEach(container => {
-                            console.log('🗑️ 移除标注容器:', container.id);
-                            container.remove();
-                        });
-                    }
-                    
-                    // 清空图层列表中的标注项 - 使用统一函数
-                    this.clearAnnotationLayersFromPanel(modal);
-                    
-                    // 更新图层面板
-                    const annotationObjects = modal.cachedElements?.annotationObjects || modal.querySelector('#annotation-objects');
-                    if (annotationObjects) {
-                        annotationObjects.innerHTML = '<p style="color: #888; font-style: italic; text-align: center; padding: 20px;">No annotations to display</p>';
-                    }
-                    
-                    // 重置Select All状态和高亮
-                    const selectAllCheckbox = modal.querySelector('#select-all-objects');
-                    if (selectAllCheckbox) {
-                        selectAllCheckbox.checked = false;
-                        selectAllCheckbox.indeterminate = false;
-                    }
-                    
-                    // 清除变换状态
-                    if (modal.transformState) {
-                        modal.transformState.active = false;
-                        modal.transformState.layerId = null;
-                        modal.transformState.layerType = null;
-                        const transformControls = modal.querySelector('#transform-controls');
-                        if (transformControls) {
-                            transformControls.style.display = 'none';
-                        }
-                    }
-                    
-                    // 🔧 清除所有高亮
-                    highlightSelectedAnnotations(modal, []);
-                    
-                    // 🔧 更新新的模块化标注事件处理器状态
-                    if (this.annotationEventHandler) {
-                        console.log('🔄 清空后更新模块化标注事件处理器状态...');
-                        this.annotationEventHandler.clearAllSelections(modal);
-                        this.annotationEventHandler.updateAnnotationPanelDisplay(modal);
-                    }
-                    
-                    console.log('✅ 已清空所有标注');
-                };
                 
                 // 撤销按钮
                 const undoBtn = modal.querySelector('#vpe-undo');
                 if (undoBtn) {
                     bindEvent(undoBtn, 'click', () => {
-                        undoLastAnnotation(modal);
+                        undoLastAnnotation(modal, this);
                     });
                 }
                 
@@ -2244,7 +1951,7 @@ app.registerExtension({
                 const clearBtn = modal.querySelector('#vpe-clear');
                 if (clearBtn) {
                     bindEvent(clearBtn, 'click', () => {
-                        clearAllAnnotations(modal);
+                        clearAllAnnotations(modal, this);
                     });
                 }
                 
@@ -3329,9 +3036,12 @@ app.registerExtension({
                         const statusText = layer.connected ? 'Connected' : (layer.hasImage ? 'Image Loaded' : 'Local');
                         const statusColor = layer.connected ? '#10b981' : (layer.hasImage ? '#2196F3' : '#888');
                         
+                        // 🔧 修复undefined显示问题：确保图层名称有合理的回退值
+                        const displayName = layer.name || layer.id || `Layer ${sortedLayers.indexOf(layer) + 1}` || 'Unknown Layer';
+                        
                         layerElement.innerHTML = `
                             <span class="layer-visibility" style="margin-right: 8px; cursor: pointer;">👁️</span>
-                            <span style="flex: 1; color: white; font-size: 12px;">${statusIcon} ${layer.name}</span>
+                            <span style="flex: 1; color: white; font-size: 12px;">${statusIcon} ${displayName}</span>
                             <span class="layer-opacity" style="color: #888; font-size: 10px;">100%</span>
                             <span style="color: ${statusColor}; font-size: 9px; margin-left: 8px;">${statusText}</span>
                         `;

@@ -776,15 +776,24 @@ export function undoLastAnnotation(modal, nodeInstance) {
         const annotationGroups = svg.querySelectorAll(`[data-annotation-group="${lastAnnotation.id}"]`);
         const classElements = svg.querySelectorAll(`.annotation-${lastAnnotation.id}`);
         
+        // 🔧 关键修复：添加对编号标签类的搜索
+        const annotationLabels = svg.querySelectorAll('.annotation-label');
+        // 过滤出与当前标注编号匹配的标签
+        const matchingLabels = Array.from(annotationLabels).filter(label => {
+            const labelNumber = label.getAttribute('data-annotation-number');
+            return labelNumber !== null && parseInt(labelNumber) === lastAnnotation.number;
+        });
+        
         console.log('📊 主SVG中找到的元素:', {
             'data-annotation-id': allAnnotationElements.length,
             'data-annotation-number': allNumberElements.length, 
             'data-annotation-group': annotationGroups.length,
-            'class-annotation': classElements.length
+            'class-annotation': classElements.length,
+            'annotation-labels': matchingLabels.length
         });
         
         // 移除所有找到的元素
-        [...allAnnotationElements, ...allNumberElements, ...annotationGroups, ...classElements].forEach(el => {
+        [...allAnnotationElements, ...allNumberElements, ...annotationGroups, ...classElements, ...matchingLabels].forEach(el => {
             console.log('🗑️ 从主SVG移除:', el.tagName, el.getAttribute('class'), el.dataset);
             el.remove();
         });
@@ -814,13 +823,87 @@ export function undoLastAnnotation(modal, nodeInstance) {
         const allRelatedByNumber = imageCanvas.querySelectorAll(`*[data-annotation-number="${lastAnnotation.number}"]`);
         const allRelatedByGroup = imageCanvas.querySelectorAll(`*[data-annotation-group="${lastAnnotation.id}"]`);
         
+        // 🔧 关键修复：在独立容器中也搜索编号标签
+        const canvasAnnotationLabels = imageCanvas.querySelectorAll('.annotation-label');
+        const canvasMatchingLabels = Array.from(canvasAnnotationLabels).filter(label => {
+            const labelNumber = label.getAttribute('data-annotation-number');
+            return labelNumber !== null && parseInt(labelNumber) === lastAnnotation.number;
+        });
+        
+        console.log('📊 image-canvas中找到的元素:', {
+            'data-annotation-id': allRelatedById.length,
+            'data-annotation-number': allRelatedByNumber.length,
+            'data-annotation-group': allRelatedByGroup.length,
+            'annotation-labels': canvasMatchingLabels.length
+        });
+        
         // 移除所有找到的相关元素
-        [...allRelatedById, ...allRelatedByNumber, ...allRelatedByGroup].forEach(el => {
+        [...allRelatedById, ...allRelatedByNumber, ...allRelatedByGroup, ...canvasMatchingLabels].forEach(el => {
             console.log('🗑️ 从image-canvas全局移除:', el.tagName, el.getAttribute('class'), el.dataset);
             el.remove();
         });
     } else {
         console.log('❌ 未找到image-canvas');
+    }
+    
+    // 🔧 关键修复：重新整理标注编号
+    console.log('🔢 开始重新整理标注编号...');
+    if (modal.annotations && modal.annotations.length > 0) {
+        // 重新分配连续编号
+        modal.annotations.forEach((annotation, index) => {
+            const oldNumber = annotation.number;
+            annotation.number = index;
+            console.log(`🔢 标注 ${annotation.id} 编号: ${oldNumber} → ${index}`);
+            
+            // 更新SVG中的编号标签 - 修复属性名称
+            const svg = modal.querySelector('#drawing-layer svg');
+            if (svg) {
+                // 方法1：根据data-annotation-number属性查找（精确匹配旧编号）
+                const numberElementsByNumber = svg.querySelectorAll(`[data-annotation-number="${oldNumber}"]`);
+                numberElementsByNumber.forEach(el => {
+                    el.setAttribute('data-annotation-number', index); // 更新属性值
+                    const textElement = el.querySelector('text');
+                    if (textElement) {
+                        textElement.textContent = (index + 1).toString();
+                        console.log(`🔢 更新主SVG编号标签(按编号): ${oldNumber} → ${index + 1}`);
+                    }
+                });
+                
+                // 方法2：根据标注组查找编号标签
+                const annotationGroup = svg.querySelector(`[data-annotation-group="${annotation.id}"]`);
+                if (annotationGroup) {
+                    const textElements = annotationGroup.querySelectorAll('text');
+                    textElements.forEach(textEl => {
+                        // 检查是否是编号标签（父级有data-annotation-number属性）
+                        const parent = textEl.parentElement;
+                        if (parent && parent.hasAttribute('data-annotation-number')) {
+                            parent.setAttribute('data-annotation-number', index);
+                            textEl.textContent = (index + 1).toString();
+                            console.log(`🔢 更新主SVG编号标签(按组): ${annotation.id} → ${index + 1}`);
+                        }
+                    });
+                }
+            }
+            
+            // 更新独立SVG容器中的编号标签
+            const imageCanvas = modal.querySelector('#image-canvas');
+            if (imageCanvas) {
+                const annotationContainer = imageCanvas.querySelector(`#annotation-svg-${annotation.id}`);
+                if (annotationContainer) {
+                    // 在独立容器中查找编号标签
+                    const containerNumberElements = annotationContainer.querySelectorAll(`[data-annotation-number]`);
+                    containerNumberElements.forEach(el => {
+                        el.setAttribute('data-annotation-number', index);
+                        const textElement = el.querySelector('text');
+                        if (textElement) {
+                            textElement.textContent = (index + 1).toString();
+                            console.log(`🔢 更新独立容器编号标签: ${annotation.id} → ${index + 1}`);
+                        }
+                    });
+                }
+            }
+        });
+        console.log('✅ 标注编号重新整理完成');
     }
     
     // 强制更新图层面板

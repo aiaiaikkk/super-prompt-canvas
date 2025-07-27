@@ -323,13 +323,7 @@ export function bindCanvasInteractionEvents(modal) {
         // 使用工具函数进行精确坐标转换
         const svgCoords = mouseToSVGCoordinates(e, modal);
         
-        // 🔍 调试：详细记录鼠标按下时的坐标转换
-        console.log('🔴 [MOUSEDOWN] 鼠标按下坐标转换:', {
-            rawMouse: { x: e.clientX, y: e.clientY },
-            svgCoords: svgCoords,
-            event: 'mousedown',
-            timestamp: Date.now()
-        });
+        // 鼠标事件调试日志已移除
         
         startPoint = { x: svgCoords.x, y: svgCoords.y, shiftKey: e.shiftKey };
         

@@ -717,8 +717,11 @@ export class EventHandlers {
         console.log('⬅️ 撤销标注:', lastAnnotation.id);
         
         // 使用增强版删除逻辑
-        const removedCount = this.removeAnnotationFromDOM(modal, lastAnnotation.id);
+        const removedCount = this.removeAnnotationFromDOM(modal, lastAnnotation.id, lastAnnotation.number);
         console.log(`🗑️ 从DOM中移除了 ${removedCount} 个相关元素`);
+        
+        // 🔧 关键修复：重新整理剩余标注的编号
+        this.renumberAnnotations(modal);
         
         // 更新UI
         this.updateAnnotationUI(modal);
@@ -773,7 +776,7 @@ export class EventHandlers {
     /**
      * 从DOM中移除指定标注的所有相关元素（统一删除策略）
      */
-    removeAnnotationFromDOM(modal, annotationId) {
+    removeAnnotationFromDOM(modal, annotationId, annotationNumber = null) {
         let removedCount = 0;
         
         // 1. 从主SVG中删除（多种选择器策略）
@@ -794,6 +797,21 @@ export class EventHandlers {
                     console.log(`🗑️ 从主SVG移除: ${el.tagName} (${selector})`);
                 });
             });
+            
+            // 🔧 关键修复：专门搜索编号标签
+            if (annotationNumber !== null) {
+                const annotationLabels = mainSvg.querySelectorAll('.annotation-label');
+                const matchingLabels = Array.from(annotationLabels).filter(label => {
+                    const labelNumber = label.getAttribute('data-annotation-number');
+                    return labelNumber !== null && parseInt(labelNumber) === annotationNumber;
+                });
+                
+                matchingLabels.forEach(label => {
+                    label.remove();
+                    removedCount++;
+                    console.log(`🗑️ 从主SVG移除编号标签: ${annotationNumber}`);
+                });
+            }
         }
         
         // 2. 删除独立SVG容器（图层系统）
@@ -820,6 +838,21 @@ export class EventHandlers {
                     console.log(`🗑️ 从image-canvas移除: ${el.tagName} (${selector})`);
                 });
             });
+            
+            // 🔧 关键修复：在image-canvas中也搜索编号标签
+            if (annotationNumber !== null) {
+                const canvasLabels = imageCanvas.querySelectorAll('.annotation-label');
+                const canvasMatchingLabels = Array.from(canvasLabels).filter(label => {
+                    const labelNumber = label.getAttribute('data-annotation-number');
+                    return labelNumber !== null && parseInt(labelNumber) === annotationNumber;
+                });
+                
+                canvasMatchingLabels.forEach(label => {
+                    label.remove();
+                    removedCount++;
+                    console.log(`🗑️ 从image-canvas移除编号标签: ${annotationNumber}`);
+                });
+            }
         }
         
         // 4. 从所有独立SVG容器中删除（图层系统清理）
@@ -879,6 +912,60 @@ export class EventHandlers {
         }
         
         return removedCount;
+    }
+
+    /**
+     * 重新整理标注编号（撤销后使用）
+     */
+    renumberAnnotations(modal) {
+        if (!modal.annotations || modal.annotations.length === 0) {
+            return;
+        }
+        
+        console.log('🔢 开始重新整理标注编号...');
+        
+        // 重新分配连续编号
+        modal.annotations.forEach((annotation, index) => {
+            const oldNumber = annotation.number;
+            annotation.number = index;
+            console.log(`🔢 标注 ${annotation.id} 编号: ${oldNumber} → ${index}`);
+            
+            // 更新主SVG中的编号标签
+            const mainSvg = modal.querySelector('#drawing-layer svg');
+            if (mainSvg) {
+                const labels = mainSvg.querySelectorAll('.annotation-label');
+                labels.forEach(label => {
+                    const labelNumber = label.getAttribute('data-annotation-number');
+                    if (labelNumber !== null && parseInt(labelNumber) === oldNumber) {
+                        label.setAttribute('data-annotation-number', index);
+                        const textElement = label.querySelector('text');
+                        if (textElement) {
+                            textElement.textContent = (index + 1).toString();
+                            console.log(`🔢 更新主SVG编号标签: ${oldNumber} → ${index + 1}`);
+                        }
+                    }
+                });
+            }
+            
+            // 更新独立容器中的编号标签
+            const imageCanvas = modal.querySelector('#image-canvas');
+            if (imageCanvas) {
+                const labels = imageCanvas.querySelectorAll('.annotation-label');
+                labels.forEach(label => {
+                    const labelNumber = label.getAttribute('data-annotation-number');
+                    if (labelNumber !== null && parseInt(labelNumber) === oldNumber) {
+                        label.setAttribute('data-annotation-number', index);
+                        const textElement = label.querySelector('text');
+                        if (textElement) {
+                            textElement.textContent = (index + 1).toString();
+                            console.log(`🔢 更新独立容器编号标签: ${oldNumber} → ${index + 1}`);
+                        }
+                    }
+                });
+            }
+        });
+        
+        console.log('✅ 标注编号重新整理完成');
     }
 
     /**
