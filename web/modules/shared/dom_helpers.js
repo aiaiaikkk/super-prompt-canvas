@@ -35,8 +35,23 @@ export const createModalElementsCache = (modal) => {
     if (!modal) return null;
     
     const cache = {
-        // 画布相关
-        zoomContainer: () => modal.querySelector('#zoom-container'),
+        // 画布相关 - 容错查找
+        zoomContainer: () => {
+            // 首先尝试找统一画布系统的zoom容器
+            const unifiedZoom = modal.querySelector('#zoom-container');
+            if (unifiedZoom) {
+                return unifiedZoom;
+            }
+            
+            // 回退到使用canvas-container（兼容废弃函数）
+            const canvasContainer = modal.querySelector('#canvas-container');
+            if (canvasContainer) {
+                return canvasContainer;
+            }
+            
+            console.warn('No available zoom container found');
+            return null;
+        },
         canvasContainer: () => modal.querySelector('#canvas-container'),
         imageCanvas: () => modal.querySelector('#image-canvas'),
         drawingLayer: () => modal.querySelector('#drawing-layer'),

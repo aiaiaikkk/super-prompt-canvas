@@ -29,40 +29,12 @@ class VisualPromptEditor:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),
             },
             "optional": {
+                "image": ("IMAGE",),
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
-                # 🎨 新增图层管理支持 - 可选图层输入
-                "layer_1": ("IMAGE", {"tooltip": "图层1 - 可选的额外图层"}),
-                "layer_2": ("IMAGE", {"tooltip": "图层2 - 可选的额外图层"}), 
-                "layer_3": ("IMAGE", {"tooltip": "图层3 - 可选的额外图层"}),
-                "layer_config": ("STRING", {"tooltip": "图层配置JSON - 位置、大小、透明度等"}),
-                "enable_layer_management": ("BOOLEAN", {"default": False, "tooltip": "启用图层管理功能"}),
-                "prompt_template": ([
-                    # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
-                    "change_color", "change_style", "replace_object", "add_object", "remove_object",
-                    "change_texture", "change_pose", "change_expression", "change_clothing", "change_background",
-                    "enhance_quality", "blur_background", "adjust_lighting", "resize_object", "enhance_skin_texture",
-                    "character_expression", "character_hair", "character_accessories",  # 🔴 新增角色编辑
-                    
-                    # 全局编辑模板 (G01-G12) - 🔴 Flux Kontext优化
-                    "global_color_grade", "global_style_transfer", "global_brightness_contrast",
-                    "global_hue_saturation", "global_sharpen_blur", "global_noise_reduction",
-                    "global_enhance", "global_filter", "character_age", "detail_enhance",
-                    "realism_enhance", "camera_operation",  # 🔴 新增全局增强
-                    
-                    # 文字编辑模板 (T01-T05) - 🔴 全新类型
-                    "text_add", "text_remove", "text_edit", "text_resize", "object_combine",
-                    
-                    # 专业操作模板 (P01-P14) - 🔴 Flux Kontext优化
-                    "geometric_warp", "perspective_transform", "lens_distortion", "global_perspective",
-                    "content_aware_fill", "seamless_removal", "smart_patch",
-                    "style_blending", "collage_integration", "texture_mixing",
-                    "precision_cutout", "alpha_composite", "mask_feathering", "depth_composite",
-                    
-                    "custom"
-                ], {"default": "change_color"}),
+                "canvas_width": ("INT", {"default": 800, "min": 200, "max": 2048, "step": 10, "tooltip": "Canvas width in pixels"}),
+                "canvas_height": ("INT", {"default": 600, "min": 200, "max": 2048, "step": 10, "tooltip": "Canvas height in pixels"}),
             }
         }
     
@@ -77,14 +49,12 @@ class VisualPromptEditor:
     CATEGORY = "kontext_super_prompt/core"
     DESCRIPTION = "🎨 Kontext Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
     
-    def visual_prompt_edit(self, image: torch.Tensor, annotation_data: str = None,
-                          layer_1: torch.Tensor = None, layer_2: torch.Tensor = None, layer_3: torch.Tensor = None,
-                          layer_config: str = None, enable_layer_management: bool = False,
-                          prompt_template: str = "change_color"):
+    def visual_prompt_edit(self, image: torch.Tensor = None, annotation_data: str = None,
+                          canvas_width: int = 800, canvas_height: int = 600):
         """Unified visual prompt editing functionality"""
         
         try:
-            # Process annotation data
+            # Process annotation data and canvas image
             layers_data = []
             include_annotation_numbers = True  # Default to including numbers
             text_prompt = ""  # Initialize text_prompt from annotation data
@@ -92,6 +62,13 @@ class VisualPromptEditor:
             constraint_prompts = []
             decorative_prompts = []
             user_edited_prompt = ""  # 🔴 初始化用户编辑的提示词变量
+            parsed_data = None  # 🔧 初始化parsed_data变量，确保作用域正确
+            prompt_template = "change_color"  # Default operation type
+            
+            # 🎯 新增：画布图像数据
+            canvas_image_data = None
+            canvas_background_color = '#ffffff'
+            fabric_json_data = None
             
             if annotation_data and annotation_data.strip():
                 try:
@@ -100,6 +77,13 @@ class VisualPromptEditor:
                     
                     # Check if the data has an "annotations" key (new format)
                     if isinstance(parsed_data, dict):
+                        # 🎯 检查是否包含完整画布图像数据 (v3.1格式)
+                        if "canvasImageDataURL" in parsed_data:
+                            canvas_image_data = parsed_data["canvasImageDataURL"]
+                            canvas_background_color = parsed_data.get("backgroundColor", "#ffffff")
+                            fabric_json_data = parsed_data.get("fabricJSON")
+                            print(f"🎨 Found complete canvas image data: background={canvas_background_color}, image size: {len(canvas_image_data) if canvas_image_data else 0} chars")
+                            
                         if "annotations" in parsed_data:
                             layers_data = parsed_data["annotations"]
                             print(f"📊 Backend parsed {len(layers_data)} annotations")
@@ -177,21 +161,22 @@ class VisualPromptEditor:
                 )
                 print(f"🤖 Using auto-generated prompt: {structured_prompt[:100]}...")
             
-            # 🎨 图层管理功能集成 - 安全且向后兼容
-            if enable_layer_management and (layer_1 is not None or layer_2 is not None or layer_3 is not None):
-                # 新的图层合成功能
-                print("🎨 启用图层管理模式，开始图层合成...")
-                output_image = self._compose_layers_with_annotations(
-                    base_image=image,
-                    layers=[layer_1, layer_2, layer_3],
-                    layer_config=layer_config,
-                    annotation_layers=layers_data,
-                    include_numbers=include_annotation_numbers
-                )
-            else:
-                # 原有的标注渲染逻辑 - 保持向后兼容
+            # 🎯 Process image - 优先使用完整画布图像
+            if canvas_image_data:
+                # 使用Fabric.js导出的完整画布图像
+                print(f"✅ Using complete canvas image from Fabric.js (DataURL format)")
+                output_image = self._process_canvas_image_data(canvas_image_data, canvas_width, canvas_height)
+            elif image is None:
+                # 创建默认的空白画布（如果没有输入图像）
+                blank_image = torch.zeros((1, canvas_height, canvas_width, 3), dtype=torch.float32)
                 if layers_data and len(layers_data) > 0:
-                    output_image = self._render_annotations_on_image(image, layers_data, include_annotation_numbers)
+                    output_image = self._render_annotations_on_image(blank_image, layers_data, include_annotation_numbers, parsed_data)
+                else:
+                    output_image = blank_image
+            else:
+                # 有输入图像的情况
+                if layers_data and len(layers_data) > 0:
+                    output_image = self._render_annotations_on_image(image, layers_data, include_annotation_numbers, parsed_data)
                 else:
                     output_image = image
             
@@ -218,7 +203,6 @@ class VisualPromptEditor:
             
         except Exception as e:
             return self._create_fallback_output(image, str(e))
-    
     
     def _generate_structured_prompt(self, layers_data: List[Dict], 
                                    selected_ids: List[str], 
@@ -426,7 +410,7 @@ class VisualPromptEditor:
         
         return structured_prompt
     
-    def _render_annotations_on_image(self, image: torch.Tensor, layers_data: List[Dict], include_annotation_numbers: bool = True) -> torch.Tensor:
+    def _render_annotations_on_image(self, image: torch.Tensor, layers_data: List[Dict], include_annotation_numbers: bool = True, annotation_data_json: Dict = None) -> torch.Tensor:
         """Render annotations on image"""
         try:
             from PIL import Image, ImageDraw, ImageFont
@@ -555,8 +539,32 @@ class VisualPromptEditor:
             
             # 检查是否所有标注都使用相同的坐标基准
             # 如果坐标值都在图像尺寸范围内，则直接使用；否则进行比例转换
-            def detect_coordinate_scale(layers_data, img_width, img_height):
-                """检测坐标是否需要缩放转换"""
+            def get_coordinate_scale_from_frontend(annotation_data_json, img_width, img_height):
+                """从前端数据获取准确的坐标缩放比例"""
+                try:
+                    # 尝试从前端数据获取缩放信息
+                    if annotation_data_json and 'image_scale_info' in annotation_data_json:
+                        scale_info = annotation_data_json['image_scale_info']
+                        if scale_info and 'scale_x' in scale_info and 'scale_y' in scale_info:
+                            scale_x = float(scale_info['scale_x'])
+                            scale_y = float(scale_info['scale_y'])
+                            
+                            # 🔧 关键修复：获取画布偏移信息，用于坐标转换
+                            canvas_offset_x = scale_info.get('canvas_offset_x', 0)
+                            canvas_offset_y = scale_info.get('canvas_offset_y', 0)
+                            
+                            print(f"✅ [SCALE] 使用前端精确缩放信息: scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
+                            print(f"📊 [SCALE] 显示尺寸: {scale_info.get('display_width', 'N/A')}x{scale_info.get('display_height', 'N/A')}")
+                            print(f"📊 [SCALE] 原始尺寸: {scale_info.get('natural_width', 'N/A')}x{scale_info.get('natural_height', 'N/A')}")
+                            print(f"📍 [SCALE] 画布偏移: ({canvas_offset_x}, {canvas_offset_y})")
+                            
+                            # 返回缩放因子和偏移信息
+                            return scale_x, scale_y, canvas_offset_x, canvas_offset_y
+                except Exception as e:
+                    print(f"⚠️ [SCALE] 获取前端缩放信息失败: {e}")
+                
+                # 回退到原有的检测逻辑（但这通常不准确）
+                print("⚠️ [SCALE] 前端缩放信息不可用，使用回退检测逻辑")
                 max_x = max_y = 0
                 coord_count = 0
                 
@@ -575,17 +583,21 @@ class VisualPromptEditor:
                             coord_count += 1
                             
                 if coord_count == 0:
-                    return 1.0, 1.0  # 没有坐标数据，使用1:1
+                    return 1.0, 1.0, 0, 0
                     
-                # 如果最大坐标值明显超出图像尺寸，说明使用的是比例坐标
                 scale_x = img_width / max_x if max_x > img_width * 1.5 else 1.0
                 scale_y = img_height / max_y if max_y > img_height * 1.5 else 1.0
                 
-                print(f"🔍 Coordinate scaling detection - Max coords: ({max_x}, {max_y}), Scale ratio: ({scale_x:.3f}, {scale_y:.3f})")
-                return scale_x, scale_y
+                print(f"🔍 [SCALE] 回退检测结果 - Max coords: ({max_x}, {max_y}), Scale ratio: ({scale_x:.3f}, {scale_y:.3f})")
+                return scale_x, scale_y, 0, 0  # 回退时无偏移信息
             
-            # 检测坐标缩放比例
-            scale_x, scale_y = detect_coordinate_scale(layers_data, img_width, img_height)
+            # 获取坐标缩放比例和偏移信息（优先使用前端精确信息）
+            scale_result = get_coordinate_scale_from_frontend(annotation_data_json, img_width, img_height)
+            if len(scale_result) == 4:
+                scale_x, scale_y, canvas_offset_x, canvas_offset_y = scale_result
+            else:
+                scale_x, scale_y = scale_result
+                canvas_offset_x, canvas_offset_y = 0, 0
             
             # Render each annotation
             rendered_count = 0
@@ -650,11 +662,12 @@ class VisualPromptEditor:
                 
                 if layer_type == 'rectangle' and start_point and end_point:
                     # Rectangle annotation
-                    # 使用动态检测的缩放比例进行坐标转换
-                    x1 = int(start_point['x'] * scale_x)
-                    y1 = int(start_point['y'] * scale_y)
-                    x2 = int(end_point['x'] * scale_x)
-                    y2 = int(end_point['y'] * scale_y)
+                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
+                    # display坐标 ÷ scale = original坐标
+                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
+                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
+                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
+                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
                     
                     # Ensure correct coordinate order
                     x1, x2 = min(x1, x2), max(x1, x2)
@@ -679,11 +692,11 @@ class VisualPromptEditor:
                     
                 elif layer_type == 'circle' and start_point and end_point:
                     # Ellipse annotation
-                    # 使用动态检测的缩放比例进行坐标转换
-                    x1 = int(start_point['x'] * scale_x)
-                    y1 = int(start_point['y'] * scale_y)
-                    x2 = int(end_point['x'] * scale_x)
-                    y2 = int(end_point['y'] * scale_y)
+                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
+                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
+                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
+                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
+                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
                     
                     # Ensure correct coordinate order
                     x1, x2 = min(x1, x2), max(x1, x2)
@@ -711,8 +724,9 @@ class VisualPromptEditor:
                     if len(points) >= 3:
                         polygon_points = []
                         for point in points:
-                            x = int(point['x'] * scale_x)
-                            y = int(point['y'] * scale_y)
+                            # 🔧 关键修复：先减去画布偏移，再应用缩放
+                            x = int((point['x'] - canvas_offset_x) * scale_x)
+                            y = int((point['y'] - canvas_offset_y) * scale_y)
                             polygon_points.append((x, y))
                         
                         print(f"🔗 多边形标注 {i}: {len(points)}个点, 缩放比例({scale_x:.3f}, {scale_y:.3f}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
@@ -733,11 +747,11 @@ class VisualPromptEditor:
                         
                 elif layer_type == 'arrow' and start_point and end_point:
                     # Arrow annotation
-                    # 使用动态检测的缩放比例进行坐标转换
-                    x1 = int(start_point['x'] * scale_x)
-                    y1 = int(start_point['y'] * scale_y)
-                    x2 = int(end_point['x'] * scale_x)
-                    y2 = int(end_point['y'] * scale_y)
+                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
+                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
+                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
+                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
+                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
                     
                     # Draw arrow line with opacity
                     arrow_alpha = int(opacity * 255 / 100)
@@ -821,8 +835,9 @@ class VisualPromptEditor:
                         # 转换路径点并绘制
                         scaled_points = []
                         for point in points:
-                            scaled_x = int(point['x'] * scale_x)
-                            scaled_y = int(point['y'] * scale_y)
+                            # 🔧 关键修复：先减去画布偏移，再应用缩放
+                            scaled_x = int((point['x'] - canvas_offset_x) * scale_x)
+                            scaled_y = int((point['y'] - canvas_offset_y) * scale_y)
                             scaled_points.append((scaled_x, scaled_y))
                         
                         if len(scaled_points) >= 2:
@@ -864,8 +879,9 @@ class VisualPromptEditor:
                         # 无羽化的实心路径
                         scaled_points = []
                         for point in points:
-                            scaled_x = int(point['x'] * scale_x)
-                            scaled_y = int(point['y'] * scale_y)
+                            # 🔧 关键修复：先减去画布偏移，再应用缩放
+                            scaled_x = int((point['x'] - canvas_offset_x) * scale_x)
+                            scaled_y = int((point['y'] - canvas_offset_y) * scale_y)
                             scaled_points.append((scaled_x, scaled_y))
                         
                         if len(scaled_points) >= 2:
@@ -967,184 +983,62 @@ class VisualPromptEditor:
         
         return complete_instruction
     
-    def _compose_layers_with_annotations(self, base_image: torch.Tensor, layers: List[torch.Tensor], 
-                                       layer_config: str, annotation_layers: List[Dict], 
-                                       include_numbers: bool) -> torch.Tensor:
+    def _process_canvas_image_data(self, canvas_data_url: str, target_width: int = None, target_height: int = None) -> torch.Tensor:
         """
-        🎨 图层合成函数 - 安全集成图层管理功能
-        
-        Args:
-            base_image: 基础图像 (背景)
-            layers: 图层列表 [layer_1, layer_2, layer_3]
-            layer_config: 图层配置JSON字符串
-            annotation_layers: 标注图层数据
-            include_numbers: 是否包含标注编号
-            
-        Returns:
-            合成后的图像tensor
+        处理来自Fabric.js的完整画布图像数据
+        使用官方toDataURL()导出的DataURL格式图像
         """
         try:
-            import numpy as np
-            from PIL import Image
+            # 解析DataURL格式 (data:image/png;base64,<base64_data>)
+            if not canvas_data_url.startswith('data:image/'):
+                raise ValueError("Invalid DataURL format")
             
-            # 解析图层配置
-            config = {}
-            if layer_config and layer_config.strip():
-                try:
-                    config = json.loads(layer_config)
-                except json.JSONDecodeError as e:
-                    print(f"⚠️ 图层配置解析失败: {e}")
-                    config = {}
+            # 提取base64数据
+            header, base64_data = canvas_data_url.split(',', 1)
+            image_format = header.split(';')[0].split('/')[1]  # 获取图像格式 (png, jpeg等)
             
-            # 转换基础图像为PIL格式
-            base_pil = self._tensor_to_pil(base_image)
-            canvas_width, canvas_height = base_pil.size
-            print(f"🖼️ 画布大小: {canvas_width}x{canvas_height}")
+            # 解码base64数据
+            image_bytes = base64.b64decode(base64_data)
             
-            # 创建合成画布
-            composed_image = base_pil.copy()
+            # 使用PIL加载图像
+            from PIL import Image as PILImage
+            import io
             
-            # 处理每个图层
-            for i, layer_tensor in enumerate(layers):
-                if layer_tensor is not None:
-                    layer_name = f"layer_{i+1}"
-                    layer_settings = config.get(layer_name, {})
-                    
-                    print(f"🎨 处理 {layer_name}, 设置: {layer_settings}")
-                    
-                    # 合成图层
-                    composed_image = self._blend_single_layer(
-                        canvas=composed_image,
-                        layer_tensor=layer_tensor,
-                        settings=layer_settings,
-                        layer_name=layer_name
-                    )
+            pil_image = PILImage.open(io.BytesIO(image_bytes))
             
-            # 将PIL图像转换回tensor
-            composed_tensor = self._pil_to_tensor(composed_image)
+            # 确保图像是RGB模式
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
             
-            # 在合成后的图像上渲染标注
-            if annotation_layers and len(annotation_layers) > 0:
-                print("📍 在合成图像上渲染标注...")
-                final_image = self._render_annotations_on_image(composed_tensor, annotation_layers, include_numbers)
-            else:
-                final_image = composed_tensor
+            # 获取图像尺寸
+            original_width, original_height = pil_image.size
+            print(f"🎨 Canvas image loaded: {original_width}x{original_height}, format: {image_format}")
             
-            print("✅ 图层合成完成")
-            return final_image
+            # 如果指定了目标尺寸，进行缩放
+            if target_width and target_height:
+                if original_width != target_width or original_height != target_height:
+                    pil_image = pil_image.resize((target_width, target_height), PILImage.Resampling.LANCZOS)
+                    print(f"🔄 Canvas image resized to: {target_width}x{target_height}")
+            
+            # 转换为numpy数组
+            img_array = np.array(pil_image)
+            
+            # 转换为torch tensor [0, 1]范围
+            img_tensor = torch.from_numpy(img_array).float() / 255.0
+            
+            # 添加batch维度 [1, H, W, C]
+            if len(img_tensor.shape) == 3:
+                img_tensor = img_tensor.unsqueeze(0)
+            
+            print(f"✅ Canvas image processed successfully: {img_tensor.shape}")
+            return img_tensor
             
         except Exception as e:
-            print(f"❌ 图层合成失败: {e}")
-            # 安全回退：如果图层合成失败，使用原有的标注渲染逻辑
-            if annotation_layers and len(annotation_layers) > 0:
-                return self._render_annotations_on_image(base_image, annotation_layers, include_numbers)
-            else:
-                return base_image
-    
-    def _blend_single_layer(self, canvas: Image.Image, layer_tensor: torch.Tensor, 
-                           settings: Dict, layer_name: str) -> Image.Image:
-        """合成单个图层到画布"""
-        try:
-            # 默认设置
-            default_settings = {
-                "visible": True,
-                "opacity": 1.0,
-                "x": 0,
-                "y": 0,
-                "scale": 1.0,
-                "rotation": 0
-            }
-            
-            # 合并设置
-            layer_config = {**default_settings, **settings}
-            
-            # 检查图层是否可见
-            if not layer_config.get("visible", True):
-                print(f"⚪ {layer_name} 不可见，跳过")
-                return canvas
-            
-            # 转换图层为PIL图像
-            layer_pil = self._tensor_to_pil(layer_tensor)
-            original_size = layer_pil.size
-            
-            # 应用缩放
-            scale = layer_config.get("scale", 1.0)
-            if scale != 1.0:
-                new_width = int(original_size[0] * scale)
-                new_height = int(original_size[1] * scale)
-                layer_pil = layer_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                print(f"🔄 {layer_name} 缩放到: {new_width}x{new_height}")
-            
-            # 应用旋转
-            rotation = layer_config.get("rotation", 0)
-            if rotation != 0:
-                layer_pil = layer_pil.rotate(rotation, expand=True)
-                print(f"🔄 {layer_name} 旋转: {rotation}度")
-            
-            # 应用透明度
-            opacity = layer_config.get("opacity", 1.0)
-            if opacity < 1.0 and layer_pil.mode != 'RGBA':
-                layer_pil = layer_pil.convert('RGBA')
-                alpha = layer_pil.split()[-1]
-                alpha = alpha.point(lambda p: int(p * opacity))
-                layer_pil.putalpha(alpha)
-                print(f"🔍 {layer_name} 透明度: {opacity}")
-            
-            # 计算粘贴位置
-            paste_x = int(layer_config.get("x", 0))
-            paste_y = int(layer_config.get("y", 0))
-            
-            # 合成到画布
-            canvas_width, canvas_height = canvas.size
-            if paste_x < canvas_width and paste_y < canvas_height:
-                if layer_pil.mode == 'RGBA':
-                    canvas.paste(layer_pil, (paste_x, paste_y), layer_pil)
-                else:
-                    canvas.paste(layer_pil, (paste_x, paste_y))
-                print(f"✅ {layer_name} 已合成到位置: ({paste_x}, {paste_y})")
-            else:
-                print(f"⚠️ {layer_name} 位置超出画布范围: ({paste_x}, {paste_y})")
-            
-            return canvas
-            
-        except Exception as e:
-            print(f"❌ {layer_name} 合成失败: {e}")
-            return canvas
-    
-    def _tensor_to_pil(self, tensor: torch.Tensor) -> Image.Image:
-        """将tensor转换为PIL图像"""
-        if tensor.dim() == 4:
-            tensor = tensor.squeeze(0)
-        
-        if tensor.dim() == 3 and tensor.shape[0] in [1, 3, 4]:
-            tensor = tensor.permute(1, 2, 0)
-        
-        numpy_image = tensor.cpu().numpy()
-        numpy_image = (numpy_image * 255).astype(np.uint8)
-        
-        if numpy_image.shape[2] == 1:
-            numpy_image = numpy_image[:, :, 0]
-            return Image.fromarray(numpy_image, mode='L')
-        elif numpy_image.shape[2] == 3:
-            return Image.fromarray(numpy_image, mode='RGB')
-        elif numpy_image.shape[2] == 4:
-            return Image.fromarray(numpy_image, mode='RGBA')
-        else:
-            return Image.fromarray(numpy_image[:, :, :3], mode='RGB')
-    
-    def _pil_to_tensor(self, pil_image: Image.Image) -> torch.Tensor:
-        """将PIL图像转换为tensor"""
-        if pil_image.mode != 'RGB':
-            pil_image = pil_image.convert('RGB')
-        
-        numpy_image = np.array(pil_image).astype(np.float32) / 255.0
-        tensor = torch.from_numpy(numpy_image)
-        
-        if tensor.dim() == 2:
-            tensor = tensor.unsqueeze(-1)
-        
-        tensor = tensor.unsqueeze(0)  # 添加batch维度
-        return tensor
+            print(f"❌ Failed to process canvas image data: {e}")
+            # 降级到空白画布
+            fallback_width = target_width or 800
+            fallback_height = target_height or 600
+            return torch.ones((1, fallback_height, fallback_width, 3), dtype=torch.float32)
     
     def _create_fallback_output(self, image: torch.Tensor, error_msg: str):
         """Create fallback output"""
@@ -1162,8 +1056,15 @@ class VisualPromptEditor:
         # Create fallback model instruction
         fallback_model_instruction = f"Fallback instruction: {fallback_structured_prompt}. Error: {error_msg}"
         
+        # Handle case when image is None
+        if image is None:
+            # 创建默认的空白画布
+            fallback_image = torch.zeros((1, canvas_height, canvas_width, 3), dtype=torch.float32)
+        else:
+            fallback_image = image
+        
         return (
-            image,  # Image
+            fallback_image,  # Image
             fallback_structured_prompt,  # Structured prompt
             fallback_annotation_data,  # Annotation data
             fallback_model_instruction  # Model instruction

@@ -555,21 +555,17 @@ export const DECORATIVE_PROMPTS = {
  * 根据分类获取模板选项
  */
 export function getTemplatesByCategory(category) {
-    console.log(`🔍 getTemplatesByCategory被调用，分类: ${category}`);
     
     if (!TEMPLATE_CATEGORIES[category]) {
-        console.warn(`❌ 分类 ${category} 不存在于TEMPLATE_CATEGORIES中`);
-        console.log('📋 可用的分类:', Object.keys(TEMPLATE_CATEGORIES));
+        console.warn(`Category ${category} not found in TEMPLATE_CATEGORIES`);
         return [];
     }
     
     const categoryData = TEMPLATE_CATEGORIES[category];
-    console.log(`📂 分类 ${category} 的模板数量: ${categoryData.templates.length}`);
-    console.log('📋 模板ID列表:', categoryData.templates);
     
     const result = categoryData.templates.map(templateId => {
         const template = OPERATION_TEMPLATES[templateId];
-        console.log(`🔍 处理模板 ${templateId}:`, template ? '✅ 找到' : '❌ 未找到');
+        // 处理模板
         return {
             id: templateId,
             label: template?.label || templateId,
@@ -577,7 +573,7 @@ export function getTemplatesByCategory(category) {
         };
     });
     
-    console.log(`✅ getTemplatesByCategory返回 ${result.length} 个模板:`, result.map(r => `${r.id}(${r.label})`));
+    // 返回模板列表
     return result;
 }
 
@@ -585,19 +581,16 @@ export function getTemplatesByCategory(category) {
  * 更新操作类型选择器
  */
 export function updateOperationTypeSelect(selectElement, category) {
-    console.log(`🔧 更新操作类型选择器，分类: ${category}`);
     if (!selectElement) {
-        console.warn('❌ selectElement为空，无法更新');
+        console.warn('selectElement is null, cannot update');
         return;
     }
     
     // 清空现有选项
     selectElement.innerHTML = '';
-    console.log('🧹 已清空现有选项');
     
     // 获取分类下的模板
     const templates = getTemplatesByCategory(category);
-    console.log(`📋 获取到 ${templates.length} 个模板:`, templates.map(t => t.id));
     
     // 添加选项
     templates.forEach(({ id, label }) => {
@@ -605,7 +598,6 @@ export function updateOperationTypeSelect(selectElement, category) {
         option.value = id;
         option.textContent = t(`op_${id}`, label);
         selectElement.appendChild(option);
-        console.log(`➕ 添加选项: ${id} - ${label}`);
     });
     
     // 添加自定义选项
@@ -614,10 +606,9 @@ export function updateOperationTypeSelect(selectElement, category) {
         customOption.value = 'custom';
         customOption.textContent = t('op_custom', 'Custom Operation');
         selectElement.appendChild(customOption);
-        console.log('➕ 添加自定义选项');
     }
     
-    console.log(`✅ 操作类型选择器更新完成，共${selectElement.options.length}个选项`);
+    // 操作类型选择器更新完成
 }
 
 /**
@@ -674,7 +665,6 @@ export class KontextUtils {
             }
         }, duration);
         
-        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -704,9 +694,33 @@ export function isPointInRect(point, rect) {
  * 将鼠标坐标转换为SVG viewBox坐标 - 避免transform累积问题
  */
 export function mouseToSVGCoordinates(e, modal) {
-    console.log('📐 [UNIFIED] 使用统一坐标系统进行SVG坐标转换');
     
     // 使用新的统一坐标系统
     const coordinateSystem = getCoordinateSystem(modal);
     return coordinateSystem.mouseToSVGCoords(e.clientX, e.clientY);
+}
+
+/**
+ * 从节点widget获取图像
+ */
+export function getImageFromWidget(nodeInstance) {
+    try {
+        if (!nodeInstance) {
+            return null;
+        }
+        
+        const imageWidget = nodeInstance.widgets?.find(w => 
+            w.name === 'image' || w.name === 'filename' || w.name === 'file'
+        );
+        
+        if (imageWidget && imageWidget.value) {
+            const imageUrl = `/view?filename=${encodeURIComponent(imageWidget.value)}`;
+            return imageUrl;
+        }
+        
+        return null;
+    } catch (e) {
+        console.error('Failed to get image from widget:', e);
+        return null;
+    }
 }

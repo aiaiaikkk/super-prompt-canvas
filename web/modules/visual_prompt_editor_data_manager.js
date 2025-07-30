@@ -9,17 +9,18 @@ export class DataManager {
         this.dataCache = new Map();
         this.stateHistory = [];
         this.maxHistorySize = 50;
+        
+        // 图层状态缓存 - 用于保存每个图层的设置状态
+        this.layerStateCache = new Map();
     }
 
     /**
      * 保存标注数据到节点widget
      */
     saveAnnotationData(modal, promptData) {
-        console.log('💾 保存标注数据到节点widget...');
         
         try {
             const annotationDataWidget = this.nodeInstance.widgets?.find(w => w.name === "annotation_data");
-            const promptTemplateWidget = this.nodeInstance.widgets?.find(w => w.name === "prompt_template");
             
             if (!annotationDataWidget) {
                 console.error('❌ 未找到annotation_data widget');
@@ -32,17 +33,11 @@ export class DataManager {
                     return this.normalizeAnnotationData(annotation);
                 });
                 
-                console.log('📊 标准化后的标注数据:', promptData.annotations.length, '个标注');
             }
 
             // 保存完整的promptData作为JSON字符串
             const dataToSave = JSON.stringify(promptData);
             annotationDataWidget.value = dataToSave;
-            
-            console.log('✅ 已保存annotation_data到widget:', dataToSave.length, '字符');
-            
-            // 同步操作类型到后端
-            this.syncOperationTypeToBackend(modal, promptTemplateWidget);
             
             // 缓存数据
             this.cacheData('last_saved', promptData);
@@ -55,55 +50,18 @@ export class DataManager {
     }
 
     /**
-     * 检查layer1-3输入端口是否有连接
-     * 只有在有实际层连接时才允许加载标注数据
-     */
-    hasLayerConnections() {
-        console.log('🔍 检查layer1-3输入端口连接状态...');
-        
-        if (!this.nodeInstance.inputs) {
-            console.log('⚠️ 节点没有输入端口');
-            return false;
-        }
-        
-        // 检查layer1, layer2, layer3输入端口
-        for (let i = 1; i <= 3; i++) {
-            const layerInput = this.nodeInstance.inputs.find(inp => 
-                inp.name === `layer${i}` || inp.name === `layer_${i}`
-            );
-            
-            if (layerInput && layerInput.link !== null) {
-                console.log(`🔗 检测到layer${i}已连接，允许加载annotation数据`);
-                return true;
-            }
-        }
-        
-        console.log('🚫 没有检测到任何layer1-3连接，禁止加载标注数据');
-        return false;
-    }
-
-    /**
      * 加载标注数据从节点widget
      */
     loadAnnotationData() {
-        console.log('📤 从节点widget加载标注数据...');
         
         try {
-            // 🔍 重要修复：只有在有实际的层连接时才加载保存的annotation数据
-            if (!this.hasLayerConnections()) {
-                console.log('🚫 layer1-3未连接，跳过加载保存的标注数据');
-                return null;
-            }
-            
             const annotationDataWidget = this.nodeInstance.widgets?.find(w => w.name === "annotation_data");
             
             if (!annotationDataWidget || !annotationDataWidget.value) {
-                console.log('📝 没有保存的标注数据');
                 return null;
             }
 
             const parsedData = JSON.parse(annotationDataWidget.value);
-            console.log('✅ 成功加载标注数据:', parsedData.annotations?.length || 0, '个标注');
             
             // 缓存加载的数据
             this.cacheData('last_loaded', parsedData);
@@ -162,23 +120,15 @@ export class DataManager {
     }
 
     /**
-     * 同步操作类型到后端
+     * 同步目标文本到后端
      */
-    syncOperationTypeToBackend(modal, promptTemplateWidget) {
-        const operationType = modal.querySelector('#operation-type');
+    syncTargetTextToBackend(modal) {
         const targetInput = modal.querySelector('#target-input');
         
-        if (operationType && promptTemplateWidget && operationType.value !== promptTemplateWidget.value) {
-            promptTemplateWidget.value = operationType.value;
-            console.log('🔄 同步操作类型到后端:', operationType.value);
-        }
-        
-        // 同步目标文本
         if (targetInput) {
             const targetTextWidget = this.nodeInstance.widgets?.find(w => w.name === "target_text");
             if (targetTextWidget && targetInput.value !== targetTextWidget.value) {
                 targetTextWidget.value = targetInput.value;
-                console.log('🔄 同步目标文本到后端:', targetInput.value);
             }
         }
     }
@@ -187,24 +137,11 @@ export class DataManager {
      * 初始化前端UI从后端参数
      */
     initializeFrontendFromBackend(modal) {
-        console.log('🔄 从后端参数初始化前端UI...');
-        
-        const promptTemplateWidget = this.nodeInstance.widgets?.find(w => w.name === "prompt_template");
         const targetTextWidget = this.nodeInstance.widgets?.find(w => w.name === "target_text");
-        
-        const operationType = modal.querySelector('#operation-type');
         const targetInput = modal.querySelector('#target-input');
         
-        // 同步操作类型
-        if (promptTemplateWidget && operationType && promptTemplateWidget.value) {
-            operationType.value = promptTemplateWidget.value;
-            console.log('🔄 已从后端同步操作类型到前端:', promptTemplateWidget.value);
-        }
-        
-        // 同步目标文本
         if (targetTextWidget && targetInput && targetTextWidget.value) {
             targetInput.value = targetTextWidget.value;
-            console.log('🔄 已从后端同步目标文本到前端:', targetTextWidget.value);
         }
     }
 
@@ -243,9 +180,7 @@ export class DataManager {
             action: actionName,
             timestamp: Date.now(),
             annotations: modal.annotations ? JSON.parse(JSON.stringify(modal.annotations)) : [],
-            selectedLayers: modal.selectedLayers ? Array.from(modal.selectedLayers) : [],
-            connectedLayers: this.nodeInstance.connectedImageLayers ? 
-                JSON.parse(JSON.stringify(this.nodeInstance.connectedImageLayers)) : []
+            selectedLayers: modal.selectedLayers ? Array.from(modal.selectedLayers) : []
         };
         
         this.stateHistory.push(state);
@@ -255,7 +190,6 @@ export class DataManager {
             this.stateHistory.shift();
         }
         
-        console.log(`📚 状态已保存到历史记录: ${actionName}, 当前历史记录: ${this.stateHistory.length}`);
     }
 
     /**
@@ -263,7 +197,6 @@ export class DataManager {
      */
     restoreFromHistory(modal, stepsBack = 1) {
         if (this.stateHistory.length < stepsBack + 1) {
-            console.warn('⚠️ 历史记录不足，无法回退');
             return false;
         }
         
@@ -271,11 +204,9 @@ export class DataManager {
         const state = this.stateHistory[targetIndex];
         
         if (!state) {
-            console.warn('⚠️ 未找到目标状态');
             return false;
         }
         
-        console.log(`🔄 恢复到历史状态: ${state.action} (${new Date(state.timestamp).toLocaleTimeString()})`);
         
         // 恢复标注数据
         modal.annotations = JSON.parse(JSON.stringify(state.annotations));
@@ -283,28 +214,338 @@ export class DataManager {
         // 恢复选择状态
         modal.selectedLayers = new Set(state.selectedLayers);
         
-        // 恢复连接图层
-        if (state.connectedLayers) {
-            this.nodeInstance.connectedImageLayers = JSON.parse(JSON.stringify(state.connectedLayers));
-        }
+        // Fabric objects do not need layer connection restoration
         
         // 移除后续的历史记录
         this.stateHistory = this.stateHistory.slice(0, targetIndex + 1);
         
         return true;
     }
+    
+    /**
+     * 缓存图层状态 - 保存操作类型、约束和修饰提示词设置
+     */
+    cacheLayerState(layerId, modal) {
+        if (!layerId) return;
+        
+        // 获取当前选中图层的设置状态
+        const operationType = modal.querySelector('#operation-type')?.value;
+        const targetInput = modal.querySelector('#target-input')?.value;
+        
+        // 获取勾选的约束性提示词
+        const constraintPrompts = [];
+        const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container .constraint-prompt-checkbox:checked');
+        constraintCheckboxes.forEach(checkbox => {
+            const promptText = checkbox.nextElementSibling?.textContent?.trim();
+            if (promptText) {
+                constraintPrompts.push(promptText);
+            }
+        });
+        
+        // 获取勾选的修饰性提示词
+        const decorativePrompts = [];
+        const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container .decorative-prompt-checkbox:checked');
+        decorativeCheckboxes.forEach(checkbox => {
+            const promptText = checkbox.nextElementSibling?.textContent?.trim();
+            if (promptText) {
+                decorativePrompts.push(promptText);
+            }
+        });
+        
+        // 缓存状态
+        const layerState = {
+            operationType: operationType || '',
+            targetInput: targetInput || '',
+            constraintPrompts: constraintPrompts,
+            decorativePrompts: decorativePrompts,
+            timestamp: Date.now()
+        };
+        
+        this.layerStateCache.set(layerId, layerState);
+    }
+    
+    /**
+     * 恢复图层状态
+     */
+    restoreLayerState(layerId, modal) {
+        if (!layerId || !this.layerStateCache.has(layerId)) {
+            return false;
+        }
+        
+        const layerState = this.layerStateCache.get(layerId);
+        
+        // 恢复操作类型
+        const operationType = modal.querySelector('#operation-type');
+        if (operationType && layerState.operationType) {
+            operationType.value = layerState.operationType;
+            // 触发change事件以更新相关的约束和修饰提示词选项
+            operationType.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // 恢复描述文本
+        const targetInput = modal.querySelector('#target-input');
+        if (targetInput && layerState.targetInput) {
+            targetInput.value = layerState.targetInput;
+        }
+        
+        // 延迟恢复提示词选择状态，等待选项加载完成
+        setTimeout(() => {
+            this.restorePromptSelections(modal, layerState);
+        }, 100);
+        
+        return true;
+    }
+    
+    /**
+     * 恢复提示词选择状态
+     */
+    restorePromptSelections(modal, layerState) {
+        // 恢复约束性提示词选择
+        if (layerState.constraintPrompts && layerState.constraintPrompts.length > 0) {
+            const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container .constraint-prompt-checkbox');
+            constraintCheckboxes.forEach(checkbox => {
+                const promptText = checkbox.nextElementSibling?.textContent?.trim();
+                if (promptText && layerState.constraintPrompts.includes(promptText)) {
+                    checkbox.checked = true;
+                    // 触发change事件以同步数据
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+        
+        // 恢复修饰性提示词选择
+        if (layerState.decorativePrompts && layerState.decorativePrompts.length > 0) {
+            const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container .decorative-prompt-checkbox');
+            decorativeCheckboxes.forEach(checkbox => {
+                const promptText = checkbox.nextElementSibling?.textContent?.trim();
+                if (promptText && layerState.decorativePrompts.includes(promptText)) {
+                    checkbox.checked = true;
+                    // 触发change事件以同步数据
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+    }
+    
+    /**
+     * 清除图层状态缓存
+     */
+    clearLayerStateCache(layerId = null) {
+        if (layerId) {
+            this.layerStateCache.delete(layerId);
+        } else {
+            this.layerStateCache.clear();
+        }
+    }
+
+    /**
+     * 保存Fabric.js画布数据和图像到节点widget
+     */
+    saveFabricCanvasData(fabricCanvas) {
+        if (!fabricCanvas) {
+            return false;
+        }
+        
+        try {
+            // 获取所有Fabric对象
+            const objects = fabricCanvas.getObjects();
+            
+            // 🎯 使用Fabric.js官方画布图像导出功能
+            const canvasDataURL = fabricCanvas.toDataURL({
+                format: 'png',
+                quality: 1.0,
+                multiplier: 1, // 保持原始分辨率
+                enableRetinaScaling: false
+            });
+            
+            // 获取画布背景色
+            const backgroundColor = fabricCanvas.backgroundColor || '#ffffff';
+            
+            // 序列化Fabric对象数据和完整画布信息
+            const fabricData = {
+                version: '3.1',
+                timestamp: Date.now(),
+                canvasWidth: fabricCanvas.getWidth(),
+                canvasHeight: fabricCanvas.getHeight(),
+                backgroundColor: backgroundColor,
+                // 🎯 完整画布图像 - 使用Fabric.js官方导出
+                canvasImageDataURL: canvasDataURL,
+                // Fabric.js官方JSON序列化
+                fabricJSON: fabricCanvas.toJSON(['fabricId']), // 包含自定义属性
+                objects: objects.map(obj => {
+                    // 将Fabric对象转换为可序列化的数据
+                    const objData = obj.toObject();
+                    
+                    // 保存自定义属性
+                    if (obj.fabricId) {
+                        objData.fabricId = obj.fabricId;
+                    }
+                    
+                    return objData;
+                })
+            };
+            
+            console.log(`🎨 Fabric canvas data prepared: ${objects.length} objects, image size: ${(canvasDataURL.length / 1024).toFixed(1)}KB, background: ${backgroundColor}`);
+            
+            // 保存到annotation_data widget
+            const annotationDataWidget = this.nodeInstance.widgets?.find(w => w.name === "annotation_data");
+            if (annotationDataWidget) {
+                annotationDataWidget.value = JSON.stringify(fabricData);
+                console.log('✅ Canvas data saved to annotation_data widget (includes complete canvas image)');
+                return true;
+            } else {
+                console.error('❌ 未找到annotation_data widget');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ 保存Fabric画布数据失败:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * 从节点widget加载Fabric.js画布数据
+     */
+    loadFabricCanvasData() {
+        try {
+            const annotationDataWidget = this.nodeInstance.widgets?.find(w => w.name === "annotation_data");
+            
+            if (!annotationDataWidget || !annotationDataWidget.value) {
+                return null;
+            }
+
+            const fabricData = JSON.parse(annotationDataWidget.value);
+            
+            // 检查数据版本和格式
+            if (!fabricData.objects || !Array.isArray(fabricData.objects)) {
+                return null;
+            }
+            
+            return fabricData;
+            
+        } catch (error) {
+            console.error('❌ 加载Fabric画布数据失败:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * 恢复Fabric.js画布对象
+     */
+    async restoreFabricCanvas(fabricCanvas, fabricData) {
+        if (!fabricCanvas || !fabricData || !fabricData.objects) {
+            return false;
+        }
+        
+        try {
+            // 等待fabric库加载完成
+            if (!window.fabric) {
+                return false;
+            }
+            
+            // 先创建所有对象，确保没有错误后再清除现有画布
+            const restoredObjects = [];
+            
+            // 逐个恢复对象
+            for (const objData of fabricData.objects) {
+                try {
+                    let fabricObject = null;
+                    
+                    // 根据对象类型创建对应的Fabric对象
+                    switch (objData.type) {
+                        case 'rect':
+                            fabricObject = new fabric.Rect(objData);
+                            break;
+                        case 'circle':
+                            fabricObject = new fabric.Circle(objData);
+                            break;
+                        case 'polygon':
+                            fabricObject = new fabric.Polygon(objData.points, objData);
+                            break;
+                        case 'path':
+                            fabricObject = new fabric.Path(objData.path, objData);
+                            break;
+                        case 'i-text':
+                        case 'text':
+                            fabricObject = new fabric.IText(objData.text, objData);
+                            break;
+                        case 'image':
+                            // 图片对象需要特殊处理
+                            if (objData.src) {
+                                fabricObject = await new Promise((resolve) => {
+                                    fabric.Image.fromURL(objData.src, (img) => {
+                                        // 应用原始属性
+                                        img.set(objData);
+                                        resolve(img);
+                                    });
+                                });
+                            }
+                            break;
+                        default:
+                            continue;
+                    }
+                    
+                    if (fabricObject) {
+                        // 确保对象有fabricId
+                        if (objData.fabricId) {
+                            fabricObject.fabricId = objData.fabricId;
+                        } else {
+                            fabricObject.fabricId = `fabric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        }
+                        
+                        // 添加到恢复列表
+                        restoredObjects.push(fabricObject);
+                    }
+                    
+                } catch (objError) {
+                    console.error('❌ 恢复单个对象失败:', objError, objData);
+                }
+            }
+            
+            // 只有成功创建了对象才清除现有画布并添加新对象
+            if (restoredObjects.length > 0) {
+                fabricCanvas.clear();
+                
+                // 重新设置画布尺寸和背景色（clear()会清除这些设置）
+                if (fabricData.canvasWidth && fabricData.canvasHeight) {
+                    fabricCanvas.setDimensions({
+                        width: fabricData.canvasWidth,
+                        height: fabricData.canvasHeight
+                    });
+                }
+                
+                fabricCanvas.setBackgroundColor('#ffffff', () => {
+                    // 添加恢复的对象
+                    restoredObjects.forEach(obj => {
+                        fabricCanvas.add(obj);
+                    });
+                    
+                    // 渲染画布
+                    fabricCanvas.renderAll();
+                });
+                
+                return true;
+            } else {
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ 恢复Fabric画布失败:', error);
+            return false;
+        }
+    }
 
     /**
      * 导出数据
      */
     exportData(modal, format = 'json') {
-        console.log('📤 导出数据，格式:', format);
         
         const exportData = {
             version: '2.0',
             exported: Date.now(),
             annotations: modal.annotations || [],
-            connectedLayers: this.nodeInstance.connectedImageLayers || [],
+            // connectedLayers removed - using Fabric objects
             settings: {
                 operationType: modal.querySelector('#operation-type')?.value,
                 targetText: modal.querySelector('#target-input')?.value
@@ -352,7 +593,6 @@ export class DataManager {
      * 导入数据
      */
     importData(modal, dataString, format = 'json') {
-        console.log('📥 导入数据，格式:', format);
         
         try {
             let importData;
@@ -379,14 +619,9 @@ export class DataManager {
             // 导入标注数据
             if (importData.annotations) {
                 modal.annotations = importData.annotations.map(ann => this.normalizeAnnotationData(ann));
-                console.log('✅ 已导入', modal.annotations.length, '个标注');
             }
             
-            // 导入连接图层数据
-            if (importData.connectedLayers) {
-                this.nodeInstance.connectedImageLayers = importData.connectedLayers;
-                console.log('✅ 已导入', this.nodeInstance.connectedImageLayers.length, '个连接图层');
-            }
+            // Import connectedLayers removed - using Fabric objects
             
             // 导入设置
             if (importData.settings) {
@@ -413,9 +648,7 @@ export class DataManager {
             return false;
         }
         
-        if (data.connectedLayers && !Array.isArray(data.connectedLayers)) {
-            return false;
-        }
+        // connectedLayers validation removed
         
         return true;
     }
@@ -445,7 +678,7 @@ export class DataManager {
     getStatistics(modal) {
         const stats = {
             annotationCount: modal.annotations?.length || 0,
-            connectedLayerCount: this.nodeInstance.connectedImageLayers?.length || 0,
+            // connectedLayerCount removed - using Fabric objects
             selectedCount: modal.selectedLayers?.size || 0,
             historyCount: this.stateHistory.length,
             cacheSize: this.dataCache.size,
@@ -469,7 +702,6 @@ export class DataManager {
      */
     clearCache() {
         this.dataCache.clear();
-        console.log('🧹 数据缓存已清理');
     }
 
     /**
@@ -477,7 +709,6 @@ export class DataManager {
      */
     clearHistory() {
         this.stateHistory = [];
-        console.log('🧹 历史记录已清理');
     }
 
     /**
@@ -486,7 +717,6 @@ export class DataManager {
     cleanup() {
         this.clearCache();
         this.clearHistory();
-        console.log('🧹 数据管理器资源清理完成');
     }
 }
 
@@ -495,7 +725,6 @@ export class DataManager {
  * 从主文件迁移的数据处理逻辑
  */
 export function callStandardUpdateObjectSelector(modal, nodeInstance) {
-    console.log('🔄 尝试调用标准updateObjectSelector函数...');
     
     try {
         // 模拟标准updateObjectSelector的行为
@@ -506,7 +735,6 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
         const selectionCount = modal.cachedElements?.selectionCount || modal.querySelector('#selection-count');
         
         if (!dropdownOptions) {
-            console.warn('⚠️ 找不到下拉选择器元素');
             return;
         }
         
@@ -585,26 +813,21 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
             if (nodeInstance?.standardUpdateSelectionCount) {
                 nodeInstance.standardUpdateSelectionCount(modal);
             } else {
-                console.log('⚠️ standardUpdateSelectionCount 方法不存在，跳过');
             }
             
             if (nodeInstance?.standardUpdateDropdownText) {
                 nodeInstance.standardUpdateDropdownText(modal);
             } else {
-                console.log('⚠️ standardUpdateDropdownText 方法不存在，跳过');
             }
             
             // 绑定下拉框事件 - 安全调用
             if (nodeInstance?.standardBindDropdownEvents) {
                 nodeInstance.standardBindDropdownEvents(modal);
             } else {
-                console.log('⚠️ standardBindDropdownEvents 方法不存在，跳过');
             }
         } catch (methodError) {
-            console.warn('⚠️ 调用标准方法时出现错误，但不影响主要功能:', methodError);
         }
         
-        console.log('✅ 标准updateObjectSelector逻辑执行完成，共', modal.annotations.length, '个图层');
         
     } catch (error) {
         console.error('❌ 调用标准updateObjectSelector失败:', error);
@@ -616,26 +839,18 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
  * 从主文件迁移的下拉框更新逻辑
  */
 export function updateDropdownAfterRestore(modal, nodeInstance) {
-    console.log('🔄 尝试更新下拉复选框 - annotations数量:', modal.annotations?.length || 0);
     
     try {
         const dropdownOptions = modal.querySelector('#dropdown-options');
         const noLayersMessage = modal.querySelector('#no-layers-message');
         
-        console.log('🔍 DOM元素检查:', {
-            dropdownOptions: !!dropdownOptions,
-            noLayersMessage: !!noLayersMessage,
-            modalId: modal.id
-        });
         
         if (!dropdownOptions) {
-            console.warn('⚠️ 找不到 #dropdown-options 元素');
             return;
         }
         
         // 安全的数据验证
         if (!modal.annotations || modal.annotations.length === 0) {
-            console.log('📝 没有annotations需要显示');
             dropdownOptions.innerHTML = '';
             if (noLayersMessage) noLayersMessage.style.display = 'block';
             return;
@@ -646,15 +861,9 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
         
         // 清空现有选项
         dropdownOptions.innerHTML = '';
-        console.log('📋 开始创建', modal.annotations.length, '个图层选项...');
         
         // 创建下拉选项
         modal.annotations.forEach((annotation, index) => {
-            console.log(`📌 创建图层选项 ${index + 1}:`, {
-                id: annotation.id,
-                type: annotation.type,
-                number: annotation.number
-            });
             
             const option = document.createElement('div');
             option.style.cssText = `
@@ -698,10 +907,8 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
                 if (nodeInstance?.eventHandlers?.bindCheckboxEventsForRestore) {
                     nodeInstance.eventHandlers.bindCheckboxEventsForRestore(option, modal, annotation.id);
                 } else {
-                    console.log('⚠️ eventHandlers.bindCheckboxEventsForRestore 方法不存在，跳过');
                 }
             } catch (handlerError) {
-                console.warn('⚠️ 绑定复选框事件时出现错误，但不影响主要功能:', handlerError);
             }
         });
         
@@ -724,7 +931,6 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
             selectionCount.textContent = `0 selected`;
         }
         
-        console.log('✅ 下拉复选框更新完成，共创建', modal.annotations.length, '个选项');
         
         // 安全调用下拉框事件绑定
         try {
@@ -733,10 +939,8 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
             } else if (nodeInstance?.bindDropdownEventsForRestore) {
                 nodeInstance.bindDropdownEventsForRestore(modal);
             } else {
-                console.log('⚠️ 下拉框事件绑定方法不存在，跳过');
             }
         } catch (bindError) {
-            console.warn('⚠️ 绑定下拉框事件时出现错误，但不影响主要功能:', bindError);
         }
         
     } catch (error) {

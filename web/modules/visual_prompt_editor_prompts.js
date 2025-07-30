@@ -3,7 +3,7 @@
  * 负责生成适合多模态图像编辑模型的提示词
  */
 
-import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
+import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect, KontextUtils } from './visual_prompt_editor_utils.js';
 import { t } from './visual_prompt_editor_i18n.js';
 
 /**
@@ -38,19 +38,16 @@ function shouldRequireLayerSelection(category, operationType) {
  * 绑定提示词相关事件
  */
 export function bindPromptEvents(modal, getObjectInfoFunction) {
-    console.log('🔧 bindPromptEvents函数被调用');
-    console.log('  - modal:', modal ? '✅ 存在' : '❌ 不存在');
-    console.log('  - getObjectInfoFunction:', getObjectInfoFunction ? '✅ 存在' : '❌ 不存在');
+    // 绑定提示词事件
     
     // 初始化分类选择器
-    console.log('🔧 开始调用initializeCategorySelector...');
     initializeCategorySelector(modal);
     
     // 生成按钮
     const generateBtn = modal.querySelector('#generate-prompt');
     if (generateBtn) {
         generateBtn.onclick = () => {
-            console.log('✨ 生成描述按钮点击');
+            // 生成描述
             generateDescription(modal, getObjectInfoFunction);
         };
     }
@@ -62,8 +59,8 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             const textarea = modal.querySelector('#generated-description');
             if (textarea && textarea.value) {
                 navigator.clipboard.writeText(textarea.value);
-                console.log('📋 复制成功');
-                showNotification('Description copied to clipboard', 'success');
+                // 复制成功
+                KontextUtils.showNotification('Description copied to clipboard', 'success');
             }
         };
     }
@@ -75,7 +72,7 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             const textarea = modal.querySelector('#generated-description');
             if (textarea) {
                 textarea.value = '';
-                console.log('🧹 清空成功');
+                // 清空成功
                 // 触发实时同步
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
@@ -106,7 +103,6 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
                     descriptionStatus.style.background = '#FF9800';
                     descriptionStatus.style.color = 'white';
                 }
-                console.log('📝 Generated Description 内容已修改');
             } else if (!hasChanged && isModified) {
                 // 内容恢复到原始状态
                 isModified = false;
@@ -168,7 +164,6 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             }
         });
         
-        console.log('✅ Generated Description 实时编辑功能已启用');
     }
 }
 
@@ -188,7 +183,6 @@ function autoSaveDescription(modal) {
             });
             modal.dispatchEvent(saveEvent);
             
-            console.log('💾 Generated Description 自动保存完成:', promptData.positive_prompt.substring(0, 50) + '...');
             
             // 显示保存成功的视觉反馈
             const generatedDescription = modal.querySelector('#generated-description');
@@ -201,11 +195,11 @@ function autoSaveDescription(modal) {
             }
             
             // 显示简短的保存通知
-            showNotification('Description auto-saved', 'success', 1000);
+            KontextUtils.showNotification('Description auto-saved', 'success', 1000);
         }
     } catch (error) {
-        console.error('❌ Generated Description 自动保存失败:', error);
-        showNotification('Auto-save failed', 'error', 2000);
+        console.error('Auto-save failed:', error);
+        KontextUtils.showNotification('Auto-save failed', 'error', 2000);
     }
 }
 
@@ -218,7 +212,6 @@ function generateDescription(modal, getObjectInfoFunction) {
     const generatedDescription = modal.querySelector('#generated-description');
     
     if (!generatedDescription) {
-        console.log('⚠️ VPE缺少必要元素');
         return;
     }
     
@@ -233,7 +226,7 @@ function generateDescription(modal, getObjectInfoFunction) {
     const requiresLayerSelection = shouldRequireLayerSelection(currentCategory, currentOperationType);
     
     if (requiresLayerSelection && selectedAnnotationIds.length === 0) {
-        showNotification('Please select annotation objects for this operation', 'error');
+        KontextUtils.showNotification('Please select annotation objects for this operation', 'error');
         return;
     }
     
@@ -248,9 +241,8 @@ function generateDescription(modal, getObjectInfoFunction) {
         // 全局操作：直接使用全局设置生成描述
         if (globalOperation && globalDescription) {
             description = generateGlobalPrompt(globalOperation, globalDescription, modal);
-            console.log('🌍 使用全局模式生成描述（无选择图层）');
-        } else {
-            showNotification('Please enter description for global operation', 'error');
+            } else {
+            KontextUtils.showNotification('Please enter description for global operation', 'error');
             return;
         }
     } else {
@@ -274,19 +266,17 @@ function generateDescription(modal, getObjectInfoFunction) {
         if (hasIndividualOperations) {
             // 独立模式：使用每个层的独立设置
             description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
-            console.log('🔀 使用独立模式生成描述');
         } else if (globalOperation && globalDescription) {
             // 全局模式：使用全局设置
             description = generateMultiSelectPrompt(selectedAnnotationIds, globalOperation, globalDescription, modal, getObjectInfoFunction);
-            console.log('🌍 使用全局模式生成描述');
         } else {
             // 混合模式：优先使用独立设置，回退到全局设置
             description = generateMultiLayerPrompt(selectedAnnotationIds, modal);
-            console.log('🔄 使用混合模式生成描述');
         }
     }
     
     // 添加约束性和修饰性提示词
+    const originalDescription = description;
     description = enhanceDescriptionWithPrompts(description, modal);
     
     generatedDescription.value = description;
@@ -294,34 +284,76 @@ function generateDescription(modal, getObjectInfoFunction) {
     // 触发生成完成事件，通知编辑监听器
     generatedDescription.dispatchEvent(new Event('descriptiongenerated', { bubbles: true }));
     
-    console.log('✨ VPE生成提示词:', description);
+    // 显示应用成功提示（如果有约束和修饰提示词被应用）
+    if (description !== originalDescription) {
+        showApplySuccessNotification(modal);
+    }
     
     // 根据是否选择图层显示不同的通知
     if (selectedAnnotationIds.length === 0) {
-        showNotification(`Global description generated successfully`, 'success');
+        KontextUtils.showNotification(`Global description generated successfully`, 'success');
     } else {
-        showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
+        KontextUtils.showNotification(`Description generated successfully (${selectedAnnotationIds.length} objects)`, 'success');
     }
 }
 
 /**
- * 获取选中的标注ID列表 (适应标签页系统)
+ * 显示应用成功提示
+ */
+function showApplySuccessNotification(modal) {
+    const notification = modal.querySelector('#apply-success-notification');
+    if (!notification) return;
+    
+    // 显示提示
+    notification.style.display = 'block';
+    
+    // 触发渐入动画
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 10);
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        
+        // 等待渐出动画完成后隐藏元素
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 300);
+    }, 3000);
+}
+
+/**
+ * 获取选中的标注ID列表 (适应Fabric.js对象和标签页系统)
  */
 function getSelectedAnnotationIds(modal) {
-    console.log('🔍 getSelectedAnnotationIds 被调用');
     
-    // 标签页系统：从 selectedLayers Set 获取
+    // 优先：从 selectedLayers Set 获取（支持Fabric.js对象）
     if (modal.selectedLayers && modal.selectedLayers.size > 0) {
-        console.log('🔍 使用 selectedLayers:', Array.from(modal.selectedLayers));
         return Array.from(modal.selectedLayers);
     }
     
-    // 备用方案：从复选框获取
+    // 备用方案1：从Fabric.js画布获取当前选中的对象
+    if (window.fabricManager && window.fabricManager.fabricCanvas) {
+        const activeObjects = window.fabricManager.fabricCanvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            const fabricIds = activeObjects.map(obj => obj.fabricId).filter(id => id);
+            if (fabricIds.length > 0) {
+                // 确保这些对象在selectedLayers中
+                if (!modal.selectedLayers) {
+                    modal.selectedLayers = new Set();
+                }
+                fabricIds.forEach(id => modal.selectedLayers.add(id));
+                return fabricIds;
+            }
+        }
+    }
+    
+    // 备用方案2：从复选框获取
     const checkedBoxes = modal.querySelectorAll('.layer-tab input[type="checkbox"]:checked, #annotation-objects input[type="checkbox"]:checked');
     const fromCheckboxes = Array.from(checkedBoxes).map(checkbox => checkbox.dataset.annotationId).filter(id => id);
-    console.log('🔍 从复选框获取到的IDs:', fromCheckboxes);
     
-    // 🔴 修复：如果复选框也没有选中，则获取所有有修改设置的标注
+    // 备用方案3：如果复选框也没有选中，则获取所有有修改设置的标注
     if (fromCheckboxes.length === 0) {
         const annotationsWithOperations = modal.annotations?.filter(ann => {
             // 检查是否有任何自定义设置：操作类型设置、描述内容、或增强提示词
@@ -332,7 +364,6 @@ function getSelectedAnnotationIds(modal) {
             
             return hasOperationType || hasDescription || hasConstraints || hasDecoratives;
         }).map(ann => ann.id) || [];
-        console.log('🔍 有修改设置的标注:', annotationsWithOperations);
         return annotationsWithOperations;
     }
     
@@ -357,10 +388,13 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         if (!annotation) return null;
         
         // 获取该标注的操作类型和描述（如果没有设置，使用全局设置）
-        const operationType = annotation.operationType || globalOperation || 'add_object';
+        const operationType = annotation.operationType || globalOperation || 'change_color';
         const layerDescription = annotation.description || globalDescription || '';
         
-        // console.log(`🔍 处理标注 ${annotationId}:`, { operationType, layerDescription });
+        // 如果标注没有描述，尝试从当前层描述框获取
+        const currentLayerDescription = modal.querySelector('#current-layer-description')?.value?.trim();
+        const finalDescription = layerDescription || currentLayerDescription || '';
+        
         
         // 生成该层的对象描述
         const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
@@ -372,9 +406,17 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         }
         
         // 生成该层的完整描述
-        const layerPrompt = template.description(layerDescription).replace('{object}', objectDescription);
+        let layerPrompt = template.description(finalDescription).replace('{object}', objectDescription);
         
-        // console.log(`📝 生成层描述: ${layerPrompt}`);
+        // 添加该标注的约束性提示词
+        if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
+            layerPrompt += `, ${annotation.constraintPrompts.join(', ')}`;
+        }
+        
+        // 添加该标注的修饰性提示词
+        if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
+            layerPrompt += `, ${annotation.decorativePrompts.join(', ')}`;
+        }
         
         return layerPrompt;
     }).filter(desc => desc);
@@ -394,7 +436,6 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         combinedDescription = `${layerDescriptions.join(', ')}, and ${lastDesc}`;
     }
     
-    console.log(`🎯 生成了 ${selectedAnnotationIds.length} 个图层的独立操作提示词`);
     
     return combinedDescription;
 }
@@ -448,12 +489,6 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
     // 生成最终描述
     const finalDescription = template.description(inputText).replace('{object}', objectDescription);
     
-    console.log('🎯 多选提示词生成:', {
-        selectedCount: selectedAnnotationIds.length,
-        objectDescription,
-        operation,
-        finalDescription
-    });
     
     return finalDescription;
 }
@@ -488,14 +523,33 @@ function generateAnnotationDescription(annotation, includeNumbers = false) {
     };
     
     const shapeMap = {
+        'rect': 'rectangular',
         'rectangle': 'rectangular',
         'circle': 'circular',
+        'polygon': 'polygon',
+        'path': 'freehand drawn',
+        'image': 'image',
+        'text': 'text',
         'arrow': 'arrow-marked',
         'freehand': 'outlined'
     };
     
-    const color = colorMap[annotation.color] || 'marked';
-    const shape = shapeMap[annotation.type] || 'marked';
+    // 处理Fabric对象的颜色和类型
+    let color = 'marked';
+    let shape = 'marked';
+    
+    if (annotation.fabricObject) {
+        // 从Fabric对象获取颜色和类型
+        const fabricObj = annotation.fabricObject;
+        const fillColor = fabricObj.fill || fabricObj.stroke;
+        color = colorMap[fillColor] || 'colored';
+        shape = shapeMap[fabricObj.type] || fabricObj.type || 'marked';
+    } else {
+        // 兼容旧的标注数据
+        color = colorMap[annotation.color] || 'marked';
+        shape = shapeMap[annotation.type] || 'marked';
+    }
+    
     const number = annotation.number;
     
     // 构建基础描述
@@ -508,25 +562,24 @@ function generateAnnotationDescription(annotation, includeNumbers = false) {
     
     // 添加位置信息
     let positionInfo = '';
-    if (annotation.start && annotation.end) {
-        const centerX = Math.round((annotation.start.x + annotation.end.x) / 2);
-        const centerY = Math.round((annotation.start.y + annotation.end.y) / 2);
-        
-        // 简化的位置描述
-        let position = '';
-        if (centerY < 300) position = 'upper ';
-        else if (centerY > 600) position = 'lower ';
-        
-        if (centerX < 300) position += 'left';
-        else if (centerX > 600) position += 'right';
-        else position += 'center';
-        
-        positionInfo = position ? ` in the ${position.trim()} part of the image` : '';
+    let centerX, centerY;
+    
+    if (annotation.bounds) {
+        // 从Fabric对象的bounds获取位置
+        centerX = Math.round(annotation.bounds.left + annotation.bounds.width / 2);
+        centerY = Math.round(annotation.bounds.top + annotation.bounds.height / 2);
+    } else if (annotation.start && annotation.end) {
+        // 兼容旧的标注数据
+        centerX = Math.round((annotation.start.x + annotation.end.x) / 2);
+        centerY = Math.round((annotation.start.y + annotation.end.y) / 2);
     } else if (annotation.centerPoint) {
         // 自由绘制的中心点
-        const centerX = Math.round(annotation.centerPoint.x);
-        const centerY = Math.round(annotation.centerPoint.y);
-        
+        centerX = Math.round(annotation.centerPoint.x);
+        centerY = Math.round(annotation.centerPoint.y);
+    }
+    
+    if (centerX !== undefined && centerY !== undefined) {
+        // 简化的位置描述
         let position = '';
         if (centerY < 300) position = 'upper ';
         else if (centerY > 600) position = 'lower ';
@@ -765,7 +818,9 @@ export function exportPromptData(modal) {
     const generatedDescription = modal.querySelector('#generated-description');
     const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
     
-    if (!generatedDescription) return null;
+    // 🔧 修复：即使找不到#generated-description也继续执行，确保connectedLayers数据被保存
+    if (!generatedDescription) {
+    }
     
     // 获取选中的约束性和修饰性提示词（支持多选）
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
@@ -788,11 +843,6 @@ export function exportPromptData(modal) {
     // 合并两个列表，去重
     const allRelevantIds = [...new Set([...selectedAnnotationIds, ...annotationsWithOperations])];
     
-    console.log('🔍 exportPromptData - 当前选中的标注:', selectedAnnotationIds);
-    console.log('🔍 exportPromptData - 有操作类型的标注:', annotationsWithOperations);
-    console.log('🔍 exportPromptData - 最终导出的标注:', allRelevantIds);
-    console.log('🔍 exportPromptData - modal.selectedLayers:', modal.selectedLayers ? Array.from(modal.selectedLayers) : 'undefined');
-    console.log('🔍 exportPromptData - total annotations:', modal.annotations?.length || 0);
     
     // 使用合并后的ID列表
     selectedAnnotationIds = allRelevantIds;
@@ -800,7 +850,6 @@ export function exportPromptData(modal) {
     const selectedAnnotations = selectedAnnotationIds.map(id => {
         const annotation = modal.annotations.find(ann => ann.id === id);
         if (annotation) {
-            console.log(`🔍 标注 ${id} 的操作类型:`, annotation.operationType, '描述:', annotation.description);
         }
         return annotation ? {
             id: annotation.id,
@@ -815,19 +864,21 @@ export function exportPromptData(modal) {
         } : null;
     }).filter(ann => ann);
     
-    console.log('🔍 最终的 selectedAnnotations:', selectedAnnotations.map(ann => ({
-        id: ann.id,
-        operationType: ann.operationType,
-        description: ann.description
-    })));
     
     // 获取全局设置
     const operationType = modal.querySelector('#operation-type');
     const targetInput = modal.querySelector('#target-input');
     const templateCategory = modal.querySelector('#template-category');
     
+    // Layer connection data removed - using Fabric.js objects only
+    const fabricObjectsData = modal.annotations || [];
+    
+    
+    // 🔧 关键修复：获取图像显示缩放信息，确保前后端坐标系统一致
+    const imageScaleInfo = getImageDisplayScaleInfo(modal);
+    
     const promptData = {
-        positive_prompt: generatedDescription.value,
+        positive_prompt: generatedDescription ? generatedDescription.value : '',
         negative_prompt: generateNegativePrompt(operationType?.value || 'custom', targetInput?.value || ''),
         selected_annotations: selectedAnnotations,  // 🔴 新增：选中的标注及其独立设置
         global_operation_type: operationType?.value || 'add_object',  // 🔴 恢复：全局操作类型
@@ -837,10 +888,15 @@ export function exportPromptData(modal) {
         decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
         annotations: modal.annotations || [],
-        quality_analysis: analyzePromptQuality(generatedDescription.value),
+        // 🔧 关键修复：添加connectedLayers字段，防止连接图层数据丢失
+        fabricObjects: fabricObjectsData,
+        // 🔧 新增：图像缩放信息，确保后端使用正确的坐标转换
+        image_scale_info: imageScaleInfo,
+        quality_analysis: analyzePromptQuality(generatedDescription ? generatedDescription.value : ''),
         editing_mode: 'hybrid',  // 🔴 支持混合模式
         timestamp: new Date().toISOString()
     };
+    
     
     return promptData;
 }
@@ -849,7 +905,6 @@ export function exportPromptData(modal) {
  * 初始化分类选择器
  */
 function initializeCategorySelector(modal) {
-    console.log('🔧 开始初始化分类选择器...');
     
     // 更健壮的DOM查询 - 先尝试在modal中查找，然后尝试在整个文档中查找
     let categorySelect = modal.querySelector('#template-category');
@@ -858,32 +913,21 @@ function initializeCategorySelector(modal) {
     // 如果在modal中找不到，尝试在整个文档中查找
     if (!categorySelect) {
         categorySelect = document.querySelector('#template-category');
-        console.log('🔍 在document中查找categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
     }
     
     if (!operationSelect) {
         operationSelect = document.querySelector('#operation-type');
-        console.log('🔍 在document中查找operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
     }
     
-    console.log('🔍 查找DOM元素结果:');
-    console.log('  - categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
-    console.log('  - operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
     
     if (!categorySelect || !operationSelect) {
-        console.warn('⚠️ 分类选择器或操作选择器未找到');
-        console.log('🔍 尝试查找controls标签页内容...');
         const controlsTab = modal.querySelector('#controls-tab-content') || document.querySelector('#controls-tab-content');
         if (controlsTab) {
-            console.log('🔍 找到controls标签页内容，重新查找选择器...');
             categorySelect = controlsTab.querySelector('#template-category');
             operationSelect = controlsTab.querySelector('#operation-type');
-            console.log('  - 在controls标签页中找到categorySelect:', categorySelect ? '✅ 找到' : '❌ 未找到');
-            console.log('  - 在controls标签页中找到operationSelect:', operationSelect ? '✅ 找到' : '❌ 未找到');
         }
         
         if (!categorySelect || !operationSelect) {
-            console.log('🔍 当前modal结构预览:', modal.innerHTML.substring(0, 1000));
             return;
         }
     }
@@ -892,12 +936,10 @@ function initializeCategorySelector(modal) {
     updateOperationTypeSelect(operationSelect, 'global');
     
     // Edit Control区域不再需要提示词选择器初始化
-    console.log(`🚀 Edit Control区域已简化，移除提示词选择器`);
     
     // 绑定分类选择器事件
     categorySelect.addEventListener('change', function() {
         const selectedCategory = this.value;
-        console.log(`📂 切换模板分类: ${selectedCategory}`);
         
         // 更新操作类型选择器
         updateOperationTypeSelect(operationSelect, selectedCategory);
@@ -908,7 +950,6 @@ function initializeCategorySelector(modal) {
         // 设置第一个操作类型为默认选中（不再更新提示词选择器）
         if (operationSelect.options.length > 0) {
             const firstOperation = operationSelect.options[0].value;
-            console.log(`🔄 自动选择第一个操作: ${firstOperation}`);
             operationSelect.value = firstOperation;  // 设置选中值
         }
     });
@@ -916,22 +957,18 @@ function initializeCategorySelector(modal) {
     // 绑定操作类型选择器事件
     operationSelect.addEventListener('change', function() {
         const selectedOperation = this.value;
-        console.log(`⚙️ 切换操作类型: ${selectedOperation}`);
         
         // 可以在这里添加操作类型切换的逻辑
         // 例如更新UI显示或预填充描述模板
     });
     
-    console.log('✅ 分类和操作类型选择器事件绑定完成');
     
     // 初始化时也更新标签
     updateLayerSelectionLabel(modal, categorySelect.value);
     
     
-    console.log('🎯 分类选择器已初始化，默认显示全局调整模板');
     
     // Edit Control区域已简化，调试信息已移除
-    console.log('🔍 Edit Control区域初始化完成（已移除提示词面板）');
 }
 
 /**
@@ -955,33 +992,23 @@ function showCategoryInfo(modal, category) {
     if (!categoryInfo) return;
     
     // 可以在这里添加临时提示显示
-    console.log(`📋 ${categoryInfo.name}: ${categoryInfo.description}`);
-    console.log(`📊 包含 ${categoryInfo.templates.length} 个模板`);
 }
 
 /**
  * 更新约束性和修饰性提示词选择器 - 🔴 支持复选框容器
  */
 export function updatePromptSelectors(modal, operationType) {
-    console.log(`🔄 开始更新提示词选择器: ${operationType}`);
     
     // 只查找图层编辑区域的容器（Edit Control区域已移除提示词面板）
     const layerConstraintContainer = modal.querySelector('#layer-constraint-prompts-container');
     const layerDecorativeContainer = modal.querySelector('#layer-decorative-prompts-container');
     
-    console.log(`🔍 容器查找结果:`, {
-        layerConstraintContainer: !!layerConstraintContainer,
-        layerDecorativeContainer: !!layerDecorativeContainer
-    });
     
     // 更新图层编辑区域的提示词
     if (layerConstraintContainer && layerDecorativeContainer) {
-        console.log(`🔄 正在更新图层提示词复选框: ${operationType}`);
         updateConstraintPrompts(layerConstraintContainer, operationType);
         updateDecorativePrompts(layerDecorativeContainer, operationType);
-        console.log(`✅ 已更新图层提示词复选框: ${operationType}`);
     } else {
-        console.warn('⚠️ 图层编辑区域的约束性或修饰性提示词容器未找到');
     }
 }
 
@@ -1032,12 +1059,9 @@ function updateConstraintPrompts(containerElement, operationType) {
         checkboxContainer.appendChild(checkboxWrapper);
     });
     
-    console.log(`🔄 约束性提示词复选框已更新: ${operationType} (${constraints.length}个选项)`);
     
     // 🔴 验证复选框创建状态
     setTimeout(() => {
-        const createdCheckboxes = checkboxContainer.querySelectorAll('input[type="checkbox"]');
-        console.log(`✅ 约束性复选框创建验证: ${createdCheckboxes.length}/${constraints.length}`);
     }, 100);
 }
 
@@ -1088,12 +1112,9 @@ function updateDecorativePrompts(containerElement, operationType) {
         checkboxContainer.appendChild(checkboxWrapper);
     });
     
-    console.log(`🔄 修饰性提示词复选框已更新: ${operationType} (${decoratives.length}个选项)`);
     
     // 🔴 验证复选框创建状态
     setTimeout(() => {
-        const createdCheckboxes = checkboxContainer.querySelectorAll('input[type="checkbox"]');
-        console.log(`✅ 修饰性复选框创建验证: ${createdCheckboxes.length}/${decoratives.length}`);
     }, 100);
 }
 
@@ -1115,22 +1136,78 @@ function enhanceDescriptionWithPrompts(baseDescription, modal) {
         enhancedDescription += `, ${selectedDecoratives.join(', ')}`;
     }
     
-    console.log('🎨 提示词增强:', {
-        base: baseDescription,
-        constraints: selectedConstraints,
-        decoratives: selectedDecoratives,
-        final: enhancedDescription
-    });
-    
     return enhancedDescription;
 }
 
 /**
- * 获取选中的提示词复选框 - 🔴 新增辅助函数
+ * 获取选中的提示词复选框 - 🔴 适配Fabric.js对象选择
  */
 function getSelectedPrompts(modal, type) {
-    const checkboxes = modal.querySelectorAll(`#${type}-checkboxes input[type="checkbox"]:checked`);
-    return Array.from(checkboxes).map(checkbox => checkbox.value);
+    let checkboxes;
+    let container;
+    
+    // 首先尝试在当前modal中查找容器
+    if (type === 'constraint') {
+        container = modal.querySelector('#layer-constraint-prompts-container');
+        
+        // 如果当前modal中没有容器，尝试使用fabricManager的modal
+        if (!container && window.fabricManager && window.fabricManager.modal) {
+            container = window.fabricManager.modal.querySelector('#layer-constraint-prompts-container');
+        }
+        
+        if (container) {
+            checkboxes = container.querySelectorAll('.constraint-prompt-checkbox:checked');
+        } else {
+            checkboxes = [];
+        }
+    } else if (type === 'decorative') {
+        container = modal.querySelector('#layer-decorative-prompts-container');
+        
+        // 如果当前modal中没有容器，尝试使用fabricManager的modal
+        if (!container && window.fabricManager && window.fabricManager.modal) {
+            container = window.fabricManager.modal.querySelector('#layer-decorative-prompts-container');
+        }
+        
+        if (container) {
+            checkboxes = container.querySelectorAll('.decorative-prompt-checkbox:checked');
+        } else {
+            checkboxes = [];
+        }
+    } else {
+        // 兼容旧版本选择器
+        checkboxes = modal.querySelectorAll(`#${type}-checkboxes input[type="checkbox"]:checked`);
+    }
+    
+    // 如果还是找不到容器，尝试从标注数据中获取已保存的提示词
+    if (checkboxes.length === 0) {
+        // 从fabricManager的annotation数据中获取已选择的提示词
+        if (window.fabricManager && window.fabricManager.modal && window.fabricManager.modal.annotations) {
+            const annotations = window.fabricManager.modal.annotations;
+            
+            // 获取所有选中对象的提示词
+            let allPrompts = [];
+            annotations.forEach((annotation) => {
+                if (type === 'constraint' && annotation.constraintPrompts) {
+                    allPrompts = allPrompts.concat(annotation.constraintPrompts);
+                } else if (type === 'decorative' && annotation.decorativePrompts) {
+                    allPrompts = allPrompts.concat(annotation.decorativePrompts);
+                }
+            });
+            
+            // 去重并返回
+            const uniquePrompts = [...new Set(allPrompts)];
+            if (uniquePrompts.length > 0) {
+                return uniquePrompts;
+            }
+        }
+    }
+    
+    // 从复选框提取提示词
+    const results = Array.from(checkboxes).map(checkbox => 
+        checkbox.dataset.prompt
+    ).filter(prompt => prompt);
+    
+    return results;
 }
 
 /**
@@ -1140,7 +1217,6 @@ function getSelectedPrompts(modal, type) {
  * 生成全局操作的提示词（无需选择图层）
  */
 function generateGlobalPrompt(operationType, description, modal) {
-    console.log('🌍 生成全局提示词:', { operationType, description });
     
     // 获取操作模板
     const template = OPERATION_TEMPLATES[operationType];
@@ -1160,7 +1236,6 @@ function generateGlobalPrompt(operationType, description, modal) {
         prompt = template.description(description);
     }
     
-    console.log('✨ 全局提示词生成:', prompt);
     return prompt;
 }
 
@@ -1199,23 +1274,15 @@ function updateLayerSelectionLabel(modal, category) {
     label.textContent = labelText;
     label.style.color = labelColor;
     
-    console.log(`🏷️ 更新图层选择标签: ${category} -> ${labelText}`);
-}
-
-function showNotification(message, type = 'info') {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    // 这里可以添加UI通知显示逻辑
 }
 
 /**
  * Auto-save prompt selections to the currently selected layer(s)
  */
 function autoSavePromptSelections() {
-    console.log('💾 Auto-saving prompt selections...');
     
     const modal = document.querySelector('#unified-editor-modal');
     if (!modal || !modal.selectedLayers || modal.selectedLayers.size === 0) {
-        console.log('ℹ️ No layers selected for auto-save');
         return;
     }
     
@@ -1224,7 +1291,6 @@ function autoSavePromptSelections() {
     const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container input[type="checkbox"]:checked');
     constraintCheckboxes.forEach(checkbox => {
         constraintPrompts.push(checkbox.value);
-        console.log(`📋 Auto-saved constraint prompt: ${checkbox.value}`);
     });
     
     // Collect decorative prompts
@@ -1232,7 +1298,6 @@ function autoSavePromptSelections() {
     const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container input[type="checkbox"]:checked');
     decorativeCheckboxes.forEach(checkbox => {
         decorativePrompts.push(checkbox.value);
-        console.log(`🎨 Auto-saved decorative prompt: ${checkbox.value}`);
     });
     
     // Save to all selected layers
@@ -1242,14 +1307,90 @@ function autoSavePromptSelections() {
             annotation.constraintPrompts = [...constraintPrompts];
             annotation.decorativePrompts = [...decorativePrompts];
             
-            console.log(`💾 Auto-saved prompts to layer ${annotation.number + 1}:`, {
-                constraintPrompts: annotation.constraintPrompts,
-                decorativePrompts: annotation.decorativePrompts
-            });
         }
     });
     
-    console.log(`✅ Auto-save completed for ${modal.selectedLayers.size} layer(s)`);
+}
+
+/**
+ * 获取当前图像显示的缩放信息
+ * 用于确保前后端坐标系统一致
+ */
+function getImageDisplayScaleInfo(modal) {
+    try {
+        const mainImage = modal.querySelector('#vpe-main-image');
+        const canvasContainer = modal.querySelector('#image-canvas');
+        
+        if (!mainImage || !canvasContainer) {
+                return {
+                display_width: 800,
+                display_height: 600,
+                natural_width: 800,
+                natural_height: 600,
+                scale_x: 1.0,
+                scale_y: 1.0,
+                canvas_offset_x: 0,
+                canvas_offset_y: 0,
+                source: 'fallback'
+            };
+        }
+        
+        // 获取画布容器和图像的边界框
+        const canvasRect = canvasContainer.getBoundingClientRect();
+        const imageRect = mainImage.getBoundingClientRect();
+        
+        // 获取图像在画布中的相对位置
+        const canvasOffsetX = imageRect.left - canvasRect.left;
+        const canvasOffsetY = imageRect.top - canvasRect.top;
+        
+        // 获取显示尺寸和原始尺寸
+        const displayWidth = imageRect.width;
+        const displayHeight = imageRect.height;
+        const naturalWidth = mainImage.naturalWidth || mainImage.width;
+        const naturalHeight = mainImage.naturalHeight || mainImage.height;
+        
+        // 计算缩放比例
+        // 🔧 关键修复：考虑到前端图层也被缩放了，需要使用实际的合成画面比例
+        // 前端合成后的画面尺寸就是canvasRect的尺寸
+        const composedScaleX = naturalWidth / canvasRect.width;
+        const composedScaleY = naturalHeight / canvasRect.height;
+        
+        const scaleX = naturalWidth / displayWidth;
+        const scaleY = naturalHeight / displayHeight;
+        
+        const scaleInfo = {
+            display_width: Math.round(displayWidth),
+            display_height: Math.round(displayHeight),
+            natural_width: naturalWidth,
+            natural_height: naturalHeight,
+            scale_x: composedScaleX,  // 🔧 使用合成画面的缩放比例
+            scale_y: composedScaleY,  // 🔧 使用合成画面的缩放比例
+            image_scale_x: scaleX,    // 保留原始图像缩放比例用于调试
+            image_scale_y: scaleY,    // 保留原始图像缩放比例用于调试
+            canvas_offset_x: Math.round(canvasOffsetX),
+            canvas_offset_y: Math.round(canvasOffsetY),
+            canvas_width: Math.round(canvasRect.width),
+            canvas_height: Math.round(canvasRect.height),
+            source: 'computed'
+        };
+        
+        
+        return scaleInfo;
+        
+    } catch (error) {
+        console.error('Failed to get image scale info:', error);
+        return {
+            display_width: 800,
+            display_height: 600,
+            natural_width: 800,
+            natural_height: 600,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            canvas_offset_x: 0,
+            canvas_offset_y: 0,
+            source: 'error_fallback'
+        };
+    }
 }
 
 // 导出需要在其他模块中使用的函数

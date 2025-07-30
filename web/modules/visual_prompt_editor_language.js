@@ -25,7 +25,6 @@ export function initializeLanguageSystem(modal) {
             // 强制重新生成动态内容
             forceDynamicContentRefresh(modal);
             
-            console.log(`🌐 语言切换为: ${newLang}`);
             
             // 显示切换提示
             showLanguageChangeNotification(newLang);
@@ -166,7 +165,6 @@ export function updateSelectOptions(modal) {
     // 更新AI增强器编辑意图选项
     const editIntentSelect = modal.querySelector('#edit-intent');
     if (editIntentSelect) {
-        console.log('🔄 更新AI增强器编辑意图选项');
         const options = editIntentSelect.querySelectorAll('option');
         options.forEach(option => {
             const value = option.value;
@@ -174,7 +172,6 @@ export function updateSelectOptions(modal) {
             const translatedText = t(textKey);
             if (translatedText !== textKey) {
                 option.textContent = translatedText;
-                console.log(`🔄 已更新意图选项: ${value} -> ${translatedText}`);
             }
         });
     }
@@ -182,7 +179,6 @@ export function updateSelectOptions(modal) {
     // 更新AI增强器处理风格选项
     const processingStyleSelect = modal.querySelector('#processing-style');
     if (processingStyleSelect) {
-        console.log('🔄 更新AI增强器处理风格选项');
         const options = processingStyleSelect.querySelectorAll('option');
         options.forEach(option => {
             const value = option.value;
@@ -190,7 +186,6 @@ export function updateSelectOptions(modal) {
             const translatedText = t(textKey);
             if (translatedText !== textKey) {
                 option.textContent = translatedText;
-                console.log(`🔄 已更新风格选项: ${value} -> ${translatedText}`);
             }
         });
     }
@@ -198,7 +193,6 @@ export function updateSelectOptions(modal) {
     // 更新AI增强器Temperature选项
     const temperatureSelect = modal.querySelector('#temperature');
     if (temperatureSelect) {
-        console.log('🔄 更新AI增强器Temperature选项');
         const options = temperatureSelect.querySelectorAll('option');
         options.forEach(option => {
             const dataI18n = option.getAttribute('data-i18n');
@@ -214,7 +208,6 @@ export function updateSelectOptions(modal) {
     // 更新AI增强器随机种子选项
     const seedSelect = modal.querySelector('#seed');
     if (seedSelect) {
-        console.log('🔄 更新AI增强器随机种子选项');
         const options = seedSelect.querySelectorAll('option');
         options.forEach(option => {
             const dataI18n = option.getAttribute('data-i18n');
@@ -266,19 +259,16 @@ export function updateDynamicTexts(modal) {
  * 强制刷新动态内容
  */
 function forceDynamicContentRefresh(modal) {
-    console.log('🔄 强制刷新动态内容');
     
     // 重新生成图层列表以使用新的翻译
     try {
         // 导入必要的函数（在运行时导入避免循环依赖）
         if (window.updateObjectSelector && typeof window.updateObjectSelector === 'function') {
-            console.log('📋 重新生成图层列表');
             window.updateObjectSelector(modal);
         } else {
-            console.log('⚠️ updateObjectSelector 函数不可用');
         }
     } catch (e) {
-        console.warn('更新图层列表时出错:', e);
+        console.warn('Error updating layer list:', e);
     }
     
     // 更新下拉选项
@@ -299,7 +289,6 @@ function forceDynamicContentRefresh(modal) {
         }
     });
     
-    console.log('✅ 动态内容刷新完成');
 }
 
 /**
@@ -312,7 +301,4 @@ export function updateCompleteUI(modal) {
     updateDynamicTexts(modal);
 }
 
-// 暴露函数到全局，以便其他模块使用
-window.updateSelectOptions = updateSelectOptions;
-window.updateDynamicTexts = updateDynamicTexts;
-window.updateCompleteUI = updateCompleteUI;
+// 所有函数已通过单独的export语句导出

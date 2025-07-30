@@ -19,7 +19,6 @@ export class CoordinateSystem {
             imageRect: null
         };
         
-        console.log('🎯 [COORDS] CoordinateSystem 初始化（复合缩放系统模式）');
     }
     
     /**
@@ -32,7 +31,6 @@ export class CoordinateSystem {
             canvasRect: null,
             imageRect: null
         };
-        console.log('🧹 [COORDS] 坐标缓存已清除');
     }
     
     /**
@@ -52,14 +50,12 @@ export class CoordinateSystem {
                 const scaleMatch = transform.match(/scale\(([0-9.]+)\)/);
                 if (scaleMatch) {
                     this.cache.imageScale = parseFloat(scaleMatch[1]);
-                    console.log('📏 [COORDS] 图像缩放因子:', this.cache.imageScale);
                     return this.cache.imageScale;
                 }
             }
         }
         
         this.cache.imageScale = 1;
-        console.log('⚠️ [COORDS] 未找到缩放因子，使用默认值 1');
         return 1;
     }
     
@@ -72,7 +68,7 @@ export class CoordinateSystem {
         }
         
         if (!this.canvasContainer) {
-            console.error('❌ [COORDS] 画布容器未找到');
+            console.error('[COORDS] Canvas container not found');
             return { left: 0, top: 0, width: 0, height: 0 };
         }
         
@@ -91,7 +87,7 @@ export class CoordinateSystem {
         // 🔧 修复：动态获取主图元素，确保引用有效
         const mainImage = this.modal.querySelector('#vpe-main-image');
         if (!mainImage) {
-            console.error('❌ [COORDS] 主图未找到');
+            console.error('[COORDS] Main image not found');
             return null;
         }
         
@@ -119,7 +115,6 @@ export class CoordinateSystem {
             scale: scale
         };
         
-        console.log('🖼️ [COORDS] 图像信息（动态获取，备用）:', this.cache.imageRect);
         return this.cache.imageRect;
     }
     
@@ -152,13 +147,6 @@ export class CoordinateSystem {
         const logicalX = imageRelativeX / imageInfo.scale;
         const logicalY = imageRelativeY / imageInfo.scale;
         
-        console.log('🖱️ [COORDS] 鼠标到图像坐标转换:', {
-            mouse: { x: clientX, y: clientY },
-            canvasRelative: { x: canvasRelativeX, y: canvasRelativeY },
-            imageRelative: { x: imageRelativeX, y: imageRelativeY },
-            logical: { x: logicalX, y: logicalY },
-            scale: imageInfo.scale
-        });
         
         return { x: logicalX, y: logicalY };
     }
@@ -210,7 +198,6 @@ export class CoordinateSystem {
             height: imageInfo.displayRect.height
         };
         
-        console.log('📦 [COORDS] 图像显示边界:', bounds);
         return bounds;
     }
     
@@ -250,12 +237,7 @@ export class CoordinateSystem {
         // 3. 计算总体缩放因子
         totalScale = zoomScale * layerScale;
         
-        console.log('🔍 [COORDS] 复合缩放分析:', {
-            zoomScale,
-            layerScale,
-            totalScale,
-            calculation: `${zoomScale} * ${layerScale} = ${totalScale}`
-        });
+        // 复合缩放分析完成（调试日志已精简）
         
         return {
             zoomScale,
@@ -273,7 +255,7 @@ export class CoordinateSystem {
         const svg = drawingLayer ? drawingLayer.querySelector('svg') : null;
         
         if (!svg) {
-            console.error('❌ [COORDS] SVG绘制层未找到');
+            console.error('[COORDS] SVG drawing layer not found');
             return null;
         }
         
@@ -315,19 +297,10 @@ export class CoordinateSystem {
         const scaleX = svgRelativeX / svgInfo.svgRect.width;
         const scaleY = svgRelativeY / svgInfo.svgRect.height;
         
-        // 🔧 坐标错位修复：简化缩放计算，避免过度除法导致的坐标偏移
-        // 问题：之前的除法计算可能导致坐标被错误缩放
-        console.log('🐛 [COORDS_DEBUG] 坐标转换调试:', {
-            clientX, clientY,
-            svgRelativeX, svgRelativeY,
-            scaleX, scaleY,
-            totalScale: svgInfo.totalScale,
-            viewBox: `${svgInfo.viewBox.width}x${svgInfo.viewBox.height}`
-        });
-        
-        // 直接使用比例，不进行复杂的缩放调整
-        const adjustedScaleX = scaleX;
-        const adjustedScaleY = scaleY;
+        // 🔜 关键修复：使用总体缩放因子（zoom * layer * object-fit）
+        // 这解决了复合缩放系统导致的坐标偏移问题
+        const adjustedScaleX = scaleX / svgInfo.totalScale;
+        const adjustedScaleY = scaleY / svgInfo.totalScale;
         
         // 转换为SVG viewBox坐标（使用复合缩政调整后的比例）
         const svgX = adjustedScaleX * svgInfo.viewBox.width;

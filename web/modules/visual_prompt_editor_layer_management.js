@@ -31,7 +31,6 @@ export class LayerManager {
      * 初始化图层管理系统
      */
     initialize() {
-        console.log('🎨 图层管理系统初始化...');
         
         // 创建背景图层
         this.backgroundLayer = {
@@ -69,7 +68,6 @@ export class LayerManager {
         }
         
         this.initialized = true;
-        console.log('✅ 图层管理系统初始化完成');
     }
     
     /**
@@ -109,7 +107,6 @@ export class LayerManager {
         const layer = this.getLayerById(layerId);
         if (layer) {
             this.activeLayer = layer;
-            console.log(`🎯 活动图层切换到: ${layer.name}`);
         }
     }
     
@@ -122,7 +119,6 @@ export class LayerManager {
         const layer = this.getLayerById(layerId);
         if (layer && !layer.locked) {
             layer.visible = !layer.visible;
-            console.log(`👁️ 图层 ${layer.name} 可见性: ${layer.visible}`);
             this.updateLayerDisplay();
         }
     }
@@ -136,7 +132,6 @@ export class LayerManager {
         const layer = this.getLayerById(layerId);
         if (layer) {
             layer.opacity = Math.max(0, Math.min(1, opacity));
-            console.log(`🔍 图层 ${layer.name} 透明度: ${layer.opacity}`);
             this.updateLayerDisplay();
         }
     }
@@ -150,7 +145,6 @@ export class LayerManager {
         const layer = this.getLayerById(layerId);
         if (layer && layer.type !== 'background') {
             Object.assign(layer.transform, transform);
-            console.log(`📐 图层 ${layer.name} 变换更新:`, transform);
             this.updateLayerDisplay();
         }
     }
@@ -164,7 +158,6 @@ export class LayerManager {
         const layer = this.getLayerById(layerId);
         if (layer && layer.type !== 'background') {
             layer.zIndex = newZIndex;
-            console.log(`📚 图层 ${layer.name} 顺序调整到: ${newZIndex}`);
             this.updateLayerDisplay();
         }
     }
@@ -220,9 +213,8 @@ export class LayerManager {
             }
             
             this.updateLayerDisplay();
-            console.log('📥 图层数据导入成功');
         } catch (error) {
-            console.error('❌ 图层数据导入失败:', error);
+            console.error('Failed to import layer data:', error);
         }
     }
 }
@@ -283,7 +275,6 @@ export function isLayerManagementAvailable() {
  */
 export function enableLayerManagement() {
     // 这个函数预留给将来的功能开关
-    console.log('🔧 图层管理功能启用请求（当前版本暂不支持）');
 }
 
 /**
@@ -300,7 +291,6 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
     }
     
     nodeInstance._swapDebounce.add(swapKey);
-    console.log(`🔄 交换相邻图层: ${layerId1} <-> ${layerId2}`);
     
     // 设置超时清理防抖标记
     setTimeout(() => {
@@ -318,36 +308,27 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
                 allLayers = nodeInstance.getAllLayersInOrder(modal);
             }
         } catch (error) {
-            console.warn('⚠️ getAllLayersInOrder方法调用失败，使用fallback方法:', error);
+            console.warn('getAllLayersInOrder method call failed, using fallback method:', error);
         }
         
-        // 如果DOM方法失败，尝试原始方法作为fallback
+        // If DOM method fails, use Fabric objects as fallback
         if (allLayers.length === 0) {
-            // 先从连接图层获取
-            if (nodeInstance.connectedImageLayers) {
-                nodeInstance.connectedImageLayers.forEach(layer => {
-                    allLayers.push({...layer, type: 'IMAGE_LAYER'});
-                });
-            }
-            
-            // 再从标注获取
+            // Get from Fabric objects (annotations)
             if (modal.annotations) {
                 modal.annotations.forEach(annotation => {
-                    allLayers.push({...annotation, type: 'ANNOTATION'});
+                    allLayers.push({...annotation, type: 'FABRIC_OBJECT'});
                 });
             }
         }
         
-        console.log(`🔍 获取到的所有图层:`, allLayers.map(l => `${l.id}(${l.type})`));
         
         // 数据不完整时等待一下再重试，但限制重试次数
         if (allLayers.length < 2) {
             if (retryCount >= 5) {
-                console.warn(`❌ 图层数据获取失败，已重试 ${retryCount} 次，停止重试`);
+                console.warn(`Failed to get layer data after ${retryCount} retries, stopping retry`);
                 nodeInstance._swapDebounce.delete(swapKey);
                 return;
             }
-            console.log(`⏳ 图层数据不完整，100ms后重试... (${retryCount + 1}/5)`);
             setTimeout(() => {
                 nodeInstance._swapDebounce.delete(swapKey);
                 swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retryCount + 1);
@@ -361,11 +342,11 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
             if (nodeInstance?.layerOrderController?.performLayerSwap) {
                 nodeInstance.layerOrderController.performLayerSwap(modal, allLayers, layerId1, layerId2, swapKey);
             } else {
-                console.warn('⚠️ layerOrderController.performLayerSwap 方法不存在，跳过交换操作');
+                console.warn('layerOrderController.performLayerSwap method does not exist, skipping swap operation');
                 nodeInstance._swapDebounce.delete(swapKey);
             }
         } catch (swapError) {
-            console.error('❌ 图层交换操作失败:', swapError);
+            console.error('Layer swap operation failed:', swapError);
             nodeInstance._swapDebounce.delete(swapKey);
         }
     };
@@ -384,4 +365,3 @@ if (typeof window !== 'undefined') {
     window.isLayerManagementAvailable = isLayerManagementAvailable;
 }
 
-console.log('📦 图层管理模块已加载（功能开关：', LAYER_MANAGEMENT_ENABLED, '）');

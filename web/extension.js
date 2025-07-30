@@ -7,8 +7,8 @@
 
 import { app } from "../../scripts/app.js";
 
-// 导入核心前端扩展 - 极简架构
-import "./visual_prompt_editor_v2.js";        // 核心可视化编辑器
+// 导入核心前端扩展 - 纯Fabric.js官方架构
+import "./visual_prompt_editor_v2.js";        // 核心可视化编辑器（简化版）
 import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展
 import "./API_flux_kontext_enhancer.js";      // API增强节点扩展
 

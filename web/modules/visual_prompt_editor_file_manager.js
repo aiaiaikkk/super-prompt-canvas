@@ -9,33 +9,28 @@
  */
 export function getImageFromLoadImageNode(loadImageNode) {
     try {
-        console.log('🖼️ 从LoadImage节点获取图像...');
         
         // 方法1: 从imgs属性获取
         if (loadImageNode.imgs && loadImageNode.imgs.length > 0) {
             const imgSrc = loadImageNode.imgs[0].src;
-            console.log('✅ 方法1成功: 从imgs属性获取图像');
             return imgSrc;
         }
         
         // 方法2: 从widgets获取文件名
         if (loadImageNode.widgets) {
             for (let widget of loadImageNode.widgets) {
-                console.log('🔍 检查widget:', widget.name, widget.type);
                 if (widget.name === 'image' && widget.value) {
                     // 构建正确的图像URL - 使用ComfyUI标准格式
                     const filename = widget.value;
                     const imageUrl = `/view?filename=${encodeURIComponent(filename)}&subfolder=&type=input`;
-                    console.log('✅ 方法2成功: 从widgets获取图像URL:', imageUrl);
                     return imageUrl;
                 }
             }
         }
         
-        console.log('❌ 无法从LoadImage节点获取图像');
         return null;
     } catch (e) {
-        console.error('❌ 获取LoadImage图像时出错:', e);
+        console.error('Error getting LoadImage image:', e);
         return null;
     }
 }
@@ -46,11 +41,9 @@ export function getImageFromLoadImageNode(loadImageNode) {
  */
 export function tryGetImageFromNode(sourceNode) {
     try {
-        console.log('🔍 尝试从节点获取图像:', sourceNode.type);
         
         // 检查是否有图像输出
         if (sourceNode.imgs && sourceNode.imgs.length > 0) {
-            console.log('✅ 从imgs属性获取图像');
             return sourceNode.imgs[0].src;
         }
         
@@ -59,16 +52,14 @@ export function tryGetImageFromNode(sourceNode) {
             for (let widget of sourceNode.widgets) {
                 if ((widget.name === 'image' || widget.name === 'filename') && widget.value) {
                     const imageUrl = `/view?filename=${encodeURIComponent(widget.value)}`;
-                    console.log('✅ 从widgets获取图像URL:', imageUrl);
                     return imageUrl;
                 }
             }
         }
         
-        console.log('❌ 无法从节点获取图像:', sourceNode.type);
         return null;
     } catch (e) {
-        console.error('❌ 从节点获取图像时出错:', e);
+        console.error('Error getting image from node:', e);
         return null;
     }
 }
@@ -83,7 +74,6 @@ export function processLayerImageFile(modal, layerId, file, nodeInstance) {
     reader.onload = (e) => {
         try {
             const imageData = e.target.result;
-            console.log(`📁 图像文件读取成功，大小: ${(imageData.length / 1024).toFixed(2)}KB`);
             
             // 更新图层显示
             const layerItem = modal.querySelector(`[data-layer="${layerId}"]`);
@@ -101,54 +91,19 @@ export function processLayerImageFile(modal, layerId, file, nodeInstance) {
                 }
             }
             
-            // 保存图像数据到连接图层
-            if (!nodeInstance.connectedImageLayers) {
-                nodeInstance.connectedImageLayers = [];
-            }
+            // Image will be converted to Fabric.js object instead of layer connections
             
-            // 查找现有图层或创建新的
-            let existingLayerIndex = nodeInstance.connectedImageLayers.findIndex(layer => layer.id === layerId);
             
-            if (existingLayerIndex !== -1) {
-                // 更新现有图层
-                nodeInstance.connectedImageLayers[existingLayerIndex].imageData = imageData;
-                nodeInstance.connectedImageLayers[existingLayerIndex].filename = file.name;
-                nodeInstance.connectedImageLayers[existingLayerIndex].lastModified = Date.now();
-            } else {
-                // 创建新图层
-                nodeInstance.connectedImageLayers.push({
-                    id: layerId,
-                    type: 'IMAGE_LAYER',
-                    name: file.name,
-                    imageData: imageData,
-                    filename: file.name,
-                    visible: true,
-                    opacity: 1.0,
-                    transform: {
-                        x: 0, y: 0, scale: 1.0, rotation: 0
-                    },
-                    zIndex: nodeInstance.connectedImageLayers.length + 1,
-                    lastModified: Date.now()
-                })
-            }
-            
-            console.log(`✅ 图层 ${layerId} 图像数据已保存，连接图层总数: ${nodeInstance.connectedImageLayers.length}`);
-            
-            // 在画布中显示图像
-            displayImageInCanvas(modal, layerId, imageData, nodeInstance);
-            
-            // 更新图层面板
-            if (nodeInstance.layerListManager) {
-                nodeInstance.layerListManager.updateLayerList(modal);
-            }
+            // Convert image to Fabric.js object and add to canvas
+            convertImageToFabricObject(modal, imageData, file.name, nodeInstance);
             
         } catch (error) {
-            console.error(`❌ 处理图层 ${layerId} 图像文件时出错:`, error);
+            console.error(`Error processing image file for layer ${layerId}:`, error);
         }
     };
     
     reader.onerror = () => {
-        console.error(`❌ 读取图层 ${layerId} 图像文件失败`);
+        console.error(`Failed to read image file for layer ${layerId}`);
     };
     
     reader.readAsDataURL(file);
@@ -162,7 +117,7 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
     try {
         const imageCanvas = modal.querySelector('#image-canvas');
         if (!imageCanvas) {
-            console.warn('⚠️ 找不到image-canvas容器');
+            console.warn('Image canvas container not found');
             return;
         }
         
@@ -182,7 +137,7 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: ${100 + (nodeInstance.connectedImageLayers?.length || 0)};
+            z-index: 100; // Will be managed by Fabric.js
         `;
         
         // 创建图像元素
@@ -196,18 +151,17 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
         `;
         
         img.onload = () => {
-            console.log(`✅ 图层 ${layerId} 图像已在画布中显示`);
         };
         
         img.onerror = () => {
-            console.error(`❌ 图层 ${layerId} 图像显示失败`);
+            console.error(`Failed to display image for layer ${layerId}`);
         };
         
         imageContainer.appendChild(img);
         imageCanvas.appendChild(imageContainer);
         
     } catch (error) {
-        console.error('❌ 在画布中显示图像时出错:', error);
+        console.error('Error displaying image in canvas:', error);
     }
 }
 
@@ -216,12 +170,11 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
  * 从主文件迁移的默认图层创建逻辑
  */
 export function createDefaultLayer(modal, layerId, nodeInstance) {
-    console.log(`🎨 创建默认图层: ${layerId}`);
     
     try {
         const dynamicLayersContainer = modal.querySelector('#dynamic-ps-layers');
         if (!dynamicLayersContainer) {
-            console.warn('⚠️ 找不到dynamic-ps-layers容器');
+            console.warn('Dynamic PS layers container not found');
             return;
         }
         
@@ -252,10 +205,9 @@ export function createDefaultLayer(modal, layerId, nodeInstance) {
             nodeInstance.bindPSLayerEvents(modal);
         }
         
-        console.log(`✅ 默认图层 ${layerId} 创建成功`);
         
     } catch (error) {
-        console.error(`❌ 创建默认图层 ${layerId} 时出错:`, error);
+        console.error(`Error creating default layer ${layerId}:`, error);
     }
 }
 
@@ -264,7 +216,6 @@ export function createDefaultLayer(modal, layerId, nodeInstance) {
  * 从主文件迁移的图层图像加载逻辑
  */
 export function loadImageForLayer(modal, layerId, nodeInstance) {
-    console.log(`📁 为图层 ${layerId} 打开文件选择器`);
     
     try {
         // 创建文件输入元素
@@ -276,7 +227,6 @@ export function loadImageForLayer(modal, layerId, nodeInstance) {
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                console.log(`📁 选择了文件: ${file.name} 用于图层 ${layerId}`);
                 processLayerImageFile(modal, layerId, file, nodeInstance);
             }
         });
@@ -287,7 +237,7 @@ export function loadImageForLayer(modal, layerId, nodeInstance) {
         document.body.removeChild(fileInput);
         
     } catch (error) {
-        console.error(`❌ 为图层 ${layerId} 加载图像时出错:`, error);
+        console.error(`Error loading image for layer ${layerId}:`, error);
     }
 }
 
@@ -296,7 +246,6 @@ export function loadImageForLayer(modal, layerId, nodeInstance) {
  * 从主文件迁移的图层图像选择逻辑
  */
 export function openLayerImageDialog(modal, nodeInstance) {
-    console.log('📁 打开图层图像选择对话框...');
     
     try {
         // 更灵活的选中图层检测
@@ -305,7 +254,6 @@ export function openLayerImageDialog(modal, nodeInstance) {
                            modal.querySelector('.ps-layer-item[style*="background: #10b981"]');
         
         if (!selectedLayer) {
-            console.log('⚠️ 没有选中的图层，尝试默认选择layer_1');
             // 如果没有选中图层，默认选择可用的第一个图层或直接选择layer_1
             const availableLayers = modal.querySelectorAll('.ps-layer-item:not([data-layer="background"])');
             if (availableLayers.length > 0) {
@@ -314,7 +262,6 @@ export function openLayerImageDialog(modal, nodeInstance) {
             } else {
                 // 创建一个默认的layer_1
                 const layerId = 'layer_1';
-                console.log(`📁 创建默认图层 ${layerId}`);
                 createDefaultLayer(modal, layerId, nodeInstance);
                 loadImageForLayer(modal, layerId, nodeInstance);
                 return;
@@ -322,12 +269,27 @@ export function openLayerImageDialog(modal, nodeInstance) {
         }
         
         const layerId = selectedLayer.dataset.layer;
-        console.log(`📁 为图层 ${layerId} 选择图像`);
         loadImageForLayer(modal, layerId, nodeInstance);
         
     } catch (error) {
-        console.error('❌ 打开图层图像选择对话框时出错:', error);
+        console.error('Error opening layer image dialog:', error);
     }
 }
 
-console.log('📦 文件管理和图像处理模块已加载');
+/**
+ * Convert uploaded image to Fabric.js object
+ * This function should integrate with the Fabric.js manager
+ */
+function convertImageToFabricObject(modal, imageData, filename, nodeInstance) {
+    try {
+        // This should call the Fabric.js manager to add the image as a Fabric object
+        
+        // TODO: Integrate with visual_prompt_editor_fabric_manager.js
+        // const fabricManager = getFabricPureNativeManager();
+        // fabricManager.addImageFromData(imageData, filename);
+        
+    } catch (error) {
+        console.error('Failed to convert image to Fabric object:', error);
+    }
+}
+

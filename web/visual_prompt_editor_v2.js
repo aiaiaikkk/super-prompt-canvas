@@ -11,7 +11,7 @@ import { app } from "../../scripts/app.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
 
 // 导入模块
-import { KontextUtils } from './modules/visual_prompt_editor_utils.js';
+import { KontextUtils, getImageFromWidget } from './modules/visual_prompt_editor_utils.js';
 import { COLORS, TIMING } from './modules/visual_prompt_editor_constants.js';
 import { 
     DOMFactory, 
@@ -32,21 +32,6 @@ import {
     loadLayersToPanel
 } from './modules/visual_prompt_editor_ui.js';
 import { 
-    initCanvasDrawing, 
-    initZoomAndPanControls, 
-    renderImageCanvas, 
-    setActiveTool,
-    updateSVGViewBox,
-    getImageFromWidget
-} from './modules/visual_prompt_editor_canvas.js';
-import { 
-    bindCanvasInteractionEvents,
-    updateObjectSelector,
-    bindTabEvents,
-    bindMultiSelectEvents,
-    updateMultiSelection
-} from './modules/visual_prompt_editor_annotations.js';
-import { 
     bindPromptEvents, 
     showPromptQualityAnalysis,
     exportPromptData
@@ -62,41 +47,10 @@ import {
     isLayerManagementAvailable,
     swapAdjacentLayers
 } from './modules/visual_prompt_editor_layer_management.js';
-import { 
-    createLayerSystemCore,
-    createLayerListManager
-} from './modules/visual_prompt_editor_layer_system.js';
-import { 
-    createLayerVisibilityController
-} from './modules/visual_prompt_editor_layer_visibility.js';
-import { 
-    createLayerOrderController
-} from './modules/visual_prompt_editor_layer_order.js';
-import { 
-    LayerCoreManager,
-    layerCoreManager,
-    getLayerElements,
-    updateLayerDisplay,
-    bindLayerEvents
-} from './modules/visual_prompt_editor_layer_core.js';
-import { 
-    createSVGAnnotationCreator,
-    addAnnotationToSVGWithGrouping
-} from './modules/visual_prompt_editor_svg_creator.js';
-import { 
-    createAnnotationRestorer
-} from './modules/visual_prompt_editor_annotation_restorer.js';
-import { 
-    createAnnotationEventHandler,
-    undoLastAnnotation,
-    clearAllAnnotations
-} from './modules/visual_prompt_editor_annotation_events.js';
+// Layer system imports removed - using Fabric.js native layer management
 import { 
     createEventHandlers
 } from './modules/visual_prompt_editor_event_handlers.js';
-import { 
-    createTransformControls
-} from './modules/visual_prompt_editor_transform_controls.js';
 import { 
     createDataManager,
     callStandardUpdateObjectSelector,
@@ -109,14 +63,13 @@ import {
     getImageFromLoadImageNode,
     tryGetImageFromNode,
     processLayerImageFile,
-    createDefaultLayer,
     loadImageForLayer,
     openLayerImageDialog
 } from './modules/visual_prompt_editor_file_manager.js';
 import { 
     createUnifiedModal,
-    initModalFunctionality,
-    initializeIntegratedLayerSystem
+    initModalFunctionality
+    // initializeIntegratedLayerSystem - removed as function doesn't exist
 } from './modules/visual_prompt_editor_modal_core.js';
 
 // 导入共享工具模块
@@ -153,6 +106,176 @@ const safeT = (key, fallback) => {
     });
 };
 
+// 错误处理函数
+function handleError(message, error = null) {
+    console.error(`❌ ${message}`, error || '');
+    if (error) {
+        logger(LOG_LEVELS.ERROR, message, { error: error.message || error });
+    } else {
+        logger(LOG_LEVELS.ERROR, message);
+    }
+}
+
+// 模态弹窗清理函数
+function cleanupModal(modal, nodeInstance) {
+    try {
+        // 保存Fabric.js画布数据（确保关闭时数据持久化）
+        if (nodeInstance && nodeInstance.fabricManager) {
+            try {
+                nodeInstance.fabricManager.saveCanvasData();
+            } catch (saveError) {
+                console.error('❌ 保存画布数据时出错:', saveError);
+            }
+        }
+        
+        // 清理Fabric.js画布
+        if (nodeInstance && nodeInstance.fabricManager) {
+            if (nodeInstance.fabricManager.fabricCanvas) {
+                // 清除所有对象
+                nodeInstance.fabricManager.fabricCanvas.clear();
+                // 停止动画和渲染
+                nodeInstance.fabricManager.fabricCanvas.dispose();
+                nodeInstance.fabricManager.fabricCanvas = null;
+            }
+            nodeInstance.fabricManager = null;
+        }
+        
+        // 1. 立即清理模态弹窗内的canvas
+        if (modal) {
+            const modalCanvases = modal.querySelectorAll('canvas');
+            modalCanvases.forEach(canvas => {
+                if (canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
+            });
+        }
+        
+        // 2. 强制清理所有可能的fabric相关canvas（扩展搜索）
+        const allCanvases = document.querySelectorAll('canvas[id*="fabric"], canvas[id*="pure"], #fabric-main-canvas, canvas[class*="fabric"], canvas[data-fabric]');
+        allCanvases.forEach(canvas => {
+            try {
+                if (canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
+            } catch (e) {
+                // 清理失败，忽略
+            }
+        });
+        
+        // 3. 清理可能残留的容器（扩展清理）
+        const fabricContainers = document.querySelectorAll('#fabric-pure-interface, #fabric-canvas-container, #canvas-area, #layer-panel, [id*="fabric"], [class*="fabric"]');
+        fabricContainers.forEach(container => {
+            try {
+                if (container.parentNode && container !== document.body && container !== document.documentElement) {
+                    container.parentNode.removeChild(container);
+                }
+            } catch (e) {
+                // 清理失败，忽略
+            }
+        });
+        
+        // 4. 特别检查ComfyUI主界面区域
+        const comfyAreas = document.querySelectorAll('#app, #graph-canvas, #comfy-ui-app, .litegraph');
+        comfyAreas.forEach(area => {
+            const orphanCanvases = area.querySelectorAll('canvas[id*="fabric"], canvas[style*="position: fixed"], canvas[style*="z-index: 9999"]');
+            orphanCanvases.forEach(canvas => {
+                try {
+                    if (canvas.parentNode) {
+                        canvas.parentNode.removeChild(canvas);
+                    }
+                } catch (e) {
+                    // 清理失败，忽略
+                }
+            });
+        });
+        
+        // 5. 清理全局引用
+        if (window.currentVPENode === nodeInstance) {
+            window.currentVPENode = null;
+        }
+        if (window.currentVPEInstance === nodeInstance) {
+            window.currentVPEInstance = null;
+        }
+        
+        // 6. 清理节点实例中的modal引用
+        if (nodeInstance) {
+            nodeInstance.modal = null;
+        }
+        
+        // 7. 移除模态弹窗
+        if (modal && modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+        }
+        
+        // 8. 多重延迟清理确保完全清除
+        setTimeout(() => {
+            const remainingCanvases = document.querySelectorAll('canvas');
+            remainingCanvases.forEach(canvas => {
+                const shouldRemove = 
+                    (canvas.id && (canvas.id.includes('fabric') || canvas.id.includes('pure'))) ||
+                    (canvas.className && canvas.className.includes('fabric')) ||
+                    canvas.style.cssText.includes('position: fixed') ||
+                    canvas.style.cssText.includes('z-index: 9999') ||
+                    (canvas.parentNode && canvas.parentNode.id && canvas.parentNode.id.includes('fabric'));
+                    
+                if (shouldRemove) {
+                    try {
+                        if (canvas.parentNode) {
+                            canvas.parentNode.removeChild(canvas);
+                        }
+                    } catch (e) {
+                        // 清理失败，忽略
+                    }
+                }
+            });
+        }, 100);
+        
+        setTimeout(() => {
+            const finalCleanup = document.querySelectorAll('canvas[id*="fabric"], canvas[id*="pure"], canvas[style*="position: fixed"]');
+            finalCleanup.forEach(canvas => {
+                try {
+                    if (canvas.parentNode) {
+                        canvas.parentNode.removeChild(canvas);
+                    }
+                } catch (e) {
+                    // 清理失败，忽略
+                }
+            });
+        }, 300);
+        
+    } catch (error) {
+        console.error('❌ 模态弹窗清理失败:', error);
+        // 终极暴力清理
+        try {
+            // 移除模态弹窗
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+            
+            // 暴力清理所有可疑canvas
+            const allCanvases = document.querySelectorAll('canvas');
+            allCanvases.forEach(canvas => {
+                const shouldRemove = 
+                    (canvas.id && (canvas.id.includes('fabric') || canvas.id.includes('pure') || canvas.id.includes('test'))) ||
+                    canvas.style.cssText.includes('position: fixed') ||
+                    canvas.style.cssText.includes('z-index: 9999');
+                    
+                if (shouldRemove) {
+                    try {
+                        if (canvas.parentNode) {
+                            canvas.parentNode.removeChild(canvas);
+                        }
+                    } catch (e) {
+                        // 忽略清理错误
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('❌ 终极清理失败:', e);
+        }
+    }
+}
+
 app.registerExtension({
     name: "Kontext.VisualPromptEditor.V2",
     
@@ -164,7 +287,6 @@ app.registerExtension({
             // 添加节点创建时的回调
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
-                console.log("🎨 VisualPromptEditor node created!");
                 const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
                 
                 // 设置节点样式
@@ -177,16 +299,15 @@ app.registerExtension({
                 });
                 
                 // 监听双击事件
-                console.log("🎨 Setting up double-click handler for node:", this.id);
                 const originalOnDblClick = this.onDblClick;
-                console.log("🎨 Original onDblClick:", typeof originalOnDblClick);
                 
                 this.onDblClick = function(event) {
-                    console.log("🎨 Visual Prompt Editor V2 double-clicked!");
-                    console.log("🎨 Node type:", this.constructor.name);
-                    console.log("🎨 Event:", event);
-                    console.log("🎨 Node instance:", this);
-                    console.log("🎨 openUnifiedEditor function:", typeof this.openUnifiedEditor);
+                    
+                    // 调试：检查关键函数是否可用
+                    try {
+                    } catch (debugError) {
+                        console.error("❌ Debug check failed:", debugError);
+                    }
                     
                     // 阻止默认行为
                     if (event) {
@@ -195,8 +316,12 @@ app.registerExtension({
                     }
                     
                     // 打开我们的编辑器
-                    console.log('🎯 Double-click detected, opening unified editor...');
-                    this.openUnifiedEditor();
+                    try {
+                        this.openUnifiedEditor();
+                    } catch (error) {
+                        console.error("❌ Error calling openUnifiedEditor:", error);
+                        alert("Failed to open editor: " + error.message);
+                    }
                     
                     // 返回false阻止默认双击行为
                     return false;
@@ -235,7 +360,6 @@ app.registerExtension({
                         }
                         
                     } catch (e) {
-                        console.log("Could not parse editor metadata");
                     }
                 }
                 
@@ -285,7 +409,7 @@ app.registerExtension({
                 if (!this.layerListManager) {
                     try {
                         this.layerSystemCore = createLayerSystemCore(this);
-                        this.layerListManager = createLayerListManager(this, this.layerSystemCore);
+                        // Layer list manager removed - using Fabric.js objects
                     } catch (error) {
                         handleError('懒加载图层管理模块', error);
                         return false;
@@ -298,8 +422,7 @@ app.registerExtension({
             nodeType.prototype.ensureTransformControls = function() {
                 if (!this.transformControls) {
                     try {
-                        this.transformControls = createTransformControls(this);
-                        console.log('✅ 变换控制器创建成功');
+                        // this.transformControls = createTransformControls(this); // 临时注释，模块不存在
                     } catch (error) {
                         handleError('懒加载变换控制模块', error);
                         return null;
@@ -308,14 +431,7 @@ app.registerExtension({
                 return this.transformControls;
             };
             
-            nodeType.prototype.openUnifiedEditor = function() {
-                console.log("🎨 Opening Unified Visual Prompt Editor V2...");
-                console.log("🎨 Node instance check:", this);
-                console.log("🎨 Required functions check:");
-                console.log("  - createUnifiedModal:", typeof window.createUnifiedModal);
-                console.log("  - initModalFunctionality:", typeof window.initModalFunctionality);
-                console.log("  - window.currentVPENode:", !!window.currentVPENode);
-                console.log("  - window.currentVPEInstance:", !!window.currentVPEInstance);
+            nodeType.prototype.openUnifiedEditor = async function() {
                 
                 // 尝试多种方式获取输入数据
                 let imageData = null;
@@ -327,39 +443,22 @@ app.registerExtension({
                         const imageInput = this.inputs[0];
                         const layersInput = this.inputs[1];
                         
-                        console.log('🔍 检查输入连接:', {
-                            imageInput: !!imageInput,
-                            imageInputLink: imageInput?.link,
-                            layersInput: !!layersInput,
-                            layersInputLink: layersInput?.link
-                        });
-                        
                         if (imageInput && imageInput.link) {
                             // 尝试通过链接追踪获取图像数据
                             const linkId = imageInput.link;
                             const graph = app.graph;
                             
-                            console.log('🔗 追踪图像链接:', { linkId, hasGraph: !!graph });
                             
                             if (graph && graph.links && graph.links[linkId]) {
                                 const link = graph.links[linkId];
                                 const sourceNode = graph.getNodeById(link.origin_id);
                                 
-                                console.log('🔍 源节点信息:', {
-                                    hasSourceNode: !!sourceNode,
-                                    nodeType: sourceNode?.type,
-                                    nodeTitle: sourceNode?.title,
-                                    outputSlot: link.origin_slot
-                                });
-                                
                                 if (sourceNode) {
                                     // 尝试获取LoadImage节点的图像
                                     if (sourceNode.type === 'LoadImage') {
                                         imageData = getImageFromLoadImageNode(sourceNode);
-                                        console.log('🖼️ 从LoadImage节点获取图像:', !!imageData);
                                     } else {
                                         // 尝试从其他节点获取
-                                        console.log('🔍 尝试从其他节点类型获取图像:', sourceNode.type);
                                         imageData = tryGetImageFromNode(sourceNode);
                                     }
                                 }
@@ -372,101 +471,45 @@ app.registerExtension({
                     
                     // 方法2：从widget获取
                     if (!imageData || (typeof imageData === 'object' && Object.keys(imageData).length === 0)) {
-                        console.log('⚠️ 未从输入连接获取到图像，尝试从widget获取');
                         imageData = getImageFromWidget(this);
                     } else {
                     }
                     
                 } catch (e) {
-                    console.log('获取输入数据时出错:', e);
                 }
                 
                 // 方法3：从节点widget加载已保存的annotation数据（用于持久化）
-                // 🔍 重要修复：只有在有实际的层连接时才加载保存的annotation数据
                 try {
-                    // 检查是否有任何layer1-3的连接
-                    let hasLayerConnections = false;
-                    if (this.inputs) {
-                        for (let i = 1; i <= 3; i++) { // 检查layer1, layer2, layer3输入端口
-                            const layerInput = this.inputs.find(inp => inp.name === `layer${i}` || inp.name === `layer_${i}`);
-                            if (layerInput && layerInput.link !== null) {
-                                hasLayerConnections = true;
-                                console.log(`🔗 检测到layer${i}已连接，允许加载annotation数据`);
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (hasLayerConnections) {
-                        console.log('✅ 检测到layer连接，开始加载保存的annotation数据...');
-                        const savedData = this.dataManager.loadAnnotationData();
-                        if (savedData) {
-                            console.log('🔍 解析后的数据结构:', savedData);
+                    const savedData = this.dataManager.loadAnnotationData();
+                    if (savedData) {
+                        
+                        if (savedData && savedData.annotations && savedData.annotations.length > 0) {
+                            layersData = savedData.annotations;
                             
-                            if (savedData && savedData.annotations && savedData.annotations.length > 0) {
-                                layersData = savedData.annotations;
-                                
-                                // 详细检查每个annotation的结构并修复数据
-                                layersData = layersData.map((annotation, index) => {
-                                    console.log(`🔍 Annotation ${index + 1} 原始结构:`, {
-                                        id: annotation.id,
-                                        type: annotation.type,
-                                        color: annotation.color,
-                                        geometry: annotation.geometry,
-                                        hasCoordinates: !!(annotation.coordinates),
-                                        hasStart: !!(annotation.start),
-                                        hasEnd: !!(annotation.end),
-                                        hasArea: !!(annotation.area),
-                                        allKeys: Object.keys(annotation)
-                                    });
-                                    
-                                    // 修复annotation数据结构
-                                    const fixedAnnotation = this.dataManager.normalizeAnnotationData(annotation);
-                                    console.log(`🔧 Annotation ${index + 1} 修复后结构:`, {
-                                        id: fixedAnnotation.id,
-                                        type: fixedAnnotation.type,
-                                        color: fixedAnnotation.color,
-                                        geometry: fixedAnnotation.geometry,
-                                        hasGeometry: !!fixedAnnotation.geometry,
-                                        hasCoordinates: !!(fixedAnnotation.geometry && fixedAnnotation.geometry.coordinates)
-                                    });
-                                    
-                                    return fixedAnnotation;
-                                });
-                                
-                                console.log('✅ 已修复所有annotation数据结构');
-                            }
-                        } else {
-                            console.log('🔍 未找到已保存的annotation数据或数据为空');
+                            // 详细检查每个annotation的结构并修复数据
+                            layersData = layersData.map((annotation, index) => {
+                                // 修复annotation数据结构
+                                const fixedAnnotation = this.dataManager.normalizeAnnotationData(annotation);
+                                return fixedAnnotation;
+                            });
+                            
                         }
                     } else {
-                        console.log('🚫 没有检测到layer1-3连接，跳过加载annotation数据');
-                        // 🧹 如果没有layer连接，清理可能存在的旧annotation数据
-                        const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
-                        if (annotationDataWidget && annotationDataWidget.value) {
-                            console.log('🗑️ 清理无效的annotation数据');
-                            annotationDataWidget.value = "";
-                        }
                     }
                 } catch (e) {
-                    console.log('❌ 加载已保存annotation数据时出错:', e);
                 }
                 
                 // 创建模态弹窗
-                console.log('🚀 即将创建统一模态弹窗...');
                 
                 try {
                     const modal = createUnifiedModal(imageData, layersData, this);
-                    console.log('🎯 Modal created from module:', !!modal);
                     
                     if (modal) {
                         // 创建模态框元素缓存以减少重复DOM查询
                         const elements = createModalElementsCache(modal);
-                        console.log('🎯 Modal elements cache created:', !!elements);
                         
                         // 初始化画布
                         const zoomContainer = elements.zoomContainer();
-                        console.log('🎯 Zoom container found:', !!zoomContainer);
                         if (zoomContainer) {
                             const imageCanvas = createElement('div', {
                                 id: 'image-canvas',
@@ -474,30 +517,23 @@ app.registerExtension({
                             });
                             zoomContainer.appendChild(imageCanvas);
                             
-                            // 渲染图像
-                            console.log('🎯 About to render image canvas...');
-                            renderImageCanvas(imageCanvas, imageData, this);
+                            // 图像渲染现在由Fabric.js管理器处理
                         }
                         
                         // 显示控制信息
-                        console.log('🎯 About to show control info...');
                         showControlInfo(modal);
                         
                         // 初始化功能模块
-                        console.log('🎯 About to init modal functionality...');
-                        initModalFunctionality(modal, layersData, this);
+                        await initModalFunctionality(modal, layersData, this);
                         
                         // 在模态框完全初始化后初始化缩放和拖拽控制
-                        console.log('🎯 About to init zoom and pan controls...');
-                        initZoomAndPanControls(modal);
+                        // 缩放控制已集成到Fabric.js管理器中
                         
                         // 初始化变换控制器
-                        console.log('🎯 About to init transform controls...');
                         if (this.ensureTransformControls()) {
                             this.transformControls.initializeTransformControls(modal);
                         }
                         
-                        console.log('✅ Modal setup complete!');
                     } else {
                         console.error('❌ Modal creation failed - no modal returned');
                     }
@@ -536,18 +572,14 @@ app.registerExtension({
                         const drawingLayer = imageCanvas.querySelector('#drawing-layer');
                         if (drawingLayer && drawingLayer.parentNode === imageCanvas) {
                             imageCanvas.insertBefore(layersDisplayContainer, drawingLayer);
-                            console.log('✅ 图层显示容器已插入到image-canvas中的绘制层之前');
                         } else {
                             imageCanvas.appendChild(layersDisplayContainer);
-                            console.log('✅ 图层显示容器已添加到image-canvas末尾');
                         }
                     } else {
                         // 备用方案：添加到canvas-container
                         canvasContainer.appendChild(layersDisplayContainer);
-                        console.log('⚠️ image-canvas未找到，图层显示容器已添加到canvas-container');
                     }
                 } catch (error) {
-                    console.warn('⚠️ 插入图层显示容器时出错，尝试直接添加:', error.message);
                     try {
                         canvasContainer.appendChild(layersDisplayContainer);
                     } catch (fallbackError) {
@@ -561,7 +593,6 @@ app.registerExtension({
             
             // 🎨 绑定图层可见性事件
             nodeType.prototype.bindLayerVisibilityEvents = function(modal) {
-                console.log('👁️ 绑定图层可见性事件...');
                 
                 // 使用事件委托绑定可见性按钮点击事件 - 使用缓存元素
                 const elements = modal.cachedElements || createModalElementsCache(modal);
@@ -585,13 +616,11 @@ app.registerExtension({
                         const layerId = e.target.getAttribute('data-layer-id');
                         const layerType = e.target.getAttribute('data-layer-type');
                         
-                        console.log(`👁️ 切换图层可见性: ${layerId} (${layerType})`);
                         
                         // 防抖：检查是否在短时间内重复点击
                         const now = Date.now();
                         if (!this._lastClickTime) this._lastClickTime = {};
                         if (this._lastClickTime[layerId] && (now - this._lastClickTime[layerId]) < 300) {
-                            console.log('⚡ 防抖：忽略重复点击');
                             return;
                         }
                         this._lastClickTime[layerId] = now;
@@ -628,12 +657,10 @@ app.registerExtension({
             
             // 激活图层自由变换模式
             nodeType.prototype.activateLayerTransform = function(modal, layerId, layerType) {
-                console.log(`🔄 [MAIN] 激活自由变换模式: ${layerId} (${layerType})`);
                 
                 try {
                     // 使用变换控制模块启动变换（包含完整的操作框功能）
                     const transformControls = this.ensureTransformControls();
-                    console.log(`🔧 [MAIN] TransformControls实例获取结果:`, transformControls);
                     
                     if (!transformControls) {
                         console.error(`❌ [MAIN] TransformControls实例获取失败`);
@@ -647,7 +674,6 @@ app.registerExtension({
                     
                     transformControls.activateLayerTransform(modal, layerId, layerType, this);
                     
-                    console.log(`✅ [MAIN] 自由变换模式已激活 - 可直接在画布上拖拽`);
                 } catch (error) {
                     console.error(`❌ [MAIN] 激活变换模式失败:`, error);
                 }
@@ -699,12 +725,10 @@ app.registerExtension({
                     // 重新绑定事件 - 避免异步竞争条件
                     this.bindLayerEvents(modal);
                 }
-                console.log('✅ 图层面板显示已更新，事件已重新绑定');
             };
             
             // 绑定图层事件 - 统一入口
             nodeType.prototype.bindLayerEvents = function(modal) {
-                console.log('🔗 重新绑定图层事件...');
                 
                 // 绑定图层可见性控制
                 if (typeof this.bindLayerVisibilityEvents === 'function') {
@@ -720,54 +744,38 @@ app.registerExtension({
             
             // 调试DOM结构
             nodeType.prototype.debugDOMStructure = function(modal) {
-                console.log('🔍 === 调试DOM结构 ===');
                 
                 const canvasContainer = modal.querySelector('#canvas-container');
                 if (!canvasContainer) {
-                    console.log('❌ canvas-container未找到');
                     return;
                 }
                 
                 const imageCanvas = modal.querySelector('#image-canvas');
                 
-                console.log('📦 Canvas Container结构:');
-                console.log('└── #canvas-container');
-                console.log('    └── #zoom-container');
                 if (imageCanvas) {
-                    console.log('        └── #image-canvas');
                     
                     // 显示image-canvas的子元素
                     Array.from(imageCanvas.children).forEach((child, index) => {
                         const computedStyle = window.getComputedStyle(child);
-                        console.log(`            ${index}. ${child.id || child.className || child.tagName}`, {
-                            zIndex: computedStyle.zIndex,
-                            position: computedStyle.position
-                        });
                         
                         // 如果是layers-display-container，显示其子元素
                         if (child.id === 'layers-display-container') {
                             Array.from(child.children).forEach((layer, layerIndex) => {
                                 const layerStyle = window.getComputedStyle(layer);
-                                console.log(`                └── ${layer.id}`, {
-                                    zIndex: layerStyle.zIndex
-                                });
                             });
                         }
                     });
                     
                     // 检查image-canvas中的所有标注容器
                     const annotationContainers = imageCanvas.querySelectorAll('[id^="annotation-svg-"]');
-                    console.log(`\n📝 在image-canvas中找到 ${annotationContainers.length} 个标注容器`);
                     annotationContainers.forEach(container => {
                         const style = window.getComputedStyle(container);
-                        console.log(`  ${container.id}: z-index=${style.zIndex}`);
                     });
                 } else {
-                    console.log('        ❌ #image-canvas未找到');
                 }
             };
             
-            // Z-index管理已移至模块 visual_prompt_editor_layer_order.js
+            // Z-index management using Fabric.js native methods
             
             
             
@@ -790,7 +798,6 @@ app.registerExtension({
             nodeType.prototype.ensureAnnotationsInIndependentContainers = function(modal) {
                 if (!modal.annotations) return;
                 
-                console.log(`🔍 检查 ${modal.annotations.length} 个标注的容器状态`);
                 
                 // 获取当前所有图层来计算正确的z-index
                 const allLayers = this.getAllLayersInOrder(modal);
@@ -809,9 +816,7 @@ app.registerExtension({
                         // 使用图层顺序控制器来设置Z-index
                         if (this.layerOrderController) {
                             this.layerOrderController.updateAnnotationZIndex(modal, annotation.id, zIndex);
-                            console.log(`✅ 为标注 ${annotation.id} 设置动态容器Z-index: ${zIndex}`);
                         } else {
-                            console.warn(`⚠️ layerOrderController 未初始化，无法设置标注 ${annotation.id} 的Z-index`);
                         }
                     }, 100); // 给标注组创建一些时间
                 });
@@ -845,26 +850,23 @@ app.registerExtension({
                 }));
                 
                 modal.layerOrderStates.set('currentOrder', orderData);
-                console.log('💾 图层顺序状态已保存:', orderData);
             };
             
             // 恢复图层顺序状态
             nodeType.prototype.restoreLayerOrder = function(modal) {
                 if (!modal.layerOrderStates || !modal.layerOrderStates.has('currentOrder')) {
-                    console.log('📋 没有保存的图层顺序状态，使用默认顺序');
                     return false;
                 }
                 
                 const orderData = modal.layerOrderStates.get('currentOrder');
-                console.log('🔄 恢复图层顺序状态:', orderData);
                 
                 try {
                     // 重新构建图层数组
                     const restoredLayers = [];
                     
                     orderData.forEach(orderItem => {
-                        if (orderItem.type === 'IMAGE_LAYER' && this.connectedImageLayers) {
-                            const layer = this.connectedImageLayers.find(l => l.id === orderItem.id);
+                        if (orderItem.type === 'FABRIC_OBJECT') {
+                            // Handle Fabric object ordering
                             if (layer) {
                                 restoredLayers.push({...layer, type: 'IMAGE_LAYER'});
                             }
@@ -888,7 +890,6 @@ app.registerExtension({
                         return true;
                     }
                 } catch (error) {
-                    console.warn('⚠️ 恢复图层顺序时出错:', error);
                 }
                 
                 return false;
@@ -906,7 +907,6 @@ app.registerExtension({
             nodeType.prototype.clearLayerOrderState = function(modal) {
                 if (modal.layerOrderStates) {
                     modal.layerOrderStates.clear();
-                    console.log('🗑️ 图层顺序状态已清除');
                 }
             };
             
@@ -918,13 +918,12 @@ app.registerExtension({
                 if (!enabled) {
                     // 隐藏所有图层
                     layersContainer.innerHTML = '';
-                    console.log('🙈 已隐藏所有连接图层显示');
                     return;
                 }
                 
                 // 使用统一的画布图层显示更新接口
-                if (this.connectedImageLayers && this.connectedImageLayers.length > 0) {
-                    updateLayerDisplay(modal, this.connectedImageLayers, {
+                if (modal.annotations && modal.annotations.length > 0) {
+                    updateLayerDisplay(modal, modal.annotations, {
                         updateType: 'canvas',
                         preventDuplicate: false,
                         logOperation: true
@@ -932,7 +931,6 @@ app.registerExtension({
                 } else {
                     // 清空显示容器
                     layersContainer.innerHTML = '';
-                    console.warn('⚠️ 没有检测到连接图层，画布上不会显示任何图层');
                 }
             };
             
@@ -945,23 +943,19 @@ app.registerExtension({
                     return;
                 }
                 
-                console.log(`🎨 开始创建图层显示: ${layer.id}`);
                 
                 // 获取连接的图像数据
                 this.loadConnectedLayerImage(layer, (imageUrl) => {
-                    console.log(`📷 图层 ${layer.id} 图像加载回调:`, imageUrl ? '有图像' : '无图像');
                     
                     // 获取当前画布缩放值
                     const currentZoom = modal.currentZoom || 1.0;
                     const finalScale = layer.transform.scale * currentZoom;
                     
-                    const totalLayers = this.connectedImageLayers ? this.connectedImageLayers.length : 3;
+                    const totalLayers = modal.annotations ? modal.annotations.length : 0;
                     const zIndex = totalLayers - index;
-                    console.log(`🔍 DEBUG - 图层 ${layer.id} index=${index} zIndex=${zIndex} (总共${totalLayers}个图层)`);
                     
                     const layerElement = DOMFactory.createLayerElement(layer, { finalScale, zIndex });
                     
-                    console.log(`🎨 图层 ${layer.id} 初始缩放: ${layer.transform.scale} * ${currentZoom} = ${finalScale}`);
                     
                     if (imageUrl) {
                         layerElement.innerHTML = `
@@ -995,12 +989,10 @@ app.registerExtension({
                     }
                     
                     container.appendChild(layerElement);
-                    console.log(`✅ 图层 ${layer.id} 元素已添加到容器`);
                     
                     // 验证元素是否正确添加
                     const addedElement = container.querySelector(`#canvas-layer-${layer.id}`);
                     if (addedElement) {
-                        console.log(`✅ 验证: 图层 ${layer.id} 在容器中找到`);
                     } else {
                         console.error(`❌ 验证失败: 图层 ${layer.id} 不在容器中`);
                     }
@@ -1009,47 +1001,35 @@ app.registerExtension({
             
             // 🎨 加载连接图层图像
             nodeType.prototype.loadConnectedLayerImage = function(layer, callback) {
-                console.log(`🔍 开始加载图层图像: ${layer.name} (linkId: ${layer.linkId})`);
                 
                 // 尝试从连接的节点获取图像
                 try {
                     if (this.graph && layer.linkId) {
-                        console.log(`🔗 查找链接: ${layer.linkId}`);
                         const link = this.graph.links[layer.linkId];
                         if (link) {
-                            console.log(`📋 找到链接，源节点ID: ${link.origin_id}`);
                             const sourceNode = this.graph.getNodeById(link.origin_id);
                             if (sourceNode) {
-                                console.log(`📦 找到源节点:`, sourceNode.type, `imgs数量: ${sourceNode.imgs ? sourceNode.imgs.length : 0}`);
                                 if (sourceNode.imgs && sourceNode.imgs.length > 0) {
                                     const imageUrl = sourceNode.imgs[0].src;
-                                    console.log(`✅ 获取到图层 ${layer.name} 的图像:`, imageUrl);
                                     callback(imageUrl);
                                     return;
                                 } else {
-                                    console.warn(`⚠️ 源节点 ${sourceNode.type} 没有图像数据`);
                                 }
                             } else {
-                                console.warn(`⚠️ 未找到源节点 ID: ${link.origin_id}`);
                             }
                         } else {
-                            console.warn(`⚠️ 未找到链接 ID: ${layer.linkId}`);
                         }
                     } else {
-                        console.warn(`⚠️ 图层 ${layer.name} 缺少必要信息 - graph: ${!!this.graph}, linkId: ${layer.linkId}`);
                     }
                 } catch (error) {
-                    console.warn(`⚠️ 无法获取图层 ${layer.name} 的图像:`, error.message);
                 }
                 
                 // 如果无法获取图像，返回null
-                console.log(`⚠️ 图层 ${layer.name} 无法获取图像，使用占位符`);
                 callback(null);
             };
             
             // 🎨 手动更新PS图层列表（保留兼容性）
             nodeType.prototype.manualUpdatePSLayers = function(modal) {
-                console.log('🔍 手动检测图层连接状态...');
                 
                 const dynamicLayersContainer = modal.querySelector('#dynamic-ps-layers');
                 const noLayersMessage = modal.querySelector('#no-ps-layers-message');
@@ -1060,9 +1040,7 @@ app.registerExtension({
                 const connectedLayers = [];
                 
                 if (this.inputs) {
-                    console.log('📋 检查节点输入:', this.inputs.length, '个输入');
                     this.inputs.forEach((input, index) => {
-                        console.log(`🔌 输入 ${index}: name="${input.name}", type="${input.type}", link=${input.link}`);
                         
                         if (input.type === 'IMAGE' && input.link !== null && input.name !== 'image') {
                             let layerId = input.name;
@@ -1077,7 +1055,6 @@ app.registerExtension({
                                 connected: true,
                                 originalName: input.name
                             });
-                            console.log(`✅ 发现连接的图层: ${input.name} -> ${layerId}`);
                         }
                     });
                 }
@@ -1087,7 +1064,6 @@ app.registerExtension({
                 
                 if (connectedLayers.length === 0) {
                     if (noLayersMessage) StyleManager.applyPreset(noLayersMessage, 'visible');
-                    console.log('⚪ 没有检测到连接的图层');
                 } else {
                     if (noLayersMessage) StyleManager.applyPreset(noLayersMessage, 'hidden');
                     
@@ -1110,7 +1086,6 @@ app.registerExtension({
                         dynamicLayersContainer.appendChild(layerElement);
                     });
                     
-                    console.log(`✅ 已显示 ${connectedLayers.length} 个连接的图层`);
                 }
             };
             
@@ -1144,13 +1119,11 @@ app.registerExtension({
             
             // 🎨 处理Draw按钮
             nodeType.prototype.handleDrawLayer = function(modal) {
-                console.log('✏️ 处理Draw按钮点击');
                 
                 // 切换到画布标签页
                 const canvasTab = modal.querySelector('[data-tab="canvas"]');
                 if (canvasTab) {
                     canvasTab.click();
-                    console.log('🔄 已切换到画布标签页');
                 }
                 
                 // 激活绘制工具
@@ -1159,9 +1132,7 @@ app.registerExtension({
                     // 安全地点击工具按钮
                     try {
                         drawTool.click();
-                        console.log('🎨 已激活矩形绘制工具');
                     } catch (error) {
-                        console.log('⚠️ 工具激活出现小问题，但不影响功能:', error.message);
                     }
                 }
                 
@@ -1225,7 +1196,6 @@ app.registerExtension({
 
             // 🎨 处理Settings按钮 - 使用通用设置对话框创建函数
             nodeType.prototype.handleLayerSettings = function(modal) {
-                console.log('⚙️ 处理Settings按钮点击');
                 this.createSettingsDialog('basic');
             };
             
@@ -1253,8 +1223,6 @@ app.registerExtension({
                     modal.selectedLayers.delete(annotationId);
                 }
                 
-                console.log(`${isSelected ? '✅' : '❌'} 恢复的图层选择状态: ${annotationId} = ${isSelected}`);
-                console.log(`📊 当前选择的图层: ${Array.from(modal.selectedLayers).join(', ')}`);
                 
                 // 更新下拉框显示文本
                 this.updateDropdownTextForRestore(modal);
@@ -1286,7 +1254,6 @@ app.registerExtension({
                     StyleManager.applyPreset(dropdownText, 'dropdownTextSelected');
                 }
                 
-                console.log('🔄 下拉框文本已更新:', dropdownText.textContent);
             };
             
             // 恢复后更新选中计数
@@ -1295,7 +1262,6 @@ app.registerExtension({
                 if (selectionCount && modal.selectedLayers) {
                     const count = modal.selectedLayers.size;
                     selectionCount.textContent = `${count} ${safeT('selected_count', 'selected')}`;
-                    console.log('🔢 选中计数已更新:', count);
                 }
             };
             
@@ -1321,7 +1287,6 @@ app.registerExtension({
                 this.standardUpdateDropdownText(modal);
                 this.standardUpdateSelectionCount(modal);
                 
-                console.log(`${isSelected ? '✅' : '❌'} 标准图层选择: ${annotationId} = ${isSelected}`);
             };
             
             // 标准的选中计数更新
@@ -1395,7 +1360,6 @@ app.registerExtension({
                     const opacityValue = modal.querySelector('#vpe-opacity-value');
                     
                     if (!opacitySlider || !opacityValue) {
-                        console.log('⚠️ 未找到不透明度滑块控件');
                         return;
                     }
                     
@@ -1417,7 +1381,6 @@ app.registerExtension({
                     opacityValue.textContent = restoredOpacity + '%';
                     modal.currentOpacity = restoredOpacity;
                     
-                    console.log('🎨 恢复不透明度滑块值:', restoredOpacity + '%');
                     
                 } catch (error) {
                     handleError(' 恢复不透明度滑块', error);
@@ -1442,7 +1405,6 @@ app.registerExtension({
 
             // 为恢复的annotation绑定事件处理器
             nodeType.prototype.bindRestoredAnnotationEvents = function(modal, svg) {
-                console.log('🔗 为恢复的annotations绑定事件处理器');
                 
                 // 为所有annotation形状添加点击和悬停事件
                 const shapes = svg.querySelectorAll('.annotation-shape');
@@ -1453,7 +1415,6 @@ app.registerExtension({
                         e.stopPropagation();
                         
                         const annotationId = e.target.dataset.annotationId;
-                        console.log('🎯 点击恢复的annotation:', annotationId);
                         
                         // 更新选择状态
                         this.selectAnnotationInPanel(modal, annotationId);
@@ -1501,7 +1462,6 @@ app.registerExtension({
                     });
                 });
                 
-                console.log('✅ 已为', shapes.length, '个恢复的annotation绑定事件处理器');
             };
 
             // 在面板中选择annotation
@@ -1515,7 +1475,6 @@ app.registerExtension({
                         // 触发选择事件
                         const changeEvent = new Event('change');
                         checkbox.dispatchEvent(changeEvent);
-                        console.log('✅ 在面板中选中annotation:', annotationId);
                     }
                 }
             };
@@ -1537,66 +1496,36 @@ app.registerExtension({
                 shape.style.strokeWidth = '5';
                 shape.style.filter = 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.8))';
                 
-                console.log('✨ 高亮annotation:', shape.dataset.annotationId);
             };
 
             // 调试annotation可见性
             nodeType.prototype.debugAnnotationVisibility = function(modal, svg) {
-                console.log('🔍 调试annotation可见性检查:');
                 
                 // 检查SVG容器
                 const svgRect = svg.getBoundingClientRect();
-                console.log('📐 SVG容器位置和尺寸:', {
-                    x: svgRect.x,
-                    y: svgRect.y,
-                    width: svgRect.width,
-                    height: svgRect.height,
-                    visible: svgRect.width > 0 && svgRect.height > 0
-                });
                 
                 // 检查每个annotation形状
                 const shapes = svg.querySelectorAll('.annotation-shape');
-                console.log('📊 找到', shapes.length, '个annotation形状:');
                 
                 shapes.forEach((shape, index) => {
                     const rect = shape.getBoundingClientRect();
                     const computedStyle = window.getComputedStyle(shape);
-                    
-                    console.log(`  📍 Annotation ${index + 1}:`, {
-                        id: shape.dataset.annotationId,
-                        type: shape.tagName,
-                        visible: rect.width > 0 && rect.height > 0,
-                        display: computedStyle.display,
-                        visibility: computedStyle.visibility,
-                        opacity: computedStyle.opacity,
-                        fill: shape.getAttribute('fill'),
-                        stroke: shape.getAttribute('stroke'),
-                        strokeWidth: shape.getAttribute('stroke-width'),
-                        position: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-                    });
                 });
                 
                 // 检查图层面板状态
                 const annotationObjects = modal.cachedElements?.annotationObjects || modal.querySelector('#annotation-objects');
                 if (annotationObjects) {
                     const layerItems = annotationObjects.children;
-                    console.log('📋 图层面板中有', layerItems.length, '个条目');
                     
                     Array.from(layerItems).forEach((item, index) => {
                         const checkbox = item.querySelector('input[type="checkbox"]');
-                        console.log(`  🎯 图层 ${index + 1}:`, {
-                            visible: item.style.opacity !== '0',
-                            enabled: !checkbox?.disabled,
-                            checked: checkbox?.checked,
-                            text: item.textContent?.trim()
-                        });
                     });
                 }
             };
 
             // ✅ normalizeAnnotationData 函数已移至 DataManager 模块，避免重复实现
             
-            // ✅ 修复toggleLayerVisibility函数缺失问题 - 委托给layer_visibility模块
+            // Layer visibility handled by Fabric.js objects
             nodeType.prototype.toggleLayerVisibility = function(modal, layerId, layerType, buttonElement) {
                 if (this.layerVisibilityController) {
                     this.layerVisibilityController.toggleLayerVisibility(modal, layerId, layerType, buttonElement);
@@ -1611,7 +1540,6 @@ app.registerExtension({
                 const layersList = elements.layersList();
                 if (layersList) {
                     const annotationItems = layersList.querySelectorAll('.layer-list-item[data-layer-type="ANNOTATION"]');
-                    console.log('🗑️ 清空图层面板中的', annotationItems.length, '个标注图层');
                     annotationItems.forEach(item => item.remove());
                 }
             };
@@ -1649,7 +1577,6 @@ app.registerExtension({
                     // 添加到SVG
                     svg.appendChild(group);
                     
-                    console.log('✅ 恢复的annotation编号标签已添加:', number);
                 } catch (error) {
                     handleError(' 添加恢复的编号标签', error);
                 }
@@ -1699,7 +1626,6 @@ app.registerExtension({
                         }
                     });
                     
-                    console.log('✅ 图层面板状态已刷新，恢复正常的可选择状态');
                 } catch (error) {
                     handleError(' 刷新图层面板状态', error);
                 }
@@ -1719,146 +1645,106 @@ app.registerExtension({
                 
                 if (promptTemplateWidget && operationType && promptTemplateWidget.value) {
                     operationType.value = promptTemplateWidget.value;
-                    console.log('🔄 已从后端同步操作类型到前端:', promptTemplateWidget.value);
                 }
                 
                 // 关闭按钮
                 const closeBtn = modal.querySelector('#vpe-close');
                 if (closeBtn) {
                     bindEvent(closeBtn, 'click', () => {
-                        // 🧹 清理所有缓存数据，确保下次打开时重新检测和加载
-                        console.log('🧹 关闭弹窗时清理所有缓存数据...');
-                        
-                        // 清理节点实例中的连接图层数据
-                        if (this.connectedImageLayers) {
-                            console.log('🗑️ 清理 nodeInstance.connectedImageLayers');
-                            delete this.connectedImageLayers;
-                        }
-                        
-                        // 清理modal中的连接图层缓存
-                        if (modal._persistentConnectedLayers) {
-                            console.log('🗑️ 清理 modal._persistentConnectedLayers');
-                            delete modal._persistentConnectedLayers;
-                        }
-                        
-                        if (modal._cachedConnectedLayers) {
-                            console.log('🗑️ 清理 modal._cachedConnectedLayers');
-                            delete modal._cachedConnectedLayers;
-                        }
-                        
-                        // 清理图层系统核心中的连接图层数据
-                        if (this.layerSystemCore && this.layerSystemCore.connectedImageLayers) {
-                            console.log('🗑️ 清理 layerSystemCore.connectedImageLayers');
-                            this.layerSystemCore.connectedImageLayers = [];
-                        }
-                        
-                        // 🗑️ 清理保存的标注数据（重要：清理持久化的annotation_data）
-                        try {
-                            const annotationDataWidget = this.widgets?.find(w => w.name === "annotation_data");
-                            if (annotationDataWidget && annotationDataWidget.value) {
-                                console.log('🗑️ 清理保存的标注数据 (annotation_data widget)');
-                                annotationDataWidget.value = "";
-                                console.log('✅ 标注数据已清理');
+                        // 🎯 关闭前自动保存Fabric画布数据
+                        if (this.dataManager && this.fabricManager && this.fabricManager.fabricCanvas) {
+                            console.log('💾 Auto-saving Fabric canvas data before closing...');
+                            const autoSaveSuccess = this.dataManager.saveFabricCanvasData(this.fabricManager.fabricCanvas);
+                            if (autoSaveSuccess) {
+                                console.log('✅ Canvas data auto-saved successfully');
                             }
-                        } catch (error) {
-                            console.warn('⚠️ 清理标注数据时出错:', error);
                         }
-                        
-                        // 🗑️ 清理dataManager中的缓存数据
-                        if (this.dataManager && this.dataManager.dataCache) {
-                            console.log('🗑️ 清理 dataManager 缓存数据');
-                            this.dataManager.dataCache.clear();
-                        }
-                        
-                        // 🗑️ 清理modal中的标注数据
-                        if (modal.annotations) {
-                            console.log('🗑️ 清理 modal.annotations');
-                            modal.annotations = [];
-                        }
-                        
-                        console.log('✅ 所有缓存数据清理完成');
-                        
-                        // 移除modal DOM
-                        document.body.removeChild(modal);
+                        cleanupModal(modal, this);
                     });
                 }
+                
+                // 背景点击关闭
+                bindEvent(modal, 'click', (e) => {
+                    if (e.target === modal) {
+                        // 🎯 关闭前自动保存Fabric画布数据
+                        if (this.dataManager && this.fabricManager && this.fabricManager.fabricCanvas) {
+                            console.log('💾 Auto-saving Fabric canvas data before closing (background click)...');
+                            const autoSaveSuccess = this.dataManager.saveFabricCanvasData(this.fabricManager.fabricCanvas);
+                            if (autoSaveSuccess) {
+                                console.log('✅ Canvas data auto-saved successfully');
+                            }
+                        }
+                        cleanupModal(modal, this);
+                    }
+                });
                 
                 // 保存按钮
                 const saveBtn = modal.querySelector('#vpe-save');
                 if (saveBtn) {
                     bindEvent(saveBtn, 'click', () => {
                         // 🔍 先检查modal.annotations是否存在
-                        console.log('🔍 检查modal.annotations:', {
-                            exists: !!modal.annotations,
-                            length: modal.annotations?.length || 0,
-                            data: modal.annotations
-                        });
                         
                         // 🔍 检查SVG中的标注元素
                         const svg = modal.cachedElements?.drawingSvg || modal.querySelector('#drawing-layer svg');
                         if (svg) {
                             const shapes = svg.querySelectorAll('.annotation-shape');
-                            console.log('🔍 SVG中的标注形状数量:', shapes.length);
                             shapes.forEach((shape, index) => {
-                                console.log(`📍 形状${index + 1}:`, {
-                                    tagName: shape.tagName,
-                                    id: shape.getAttribute('data-annotation-id'),
-                                    number: shape.getAttribute('data-annotation-number'),
-                                    class: shape.getAttribute('class')
-                                });
+                                // 处理形状
                             });
                         }
                         
                         const promptData = exportPromptData(modal);
                         if (promptData) {
-                            console.log('💾 保存提示词数据:', promptData);
                             
                             // 🔍 详细调试：检查所有标注数据
                             if (promptData.annotations && promptData.annotations.length > 0) {
-                                console.log('📊 保存的标注详情:');
                                 promptData.annotations.forEach((annotation, index) => {
-                                    console.log(`📍 标注${index + 1}:`, {
-                                        id: annotation.id,
-                                        type: annotation.type,
-                                        hasPoints: !!annotation.points,
-                                        pointsCount: annotation.points?.length,
-                                        hasBrushSize: !!annotation.brushSize,
-                                        hasBrushFeather: !!annotation.brushFeather,
-                                        hasGeometry: !!annotation.geometry,
-                                        opacity: annotation.opacity
-                                    });
+                                    // 处理标注数据
                                 });
                             } else {
-                                console.warn('⚠️ 没有找到要保存的标注数据！');
                             }
                             
-                            // 实际保存逻辑：保存到节点的annotation_data widget并同步到后端节点参数
+                            // 🎯 实际保存逻辑：保存Fabric画布数据和标注数据到节点widget
                             try {
                                 // 使用dataManager统一处理数据保存
                                 if (this.dataManager) {
-                                    // 确保保存的annotations有正确的数据结构
-                                    if (promptData.annotations) {
-                                        promptData.annotations = promptData.annotations.map(annotation => {
-                                            const normalized = this.dataManager ? this.dataManager.normalizeAnnotationData(annotation) : annotation;
-                                            console.log('💾 保存时标准化annotation:', {
-                                                id: normalized.id,
-                                                hasGeometry: !!normalized.geometry,
-                                                hasCoordinates: !!(normalized.geometry && normalized.geometry.coordinates)
-                                            });
-                                            return normalized;
-                                        });
-                                    }
-                                    
-                                    // 使用dataManager统一保存数据
-                                    const saveSuccess = this.dataManager.saveAnnotationData(modal, promptData);
-                                    if (saveSuccess) {
-                                        console.log('✅ 使用dataManager保存数据成功');
+                                    // 🎯 优先保存Fabric.js画布的完整数据（包含canvas图像）
+                                    if (this.fabricManager && this.fabricManager.fabricCanvas) {
+                                        console.log('💾 Saving Fabric.js canvas data (complete canvas image)...');
+                                        const fabricSaveSuccess = this.dataManager.saveFabricCanvasData(this.fabricManager.fabricCanvas);
+                                        if (fabricSaveSuccess) {
+                                            console.log('✅ Fabric canvas data saved successfully');
+                                        } else {
+                                            console.warn('⚠️ Failed to save Fabric canvas data, falling back to annotation data');
+                                            
+                                            // 降级到传统的标注数据保存
+                                            if (promptData.annotations) {
+                                                promptData.annotations = promptData.annotations.map(annotation => {
+                                                    const normalized = this.dataManager ? this.dataManager.normalizeAnnotationData(annotation) : annotation;
+                                                    return normalized;
+                                                });
+                                            }
+                                            
+                                            const saveSuccess = this.dataManager.saveAnnotationData(modal, promptData);
+                                            if (!saveSuccess) {
+                                                handleError('使用dataManager保存数据失败');
+                                            }
+                                        }
                                     } else {
-                                        handleError('使用dataManager保存数据失败');
+                                        // 没有Fabric管理器时使用传统保存方式
+                                        console.log('💾 No Fabric manager found, using traditional annotation data save...');
+                                        if (promptData.annotations) {
+                                            promptData.annotations = promptData.annotations.map(annotation => {
+                                                const normalized = this.dataManager ? this.dataManager.normalizeAnnotationData(annotation) : annotation;
+                                                return normalized;
+                                            });
+                                        }
+                                        
+                                        const saveSuccess = this.dataManager.saveAnnotationData(modal, promptData);
+                                        if (!saveSuccess) {
+                                            handleError('使用dataManager保存数据失败');
+                                        }
                                     }
-                                    
-                                    // dataManager.saveAnnotationData 已处理后端同步，这里保留兼容性代码
-                                    console.log('💾 数据保存和后端同步已通过dataManager处理');
                                     
                                     // 标记节点为已修改，触发重新计算
                                     if (app.graph) {
@@ -1868,7 +1754,7 @@ app.registerExtension({
                                     handleError('dataManager未初始化');
                                 }
                                 
-                                KontextUtils.showNotification('数据已保存并同步到后端节点', 'success');
+                                KontextUtils.showNotification('Canvas data saved successfully (includes complete canvas image)', 'success');
                             } catch (error) {
                                 handleError('保存数据', error);
                                 KontextUtils.showNotification('保存失败: ' + error.message, 'error');
@@ -1886,19 +1772,11 @@ app.registerExtension({
                         return;
                     }
                     
-                    console.log('🔍 SVG容器找到，开始处理高亮');
                     
                     // 🔍 调试：显示SVG中的所有标注元素
                     const allShapes = svg.querySelectorAll('.annotation-shape');
-                    console.log('🔍 SVG中找到的标注形状:', allShapes.length);
                     allShapes.forEach((shape, index) => {
-                        console.log(`📍 形状${index + 1}:`, {
-                            tagName: shape.tagName,
-                            annotationId: shape.getAttribute('data-annotation-id'),
-                            annotationNumber: shape.getAttribute('data-annotation-number'),
-                            class: shape.getAttribute('class'),
-                            currentStrokeWidth: shape.getAttribute('stroke-width')
-                        });
+                        // 处理形状属性
                     });
                     
                     // 清除所有选中状态
@@ -1926,14 +1804,6 @@ app.registerExtension({
                             // 🔧 标注在非高亮状态下应该没有边框
                             shape.setAttribute('stroke', 'none');
                         }
-                        
-                        console.log('🔄 恢复形状原始状态:', {
-                            tagName: shape.tagName,
-                            originalStroke: originalStroke,
-                            originalStrokeWidth: originalStrokeWidth,
-                            currentStroke: shape.getAttribute('stroke'),
-                            currentStrokeWidth: shape.getAttribute('stroke-width')
-                        });
                     });
                     
                     svg.querySelectorAll('.annotation-label circle').forEach(circle => {
@@ -1944,11 +1814,9 @@ app.registerExtension({
                     // 高亮选中的标注
                     let highlightedCount = 0;
                     selectedIds.forEach(annotationId => {
-                        console.log('🎯 尝试高亮标注:', annotationId);
                         
                         const targetShape = svg.querySelector(`[data-annotation-id="${annotationId}"]`);
                         if (targetShape) {
-                            console.log('✅ 找到目标形状:', targetShape.tagName);
                             
                             // 🔧 确保高亮效果可见 - 设置完整的stroke属性
                             const currentStroke = targetShape.getAttribute('stroke');
@@ -1978,13 +1846,6 @@ app.registerExtension({
                             highlightedCount++;
                             
                             // 🔍 验证高亮是否生效
-                            console.log('🔍 高亮后的属性:', {
-                                strokeWidth: targetShape.getAttribute('stroke-width'),
-                                stroke: targetShape.getAttribute('stroke'),
-                                strokeOpacity: targetShape.getAttribute('stroke-opacity'),
-                                hasSelectedClass: targetShape.classList.contains('selected'),
-                                filter: targetShape.style.filter
-                            });
                             
                             // 高亮对应的编号标签
                             const annotation = modal.annotations?.find(ann => ann.id === annotationId);
@@ -1995,7 +1856,6 @@ app.registerExtension({
                                     if (circle) {
                                         circle.setAttribute('stroke', '#ffff00');
                                         circle.setAttribute('stroke-width', '4');
-                                        console.log('✅ 已高亮编号标签:', annotation.number);
                                     }
                                 }
                             }
@@ -2005,14 +1865,9 @@ app.registerExtension({
                             // 🔍 尝试其他可能的选择器
                             const altShape1 = svg.querySelector(`[data-id="${annotationId}"]`);
                             const altShape2 = svg.querySelector(`#${annotationId}`);
-                            console.log('🔍 尝试其他选择器:', {
-                                'data-id': !!altShape1,
-                                'id': !!altShape2
-                            });
                         }
                     });
                     
-                    console.log(`✅ 已高亮 ${highlightedCount}/${selectedIds.length} 个标注`);
                 };
                 
                 
@@ -2029,7 +1884,11 @@ app.registerExtension({
                 const clearBtn = modal.querySelector('#vpe-clear');
                 if (clearBtn) {
                     bindEvent(clearBtn, 'click', () => {
-                        clearAllAnnotations(modal, this);
+                        // clearAllAnnotations函数不存在，使用Fabric.js管理器清空
+                        if (modal.fabricManager) {
+                            modal.fabricManager.fabricCanvas.clear();
+                            modal.fabricManager.fabricCanvas.renderAll();
+                        }
                     });
                 }
                 
@@ -2073,7 +1932,6 @@ app.registerExtension({
                             });
                         }
                         
-                        console.log('🎨 更新', allShapes.length, '个标注的不透明度为', opacityPercent + '%');
                         
                         allShapes.forEach(shape => {
                                 // 清除任何可能存在的style.opacity
@@ -2124,7 +1982,6 @@ app.registerExtension({
                                         
                                         // 更新箭头的marker引用
                                         shape.setAttribute('marker-end', `url(#${markerId})`);
-                                        console.log(`🏹 更新箭头不透明度: ${markerId}`);
                                     }
                                 }
                         });
@@ -2136,7 +1993,6 @@ app.registerExtension({
                             });
                         }
                         
-                        console.log('🎨 不透明度调整为:', opacityPercent + '%');
                     };
                 }
                 
@@ -2151,7 +2007,6 @@ app.registerExtension({
                         const sizeValue = parseInt(brushSizeSlider.value);
                         modal.currentBrushSize = sizeValue;
                         brushSizeValue.textContent = sizeValue + 'px';
-                        console.log('🖌️ 画笔大小调整为:', sizeValue + 'px');
                     };
                 }
                 
@@ -2166,7 +2021,6 @@ app.registerExtension({
                         const featherValue = parseInt(brushFeatherSlider.value);
                         modal.currentBrushFeather = featherValue;
                         brushFeatherValue.textContent = featherValue + 'px';
-                        console.log('🖌️ 画笔羽化调整为:', featherValue + 'px');
                     };
                 }
                 
@@ -2180,7 +2034,6 @@ app.registerExtension({
                 if (selectAllCheckbox) {
                     bindEvent(selectAllCheckbox, 'change', (e) => {
                         const isChecked = e.target.checked;
-                        console.log('🔲 Select All Layers:', isChecked ? '全选' : '取消全选');
                         
                         // 获取所有图层复选框
                         const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
@@ -2202,7 +2055,6 @@ app.registerExtension({
                         // 调用高亮功能
                         highlightSelectedAnnotations(modal, selectedAnnotationIds);
                         
-                        console.log('✅ 已', isChecked ? '选中' : '取消选中', layerCheckboxes.length, '个图层');
                     });
                     
                     // 监听图层复选框变化，更新Select All状态
@@ -2242,7 +2094,6 @@ app.registerExtension({
                                         }
                                     });
                                     
-                                    console.log('🎯 当前选中的标注:', selectedAnnotationIds);
                                     
                                     // 调用高亮功能
                                     highlightSelectedAnnotations(modal, selectedAnnotationIds);
@@ -2296,7 +2147,6 @@ app.registerExtension({
                                                         }
                                                     }
                                                     
-                                                    console.log('✨ 高亮标注:', annotationId);
                                                 } else {
                                                     // 🔧 完全恢复原始状态
                                                     const originalStroke = shape.getAttribute('data-original-stroke');
@@ -2339,7 +2189,6 @@ app.registerExtension({
                                                         }
                                                     }
                                                     
-                                                    console.log('🔹 取消高亮标注:', annotationId);
                                                 }
                                             }
                                         }
@@ -2372,7 +2221,6 @@ app.registerExtension({
                 
                 // 监听Generated Description自动保存事件
                 bindEvent(modal, 'descriptionsaved', (event) => {
-                console.log('🔄 检测到Generated Description自动保存事件');
                 const promptData = event.detail.promptData;
                 
                 if (promptData) {
@@ -2381,7 +2229,6 @@ app.registerExtension({
                         if (this.dataManager) {
                             const saveSuccess = this.dataManager.saveAnnotationData(modal, promptData);
                             if (saveSuccess) {
-                                console.log('✅ Generated Description自动保存完成');
                                 
                                 // 通知ComfyUI图形需要更新
                                 if (app.graph) {
@@ -2391,7 +2238,6 @@ app.registerExtension({
                                 handleError('Generated Description自动保存失败');
                             }
                         } else {
-                            console.warn('⚠️ dataManager未初始化');
                         }
                     } catch (error) {
                         handleError(' Generated Description自动保存', error);
@@ -2408,12 +2254,10 @@ app.registerExtension({
                 // 🔧 导入并暴露updateOperationTypeSelect函数
                 import('./modules/visual_prompt_editor_utils.js').then(module => {
                     window.updateOperationTypeSelect = module.updateOperationTypeSelect;
-                    console.log('🔧 updateOperationTypeSelect函数已暴露到全局范围');
                 }).catch(error => {
                     console.error('❌ 导入updateOperationTypeSelect函数失败:', error);
                 });
                 
-                console.log('🌐 关键函数已暴露到全局范围');
             };
             
             // 更新所有标注的不透明度
@@ -2460,13 +2304,10 @@ app.registerExtension({
                     });
                     
                     // 🔍 详细调试：输出更新后的annotations数据
-                    console.log('🎨 不透明度更新详情:');
                     modal.annotations.forEach((annotation, index) => {
-                        console.log(`  📍 标注${index + 1}: ID=${annotation.id}, 不透明度=${annotation.opacity}%`);
                     });
                 }
                 
-                console.log('🎨 已更新', shapes.length, '个标注的不透明度为', opacityPercent + '%');
             };
             
             // 内联创建箭头marker（用于恢复）
@@ -2500,7 +2341,6 @@ app.registerExtension({
                 marker.appendChild(polygon);
                 defs.appendChild(marker);
                 
-                console.log(`🏹 内联创建箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
                 return markerId;
             };
             
@@ -2534,12 +2374,10 @@ app.registerExtension({
                         
                         marker.appendChild(polygon);
                         defs.appendChild(marker);
-                        console.log(`🏹 创建新箭头marker: ${markerId}, 不透明度: ${fillOpacity}`);
                     }
                     
                     // 更新箭头的marker引用
                     arrowElement.setAttribute('marker-end', `url(#${markerId})`);
-                    console.log(`🏹 更新箭头marker: ${markerId}, 不透明度: ${opacity}%`);
                 } catch (error) {
                     handleError(' 更新箭头marker', error);
                 }
@@ -2611,33 +2449,39 @@ app.registerExtension({
             
             // 撤销最后一个标注 - 已迁移到标注事件模块
             nodeType.prototype.undoLastAnnotation = function(modal) {
-                return undoLastAnnotation(modal, this);
+                // undoLastAnnotation函数不存在，使用Fabric.js撤销
+                if (modal.fabricManager && modal.fabricManager.fabricCanvas) {
+                    const objects = modal.fabricManager.fabricCanvas.getObjects();
+                    if (objects.length > 0) {
+                        modal.fabricManager.fabricCanvas.remove(objects[objects.length - 1]);
+                        modal.fabricManager.fabricCanvas.renderAll();
+                    }
+                }
             };
             
             // 清空所有标注 - 已迁移到标注事件模块
             nodeType.prototype.clearAllAnnotations = function(modal) {
-                return clearAllAnnotations(modal, this);
+                // 使用Fabric.js管理器清空画布
+                if (modal.fabricManager) {
+                    modal.fabricManager.fabricCanvas.clear();
+                    modal.fabricManager.fabricCanvas.renderAll();
+                }
             };
             
             // 导出当前提示词数据
             nodeType.prototype.exportCurrentPromptData = function() {
                 // 这里需要获取当前打开的modal
                 // 暂时只是显示消息
-                console.log('📊 导出提示词数据功能');
                 KontextUtils.showNotification('导出功能开发中', 'info');
             };
 
             // 更新恢复后的图层选择面板 - 使用新的下拉复选框界面
             nodeType.prototype.updateRestoredObjectSelector = function(modal) {
-                console.log('🔍 更新恢复后的图层选择面板:', {
-                    annotations: modal.annotations?.length || 0
-                });
                 
                 // 调用模块中的updateObjectSelector函数
                 if (typeof window.updateObjectSelector === 'function') {
                     window.updateObjectSelector(modal);
                 } else {
-                    console.warn('⚠️ updateObjectSelector函数未找到');
                 }
             };
             
@@ -2712,7 +2556,6 @@ app.registerExtension({
                         centerX = 0;
                         centerY = 0;
                         sizeInfo = ' (unknown size)';
-                        console.warn('⚠️ annotation缺少位置数据:', annotation);
                     }
                     
                     if (tool === 'circle') {
@@ -2762,7 +2605,6 @@ app.registerExtension({
             
             // 🔧 添加缺失的函数 - 更新提示词统计
             nodeType.prototype.updatePromptStats = function(modal, layersData) {
-                console.log('📊 更新提示词统计:', layersData.length, '个图层');
                 
                 const selectionCount = modal.cachedElements?.selectionCount || modal.querySelector('#selection-count');
                 if (selectionCount) {
@@ -2779,15 +2621,12 @@ app.registerExtension({
                     brush: layersData.filter(l => l.type === 'brush').length
                 };
                 
-                console.log('📊 统计信息:', statsInfo);
             };
             
             // 🎨 图层管理事件初始化
             nodeType.prototype.initializeLayerManagementEvents = function(modal) {
-                console.log('🎨 初始化图层管理事件绑定...');
                 
                 if (!LAYER_MANAGEMENT_ENABLED || !isLayerManagementAvailable()) {
-                    console.log('⚪ 图层管理功能未启用，跳过事件绑定');
                     return;
                 }
                 
@@ -2808,7 +2647,6 @@ app.registerExtension({
                         bindEvent(opacitySlider, 'input', (e) => {
                             const value = e.target.value;
                             opacityValue.textContent = value + '%';
-                            console.log('🔍 图层透明度调整:', value + '%');
                         });
                     }
                     
@@ -2819,7 +2657,6 @@ app.registerExtension({
                         bindEvent(scaleSlider, 'input', (e) => {
                             const value = e.target.value;
                             scaleValue.textContent = value + '%';
-                            console.log('📏 图层缩放调整:', value + '%');
                         });
                     }
                     
@@ -2828,12 +2665,10 @@ app.registerExtension({
                     const layerY = modal.querySelector('#layer-y');
                     if (layerX) {
                         bindEvent(layerX, 'change', (e) => {
-                            console.log('📐 图层X位置:', e.target.value);
                         });
                     }
                     if (layerY) {
                         bindEvent(layerY, 'change', (e) => {
-                            console.log('📐 图层Y位置:', e.target.value);
                         });
                     }
                     
@@ -2841,7 +2676,6 @@ app.registerExtension({
                     const applyChanges = modal.querySelector('#apply-layer-changes');
                     if (applyChanges) {
                         bindEvent(applyChanges, 'click', () => {
-                            console.log('✅ 应用图层变更');
                             this.applyLayerChanges(modal);
                         });
                     }
@@ -2856,7 +2690,6 @@ app.registerExtension({
                             if (scaleValue) scaleValue.textContent = '100%';
                             if (layerX) layerX.value = '';
                             if (layerY) layerY.value = '';
-                            console.log('🔄 重置图层属性');
                         });
                     }
                     
@@ -2864,7 +2697,6 @@ app.registerExtension({
                     const addLayerImage = modal.querySelector('#add-layer-image');
                     if (addLayerImage) {
                         bindEvent(addLayerImage, 'click', () => {
-                            console.log('📁 添加图层图像');
                             this.openLayerImageDialog(modal);
                         });
                     }
@@ -2873,7 +2705,6 @@ app.registerExtension({
                     const drawLayer = modal.querySelector('#draw-layer');
                     if (drawLayer) {
                         bindEvent(drawLayer, 'click', () => {
-                            console.log('✏️ 绘制图层');
                             this.enableLayerDrawingMode(modal);
                         });
                     }
@@ -2882,7 +2713,6 @@ app.registerExtension({
                     const layerSettings = modal.querySelector('#layer-settings');
                     if (layerSettings) {
                         bindEvent(layerSettings, 'click', () => {
-                            console.log('⚙️ 打开图层设置');
                             this.openLayerSettings(modal);
                         });
                     }
@@ -2902,7 +2732,6 @@ app.registerExtension({
                         }, 100);
                     };
                     
-                    console.log('✅ 图层管理事件绑定完成');
                     
                 } catch (error) {
                     handleError(' 图层管理事件绑定', error);
@@ -2911,7 +2740,6 @@ app.registerExtension({
             
             // 🎨 图层变更应用方法
             nodeType.prototype.applyLayerChanges = function(modal) {
-                console.log('🔄 开始应用图层变更...');
                 
                 try {
                     // 收集当前图层配置
@@ -2924,7 +2752,6 @@ app.registerExtension({
                         // 显示成功反馈
                         this.showLayerStatusMessage(modal, '图层配置已应用', '#10b981');
                         
-                        console.log('✅ 图层变更应用成功:', layerConfig);
                     }
                 } catch (error) {
                     handleError(' 应用图层变更', error);
@@ -2977,7 +2804,6 @@ app.registerExtension({
                 
                 if (layerConfigWidget) {
                     layerConfigWidget.value = JSON.stringify(layerConfig);
-                    console.log('📝 更新layer_config widget:', layerConfigWidget.value);
                 }
                 
                 // 标记节点为已修改
@@ -3001,79 +2827,27 @@ app.registerExtension({
                 }
             };
             
-            // 🎨 智能检测图层连接状态
-            nodeType.prototype.detectConnectedLayers = function() {
-                const connectedLayers = [];
+            // 🎨 简单的主图像检测（仅检测主图像输入）
+            nodeType.prototype.detectMainImage = function() {
                 
-                console.log('🔍 开始检测图层连接状态...');
-                console.log('📋 节点信息:', {
-                    inputs: this.inputs?.map(i => ({name: i.name, link: i.link, type: i.type})),
-                    widgets: this.widgets?.map(w => ({name: w.name, value: w.value})),
-                    layerImageData: this.layerImageData
-                });
-                
-                // 检查节点的输入连接
+                // 只查找主要的image输入
                 if (this.inputs) {
-                    this.inputs.forEach((input, index) => {
-                        console.log(`🔌 检查输入 ${index}: ${input.name}, link: ${input.link}, type: ${input.type}`);
-                        
-                        // 检查所有可能的图层输入名称
-                        if ((input.name === 'layer_1' || input.name === 'layer1') && input.link !== null) {
-                            connectedLayers.push({id: 'layer_1', name: 'Layer 1', connected: true});
-                            console.log('✅ 发现连接的 layer_1');
-                        } else if ((input.name === 'layer_2' || input.name === 'layer2') && input.link !== null) {
-                            connectedLayers.push({id: 'layer_2', name: 'Layer 2', connected: true});
-                            console.log('✅ 发现连接的 layer_2');
-                        } else if ((input.name === 'layer_3' || input.name === 'layer3') && input.link !== null) {
-                            connectedLayers.push({id: 'layer_3', name: 'Layer 3', connected: true});
-                            console.log('✅ 发现连接的 layer_3');
-                        }
-                        
-                        // 额外检查：如果是IMAGE类型的输入且有连接，可能是图层
-                        if (input.type === 'IMAGE' && input.link !== null && input.name !== 'image') {
-                            console.log(`🔍 发现可能的图层输入: ${input.name} (type: ${input.type})`);
-                        }
-                    });
-                }
-                
-                // 如果没有检测到连接但有输入连接，尝试推断
-                if (connectedLayers.length === 0 && this.inputs && this.inputs.length > 1) {
-                    console.log('🔍 尝试推断图层连接...');
-                    const imageInputs = this.inputs.filter(input => input.type === 'IMAGE' && input.link !== null);
-                    console.log(`📋 找到 ${imageInputs.length} 个连接的IMAGE输入:`, imageInputs.map(i => i.name));
+                    const mainImageInput = this.inputs.find(input => 
+                        input.name === 'image' && input.type === 'IMAGE' && input.link !== null
+                    );
                     
-                    // 除了主图像输入，其他IMAGE输入可能是图层
-                    imageInputs.forEach((input, index) => {
-                        if (input.name !== 'image' && index < 3) {
-                            const layerId = `layer_${index + 1}`;
-                            connectedLayers.push({
-                                id: layerId, 
-                                name: `Layer ${index + 1}`, 
-                                connected: true,
-                                inferred: true
-                            });
-                            console.log(`🔍 推断图层: ${input.name} -> ${layerId}`);
-                        }
-                    });
+                    if (mainImageInput) {
+                        return {
+                            hasMainImage: true,
+                            inputName: mainImageInput.name
+                        };
+                    }
                 }
                 
-                // 也检查已加载的图层图像数据
-                if (this.layerImageData) {
-                    ['layer_1', 'layer_2', 'layer_3'].forEach(layerId => {
-                        if (this.layerImageData[layerId] && !connectedLayers.find(l => l.id === layerId)) {
-                            connectedLayers.push({
-                                id: layerId, 
-                                name: layerId.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                                connected: false,
-                                hasImage: true
-                            });
-                            console.log(`✅ 发现本地图像 ${layerId}`);
-                        }
-                    });
-                }
-                
-                console.log('🔍 最终检测到的图层连接状态:', connectedLayers);
-                return connectedLayers;
+                return {
+                    hasMainImage: false,
+                    inputName: null
+                };
             };
             
             // 🎨 更新PS图层列表
@@ -3083,55 +2857,50 @@ app.registerExtension({
                 
                 if (!dynamicLayersContainer) return;
                 
-                // 检测连接的图层
-                const connectedLayers = this.detectConnectedLayers();
+                // 检测主图像
+                const mainImageInfo = this.detectMainImage();
                 
                 // 清空现有动态图层
                 dynamicLayersContainer.innerHTML = '';
                 
-                if (connectedLayers.length === 0) {
-                    // 显示空状态消息
-                    if (noLayersMessage) noLayersMessage.style.display = 'block';
+                if (!mainImageInfo.hasMainImage) {
+                    // 显示空状态消息 - 没有主图像输入
+                    if (noLayersMessage) {
+                        noLayersMessage.style.display = 'block';
+                        noLayersMessage.textContent = '未检测到图像输入连接';
+                    }
                 } else {
                     // 隐藏空状态消息
                     if (noLayersMessage) noLayersMessage.style.display = 'none';
                     
-                    // 按图层顺序生成（layer_1在最上，layer_3在最下）
-                    const sortedLayers = connectedLayers.sort((a, b) => {
-                        const orderA = parseInt(a.id.split('_')[1]);
-                        const orderB = parseInt(b.id.split('_')[1]);
-                        return orderA - orderB; // 正序：1, 2, 3
+                    // 创建主图像显示项
+                    const imageElement = document.createElement('div');
+                    imageElement.className = 'ps-layer-item vpe-layer-item';
+                    imageElement.setAttribute('data-layer', 'main_image');
+                    imageElement.style.borderBottom = '1px solid #444';
+                    imageElement.style.background = '#10b981'; // 默认选中
+                    
+                    imageElement.innerHTML = `
+                        <span class="layer-visibility" style="margin-right: 8px; cursor: pointer;">👁️</span>
+                        <span style="flex: 1; color: white; font-size: 12px;">🖼️ 主图像</span>
+                        <span class="layer-opacity" style="color: #888; font-size: 10px;">100%</span>
+                        <span style="color: #10b981; font-size: 9px; margin-left: 8px;">Fabric.js编辑</span>
+                    `;
+                    
+                    // 添加点击事件（虽然只有一个主图像，保持一致性）
+                    imageElement.addEventListener('click', () => {
+                        dynamicLayersContainer.querySelectorAll('.ps-layer-item').forEach(item => {
+                            item.style.background = '';
+                        });
+                        imageElement.style.background = '#10b981';
                     });
                     
-                    sortedLayers.forEach(layer => {
-                        const layerElement = document.createElement('div');
-                        layerElement.className = 'ps-layer-item';
-                        layerElement.setAttribute('data-layer', layer.id);
-                        layerElement.className = 'ps-layer-item vpe-layer-item';
-                        layerElement.style.borderBottom = '1px solid #444';
-                        
-                        const statusIcon = layer.connected ? '🔗' : '📄';
-                        const statusText = layer.connected ? 'Connected' : (layer.hasImage ? 'Image Loaded' : 'Local');
-                        const statusColor = layer.connected ? '#10b981' : (layer.hasImage ? '#2196F3' : '#888');
-                        
-                        // 🔧 修复undefined显示问题：确保图层名称有合理的回退值
-                        const displayName = layer.name || layer.id || `Layer ${sortedLayers.indexOf(layer) + 1}` || 'Unknown Layer';
-                        
-                        layerElement.innerHTML = `
-                            <span class="layer-visibility" style="margin-right: 8px; cursor: pointer;">👁️</span>
-                            <span style="flex: 1; color: white; font-size: 12px;">${statusIcon} ${displayName}</span>
-                            <span class="layer-opacity" style="color: #888; font-size: 10px;">100%</span>
-                            <span style="color: ${statusColor}; font-size: 9px; margin-left: 8px;">${statusText}</span>
-                        `;
-                        
-                        dynamicLayersContainer.appendChild(layerElement);
-                    });
+                    dynamicLayersContainer.appendChild(imageElement);
                     
                     // 重新绑定事件
                     this.bindPSLayerEvents(modal);
                 }
                 
-                console.log(`✅ PS图层列表已更新，显示 ${connectedLayers.length} 个图层`);
             };
             
             // 🎨 绑定PS图层事件
@@ -3161,7 +2930,6 @@ app.registerExtension({
                             StyleManager.applyPreset(layerProperties, 'visible');
                         }
                         
-                        console.log('🎯 选中图层:', newItem.dataset.layer);
                     });
                     
                     // 可见性切换事件
@@ -3174,7 +2942,6 @@ app.registerExtension({
                             visibilityButton.textContent = isVisible ? '🙈' : '👁️';
                             newItem.style.opacity = isVisible ? '0.5' : '1';
                             
-                            console.log('👁️ 图层可见性切换:', newItem.dataset.layer, !isVisible);
                         });
                     }
                 });
@@ -3191,9 +2958,7 @@ app.registerExtension({
             };
             
             // 创建默认图层 - 委托给file_manager模块
-            nodeType.prototype.createDefaultLayer = function(modal, layerId) {
-                createDefaultLayer(modal, layerId, this);
-            };
+            // createDefaultLayer functionality removed - using main image only
             
             // 处理图层图像文件 - 委托给file_manager模块
             nodeType.prototype.processLayerImageFile = function(modal, layerId, file) {
@@ -3202,7 +2967,6 @@ app.registerExtension({
             
             // 🎨 启用图层绘制模式
             nodeType.prototype.enableLayerDrawingMode = function(modal) {
-                console.log('✏️ 启用图层绘制模式...');
                 
                 // 更灵活的选中图层检测
                 let selectedLayer = modal.querySelector('.ps-layer-item[style*="background: rgb(16, 185, 129)"]') ||
@@ -3210,14 +2974,14 @@ app.registerExtension({
                                    modal.querySelector('.ps-layer-item[style*="background: #10b981"]');
                 
                 if (!selectedLayer) {
-                    console.log('⚠️ 没有选中的图层，创建默认图层');
-                    // 创建默认图层
-                    this.createDefaultLayer(modal, 'layer_1');
-                    selectedLayer = modal.querySelector('[data-layer="layer_1"]');
+                    // 查找主图像层
+                    selectedLayer = modal.querySelector('[data-layer="main_image"]');
+                    if (!selectedLayer) {
+                        return;
+                    }
                 }
                 
                 const layerId = selectedLayer.dataset.layer;
-                console.log(`✏️ 为图层 ${layerId} 启用绘制模式`);
                 
                 // 切换到画布区域
                 const canvasTab = modal.querySelector('[data-tab="canvas"]');
@@ -3235,7 +2999,6 @@ app.registerExtension({
                 this.currentLayerDrawingMode = layerId;
                 
                 this.showLayerStatusMessage(modal, `已进入 ${layerId} 绘制模式`, '#10b981');
-                console.log(`✏️ 启用图层绘制模式:`, layerId);
                 
                 // 显示绘制提示
                 setTimeout(() => {
@@ -3245,7 +3008,6 @@ app.registerExtension({
             
             // 🎨 打开图层设置 - 使用通用设置对话框创建函数
             nodeType.prototype.openLayerSettings = function(modal) {
-                console.log('⚙️ 打开图层设置面板');
                 this.createSettingsDialog('advanced');
                 this.showLayerStatusMessage(modal, '图层设置已打开', '#10b981');
             };
@@ -3272,16 +3034,12 @@ app.registerExtension({
                 }
                 
                 // 检查是否点击在图层上
-                console.log(`🖱️ [DEBUG] 变换模式点击事件: (${e.clientX}, ${e.clientY})`);
                 const clickedLayer = this.getLayerAtPosition(modal, e.clientX, e.clientY);
-                console.log(`🔍 [DEBUG] getLayerAtPosition 结果:`, clickedLayer);
                 
                 if (clickedLayer) {
-                    console.log(`🎯 [CLICK] 变换模式：选中图层 ${clickedLayer.id} (${clickedLayer.type})`);
                     this.activateLayerTransform(modal, clickedLayer.id, clickedLayer.type);
                 } else {
                     // 🔧 点击空白区域，清除选择（使用新的变换控制模块）
-                    console.log(`🎯 [CLICK] 变换模式：点击空白区域，清除变换状态`);
                     if (this.transformControls) {
                         this.transformControls.clearTransformState(modal);
                     }
@@ -3292,7 +3050,6 @@ app.registerExtension({
             bindEvent(imageCanvas, 'dblclick', (e) => {
                 const clickedLayer = this.getLayerAtPosition(modal, e.clientX, e.clientY);
                 if (clickedLayer) {
-                    console.log(`🔄 双击激活变换: ${clickedLayer.id}`);
                     this.activateLayerTransform(modal, clickedLayer.id, clickedLayer.type);
                 }
             });
@@ -3351,30 +3108,25 @@ app.registerExtension({
         
         // 获取图层元素
         nodeType.prototype.getLayerElement = function(modal, layerId, layerType) {
-            console.log(`🔍 查找图层元素: ${layerId} (${layerType})`);
             
             let element = null;
             if (layerType === 'IMAGE_LAYER' || layerType === 'connected') {
                 // 连接图层 - 支持两种类型名称
                 element = modal.querySelector(`#canvas-layer-${layerId}`);
-                console.log(`🔍 ${layerType}查找结果:`, element);
                 
                 // 对于变换操作，返回容器元素（可以移动），而不是内部的img元素
                 if (element) {
-                    console.log(`📦 找到图层容器，返回容器元素用于变换`);
                     return element; // 返回容器元素，这样可以移动整个图层
                 }
             } else if (layerType === 'ANNOTATION' || layerType === 'annotation') {
                 // 标注图层 - 查找独立SVG容器，支持两种类型名称
                 element = modal.querySelector(`#annotation-svg-${layerId}`);
-                console.log(`🔍 ${layerType}查找结果:`, element);
                 
                 // 对于标注，我们需要找到SVG内实际的图形元素
                 if (element) {
                     const svg = element.querySelector('svg') || element;
                     const shapes = svg.querySelectorAll('path, circle, rect, line, polygon, text');
                     if (shapes.length > 0) {
-                        console.log(`📊 找到 ${shapes.length} 个标注图形元素`);
                         // 返回一个包含所有形状边界的虚拟元素
                         return { 
                             isVirtualElement: true,
@@ -3438,11 +3190,7 @@ app.registerExtension({
             }
             
             if (element) {
-                console.log(`📐 元素边界:`, {
-                    id: element.id,
-                    tag: element.tagName,
-                    rect: element.getBoundingClientRect()
-                });
+                // Element found - processing completed
             }
             
             return element;
@@ -3469,18 +3217,14 @@ app.registerExtension({
     
     // 暴露函数给其他模块使用
     addAnnotationToSVGWithGrouping: function(svg, annotationElement, annotationId) {
-        console.log(`📝 🆕 EXTENSION - 暴露函数被调用: ${annotationId}`);
         
         // 找到当前的VisualPromptEditor节点实例
         const nodeInstance = window.app?.graph?._nodes?.find(node => node.type === 'VisualPromptEditor');
         if (nodeInstance && typeof nodeInstance.addAnnotationToSVGWithGrouping === 'function') {
-            console.log(`📝 🆕 EXTENSION - 调用节点实例方法`);
             return nodeInstance.addAnnotationToSVGWithGrouping(svg, annotationElement, annotationId);
         } else {
-            console.warn(`⚠️ EXTENSION - 找不到节点实例或方法，使用传统方式`);
             svg.appendChild(annotationElement);
         }
     }
 });
 
-console.log("🎨 Visual Prompt Editor V2 (Modular) extension loaded");

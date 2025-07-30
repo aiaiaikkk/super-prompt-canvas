@@ -14,7 +14,6 @@ import { app } from "../../scripts/app.js";
  */
 async function fetchOllamaModels(url) {
     try {
-        console.log(`🔄 Fetching Ollama model list via backend API: ${url}`);
         
         // 额外的URL验证和警告
         if (!url) {
@@ -23,7 +22,6 @@ async function fetchOllamaModels(url) {
         }
         
         if (url === "http://127.0.0.1:11434") {
-            console.warn("⚠️ Using default localhost address, may fail to connect in cloud environments");
         }
         
         // 通过ComfyUI后端API获取模型，避免CORS问题
@@ -51,34 +49,25 @@ async function fetchOllamaModels(url) {
         }
         
         // Handle normal model list response - debug version
-        console.log(`🔍 Raw response data:`, responseData);
-        console.log(`🔍 Response data type:`, typeof responseData);
-        console.log(`🔍 Is array:`, Array.isArray(responseData));
         
         let modelNames = [];
         
         if (Array.isArray(responseData)) {
             modelNames = responseData;
-            console.log(`✅ Response is array format, using directly`);
         } else if (responseData && typeof responseData === 'object') {
             if (responseData.models && Array.isArray(responseData.models)) {
                 modelNames = responseData.models;
-                console.log(`✅ Getting from response object's models field`);
             } else {
-                console.warn(`⚠️ Response object format abnormal:`, responseData);
                 modelNames = [];
             }
         } else {
-            console.warn(`⚠️ Response format incorrect:`, responseData);
             modelNames = [];
         }
         
-        console.log(`✅ Successfully fetched ${modelNames.length} models via backend API:`, modelNames);
         return modelNames;
         
     } catch (error) {
         console.error(`❌ Failed to fetch Ollama models via backend API: ${error.message}`);
-        console.log(`ℹ️ Attempting fallback to backend model detection...`);
         return [];
     }
 }
@@ -90,7 +79,6 @@ async function fetchOllamaModels(url) {
  */
 function updateModelWidget(widget, models) {
     if (!widget || !Array.isArray(models)) {
-        console.warn("⚠️ Invalid widget or model list");
         return;
     }
 
@@ -107,10 +95,8 @@ function updateModelWidget(widget, models) {
         } else {
             widget.value = models[0];
         }
-        console.log(`🎯 Model selection updated to: ${widget.value}`);
     } else {
         widget.value = "";
-        console.warn("⚠️ No available models");
     }
 }
 
@@ -123,7 +109,6 @@ function updateModelWidget(widget, models) {
  */
 function createRefreshButton(node, modelWidget, urlWidget) {
     try {
-        console.log("🔄 Creating model refresh button");
         
         // 创建刷新按钮widget
         const refreshButton = node.addWidget("button", "🔄 Refresh Models", "refresh", () => {
@@ -134,7 +119,6 @@ function createRefreshButton(node, modelWidget, urlWidget) {
         refreshButton.size = [150, 25];
         refreshButton.tooltip = "Click to refresh Ollama model list and get newly installed models";
         
-        console.log("✅ Model refresh button created successfully");
         return refreshButton;
         
     } catch (error) {
@@ -151,7 +135,6 @@ function createRefreshButton(node, modelWidget, urlWidget) {
  */
 async function refreshModels(node, modelWidget, urlWidget) {
     try {
-        console.log("🔄 Starting model list refresh via backend API");
         
         // 获取当前URL - 云端环境优化版本
         let currentUrl = "http://127.0.0.1:11434"; // 默认值
@@ -159,16 +142,13 @@ async function refreshModels(node, modelWidget, urlWidget) {
         // 方法1: 从URL widget获取
         if (urlWidget && urlWidget.value && urlWidget.value.trim() !== "") {
             currentUrl = urlWidget.value.trim();
-            console.log(`📍 使用URL widget配置: ${currentUrl}`);
         } else {
             // 方法2: 从所有widgets中查找URL
-            console.log("🔍 URL widget为空，搜索所有widgets...");
             if (node.widgets) {
                 for (let i = 0; i < node.widgets.length; i++) {
                     const widget = node.widgets[i];
                     if ((widget.name === "url" || widget.name === "ollama_url") && widget.value && widget.value.trim() !== "") {
                         currentUrl = widget.value.trim();
-                        console.log(`📍 在widgets[${i}]中找到URL: ${currentUrl}`);
                         break;
                     }
                 }
@@ -178,7 +158,6 @@ async function refreshModels(node, modelWidget, urlWidget) {
             if (currentUrl === "http://127.0.0.1:11434" && node.properties) {
                 if (node.properties.ollama_url) {
                     currentUrl = node.properties.ollama_url;
-                    console.log(`📍 使用节点属性URL: ${currentUrl}`);
                 }
             }
             
@@ -193,13 +172,11 @@ async function refreshModels(node, modelWidget, urlWidget) {
                 
                 // 如果在云端环境，尝试非localhost地址
                 if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-                    console.log("🌐 检测到云端环境，优先尝试非localhost地址");
                     currentUrl = "http://localhost:11434"; // 云端localhost
                 }
             }
         }
         
-        console.log(`🎯 Final URL being used: ${currentUrl}`);
         
         // Show loading state
         if (modelWidget) {
@@ -226,7 +203,6 @@ async function refreshModels(node, modelWidget, urlWidget) {
                 modelWidget.value = models[0];
             }
             
-            console.log(`✅ Successfully refreshed model list via backend API, found ${models.length} models`);
             
             // Show success notification
             showRefreshNotification(node, `✅ Successfully refreshed! Found ${models.length} models`, "success");
@@ -235,7 +211,6 @@ async function refreshModels(node, modelWidget, urlWidget) {
             // Handle no models case - provide more detailed error info
             const errorMessage = "❌ No models found - Check Ollama service";
             updateModelWidget(modelWidget, [errorMessage]);
-            console.warn("⚠️ No models retrieved via backend API");
             
             // Show detailed troubleshooting info
             showRefreshNotification(node, 
@@ -270,9 +245,7 @@ function showRefreshNotification(node, message, type) {
     try {
         // Display message in console
         if (type === "success") {
-            console.log(`✅ ${message}`);
         } else if (type === "warning") {
-            console.warn(`⚠️ ${message}`);
         } else {
             console.error(`❌ ${message}`);
         }
@@ -312,7 +285,6 @@ function showRefreshNotification(node, message, type) {
         }
         
     } catch (e) {
-        console.log("Cannot display notification:", e);
     }
 }
 
@@ -450,11 +422,9 @@ For more examples, please check guidance_template options.`;
  */
 function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget) {
     if (!guidanceStyleWidget || !customGuidanceWidget) {
-        console.warn("⚠️ Required widgets not found for guidance interaction setup");
         return;
     }
 
-    console.log("🔗 Setting up guidance widgets interaction");
 
     // 保存原始回调
     const originalStyleCallback = guidanceStyleWidget.callback;
@@ -466,15 +436,12 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
             const currentStyle = guidanceStyleWidget.value;
             const currentTemplate = guidanceTemplateWidget ? guidanceTemplateWidget.value : "none";
             
-            console.log(`🔄 Updating placeholder for style: ${currentStyle}, template: ${currentTemplate}`);
             
             const newPlaceholder = getTemplateContentForPlaceholder(currentStyle, currentTemplate);
             
             if (customGuidanceWidget.inputEl) {
                 customGuidanceWidget.inputEl.placeholder = newPlaceholder;
-                console.log("✅ Placeholder updated successfully");
             } else {
-                console.warn("⚠️ Custom guidance input element not found");
             }
             
             // 强制重绘
@@ -488,7 +455,6 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
 
     // 设置引导风格变化回调
     guidanceStyleWidget.callback = function(value, ...args) {
-        console.log(`🎨 Guidance style changed to: ${value}`);
         
         // 更新placeholder
         setTimeout(updateCustomGuidancePlaceholder, 100);
@@ -502,7 +468,6 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     // 设置引导模板变化回调
     if (guidanceTemplateWidget) {
         guidanceTemplateWidget.callback = function(value, ...args) {
-            console.log(`📋 Guidance template changed to: ${value}`);
             
             // 更新placeholder
             setTimeout(updateCustomGuidancePlaceholder, 100);
@@ -517,7 +482,6 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     // 初始化placeholder
     setTimeout(updateCustomGuidancePlaceholder, 200);
     
-    console.log("✅ Guidance widgets interaction setup completed");
 }
 
 /**
@@ -533,7 +497,6 @@ function setupSaveGuidanceUI(node) {
         const loadGuidanceWidget = node.widgets.find(w => w.name === "load_saved_guidance");
         
         if (!saveGuidanceWidget || !guidanceNameWidget || !loadGuidanceWidget) {
-            console.warn("Required widgets for save functionality not found!");
             return;
         }
 
@@ -680,7 +643,6 @@ function setupSaveGuidanceUI(node) {
                 );
             } else {
                 // 使用更简洁的提示
-                console.log(`Guidance "${guidanceNameWidget.value}" will be saved on next queue.`);
             }
             
             // 重置按钮状态
@@ -733,7 +695,6 @@ function setupSaveGuidanceUI(node) {
             }
         };
 
-        console.log("✅ Enhanced save guidance UI setup completed");
         
     } catch (error) {
         console.error("❌ Error setting up save guidance UI:", error);
@@ -756,7 +717,6 @@ function addGlobalNodeStyles() {
         }
     `;
     document.head.appendChild(style);
-    console.log("🎨 紫色主题全局样式已添加（保持倒角）");
 }
 
 // 立即添加样式
@@ -768,20 +728,16 @@ app.registerExtension({
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         // 处理所有Ollama增强器节点类型
-        console.log("🔍 检查节点类型:", nodeData.name);
-        
         if (nodeData.name !== "OllamaFluxKontextEnhancerV2") {
             return;
         }
-        
-        console.log("🔧 初始化OllamaFluxKontextEnhancer前端扩展, 节点类型:", nodeData.name);
         
         // 重写节点创建方法
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             const r = onNodeCreated?.apply(this, arguments);
             
-            console.log("🏗️ 创建Ollama增强器节点, 类型:", nodeData.name);
+            // 创建Ollama增强器节点
             
             // 设置节点颜色为紫色主题，保持原始倒角
             this.color = "#673AB7";     // 主色调 - 深度紫色
@@ -797,7 +753,7 @@ app.registerExtension({
             this.header_color = "#673AB7";
             this.border_color = "#673AB7";
             
-            console.log("🎨 节点颜色已设置为紫色主题（保持倒角）", this.color, this.bgcolor);
+            // 节点颜色已设置为紫色主题
             
             // 尝试直接设置DOM元素样式
             if (this.canvas && this.canvas.canvas) {
@@ -832,7 +788,6 @@ app.registerExtension({
                 if (this.graph && this.graph.canvas) {
                     this.graph.canvas.setDirty(true);
                 }
-                console.log("🎨 延迟颜色设置完成");
             }, 100);
             
             // 定期强制设置颜色 - 确保颜色不被覆盖
@@ -846,7 +801,6 @@ app.registerExtension({
                     if (this.graph && this.graph.canvas) {
                         this.graph.canvas.setDirty(true);
                     }
-                    console.log("🎨 颜色被重置，重新设置为紫色主题");
                 }
             }, 1000);
             
@@ -909,19 +863,14 @@ app.registerExtension({
             for (const widget of this.widgets) {
                 if (widget.name === "model") {
                     modelWidget = widget;
-                    console.log("🎯 找到模型选择widget");
                 } else if (widget.name === "url") {
                     urlWidget = widget;
-                    console.log("🔗 找到URL输入widget");
                 } else if (widget.name === "guidance_style") {
                     guidanceStyleWidget = widget;
-                    console.log("🎨 找到引导风格widget");
                 } else if (widget.name === "guidance_template") {
                     guidanceTemplateWidget = widget;
-                    console.log("📋 找到引导模板widget");
                 } else if (widget.name === "custom_guidance") {
                     customGuidanceWidget = widget;
-                    console.log("✏️ 找到自定义引导widget");
                 }
             }
             
@@ -939,7 +888,6 @@ app.registerExtension({
                         }
                         // 插入到 model 之后
                         this.widgets.splice(modelIndex + 1, 0, refreshButton);
-                        console.log("✅ 刷新按钮已移动到 model 之后");
                     }
                 }
                 
@@ -958,18 +906,13 @@ app.registerExtension({
                     }
                 };
                 
-                console.log("✅ 模型刷新按钮已恢复并重新定位");
             } else {
-                console.warn("⚠️ 未找到模型选择widget");
             }
             
             // 设置引导widgets交互
             if (guidanceStyleWidget && customGuidanceWidget) {
                 setupGuidanceWidgetsInteraction(this, guidanceStyleWidget, guidanceTemplateWidget, customGuidanceWidget);
-                console.log("✅ Ollama版本引导系统初始化完成 (包含自定义模板功能)");
             } else {
-                console.warn("⚠️ 未找到必要的引导widgets，跳过交互设置");
-                console.log("✅ 引导系统初始化完成 (基础功能)");
             }
 
             // 不使用DOM widget的Guidance管理 - 直接优化现有控件
@@ -1002,7 +945,6 @@ app.registerExtension({
                     this.widgets.splice(currentIndex, 1);
                     // 添加到最底部
                     this.widgets.push(customGuidanceWidget);
-                    console.log("✅ custom_guidance文本框已移动到最底部");
                 }
                 
                 // 设置文本框大小 - 固定5行，完全不可拉伸
@@ -1012,7 +954,6 @@ app.registerExtension({
                     customGuidanceWidget.inputEl.style.minHeight = '90px';   // 固定最小高度
                     customGuidanceWidget.inputEl.style.maxHeight = '90px';   // 固定最大高度
                     customGuidanceWidget.inputEl.style.height = '90px';      // 固定默认高度
-                    console.log("✅ custom_guidance文本框已固定为5行且不可拉伸");
                 }
             }
             
@@ -1023,7 +964,6 @@ app.registerExtension({
                 editDescriptionWidget.inputEl.style.minHeight = '90px';   // 固定最小高度
                 editDescriptionWidget.inputEl.style.maxHeight = '90px';   // 固定最大高度
                 editDescriptionWidget.inputEl.style.height = '90px';      // 固定默认高度
-                console.log("✅ edit_description文本框已固定为5行且不可拉伸");
             }
 
             // 简化的节点大小调整 - 避免文本框折叠
@@ -1047,7 +987,6 @@ app.registerExtension({
                     this.setDirtyCanvas(true);
                 }
                 
-                console.log(`✅ 节点大小已调整为: ${this.size[0]}x${this.size[1]}`);
             }, 100);
 
             return r;
@@ -1090,7 +1029,6 @@ app.registerExtension({
     },
     
     async setup() {
-        console.log("🚀 OllamaFluxKontextEnhancerV2扩展加载完成");
     }
 });
 

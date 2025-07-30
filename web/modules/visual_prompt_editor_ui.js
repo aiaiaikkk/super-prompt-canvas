@@ -4,6 +4,7 @@
  */
 
 import { t, getCurrentLanguage, toggleLanguage, updateAllUITexts, loadLanguageFromStorage } from './visual_prompt_editor_i18n.js';
+import { updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
 
 /**
  * 创建主模态弹窗
@@ -100,28 +101,25 @@ export function createToolbar() {
             <!-- 绘制工具组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="tools">Tools:</span>
+                <button class="vpe-tool active" data-tool="select" title="Select and Transform (Hold Ctrl to multi-select)" data-i18n-title="tooltip_select" style="background: #4CAF50; color: white;">👆</button>
                 <button class="vpe-tool" data-tool="rectangle" title="Rectangle" data-i18n-title="tooltip_rectangle">📐</button>
-                <button class="vpe-tool" data-tool="circle" title="Circle (Shift=Perfect Circle)" data-i18n-title="tooltip_circle">⭕</button>
-                <button class="vpe-tool" data-tool="arrow" title="Arrow" data-i18n-title="tooltip_arrow">➡️</button>
-                <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing (Left-click to add anchor points, right-click to close)" data-i18n-title="tooltip_freehand">🔗</button>
-                <button class="vpe-tool" data-tool="brush" title="Brush (Adjustable size and feather)" data-i18n-title="tooltip_brush">🖌️</button>
-                <button class="vpe-tool" data-tool="eraser" title="Eraser" data-i18n-title="tooltip_eraser">🗑️</button>
+                <button class="vpe-tool" data-tool="circle" title="Circle" data-i18n-title="tooltip_circle">⭕</button>
+                <button class="vpe-tool" data-tool="polygon" title="Polygon (Left click to add points, Right click to finish)" data-i18n-title="tooltip_polygon">🔷</button>
+                <button class="vpe-tool" data-tool="text" title="Text Tool (Click to add text)" data-i18n-title="tooltip_text">📝</button>
+                <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing" data-i18n-title="tooltip_freehand">✏️</button>
             </div>
             
             <!-- 颜色选择组 -->
-            <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
-                <span style="color: #ccc; font-size: 11px;" data-i18n="colors">Colors:</span>
-                <button class="vpe-color" data-color="#ff0000" style="background: linear-gradient(135deg, #ff0000, #cc0000); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,0,0,0.3);"></button>
-                <button class="vpe-color" data-color="#00ff00" style="background: linear-gradient(135deg, #00ff00, #00cc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,255,0,0.3);"></button>
-                <button class="vpe-color" data-color="#ffff00" style="background: linear-gradient(135deg, #ffff00, #cccc00); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(255,255,0,0.3);"></button>
-                <button class="vpe-color" data-color="#0000ff" style="background: linear-gradient(135deg, #0000ff, #0000cc); border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,255,0.3);"></button>
+            <div style="display: flex; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;" data-i18n="color">Color:</span>
+                <input type="color" id="vpe-color-picker" value="#ff0000" 
+                       style="width: 32px; height: 24px; border: 2px solid #fff; border-radius: 4px; cursor: pointer; background: none;" 
+                       title="Choose annotation color" data-i18n-title="tooltip_color_picker">
             </div>
             
             <!-- 编辑操作组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="edit">Edit:</span>
-                <button id="vpe-transform-mode" style="font-size: 11px; padding: 4px 8px; background: #444; border: 1px solid #666;" title="Toggle Transform Mode (Click layers to transform)" data-i18n="btn_transform" data-i18n-title="tooltip_transform">🔄 Transform</button>
-                <button id="vpe-undo" style="font-size: 11px; padding: 4px 8px;" title="Undo" data-i18n="btn_undo" data-i18n-title="tooltip_undo">↶ Undo</button>
                 <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All" data-i18n="btn_clear" data-i18n-title="tooltip_clear">🗂️ Clear</button>
             </div>
             
@@ -140,6 +138,16 @@ export function createToolbar() {
                 <span id="vpe-opacity-value" style="color: #aaa; font-size: 10px; min-width: 30px; text-align: center;">50%</span>
             </div>
             
+            <!-- 画布视图缩放控制组 -->
+            <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;" data-i18n="canvas_view">View:</span>
+                <button id="vpe-zoom-out" style="font-size: 11px; padding: 4px 8px; background: #555; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Zoom Out Canvas View" data-i18n-title="tooltip_zoom_out">🔍-</button>
+                <span id="zoom-display" style="color: #aaa; font-size: 10px; min-width: 40px; text-align: center;">100%</span>
+                <button id="vpe-zoom-in" style="font-size: 11px; padding: 4px 8px; background: #555; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Zoom In Canvas View" data-i18n-title="tooltip_zoom_in">🔍+</button>
+                <button id="vpe-zoom-reset" style="font-size: 11px; padding: 4px 8px; background: #555; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Reset Canvas View to 100%" data-i18n-title="tooltip_zoom_reset">1:1</button>
+                <button id="vpe-zoom-fit" style="font-size: 11px; padding: 4px 8px; background: #555; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Fit Canvas View to Window" data-i18n-title="tooltip_zoom_fit">📐</button>
+            </div>
+            
             <!-- 画笔控制组 -->
             <div id="vpe-brush-controls" style="display: none; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="brush">Brush:</span>
@@ -155,14 +163,46 @@ export function createToolbar() {
                 <span id="vpe-brush-feather-value" style="color: #aaa; font-size: 10px; min-width: 25px; text-align: center;">5px</span>
             </div>
             
-            <!-- 视图控制组 -->
+            <!-- 画布背景设置组 -->
+            <div style="display: flex; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;" data-i18n="canvas">Canvas:</span>
+                <input type="color" id="vpe-bg-color" value="#ffffff" 
+                       style="width: 32px; height: 24px; border: 2px solid #fff; border-radius: 4px; cursor: pointer; background: none;" 
+                       title="Choose canvas background color" data-i18n-title="tooltip_bg_color">
+                <select id="vpe-canvas-size" style="font-size: 11px; padding: 2px 6px; background: #444; color: white; border: 1px solid #666; border-radius: 3px;" title="Canvas Size Preset" data-i18n-title="tooltip_canvas_size">
+                    <option value="512x512">正方形-小</option>
+                    <option value="768x768">正方形-中</option>
+                    <option value="1024x1024">正方形-大</option>
+                    <option value="1280x720">横向-16:9</option>
+                    <option value="720x1280">竖向-9:16</option>
+                    <option value="800x600" selected>默认-800x600</option>
+                    <option value="custom">自定义</option>
+                </select>
+            </div>
+            
+            <!-- 自定义画布尺寸控制组 -->
+            <div id="vpe-custom-size-controls" style="display: none; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;" data-i18n="size">Size:</span>
+                <span style="color: #aaa; font-size: 10px;">W:</span>
+                <input type="number" id="vpe-canvas-width" min="200" max="2048" value="800" step="10" 
+                       style="width: 60px; font-size: 11px; padding: 2px 4px; background: #444; color: white; border: 1px solid #666; border-radius: 3px;" 
+                       title="Canvas Width (200-2048px)" data-i18n-title="tooltip_canvas_width">
+                <span style="color: #aaa; font-size: 10px;">H:</span>
+                <input type="number" id="vpe-canvas-height" min="200" max="2048" value="600" step="10" 
+                       style="width: 60px; font-size: 11px; padding: 2px 4px; background: #444; color: white; border: 1px solid #666; border-radius: 3px;" 
+                       title="Canvas Height (200-2048px)" data-i18n-title="tooltip_canvas_height">
+                <button id="vpe-apply-size" style="font-size: 10px; padding: 3px 6px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                        title="Apply canvas size" data-i18n="btn_apply" data-i18n-title="tooltip_apply_size">Apply</button>
+            </div>
+            
+            <!-- 文件上传控制组 -->
             <div style="display: flex; gap: 4px; align-items: center;">
-                <span style="color: #ccc; font-size: 11px;" data-i18n="view">View:</span>
-                <button id="vpe-zoom-fit" style="font-size: 11px; padding: 4px 8px;" title="Fit to Screen" data-i18n="btn_fit" data-i18n-title="tooltip_zoom_fit">Fit</button>
-                <button id="vpe-zoom-100" style="font-size: 11px; padding: 4px 8px;" title="100% Zoom" data-i18n="btn_zoom_100" data-i18n-title="tooltip_zoom_100">1:1</button>
-                <button id="vpe-zoom-in" style="font-size: 11px; padding: 4px 6px;" title="Zoom In" data-i18n="btn_zoom_in" data-i18n-title="tooltip_zoom_in">+</button>
-                <button id="vpe-zoom-out" style="font-size: 11px; padding: 4px 6px;" title="Zoom Out" data-i18n="btn_zoom_out" data-i18n-title="tooltip_zoom_out">-</button>
-                <span id="vpe-zoom-level" style="color: #aaa; font-size: 10px; min-width: 40px; text-align: center;">100%</span>
+                <span style="color: #ccc; font-size: 11px;" data-i18n="upload">Upload:</span>
+                <label for="vpe-image-upload" style="display: inline-block; cursor: pointer;">
+                    <button type="button" id="vpe-upload-btn" style="font-size: 11px; padding: 4px 8px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                            title="Upload Image to Canvas" data-i18n="btn_upload" data-i18n-title="tooltip_upload_image">📁 Upload</button>
+                </label>
+                <input type="file" id="vpe-image-upload" accept="image/*" style="display: none;" title="Select image file to upload">
             </div>
         </div>
     `;
@@ -171,7 +211,7 @@ export function createToolbar() {
     const style = document.createElement('style');
     style.textContent = `
         /* 基础按钮样式 */
-        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-fill-toggle, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out {
+        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-fill-toggle, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out, #vpe-upload-btn {
             background: #555 !important;
             border: none !important;
             color: white !important;
@@ -186,6 +226,13 @@ export function createToolbar() {
             padding: 4px 8px !important;
             font-size: 11px !important;
             height: 24px !important;
+        }
+        
+        /* 工具按钮激活状态 */
+        .vpe-tool.active {
+            background: #4CAF50 !important;
+            color: white !important;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.3) !important;
         }
         
         /* 编辑操作按钮 */
@@ -329,17 +376,18 @@ export function createMainArea() {
 }
 
 /**
- * 创建左侧画布区域
+ * 创建左侧统一画布区域（新架构）
+ * 替换旧的多容器系统，使用统一坐标系统
  */
-export function createCanvasArea() {
+export function createUnifiedCanvasArea(modal = null) {
     const canvasArea = document.createElement('div');
     canvasArea.style.cssText = `
         flex: 1; background: #2a2a2a; display: flex; flex-direction: column;
         border-right: 1px solid #404040;
-        min-width: 0; /* 确保flex item能够收缩 */
+        min-width: 0;
     `;
     
-    // 画布容器
+    // 创建Fabric.js画布容器
     const canvasContainer = document.createElement('div');
     canvasContainer.id = 'canvas-container';
     canvasContainer.style.cssText = `
@@ -347,19 +395,47 @@ export function createCanvasArea() {
         display: flex; align-items: center; justify-content: center;
     `;
     
-    // 缩放容器
+    // 创建独立的zoom容器，具有正确的定位和变换原点
     const zoomContainer = document.createElement('div');
     zoomContainer.id = 'zoom-container';
     zoomContainer.style.cssText = `
-        position: absolute; top: 50%; left: 50%; transform-origin: center center;
-        transform: translate(-50%, -50%) scale(1.0);
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transform-origin: center center;
+        transform: translate(0px, 0px) scale(1);
         transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     `;
     
+    // 创建Fabric.js画布容器
+    const fabricCanvasContainer = document.createElement('div');
+    fabricCanvasContainer.id = 'fabric-canvas-container';
+    fabricCanvasContainer.style.cssText = `
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        height: auto;
+    `;
+    
+    // 组装结构
+    zoomContainer.appendChild(fabricCanvasContainer);
     canvasContainer.appendChild(zoomContainer);
     canvasArea.appendChild(canvasContainer);
     
-    return { canvasArea, canvasContainer, zoomContainer };
+    return { canvasArea, canvasContainer, zoomContainer, fabricCanvasContainer };
+}
+
+// 🗑️ 废弃的旧函数（保留以防兼容性问题，后续版本将完全移除）
+export function createCanvasArea() {
+    // 重定向到统一画布区域创建函数
+    return createUnifiedCanvasArea();
 }
 
 
@@ -598,6 +674,11 @@ export function createControlsTabContent() {
                 <div style="font-size: 11px; color: #777; margin-top: 2px; margin-left: 22px;" data-i18n="annotation_numbers_help">
                     🏷️ Show annotation numbers (e.g., "annotation 1") in generated prompts
                 </div>
+            </div>
+            
+            <!-- 应用成功提示区域 -->
+            <div id="apply-success-notification" style="width: 100%; padding: 8px; margin-bottom: 8px; background: #1B5E20; color: #C8E6C9; border: 1px solid #4CAF50; border-radius: 4px; text-align: center; font-size: 12px; font-weight: 600; display: none; opacity: 0; transition: all 0.3s ease;">
+                ✅ 约束和修饰提示词已成功应用
             </div>
             
             <button id="generate-prompt" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;" data-i18n="btn_generate_description">
@@ -852,14 +933,13 @@ export function showControlInfo(modal) {
  * 初始化标签页功能
  */
 export function initializeTabSwitching() {
-    console.log('🎯 开始初始化标签页切换功能');
+    // 初始化标签页切换功能
     
     // 查找所有标签页按钮
     const tabs = document.querySelectorAll('.vpe-tab-button');
-    console.log('📋 找到标签页按钮数量:', tabs.length);
+    // 标签页按钮数量: ${tabs.length}
     
     if (tabs.length === 0) {
-        console.warn('⚠️ 未找到标签页按钮，跳过初始化');
         return;
     }
     
@@ -870,14 +950,14 @@ export function initializeTabSwitching() {
         'tab_ai_enhancer': createAIEnhancerTabContent()
     };
     
-    console.log('📝 标签页内容已预创建:', Object.keys(tabContents));
+    // 标签页内容已预创建
     
     tabs.forEach((tab, index) => {
         const tabKey = tab.getAttribute('data-i18n');
-        console.log(`🔘 为标签页 ${index + 1} 添加点击事件，key: ${tabKey}`);
+        // 为标签页添加点击事件
         
         tab.addEventListener('click', function() {
-            console.log(`🖱️ 点击标签页: ${tabKey}`);
+            // 点击标签页
             switchToTab(tabKey, tabContents);
             
             // 更新标签激活状态
@@ -890,18 +970,38 @@ export function initializeTabSwitching() {
             this.style.color = 'white';
             this.classList.add('active');
             
-            console.log(`✅ 标签页切换完成: ${tabKey}`);
+            // 标签页切换完成
         });
     });
     
-    console.log('✅ 标签页切换功能初始化完成');
+    // 🔧 默认激活layers标签页，提供更直观的用户体验
+    const defaultTab = tabs[0]; // layers标签页 (index 0: layers=0, controls=1, ai=2)
+    if (defaultTab) {
+        const tabKey = defaultTab.getAttribute('data-i18n');
+        
+        // 激活默认标签页
+        switchToTab(tabKey, tabContents);
+        
+        // 设置默认标签页样式
+        tabs.forEach(t => {
+            t.style.background = '#444';
+            t.style.color = '#ccc';
+            t.classList.remove('active');
+        });
+        defaultTab.style.background = '#10b981';
+        defaultTab.style.color = 'white';
+        defaultTab.classList.add('active');
+        
+    }
+    
+    // 标签页切换功能初始化完成
 }
 
 /**
  * 切换到指定标签页
  */
 function switchToTab(tabKey, tabContents) {
-    console.log(`🔄 Switching to tab: ${tabKey}`);
+    // 切换到标签页
     
     const tabContentContainer = document.getElementById('tab-content-container');
     if (!tabContentContainer) {
@@ -914,7 +1014,7 @@ function switchToTab(tabKey, tabContents) {
         return;
     }
     
-    console.log(`📄 Updating tab content container`);
+    // 更新标签页内容
     
     // 清空当前内容
     tabContentContainer.innerHTML = '';
@@ -922,7 +1022,7 @@ function switchToTab(tabKey, tabContents) {
     // 添加新内容
     tabContentContainer.appendChild(tabContents[tabKey]);
     
-    console.log(`✅ Tab content updated: ${tabKey}`);
+    // 标签页内容已更新
     
     // 获取modal引用以便重新绑定事件
     const modal = tabContentContainer.closest('#unified-editor-modal');
@@ -930,21 +1030,17 @@ function switchToTab(tabKey, tabContents) {
     // 🔴 立即应用翻译到新添加的内容
     if (modal && typeof window.updateAllUITexts === 'function') {
         window.updateAllUITexts(modal);
-        console.log(`✅ Translations applied immediately after tab switch: ${tabKey}`);
     }
     
     // 根据不同标签页执行特定的初始化
     if (tabKey === 'tab_layers') {
-        console.log('🔴 Reinitializing layers tab functionality');
         setTimeout(() => {
             // 重新绑定图层下拉选择器事件
             if (modal && typeof window.bindCanvasInteractionEvents === 'function') {
                 window.bindCanvasInteractionEvents(modal);
-                console.log('✅ Layer dropdown events rebound');
             }
             
             // 🔧 重要：重新加载图层数据并恢复图层顺序
-            console.log('🔄 重新加载图层数据并恢复顺序...');
             if (modal && window.currentVPEInstance) {
                 const nodeInstance = window.currentVPEInstance;
                 
@@ -952,71 +1048,47 @@ function switchToTab(tabKey, tabContents) {
                 if (nodeInstance.layerOrderController && typeof nodeInstance.layerOrderController.restoreSavedLayerOrder === 'function') {
                     const restored = nodeInstance.layerOrderController.restoreSavedLayerOrder(modal);
                     if (restored) {
-                        console.log('✅ 图层顺序已恢复');
                     } else {
-                        console.log('📋 没有保存的图层顺序，使用默认刷新');
                         // 如果没有保存的顺序，则使用默认刷新
                         if (typeof nodeInstance.refreshLayersList === 'function') {
                             nodeInstance.refreshLayersList(modal);
-                            console.log('✅ 图层列表已刷新（默认顺序）');
                         }
                     }
                 } else if (typeof nodeInstance.refreshLayersList === 'function') {
                     // 回退到原有的刷新方法
                     nodeInstance.refreshLayersList(modal);
-                    console.log('✅ 图层列表已刷新（通过refreshLayersList）');
                 } else {
-                    console.warn('⚠️ 图层顺序恢复和刷新方法都不存在');
                 }
                 
                 // 重新绑定图层事件
                 if (typeof nodeInstance.bindLayerEvents === 'function') {
                     nodeInstance.bindLayerEvents(modal);
-                    console.log('✅ 图层事件已重新绑定');
                 }
                 
                 // 🔴 重要：重新更新图层选择器和操作面板
                 if (typeof window.updateObjectSelector === 'function') {
                     window.updateObjectSelector(modal);
-                    console.log('✅ 图层选择器已重新更新');
                 }
             } else {
-                console.warn('⚠️ 无法获取VPE实例，跳过图层数据重新加载');
             }
         }, 100);
     } else if (tabKey === 'tab_controls') {
-        console.log('🎛️ Reinitializing controls tab functionality');
-        console.log('🔍 检查window对象上的函数:');
-        console.log('  - bindPromptEvents:', typeof window.bindPromptEvents);
-        console.log('  - updateObjectSelector:', typeof window.updateObjectSelector);
-        console.log('  - updateOperationTypeSelect:', typeof window.updateOperationTypeSelect);
-        console.log('  - currentVPENode:', !!window.currentVPENode);
-        console.log('  - currentVPEInstance:', !!window.currentVPEInstance);
         setTimeout(() => {
-            console.log('⏰ setTimeout回调执行开始...');
-            console.log('🔍 modal存在:', !!modal);
-            console.log('🔍 window.bindPromptEvents类型:', typeof window.bindPromptEvents);
             
             // 重新绑定控制面板事件 - 使用动态导入避免循环依赖
             if (modal) {
-                console.log('✅ 开始重新绑定控制面板事件...');
                 
                 // 首先尝试使用window对象上的函数（如果已暴露）
                 if (typeof window.bindPromptEvents === 'function') {
-                    console.log('🔧 使用window.bindPromptEvents...');
                     const node = window.currentVPENode;
                     const getObjectInfoFunction = node ? node.getObjectInfo : null;
                     window.bindPromptEvents(modal, getObjectInfoFunction);
-                    console.log('✅ Controls tab events rebound via window object');
                 } else {
-                    console.log('🔧 window.bindPromptEvents不存在，使用动态导入...');
                     // 备用方案：动态导入
                     import('./visual_prompt_editor_prompts.js').then(module => {
-                        console.log('📦 动态导入prompts模块成功');
                         const node = window.currentVPENode;
                         const getObjectInfoFunction = node ? node.getObjectInfo : null;
                         module.bindPromptEvents(modal, getObjectInfoFunction);
-                        console.log('✅ Controls tab events rebound via dynamic import');
                     }).catch(err => {
                         console.error('❌ 动态导入失败:', err);
                     });
@@ -1027,48 +1099,31 @@ function switchToTab(tabKey, tabContents) {
             const templateCategory = modal.querySelector('#template-category') || document.querySelector('#template-category');
             const operationType = modal.querySelector('#operation-type') || document.querySelector('#operation-type'); 
             
-            console.log('🔧 强制重新初始化controls面板下拉框...');
-            console.log('  - templateCategory:', templateCategory ? '✅ 找到' : '❌ 未找到');
-            console.log('  - operationType:', operationType ? '✅ 找到' : '❌ 未找到');
             
             if (templateCategory && operationType) {
-                // 尝试使用window对象上的函数
-                if (typeof window.updateOperationTypeSelect === 'function') {
-                    console.log('🔧 使用window.updateOperationTypeSelect...');
-                    window.updateOperationTypeSelect(operationType, 'global');
-                    console.log('✅ 下拉框选项已更新');
-                } else {
-                    console.log('🔧 window.updateOperationTypeSelect不存在，使用动态导入...');
-                    // 备用方案：动态导入
-                    import('./visual_prompt_editor_utils.js').then(module => {
-                        console.log('📦 动态导入utils模块成功');
-                        module.updateOperationTypeSelect(operationType, 'global');
-                        console.log('✅ 下拉框选项已更新（动态导入）');
-                    }).catch(err => {
-                        console.error('❌ 动态导入utils失败:', err);
-                        console.log('⚠️ 使用手动填充方案...');
-                        // 最后的备用方案：手动填充下拉框
-                        operationType.innerHTML = `
+                // 使用静态导入的函数
+                try {
+                    updateOperationTypeSelect(operationType, 'global');
+                } catch (err) {
+                    console.error('❌ 更新操作类型选择器失败:', err);
+                    // 备用方案：手动填充下拉框
+                    operationType.innerHTML = `
                             <option value="global_color_grade">Color Grading</option>
                             <option value="global_style_transfer">Style Transfer</option>
                             <option value="global_brightness_contrast">Brightness & Contrast</option>
                             <option value="global_enhance">Global Enhance</option>
                         `;
-                    });
                 }
                 
                 // 手动触发change事件来填充operation-type下拉框
                 const changeEvent = new Event('change', { bubbles: true });
                 templateCategory.dispatchEvent(changeEvent);
-                console.log('✅ 分类选择器change事件已触发，operation-type应该已填充');
             } else {
-                console.warn('⚠️ 无法找到template-category或operation-type元素');
                 // 尝试延迟查找
                 setTimeout(() => {
                     const delayedCategory = document.querySelector('#template-category');
                     const delayedOperation = document.querySelector('#operation-type');
                     if (delayedCategory && delayedOperation) {
-                        console.log('🔄 延迟查找成功，重新初始化...');
                         if (typeof window.updateOperationTypeSelect === 'function') {
                             window.updateOperationTypeSelect(delayedOperation, 'global');
                         }
@@ -1077,17 +1132,14 @@ function switchToTab(tabKey, tabContents) {
             }
         }, 150); // 🔧 增加延迟时间确保DOM完全渲染
     } else if (tabKey === 'tab_ai_enhancer') {
-        console.log('🤖 Initializing AI enhancer functionality');
         setTimeout(() => {
             initializeAIEnhancerFeatures();
             
             // 强制更新AI增强器的翻译
             if (modal && typeof window.updateSelectOptions === 'function') {
                 window.updateSelectOptions(modal);
-                console.log('🔄 AI enhancer translations updated');
             }
             
-            console.log('✅ AI enhancer features initialized');
         }, 100);
     }
 }
@@ -1098,23 +1150,19 @@ function switchToTab(tabKey, tabContents) {
 function initializeAIEnhancerFeatures() {
     // 防止重复初始化
     if (window._aiEnhancerInitialized) {
-        console.log('🔄 AI增强器已初始化，跳过重复初始化');
         return;
     }
     
-    console.log('🤖 开始初始化AI增强器功能');
     let currentEnhancer = 'api';
     let isGenerating = false;
     
     // 增强器选择功能
     const enhancerCards = document.querySelectorAll('.enhancer-card');
-    console.log(`📋 找到 ${enhancerCards.length} 个增强器卡片`);
     
     enhancerCards.forEach(card => {
         card.addEventListener('click', function() {
             const enhancerType = this.getAttribute('data-enhancer');
             if (enhancerType) {
-                console.log(`🎯 用户选择增强器: ${enhancerType}`);
                 selectEnhancer(enhancerType);
                 currentEnhancer = enhancerType;
             }
@@ -1122,21 +1170,17 @@ function initializeAIEnhancerFeatures() {
     });
     
     // 默认选择API增强器
-    console.log('🔧 设置默认增强器: api');
     selectEnhancer('api');
     
     // 配置面板折叠功能
     const configToggle = document.getElementById('enhancer-config-toggle');
     if (configToggle) {
-        console.log('🔧 绑定配置面板折叠事件');
         configToggle.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🖱️ 配置面板折叠按钮被点击');
             toggleEnhancerConfig();
         });
     } else {
-        console.warn('⚠️ 未找到配置面板折叠按钮');
     }
     
     // 生成按钮功能
@@ -1162,7 +1206,6 @@ function initializeAIEnhancerFeatures() {
     
     // 标记为已初始化
     window._aiEnhancerInitialized = true;
-    console.log('✅ AI增强器功能初始化完成');
 }
 
 /**
@@ -1191,38 +1234,26 @@ function selectEnhancer(enhancerType) {
         }
     });
     
-    console.log(`🔧 选择增强器: ${enhancerType}`);
 }
 
 /**
  * 切换增强器配置面板
  */
 function toggleEnhancerConfig() {
-    console.log('🔧 toggleEnhancerConfig 函数被调用');
     const configContent = document.getElementById('enhancer-config');
     const arrow = document.getElementById('config-arrow');
     
-    console.log('🔍 查找配置元素:', {
-        configContent: !!configContent,
-        arrow: !!arrow,
-        currentMaxHeight: configContent?.style.maxHeight
-    });
-    
     if (configContent && arrow) {
         const isHidden = configContent.style.maxHeight === '0px' || !configContent.style.maxHeight;
-        console.log(`🔄 面板状态: ${isHidden ? '隐藏' : '显示'}`);
         
         if (isHidden) {
             configContent.style.maxHeight = configContent.scrollHeight + 'px';
             arrow.style.transform = 'rotate(0deg)';
-            console.log('📂 展开配置面板');
         } else {
             configContent.style.maxHeight = '0px';
             arrow.style.transform = 'rotate(-90deg)';
-            console.log('📁 折叠配置面板');
         }
     } else {
-        console.warn('❌ 配置面板元素未找到');
     }
 }
 
@@ -1259,7 +1290,6 @@ async function generatePrompt(enhancerType) {
         seed: document.getElementById('seed')?.value || '42'
     };
     
-    console.log('生成参数:', params);
     
     try {
         // 尝试调用实际的增强器API
@@ -1281,7 +1311,6 @@ async function generatePrompt(enhancerType) {
         }
         
     } catch (error) {
-        console.warn('AI增强器调用失败，使用示例提示词:', error);
         
         // 回退到示例提示词
         const samplePrompts = [
@@ -1487,7 +1516,6 @@ function applyPromptToWorkflow(promptText) {
         const promptWidget = currentNode.widgets?.find(w => w.name === "enhanced_prompt");
         if (promptWidget) {
             promptWidget.value = promptText;
-            console.log('✅ 提示词已更新到enhanced_prompt widget');
         }
 
         // 更新annotation_data widget（如果存在标注数据）
@@ -1502,7 +1530,6 @@ function applyPromptToWorkflow(promptText) {
                     timestamp: new Date().toISOString()
                 };
                 annotationWidget.value = JSON.stringify(annotationData);
-                console.log('✅ 标注数据已更新到annotation_data widget');
             }
         }
 
@@ -1534,7 +1561,6 @@ ${promptText.substring(0, 100)}${promptText.length > 100 ? '...' : ''}
             }, 1000);
         }
 
-        console.log('✅ 提示词应用完成');
 
     } catch (error) {
         console.error('应用提示词到工作流时出错:', error);
@@ -1572,7 +1598,6 @@ function setupRealtimePreview(enhancerType) {
                 
                 // 500ms后触发预览更新
                 debounceTimer = setTimeout(() => {
-                    console.log('参数更新，可以触发预览生成');
                     // 这里可以添加自动预览功能，如果用户启用了该选项
                 }, 500);
             });
@@ -1627,27 +1652,13 @@ function analyzePromptQuality(promptText, isExample = false) {
         if (analysis.hasActionTerms) qualityScore += 10;
         if (analysis.hasLocationTerms) qualityScore += 10;
         
-        console.log(`📊 提示词质量分析 ${isExample ? '(示例)' : ''}:`, {
-            质量分数: `${qualityScore}/100`,
-            字符数: analysis.length,
-            词汇数: analysis.wordCount,
-            包含颜色词汇: analysis.hasColorTerms,
-            包含质量词汇: analysis.hasQualityTerms,
-            包含动作词汇: analysis.hasActionTerms,
-            包含位置词汇: analysis.hasLocationTerms
-        });
-        
         // 可以在这里添加更多的质量反馈逻辑
         if (qualityScore >= 80) {
-            console.log('✅ 提示词质量优秀');
         } else if (qualityScore >= 60) {
-            console.log('⚠️ 提示词质量良好，建议优化');
         } else {
-            console.log('❌ 提示词质量有待提升');
         }
         
     } catch (error) {
-        console.warn('提示词质量分析失败:', error);
     }
 }
 
@@ -1658,7 +1669,6 @@ function copyPromptToClipboard(promptText) {
     if (!promptText) return;
     
     navigator.clipboard.writeText(promptText).then(() => {
-        console.log('✅ 提示词已复制到剪贴板');
         
         // 显示临时提示
         const toast = document.createElement('div');
@@ -1698,7 +1708,6 @@ function copyPromptToClipboard(promptText) {
  * 增强器连接测试
  */
 async function testEnhancerConnection(enhancerType) {
-    console.log(`🔍 测试${enhancerType}增强器连接...`);
     
     try {
         let endpoint = '';
@@ -1739,10 +1748,8 @@ async function testEnhancerConnection(enhancerType) {
         const result = await response.json();
         
         if (result.success) {
-            console.log(`✅ ${enhancerType}增强器连接成功`);
             return { success: true, message: '连接正常' };
         } else {
-            console.warn(`❌ ${enhancerType}增强器连接失败:`, result.error);
             return { success: false, message: result.error };
         }
         
@@ -1756,7 +1763,6 @@ async function testEnhancerConnection(enhancerType) {
  * 测试API连接
  */
 async function testAPIConnection() {
-    console.log('🔍 测试API连接...');
     const statusElement = document.getElementById('api-status');
     if (statusElement) {
         statusElement.textContent = '● 测试中...';
@@ -1772,7 +1778,6 @@ async function testAPIConnection() {
         } else {
             statusElement.textContent = '● 连接失败';
             statusElement.style.color = '#ef4444';
-            console.warn('API连接测试失败:', result.message);
         }
     }
 }
@@ -1781,7 +1786,6 @@ async function testAPIConnection() {
  * 测试Ollama连接
  */
 async function testOllamaConnection() {
-    console.log('🔍 测试Ollama连接...');
     const statusElement = document.getElementById('ollama-status');
     if (statusElement) {
         statusElement.textContent = '● 测试中...';
@@ -1797,7 +1801,6 @@ async function testOllamaConnection() {
         } else {
             statusElement.textContent = '● 连接失败';
             statusElement.style.color = '#ef4444';
-            console.warn('Ollama连接测试失败:', result.message);
         }
     }
 }
@@ -1806,7 +1809,6 @@ async function testOllamaConnection() {
  * 测试TextGen连接
  */
 async function testTextGenConnection() {
-    console.log('🔍 测试TextGen连接...');
     const statusElement = document.getElementById('textgen-status');
     if (statusElement) {
         statusElement.textContent = '● 测试中...';
@@ -1822,7 +1824,6 @@ async function testTextGenConnection() {
         } else {
             statusElement.textContent = '● 连接失败';
             statusElement.style.color = '#ef4444';
-            console.warn('TextGen连接测试失败:', result.message);
         }
     }
 }
@@ -1894,11 +1895,10 @@ export function createLayerListItem(layer, layerId, type, nodeInstance) {
 }
 
 /**
- * 加载图层到面板
- * 从主文件迁移的UI更新逻辑
+ * Load Fabric objects to panel
+ * Updated to display Fabric.js objects instead of layer connections
  */
 export function loadLayersToPanel(modal, layers) {
-    console.log('🔍 loadLayersToPanel called with layers:', layers?.length || 0);
     
     // Safety checks
     if (!modal) {
@@ -1911,19 +1911,16 @@ export function loadLayersToPanel(modal, layers) {
     
     if (!layersList) {
         console.error('❌ loadLayersToPanel: #annotation-objects element not found');
-        console.log('🔍 Available elements with IDs:', Array.from(modal.querySelectorAll('*[id]')).map(el => el.id));
         return;
     }
     
     if (!Array.isArray(layers) || layers.length === 0) {
-        layersList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No layers detected<br><small>Draw annotations to see them here</small></div>';
-        console.log('✅ Empty state set in layers panel');
+        layersList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No Fabric objects<br><small>Draw annotations to see them here</small></div>';
         return;
     }
     
     try {
         layersList.innerHTML = '';
-        console.log('✅ Layers panel cleared, processing', layers.length, 'layers');
         
         layers.forEach((layer, index) => {
         const layerItem = document.createElement('div');
@@ -1961,13 +1958,11 @@ export function loadLayersToPanel(modal, layers) {
             layerItem.style.borderColor = isSelected ? '#673AB7' : 'transparent';
             layerItem.style.background = isSelected ? '#3a2a5c' : '#2b2b2b';
             
-            console.log('🎯 VPE选中图层:', layer.id || index);
         };
         
         layersList.appendChild(layerItem);
     });
     
-        console.log('✅ VPE图层列表已更新:', layers.length);
     } catch (error) {
         console.error('❌ Error in loadLayersToPanel:', error);
         console.error('❌ Error stack:', error.stack);
