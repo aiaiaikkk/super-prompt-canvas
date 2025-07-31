@@ -106,6 +106,12 @@ export function createToolbar() {
                 <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing" data-i18n-title="tooltip_freehand">✏️</button>
             </div>
             
+            <!-- 操作工具组 -->
+            <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+                <span style="color: #ccc; font-size: 11px;" data-i18n="actions">Actions:</span>
+                <button id="vpe-lock-toggle" title="Lock/Unlock Selected Objects" data-i18n-title="tooltip_lock" style="background: #555; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 11px; height: 24px;">🔓</button>
+            </div>
+            
             <!-- 颜色选择组 -->
             <div style="display: flex; gap: 6px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="color">Color:</span>
@@ -207,7 +213,7 @@ export function createToolbar() {
     const style = document.createElement('style');
     style.textContent = `
         /* 基础按钮样式 */
-        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-fill-toggle, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out, #vpe-upload-btn {
+        .vpe-tool, #vpe-undo, #vpe-clear, #vpe-fill-toggle, #vpe-zoom-fit, #vpe-zoom-100, #vpe-zoom-in, #vpe-zoom-out, #vpe-upload-btn, #vpe-lock-toggle {
             background: #555 !important;
             border: none !important;
             color: white !important;
@@ -267,7 +273,7 @@ export function createToolbar() {
         }
         
         /* 悬停效果 */
-        .vpe-tool:hover, #vpe-undo:hover, #vpe-clear:hover, #vpe-fill-toggle:hover, #vpe-zoom-fit:hover, #vpe-zoom-100:hover, #vpe-zoom-in:hover, #vpe-zoom-out:hover {
+        .vpe-tool:hover, #vpe-undo:hover, #vpe-clear:hover, #vpe-fill-toggle:hover, #vpe-zoom-fit:hover, #vpe-zoom-100:hover, #vpe-zoom-in:hover, #vpe-zoom-out:hover, #vpe-lock-toggle:hover {
             background: #666 !important;
             transform: translateY(-1px) !important;
         }

@@ -22,22 +22,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
-# Import version information from centralized location
-try:
-    from .__version__ import (
-        __version__, 
-        __author__, 
-        __description__, 
-        __title__,
-        __url__
-    )
-except ImportError:
-    # Fallback if __version__.py is not available
-    __version__ = "1.2.0"
-    __author__ = "Kontext Team" 
-    __description__ = "Intelligent Visual Prompt Builder for Flux Kontext"
-    __title__ = "Kontext Visual Prompt Window"
-    __url__ = "https://github.com/aiaiaikkk/kontext-super-prompt"
+# Version information
+__version__ = "1.2.0"
+__author__ = "Kontext Team"
+__description__ = "Intelligent Visual Prompt Builder for Flux Kontext"
 
 # Initialize node mappings
 NODE_CLASS_MAPPINGS = {}
@@ -225,7 +213,7 @@ __all__ = [
 # Print loading completion info
 print(f"✨ Kontext Visual Prompt Window v{__version__} initialization complete!")
 print(f"🌐 Web extensions directory: {WEB_DIRECTORY}")
-print(f"📚 For documentation and examples, visit: {__url__}")
+print(f"📚 For documentation and examples, visit: https://github.com/aiaiaikkk/kontext-super-prompt")
 
 # Check dependencies and provide suggestions
 try:

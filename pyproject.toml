@@ -1,76 +1,72 @@
-[build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "kontext-super-prompt"
-version = "1.2.1"
-description = "Intelligent Visual Prompt Builder for Flux Kontext - ComfyUI Custom Node"
-readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.8"
+name = "KontextVisualPromptWindow_Intelligent"
+version = "1.2.0"
+description = "Intelligent Visual Prompt Builder for Flux Kontext - Advanced image editing, visual annotation recognition, and structured prompt generation"
 authors = [
-    {name = "Kontext Team", email = "kontext@example.com"}
+    {name = "Kontext Team", email = "contact@kontext.ai"}
 ]
-maintainers = [
-    {name = "Kontext Team", email = "kontext@example.com"}
-]
-keywords = ["comfyui", "flux", "kontext", "visual-prompt", "ai", "image-editing", "annotation"]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["comfyui", "flux", "kontext", "visual-prompt", "image-editing", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.9", 
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
 ]
 
 dependencies = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
+    "torch>=1.13.0",
+    "torchvision>=0.14.0",
     "numpy>=1.21.0",
-    "pillow>=9.0.0",
+    "pillow>=8.3.0",
+    "opencv-python>=4.5.0",
 ]
 
 [project.optional-dependencies]
-ollama = ["ollama>=0.4.8"]
-opencv = ["opencv-python>=4.5.0"]
-nlp = ["transformers>=4.20.0"]
-diffusion = ["diffusers>=0.20.0"]
-web = ["aiohttp>=3.8.0"]
-data = ["pandas>=1.3.0", "openpyxl>=3.0.0"]
-all = [
-    "ollama>=0.4.8",
-    "opencv-python>=4.5.0",
-    "transformers>=4.20.0",
+full = [
+    "transformers>=4.21.0",
     "diffusers>=0.20.0",
+    "requests>=2.25.0",
     "aiohttp>=3.8.0",
-    "pandas>=1.3.0",
-    "openpyxl>=3.0.0",
+]
+
+dev = [
+    "pytest>=6.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/aiaiaikkk/kontext-super-prompt"
 Repository = "https://github.com/aiaiaikkk/kontext-super-prompt"
-Documentation = "https://github.com/aiaiaikkk/kontext-super-prompt#readme"
+Documentation = "https://github.com/aiaiaikkk/kontext-super-prompt/blob/main/README.md"
 "Bug Reports" = "https://github.com/aiaiaikkk/kontext-super-prompt/issues"
-"Source Code" = "https://github.com/aiaiaikkk/kontext-super-prompt"
-Changelog = "https://github.com/aiaiaikkk/kontext-super-prompt/releases"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
+packages = ["nodes", "web"]
 include-package-data = true
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["*"]
-exclude = ["tests*", "docs*", "examples*", "__pycache__*", "*.pyc"]
-
 [tool.setuptools.package-data]
-"*" = ["*.js", "*.html", "*.css", "*.png", "*.jpg", "*.json", "*.md", "*.txt", "*.xlsx"]
+"*" = ["*.js", "*.json", "*.xlsx", "*.png", "*.md"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"

@@ -217,6 +217,8 @@ export class FabricNativeManager {
             this.handleObjectSelection(e.selected || [e.target]);
             // 修复控制点显示
             this.fixControlsDisplay();
+            // 更新锁定按钮状态
+            this.updateLockButtonState();
         });
         
         this.fabricCanvas.on('selection:updated', (e) => {
@@ -224,6 +226,8 @@ export class FabricNativeManager {
             this.handleObjectSelection(e.selected || [e.target]);
             // 修复控制点显示
             this.fixControlsDisplay();
+            // 更新锁定按钮状态
+            this.updateLockButtonState();
         });
         
         this.fabricCanvas.on('selection:cleared', () => {
@@ -233,6 +237,8 @@ export class FabricNativeManager {
             }
             this._scheduleLayerPanelUpdate();
             this.handleObjectSelection([]);
+            // 更新锁定按钮状态
+            this.updateLockButtonState();
         });
         
         // 官方对象事件 - 优化更新频率
@@ -244,11 +250,6 @@ export class FabricNativeManager {
         this.fabricCanvas.on('object:removed', (e) => {
             this._scheduleLayerPanelUpdate();
             this._scheduleAutoSave();
-        });
-        
-        // 鼠标滚轮事件 - 选中对象缩放
-        this.fabricCanvas.on('mouse:wheel', (opt) => {
-            this.handleMouseWheelScaling(opt);
         });
         
         // 对象移动事件 - 图层顺序改变时更新面板
@@ -276,9 +277,9 @@ export class FabricNativeManager {
             this._scheduleAutoSave();
         });
         
-        // this.fabricCanvas.on('mouse:wheel', (opt) => {
-        //     this.handleCanvasZoom(opt);
-        // });
+        this.fabricCanvas.on('mouse:wheel', (opt) => {
+            this.handleCanvasZoom(opt);
+        });
         
         this.fabricCanvas.on('object:scaled', () => {
             this._scheduleAutoSave();
@@ -1293,6 +1294,8 @@ export class FabricNativeManager {
         
         this.setupZoomControls();
         
+        this.setupLockControls();
+        
     }
     
     /**
@@ -1349,6 +1352,19 @@ export class FabricNativeManager {
         if (zoomFitBtn) {
             zoomFitBtn.addEventListener('click', () => {
                 this.fitCanvasView();
+            });
+        }
+    }
+    
+    /**
+     * 设置锁定控制按钮
+     */
+    setupLockControls() {
+        const lockToggleBtn = this.modal.querySelector('#vpe-lock-toggle');
+        
+        if (lockToggleBtn) {
+            lockToggleBtn.addEventListener('click', () => {
+                this.toggleSelectedObjectsLock();
             });
         }
     }
@@ -1611,6 +1627,86 @@ export class FabricNativeManager {
     }
     
     /**
+     * 处理鼠标滚轮缩放 - 优先缩放选中对象，否则缩放画布
+     */
+    handleCanvasZoom(opt) {
+        // 阻止默认滚轮行为
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+        
+        const delta = opt.e.deltaY;
+        const activeObject = this.fabricCanvas.getActiveObject();
+        
+        // 如果有选中的对象，缩放对象
+        if (activeObject && activeObject.type !== 'activeSelection') {
+            this.scaleSelectedObject(activeObject, delta);
+        } else if (activeObject && activeObject.type === 'activeSelection') {
+            // 如果是多选，缩放整个选择组
+            this.scaleSelectedObject(activeObject, delta);
+        } else {
+            // 没有选中对象时，缩放画布视图
+            this.scaleCanvasView(delta);
+        }
+    }
+    
+    /**
+     * 缩放选中的对象
+     */
+    scaleSelectedObject(object, delta) {
+        if (!object) return;
+        
+        const currentScaleX = object.scaleX || 1;
+        const currentScaleY = object.scaleY || 1;
+        
+        // 计算缩放因子
+        const scaleFactor = delta < 0 ? 1.1 : 0.9;
+        
+        // 设置缩放范围限制
+        const minScale = 0.1;
+        const maxScale = 5.0;
+        
+        const newScaleX = Math.max(minScale, Math.min(maxScale, currentScaleX * scaleFactor));
+        const newScaleY = Math.max(minScale, Math.min(maxScale, currentScaleY * scaleFactor));
+        
+        // 应用缩放
+        object.set({
+            scaleX: newScaleX,
+            scaleY: newScaleY
+        });
+        
+        // 触发对象变化事件
+        object.fire('scaling');
+        this.fabricCanvas.fire('object:scaling', { target: object });
+        
+        // 重新渲染画布
+        this.fabricCanvas.renderAll();
+        
+        // 触发自动保存
+        this._scheduleAutoSave();
+    }
+    
+    /**
+     * 缩放画布视图
+     */
+    scaleCanvasView(delta) {
+        if (!this.canvasContainer) return;
+        
+        let zoom = this.canvasViewScale;
+        
+        // 根据滚轮方向调整缩放
+        if (delta < 0) {
+            // 向上滚动 - 放大
+            zoom = Math.min(zoom * 1.1, 3.0);
+        } else {
+            // 向下滚动 - 缩小  
+            zoom = Math.max(zoom * 0.9, 0.5);
+        }
+        
+        this.canvasViewScale = zoom;
+        this.applyCanvasViewScale();
+    }
+    
+    /**
      * 自适应画布视图 - 显示整个画布内容
      */
     fitCanvasView() {
@@ -1680,6 +1776,8 @@ export class FabricNativeManager {
                            obj.type === 'text' ? '🅰️ 文字' : `📐 ${obj.type}`;
             
             const isSelected = activeObjects.some(activeObj => activeObj === obj);
+            const isLocked = obj.locked === true;
+            const lockIndicator = isLocked ? '🔒 ' : '';
             
             return `
                 <div class="fabric-layer-item" data-index="${actualIndex}" 
@@ -1697,10 +1795,13 @@ export class FabricNativeManager {
                      ">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 12px; color: ${isSelected ? 'white' : '#ccc'};">
-                            ${objType} (层级: ${actualIndex})
+                            ${lockIndicator}${objType} (层级: ${actualIndex})
                         </span>
                     </div>
                     <div style="display: flex; gap: 4px;">
+                        <button class="fabric-layer-lock" data-index="${actualIndex}" 
+                                style="background: ${isLocked ? '#f44336' : '#4CAF50'}; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
+                                title="${isLocked ? '解锁图层' : '锁定图层'}">${isLocked ? '🔓' : '🔒'}</button>
                         <button class="fabric-layer-up" data-index="${actualIndex}" 
                                 style="background: #666; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
                                 title="向上移动" ${actualIndex >= objects.length - 1 ? 'disabled' : ''}>↑</button>
@@ -1727,7 +1828,7 @@ export class FabricNativeManager {
     unbindLayerPanelEvents() {
         // 清除所有已绑定的事件监听器
         const layerItems = this.modal.querySelectorAll('.fabric-layer-item');
-        const buttons = this.modal.querySelectorAll('.fabric-layer-up, .fabric-layer-down, .fabric-layer-delete');
+        const buttons = this.modal.querySelectorAll('.fabric-layer-lock, .fabric-layer-up, .fabric-layer-down, .fabric-layer-delete');
         
         layerItems.forEach(item => {
             item.replaceWith(item.cloneNode(true));
@@ -1743,6 +1844,7 @@ export class FabricNativeManager {
      */
     bindLayerPanelEvents() {
         const layerItems = this.modal.querySelectorAll('.fabric-layer-item');
+        const lockButtons = this.modal.querySelectorAll('.fabric-layer-lock');
         const upButtons = this.modal.querySelectorAll('.fabric-layer-up');
         const downButtons = this.modal.querySelectorAll('.fabric-layer-down');
         const deleteButtons = this.modal.querySelectorAll('.fabric-layer-delete');
@@ -1754,6 +1856,15 @@ export class FabricNativeManager {
                 
                 const index = parseInt(item.dataset.index);
                 this.selectObjectByIndex(index, true); // 添加更新面板标志
+            });
+        });
+        
+        // 锁定/解锁图层 - 直接操作对象锁定状态
+        lockButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(btn.dataset.index);
+                this.toggleObjectLockByIndex(index);
             });
         });
         
@@ -2148,50 +2259,188 @@ export class FabricNativeManager {
     }
     
     /**
-     * 处理鼠标滚轮缩放选中对象
+     * 切换选中对象的锁定状态
      */
-    handleMouseWheelScaling(opt) {
-        const evt = opt.e;
-        const activeObject = this.fabricCanvas.getActiveObject();
+    toggleSelectedObjectsLock() {
+        const activeObjects = this.fabricCanvas.getActiveObjects();
         
-        // 只有在有选中对象时才处理
-        if (!activeObject) {
+        if (activeObjects.length === 0) {
+            // 如果没有选中对象，检查是否有锁定的对象，如果有则解锁所有
+            const allObjects = this.fabricCanvas.getObjects();
+            const lockedObjects = allObjects.filter(obj => obj.locked === true);
+            
+            if (lockedObjects.length > 0) {
+                // 解锁所有锁定的对象
+                lockedObjects.forEach(obj => {
+                    this.setObjectLock(obj, false);
+                });
+                
+                console.log(`🔓 解锁了所有 ${lockedObjects.length} 个锁定对象`);
+            } else {
+                console.log('⚠️ 没有选中的对象，也没有锁定的对象');
+                return;
+            }
+        } else {
+            // 有选中对象时的正常逻辑
+            const hasLockedObjects = activeObjects.some(obj => obj.locked === true);
+            const newLockState = !hasLockedObjects;
+            
+            activeObjects.forEach(obj => {
+                this.setObjectLock(obj, newLockState);
+            });
+            
+            console.log(`🔒 ${newLockState ? '锁定' : '解锁'}了 ${activeObjects.length} 个选中对象`);
+        }
+        
+        // 更新锁定按钮显示
+        this.updateLockButtonState();
+        
+        // 更新图层面板显示
+        this.updateLayerPanel();
+    }
+    
+    /**
+     * 设置对象锁定状态
+     */
+    setObjectLock(object, locked) {
+        if (!object) return;
+        
+        object.locked = locked;
+        
+        if (locked) {
+            // 锁定对象：禁用选择、移动、缩放、旋转
+            object.set({
+                selectable: false,
+                evented: false,
+                hasControls: false,
+                hasBorders: false,
+                hoverCursor: 'default',
+                moveCursor: 'default'
+            });
+            
+            // 添加视觉指示器
+            this.addLockIndicator(object);
+        } else {
+            // 解锁对象：恢复交互功能
+            object.set({
+                selectable: true,  
+                evented: true,
+                hasControls: true,
+                hasBorders: true,
+                hoverCursor: 'move',
+                moveCursor: 'move'
+            });
+            
+            // 移除视觉指示器
+            this.removeLockIndicator(object);
+        }
+        
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 添加锁定视觉指示器
+     */
+    addLockIndicator(object) {
+        if (!object || object.lockIndicator) return;
+        
+        // 创建锁定图标
+        const lockIcon = new fabric.Text('🔒', {
+            left: object.left + object.width * object.scaleX - 15,
+            top: object.top - 15,
+            fontSize: 12,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true
+        });
+        
+        lockIcon.lockIndicatorFor = object.fabricId || object.id;
+        object.lockIndicator = lockIcon;
+        
+        this.fabricCanvas.add(lockIcon);
+        this.fabricCanvas.bringToFront(lockIcon);
+    }
+    
+    /**
+     * 移除锁定视觉指示器
+     */
+    removeLockIndicator(object) {
+        if (!object || !object.lockIndicator) return;
+        
+        this.fabricCanvas.remove(object.lockIndicator);
+        object.lockIndicator = null;
+    }
+    
+    /**
+     * 更新锁定按钮状态
+     */
+    updateLockButtonState() {
+        const lockBtn = this.modal.querySelector('#vpe-lock-toggle');
+        if (!lockBtn) return;
+        
+        const activeObjects = this.fabricCanvas.getActiveObjects();
+        const allObjects = this.fabricCanvas.getObjects();
+        const lockedObjects = allObjects.filter(obj => obj.locked === true);
+        
+        if (activeObjects.length === 0) {
+            // 没有选中对象时，显示是否有锁定对象
+            if (lockedObjects.length > 0) {
+                lockBtn.textContent = '🔓';
+                lockBtn.title = `解锁所有锁定对象 (${lockedObjects.length}个)`;
+                lockBtn.style.background = '#ff9800'; // 橙色表示有锁定对象可解锁
+            } else {
+                lockBtn.textContent = '🔒';
+                lockBtn.title = '锁定/解锁选中对象';
+                lockBtn.style.background = '#555'; // 灰色表示无操作
+            }
             return;
         }
         
-        // 阻止默认滚动行为
-        evt.preventDefault();
-        evt.stopPropagation();
+        const hasLockedObjects = activeObjects.some(obj => obj.locked === true);
         
-        // 获取滚轮方向
-        const delta = evt.deltaY;
-        const scaleFactor = delta < 0 ? 1.1 : 0.9; // 向上滚动放大，向下滚动缩小
+        if (hasLockedObjects) {
+            lockBtn.textContent = '🔓';
+            lockBtn.title = `解锁选中对象 (${activeObjects.length}个)`;
+            lockBtn.style.background = '#f44336'; // 红色表示有锁定对象
+        } else {
+            lockBtn.textContent = '🔒';
+            lockBtn.title = `锁定选中对象 (${activeObjects.length}个)`;
+            lockBtn.style.background = '#4CAF50'; // 绿色表示可锁定
+        }
+    }
+    
+    /**
+     * 通过索引切换对象锁定状态
+     */
+    toggleObjectLockByIndex(index) {
+        const objects = this.fabricCanvas.getObjects();
+        const targetObject = objects[index];
         
-        // 获取当前缩放值
-        const currentScaleX = activeObject.scaleX || 1;
-        const currentScaleY = activeObject.scaleY || 1;
+        if (!targetObject) {
+            console.error('❌ 找不到索引为', index, '的对象');
+            return;
+        }
         
-        // 计算新的缩放值，限制缩放范围
-        const newScaleX = Math.max(0.1, Math.min(5.0, currentScaleX * scaleFactor));
-        const newScaleY = Math.max(0.1, Math.min(5.0, currentScaleY * scaleFactor));
+        const currentLockState = targetObject.locked === true;
+        const newLockState = !currentLockState;
         
-        // 应用缩放
-        activeObject.set({
-            scaleX: newScaleX,
-            scaleY: newScaleY
-        });
+        // 设置新的锁定状态
+        this.setObjectLock(targetObject, newLockState);
         
-        // 更新对象坐标
-        activeObject.setCoords();
+        // 更新锁定按钮状态
+        this.updateLockButtonState();
         
-        // 重新渲染画布
-        this.fabricCanvas.renderAll();
+        // 更新图层面板显示
+        this.updateLayerPanel();
         
-        // 触发自动保存
-        this._scheduleAutoSave();
-        
-        // 触发对象修改事件
-        this.fabricCanvas.fire('object:modified', { target: activeObject });
+        console.log(`🔒 ${newLockState ? '锁定' : '解锁'}了对象:`, targetObject.type, `(索引: ${index})`);
+    }
+    
+    /**
+     * 检查对象是否被锁定
+     */
+    isObjectLocked(object) {
+        return object && object.locked === true;
     }
 }
 
