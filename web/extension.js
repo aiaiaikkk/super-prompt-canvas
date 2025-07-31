@@ -6,6 +6,7 @@
  */
 
 import { app } from "../../scripts/app.js";
+import { KontextUtils, Z_INDEX } from "./modules/visual_prompt_editor_utils.js";
 
 // 导入核心前端扩展 - 纯Fabric.js官方架构
 import "./visual_prompt_editor_v2.js";        // 核心可视化编辑器（简化版）
@@ -212,58 +213,7 @@ app.registerExtension({
     }
 });
 
-// 工具函数：创建工具提示
-window.KontextUtils = {
-    createTooltip(element, text) {
-        const tooltip = document.createElement('div');
-        tooltip.className = 'kontext-tooltip';
-        tooltip.textContent = text;
-        document.body.appendChild(tooltip);
-        
-        element.addEventListener('mouseenter', () => {
-            const rect = element.getBoundingClientRect();
-            tooltip.style.left = rect.left + 'px';
-            tooltip.style.top = (rect.bottom + 5) + 'px';
-            tooltip.classList.add('show');
-        });
-        
-        element.addEventListener('mouseleave', () => {
-            tooltip.classList.remove('show');
-        });
-        
-        return tooltip;
-    },
-    
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed; top: 50%; left: 50%; z-index: 25000;
-            transform: translate(-50%, -50%);
-            padding: 20px 30px; border-radius: 12px; color: white;
-            background: ${type === 'success' ? '#4CAF50' : type === 'warning' ? '#FF9800' : type === 'error' ? '#f44336' : '#2196F3'};
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-            transition: opacity 0.3s, transform 0.3s;
-            opacity: 0;
-            font-size: 16px; font-weight: bold; text-align: center;
-            min-width: 300px; border: 3px solid #fff;
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // 显示动画
-        setTimeout(() => {
-            notification.style.transform = 'translate(-50%, -50%) scale(1)';
-            notification.style.opacity = '1';
-        }, 100);
-        
-        // 自动隐藏
-        setTimeout(() => {
-            notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
-            notification.style.opacity = '0';
-            setTimeout(() => document.body.removeChild(notification), 300);
-        }, 4000);
-    }
-};
+// 统一工具函数：使用utils.js中的KontextUtils类
+window.KontextUtils = KontextUtils;
 
 console.log("🎨 Kontext Visual Prompt Window main extension loaded");

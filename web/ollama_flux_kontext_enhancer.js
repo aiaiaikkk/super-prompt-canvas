@@ -48,7 +48,6 @@ async function fetchOllamaModels(url) {
             throw new Error(`Backend API error: ${responseData.error}`);
         }
         
-        // Handle normal model list response - debug version
         
         let modelNames = [];
         

@@ -186,7 +186,6 @@ export class EventHandlers {
                 this.nodeInstance.toggleConnectedLayersDisplay(modal, enabled);
             }
             
-            // 更新UI状态
             this.updateLayerManagementUI(modal, enabled);
         });
         
@@ -214,25 +213,18 @@ export class EventHandlers {
      */
     bindBasicEvents(modal) {
         
-        // 绑定关闭和保存按钮事件
         this.bindCloseAndSaveButtons(modal);
         
-        // 绑定操作类型选择器事件
         this.bindOperationTypeEvents(modal);
         
-        // 绑定绘制工具事件
         this.bindDrawingToolEvents(modal);
         
-        // 绑定图层管理事件
         this.bindLayerManagementEvents(modal);
         
-        // 绑定图层面板按钮
         this.bindLayerPanelButtons(modal);
         
-        // 绑定画布尺寸控制事件
         this.bindCanvasSizeEvents(modal);
         
-        // 绑定所有子事件
         this.bindFileUploadEvents(modal);
         this.bindLayerManagementToggleEvents(modal);
         this.bindMainDropdownEvents(modal);
@@ -247,10 +239,8 @@ export class EventHandlers {
         // 延迟绑定，确保DOM准备就绪
         setTimeout(() => {
             try {
-                // 绑定图层顺序调整事件
                 this.bindLayerOrderEvents(modal);
                 
-                // 绑定图层可见性事件
                 this.bindLayerVisibilityEvents(modal);
                 
                 
@@ -337,7 +327,6 @@ export class EventHandlers {
                 this.nodeInstance.toggleConnectedLayersDisplay(modal, enabled);
             }
             
-            // 更新UI状态
             this.updateLayerManagementUI(modal, enabled);
         });
         
@@ -365,25 +354,18 @@ export class EventHandlers {
      */
     bindBasicEvents(modal) {
         
-        // 绑定关闭和保存按钮事件
         this.bindCloseAndSaveButtons(modal);
         
-        // 绑定操作类型选择器事件
         this.bindOperationTypeEvents(modal);
         
-        // 绑定绘制工具事件
         this.bindDrawingToolEvents(modal);
         
-        // 绑定图层管理事件
         this.bindLayerManagementEvents(modal);
         
-        // 绑定图层面板按钮
         this.bindLayerPanelButtons(modal);
         
-        // 绑定画布尺寸控制事件
         this.bindCanvasSizeEvents(modal);
         
-        // 绑定所有子事件
         this.bindFileUploadEvents(modal);
         this.bindLayerManagementToggleEvents(modal);
         this.bindMainDropdownEvents(modal);
@@ -398,10 +380,8 @@ export class EventHandlers {
         // 延迟绑定，确保DOM准备就绪
         setTimeout(() => {
             try {
-                // 绑定图层顺序调整事件
                 this.bindLayerOrderEvents(modal);
                 
-                // 绑定图层可见性事件
                 this.bindLayerVisibilityEvents(modal);
                 
                 
@@ -488,7 +468,6 @@ export class EventHandlers {
                 this.nodeInstance.toggleConnectedLayersDisplay(modal, enabled);
             }
             
-            // 更新UI状态
             this.updateLayerManagementUI(modal, enabled);
         });
         
@@ -516,25 +495,18 @@ export class EventHandlers {
      */
     bindBasicEvents(modal) {
         
-        // 绑定关闭和保存按钮事件
         this.bindCloseAndSaveButtons(modal);
         
-        // 绑定操作类型选择器事件
         this.bindOperationTypeEvents(modal);
         
-        // 绑定绘制工具事件
         this.bindDrawingToolEvents(modal);
         
-        // 绑定图层管理事件
         this.bindLayerManagementEvents(modal);
         
-        // 绑定图层面板按钮
         this.bindLayerPanelButtons(modal);
         
-        // 绑定画布尺寸控制事件
         this.bindCanvasSizeEvents(modal);
         
-        // 绑定所有子事件
         this.bindFileUploadEvents(modal);
         this.bindLayerManagementToggleEvents(modal);
         this.bindMainDropdownEvents(modal);
@@ -549,10 +521,8 @@ export class EventHandlers {
         // 延迟绑定，确保DOM准备就绪
         setTimeout(() => {
             try {
-                // 绑定图层顺序调整事件
                 this.bindLayerOrderEvents(modal);
                 
-                // 绑定图层可见性事件
                 this.bindLayerVisibilityEvents(modal);
                 
                 
@@ -586,22 +556,16 @@ export class EventHandlers {
      * 绑定绘制工具事件
      */
     bindDrawingToolEvents(modal) {
-        // 绑定颜色选择器
         this.bindColorSelector(modal);
         
-        // 绑定填充/轮廓切换按钮
         this.bindFillToggleButton(modal);
         
-        // 绑定不透明度滑块
         this.bindOpacitySlider(modal);
         
-        // 绑定清空按钮（移除了undo功能）
         this.bindClearButton(modal);
         
-        // 绑定工具选择器
         this.bindToolSelector(modal);
         
-        // 绑定图片上传按钮
         this.bindImageUploadButton(modal);
     }
 
@@ -614,10 +578,8 @@ export class EventHandlers {
             button.addEventListener('click', (e) => {
                 const color = e.target.dataset.color;
                 
-                // 更新模态框的当前颜色
                 modal.currentColor = color;
                 
-                // 更新按钮样式
                 colorButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
                 
@@ -628,7 +590,6 @@ export class EventHandlers {
             });
         });
         
-        // 设置默认颜色（红色）
         if (colorButtons.length > 0) {
             modal.currentColor = '#ff0000';
             colorButtons[0].classList.add('active');
@@ -654,7 +615,6 @@ export class EventHandlers {
                     fillToggle.classList.remove('outline');
                 }
                 
-                // 更新Fabric.js系统的填充模式
                 if (window.fabricManager && window.fabricManager.setFillMode) {
                     window.fabricManager.setFillMode(modal.fillMode);
                 }
@@ -677,7 +637,6 @@ export class EventHandlers {
                 modal.currentOpacity = opacityPercent;
                 opacityValue.textContent = opacityPercent + '%';
                 
-                // 更新Fabric.js系统的不透明度
                 if (window.fabricManager && window.fabricManager.setOpacity) {
                     window.fabricManager.setOpacity(opacityPercent / 100);
                 }
@@ -752,12 +711,10 @@ export class EventHandlers {
     setActiveTool(modal, tool) {
         modal.currentTool = tool;
         
-        // 更新Fabric.js系统的工具
         if (window.fabricManager && window.fabricManager.setTool) {
             window.fabricManager.setTool(tool);
         }
         
-        // 更新按钮样式
         const toolButtons = modal.querySelectorAll('.vpe-tool');
         toolButtons.forEach(btn => {
             if (btn.dataset.tool === tool) {
@@ -805,7 +762,6 @@ export class EventHandlers {
      * 绑定图层面板按钮事件
      */
     bindLayerPanelButtons(modal) {
-        // 绑定图层面板的清空选择按钮
         const clearSelectionBtn = modal.querySelector('#clear-selection');
         if (clearSelectionBtn) {
             clearSelectionBtn.addEventListener('click', () => {
@@ -813,7 +769,6 @@ export class EventHandlers {
             });
         }
 
-        // 绑定全选按钮
         const selectAllBtn = modal.querySelector('#select-all-layers');
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', () => {
@@ -833,7 +788,6 @@ export class EventHandlers {
                              (this.nodeInstance && this.nodeInstance.fabricManager);
 
         if (fabricManager && fabricManager.selectAll) {
-            // 使用管理器的官方API方法
             fabricManager.selectAll();
         } else if (fabricManager && fabricManager.fabricCanvas) {
             // 备用：直接使用Fabric.js官方API
@@ -856,7 +810,6 @@ export class EventHandlers {
      * 绑定画布尺寸控制事件
      */
     bindCanvasSizeEvents(modal) {
-        // 绑定画布尺寸预设选择事件
         const canvasSizeSelect = modal.querySelector('#vpe-canvas-size');
         const customSizeControls = modal.querySelector('#vpe-custom-size-controls');
         const canvasWidthInput = modal.querySelector('#vpe-canvas-width');
@@ -887,7 +840,6 @@ export class EventHandlers {
             });
         }
 
-        // 绑定Apply按钮事件
         if (applySizeBtn) {
             applySizeBtn.addEventListener('click', () => {
                 const width = parseInt(canvasWidthInput?.value || 800);
@@ -902,7 +854,6 @@ export class EventHandlers {
             });
         }
 
-        // 绑定Enter键快捷应用
         [canvasWidthInput, canvasHeightInput].forEach(input => {
             if (input) {
                 input.addEventListener('keypress', (e) => {
@@ -919,7 +870,6 @@ export class EventHandlers {
      */
     applyCanvasSize(modal, width, height) {
         try {
-            // 更新Fabric.js画布尺寸
             const fabricManager = this.getFabricManager();
             if (fabricManager && fabricManager.setCanvasSize) {
                 fabricManager.setCanvasSize(width, height);
@@ -981,7 +931,6 @@ export class EventHandlers {
      * 显示画布尺寸更改通知
      */
     showCanvasSizeNotification(width, height) {
-        // 创建临时通知元素
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed; top: 20px; right: 20px; z-index: 30000;
@@ -1008,7 +957,6 @@ export class EventHandlers {
      * 绑定图片上传按钮事件
      */
     bindImageUploadButton(modal) {
-        // 绑定上传按钮点击事件
         const uploadBtn = modal.querySelector('#vpe-upload-btn');
         const fileInput = modal.querySelector('#vpe-image-upload');
 
@@ -1042,7 +990,6 @@ export class EventHandlers {
             reader.onload = (e) => {
                 const imageUrl = e.target.result;
                 
-                // 获取Fabric管理器并上传图片
                 const fabricManager = this.getFabricManager();
                 if (fabricManager && fabricManager.uploadImageToCanvas) {
                     fabricManager.uploadImageToCanvas(imageUrl, {

@@ -216,7 +216,6 @@ export class DataManager {
         
         // Fabric objects do not need layer connection restoration
         
-        // 移除后续的历史记录
         this.stateHistory = this.stateHistory.slice(0, targetIndex + 1);
         
         return true;
@@ -228,11 +227,9 @@ export class DataManager {
     cacheLayerState(layerId, modal) {
         if (!layerId) return;
         
-        // 获取当前选中图层的设置状态
         const operationType = modal.querySelector('#operation-type')?.value;
         const targetInput = modal.querySelector('#target-input')?.value;
         
-        // 获取勾选的约束性提示词
         const constraintPrompts = [];
         const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container .constraint-prompt-checkbox:checked');
         constraintCheckboxes.forEach(checkbox => {
@@ -242,7 +239,6 @@ export class DataManager {
             }
         });
         
-        // 获取勾选的修饰性提示词
         const decorativePrompts = [];
         const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container .decorative-prompt-checkbox:checked');
         decorativeCheckboxes.forEach(checkbox => {
@@ -347,7 +343,6 @@ export class DataManager {
         }
         
         try {
-            // 获取所有Fabric对象
             const objects = fabricCanvas.getObjects();
             
             // 🎯 使用Fabric.js官方画布图像导出功能
@@ -358,7 +353,6 @@ export class DataManager {
                 enableRetinaScaling: false
             });
             
-            // 获取画布背景色
             const backgroundColor = fabricCanvas.backgroundColor || '#ffffff';
             
             // 序列化Fabric对象数据和完整画布信息
@@ -417,7 +411,6 @@ export class DataManager {
 
             const fabricData = JSON.parse(annotationDataWidget.value);
             
-            // 检查数据版本和格式
             if (!fabricData.objects || !Array.isArray(fabricData.objects)) {
                 return null;
             }
@@ -494,7 +487,6 @@ export class DataManager {
                             fabricObject.fabricId = `fabric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                         }
                         
-                        // 添加到恢复列表
                         restoredObjects.push(fabricObject);
                     }
                     
@@ -516,7 +508,6 @@ export class DataManager {
                 }
                 
                 fabricCanvas.setBackgroundColor('#ffffff', () => {
-                    // 添加恢复的对象
                     restoredObjects.forEach(obj => {
                         fabricCanvas.add(obj);
                     });
@@ -643,7 +634,6 @@ export class DataManager {
             return false;
         }
         
-        // 检查基本结构
         if (data.annotations && !Array.isArray(data.annotations)) {
             return false;
         }
@@ -752,7 +742,6 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
         // 清空现有选项
         dropdownOptions.innerHTML = '';
         
-        // 创建下拉选项 - 使用与标准函数相同的逻辑
         modal.annotations.forEach((annotation, index) => {
             const objectInfo = nodeInstance?.getObjectInfo ? nodeInstance.getObjectInfo(annotation, index) : {
                 icon: nodeInstance?.getSimpleIcon ? nodeInstance.getSimpleIcon(annotation.type) : '📝',
@@ -808,7 +797,6 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
             modal.selectedLayers = new Set();
         }
         
-        // 更新选中计数和下拉框文本 - 安全调用，如果方法不存在则跳过
         try {
             if (nodeInstance?.standardUpdateSelectionCount) {
                 nodeInstance.standardUpdateSelectionCount(modal);
@@ -820,7 +808,6 @@ export function callStandardUpdateObjectSelector(modal, nodeInstance) {
             } else {
             }
             
-            // 绑定下拉框事件 - 安全调用
             if (nodeInstance?.standardBindDropdownEvents) {
                 nodeInstance.standardBindDropdownEvents(modal);
             } else {
@@ -862,7 +849,6 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
         // 清空现有选项
         dropdownOptions.innerHTML = '';
         
-        // 创建下拉选项
         modal.annotations.forEach((annotation, index) => {
             
             const option = document.createElement('div');
@@ -917,7 +903,6 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
             modal.selectedLayers = new Set();
         }
         
-        // 更新下拉框显示文本
         const dropdownText = modal.querySelector('#dropdown-text');
         if (dropdownText) {
             dropdownText.textContent = 'Click to select layers...';
@@ -925,7 +910,6 @@ export function updateDropdownAfterRestore(modal, nodeInstance) {
             dropdownText.style.fontSize = '12px';
         }
         
-        // 更新选中计数
         const selectionCount = modal.cachedElements?.selectionCount || modal.querySelector('#selection-count');
         if (selectionCount) {
             selectionCount.textContent = `0 selected`;

@@ -23,6 +23,70 @@ export const COLOR_NAMES = {
     '#0000ff': { name: 'Blue', icon: '🔵' }
 };
 
+// 节点颜色常量 - 从constants.js迁移
+export const COLORS = {
+    NODE_COLOR: "#673AB7",
+    NODE_BG_COLOR: "#512DA8"
+};
+
+// Z-Index层级管理 - 统一界面层级
+export const Z_INDEX = {
+    BASE: 10000,           // 基础层级
+    NOTIFICATION: 15000,   // 通知层级  
+    MODAL: 25000,         // 模态框层级
+    EDITOR: 30000,        // 编辑器层级
+    TOOLTIP: 40000,       // 工具提示层级
+    OVERLAY: 50000        // 覆盖层级 (最高级别)
+};
+
+// 统一Modal样式常量 - 消除样式重复
+export const MODAL_STYLES = {
+    // 模态框背景遮罩
+    overlay: {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        background: 'rgba(0, 0, 0, 0.95)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    },
+    
+    // 通知框样式
+    notification: {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        padding: '20px 30px',
+        borderRadius: '12px',
+        color: 'white',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        boxShadow: '0 12px 24px rgba(0,0,0,0.4)',
+        border: '3px solid #fff',
+        textAlign: 'center',
+        minWidth: '300px',
+        opacity: '0',
+        transition: 'opacity 0.3s, transform 0.3s'
+    }
+};
+
+// SVG元素创建函数 - 从dom_utils.js迁移
+export const createSVG = (tagName, attributes = {}) => {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+    
+    Object.entries(attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+    });
+    
+    return element;
+};
+
 // 模板分类定义 - Flux Kontext优化版 (4大分类)
 export const TEMPLATE_CATEGORIES = {
     global: {
@@ -573,7 +637,6 @@ export function getTemplatesByCategory(category) {
         };
     });
     
-    // 返回模板列表
     return result;
 }
 
@@ -589,10 +652,8 @@ export function updateOperationTypeSelect(selectElement, category) {
     // 清空现有选项
     selectElement.innerHTML = '';
     
-    // 获取分类下的模板
     const templates = getTemplatesByCategory(category);
     
-    // 添加选项
     templates.forEach(({ id, label }) => {
         const option = document.createElement('option');
         option.value = id;
@@ -600,7 +661,6 @@ export function updateOperationTypeSelect(selectElement, category) {
         selectElement.appendChild(option);
     });
     
-    // 添加自定义选项
     if (category === 'local') {
         const customOption = document.createElement('option');
         customOption.value = 'custom';
@@ -641,20 +701,206 @@ export function generateId(prefix = 'id') {
 }
 
 /**
- * 通知显示函数
+ * 样式应用辅助函数
+ */
+export const applyStyles = (element, styleObject) => {
+    Object.entries(styleObject).forEach(([property, value]) => {
+        element.style[property] = value;
+    });
+};
+
+/**
+ * 图像缓存管理器 - 避免重复加载相同图像
+ */
+export class ImageCache {
+    constructor(maxSize = 20, maxMemoryMB = 100) {
+        this.cache = new Map(); // URL -> {fabricImage, timestamp, size}
+        this.loadingPromises = new Map(); // URL -> Promise
+        this.maxSize = maxSize;
+        this.maxMemoryBytes = maxMemoryMB * 1024 * 1024;
+        this.currentMemoryUsage = 0;
+        
+        console.log(`🖼️ ImageCache initialized - Max: ${maxSize} images, ${maxMemoryMB}MB`);
+    }
+
+    /**
+     * 获取图像，优先从缓存获取
+     */
+    async getImage(url) {
+        if (this.cache.has(url)) {
+            const cached = this.cache.get(url);
+            cached.timestamp = Date.now();
+            console.log(`✨ Image cache hit: ${url.substring(url.lastIndexOf('/') + 1)}`);
+            return this._cloneFabricImage(cached.fabricImage);
+        }
+
+        if (this.loadingPromises.has(url)) {
+            console.log(`⏳ Image loading in progress: ${url.substring(url.lastIndexOf('/') + 1)}`);
+            return this.loadingPromises.get(url);
+        }
+
+        // 加载新图像
+        console.log(`📥 Loading new image: ${url.substring(url.lastIndexOf('/') + 1)}`);
+        const promise = this._loadImageFromURL(url);
+        this.loadingPromises.set(url, promise);
+
+        try {
+            const fabricImage = await promise;
+            this._cacheImage(url, fabricImage);
+            this.loadingPromises.delete(url);
+            return this._cloneFabricImage(fabricImage);
+        } catch (error) {
+            this.loadingPromises.delete(url);
+            throw error;
+        }
+    }
+
+    /**
+     * 从URL加载Fabric.js图像
+     */
+    _loadImageFromURL(url) {
+        return new Promise((resolve, reject) => {
+            if (typeof fabric === 'undefined' || !fabric.Image) {
+                reject(new Error('Fabric.js not available'));
+                return;
+            }
+
+            fabric.Image.fromURL(url, (fabricImage) => {
+                if (fabricImage) {
+                    resolve(fabricImage);
+                } else {
+                    reject(new Error(`Failed to load image: ${url}`));
+                }
+            }, {
+                crossOrigin: 'anonymous'
+            });
+        });
+    }
+
+    /**
+     * 缓存图像（带内存管理）
+     */
+    _cacheImage(url, fabricImage) {
+        const imageSize = this._estimateImageSize(fabricImage);
+        
+        this._ensureMemoryLimit(imageSize);
+        
+        if (this.cache.size >= this.maxSize) {
+            this._evictLRU();
+        }
+
+        this.cache.set(url, {
+            fabricImage: fabricImage,
+            timestamp: Date.now(),
+            size: imageSize
+        });
+        
+        this.currentMemoryUsage += imageSize;
+        console.log(`💾 Image cached: ${url.substring(url.lastIndexOf('/') + 1)} (${this._formatSize(imageSize)}) - Total: ${this.cache.size} images, ${this._formatSize(this.currentMemoryUsage)}`);
+    }
+
+    /**
+     * 克隆Fabric图像对象（避免引用问题）
+     */
+    _cloneFabricImage(originalImage) {
+        return new Promise((resolve) => {
+            originalImage.clone((clonedImage) => {
+                resolve(clonedImage);
+            });
+        });
+    }
+
+    /**
+     * 估算图像内存占用
+     */
+    _estimateImageSize(fabricImage) {
+        const width = fabricImage.width || 800;
+        const height = fabricImage.height || 600;
+        return width * height * 4; // RGBA 4 bytes per pixel
+    }
+
+    /**
+     * 确保内存使用不超过限制
+     */
+    _ensureMemoryLimit(newImageSize) {
+        while (this.currentMemoryUsage + newImageSize > this.maxMemoryBytes && this.cache.size > 0) {
+            this._evictLRU();
+        }
+    }
+
+    /**
+     * 清理最久未使用的图像（LRU）
+     */
+    _evictLRU() {
+        let oldestUrl = null;
+        let oldestTime = Date.now();
+
+        for (const [url, data] of this.cache) {
+            if (data.timestamp < oldestTime) {
+                oldestTime = data.timestamp;
+                oldestUrl = url;
+            }
+        }
+
+        if (oldestUrl) {
+            const evicted = this.cache.get(oldestUrl);
+            this.cache.delete(oldestUrl);
+            this.currentMemoryUsage -= evicted.size;
+            console.log(`🗑️ Evicted LRU image: ${oldestUrl.substring(oldestUrl.lastIndexOf('/') + 1)} (${this._formatSize(evicted.size)})`);
+        }
+    }
+
+    /**
+     * 清除指定URL的缓存
+     */
+    invalidate(url) {
+        if (this.cache.has(url)) {
+            const cached = this.cache.get(url);
+            this.cache.delete(url);
+            this.currentMemoryUsage -= cached.size;
+            console.log(`❌ Cache invalidated: ${url.substring(url.lastIndexOf('/') + 1)}`);
+        }
+    }
+
+    /**
+     * 清空所有缓存
+     */
+    clear() {
+        const count = this.cache.size;
+        const memory = this.currentMemoryUsage;
+        this.cache.clear();
+        this.loadingPromises.clear();
+        this.currentMemoryUsage = 0;
+        console.log(`🧹 Cache cleared: ${count} images, ${this._formatSize(memory)} freed`);
+    }
+
+    /**
+     * 格式化文件大小显示
+     */
+    _formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+}
+
+// 全局图像缓存实例
+export const globalImageCache = new ImageCache();
+
+/**
+ * 通知显示函数 - 增强版
  */
 export class KontextUtils {
     static showNotification(message, type = 'info', duration = 3000) {
         const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed; top: 50%; left: 50%; z-index: 50000;
-            transform: translate(-50%, -50%);
-            padding: 20px 30px; border-radius: 12px; color: white;
-            font-family: Arial, sans-serif; font-size: 16px; font-weight: bold;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.4);
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-            border: 3px solid #fff; text-align: center; min-width: 300px;
-        `;
+        
+        // 应用统一的通知样式
+        applyStyles(notification, MODAL_STYLES.notification);
+        notification.style.zIndex = Z_INDEX.OVERLAY;
+        notification.style.background = type === 'success' ? '#4CAF50' : 
+                                      type === 'warning' ? '#FF9800' : 
+                                      type === 'error' ? '#f44336' : '#2196F3';
+        
         notification.textContent = message;
         
         document.body.appendChild(notification);
@@ -664,7 +910,26 @@ export class KontextUtils {
                 notification.parentNode.removeChild(notification);
             }
         }, duration);
+    }
+
+    static createTooltip(element, text) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'kontext-tooltip';
+        tooltip.textContent = text;
+        document.body.appendChild(tooltip);
         
+        element.addEventListener('mouseenter', () => {
+            const rect = element.getBoundingClientRect();
+            tooltip.style.left = rect.left + 'px';
+            tooltip.style.top = (rect.bottom + 5) + 'px';
+            tooltip.classList.add('show');
+        });
+        
+        element.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('show');
+        });
+        
+        return tooltip;
     }
 }
 
@@ -695,7 +960,6 @@ export function isPointInRect(point, rect) {
  */
 export function mouseToSVGCoordinates(e, modal) {
     
-    // 使用新的统一坐标系统
     const coordinateSystem = getCoordinateSystem(modal);
     return coordinateSystem.mouseToSVGCoords(e.clientX, e.clientY);
 }

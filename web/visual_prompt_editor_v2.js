@@ -11,8 +11,7 @@ import { app } from "../../scripts/app.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
 
 // 导入模块
-import { KontextUtils, getImageFromWidget } from './modules/visual_prompt_editor_utils.js';
-import { COLORS, TIMING } from './modules/visual_prompt_editor_constants.js';
+import { KontextUtils, getImageFromWidget, COLORS, createSVG, Z_INDEX, globalImageCache } from './modules/visual_prompt_editor_utils.js';
 import { 
     DOMFactory, 
     StyleManager, 
@@ -56,9 +55,6 @@ import {
     callStandardUpdateObjectSelector,
     updateDropdownAfterRestore
 } from './modules/visual_prompt_editor_data_manager.js';
-import { 
-    createSVG 
-} from './modules/visual_prompt_editor_dom_utils.js';
 import { 
     getImageFromLoadImageNode,
     tryGetImageFromNode,
@@ -128,12 +124,9 @@ function cleanupModal(modal, nodeInstance) {
             }
         }
         
-        // 清理Fabric.js画布
         if (nodeInstance && nodeInstance.fabricManager) {
             if (nodeInstance.fabricManager.fabricCanvas) {
-                // 清除所有对象
                 nodeInstance.fabricManager.fabricCanvas.clear();
-                // 停止动画和渲染
                 nodeInstance.fabricManager.fabricCanvas.dispose();
                 nodeInstance.fabricManager.fabricCanvas = null;
             }
@@ -158,7 +151,6 @@ function cleanupModal(modal, nodeInstance) {
                     canvas.parentNode.removeChild(canvas);
                 }
             } catch (e) {
-                // 清理失败，忽略
             }
         });
         
@@ -170,7 +162,6 @@ function cleanupModal(modal, nodeInstance) {
                     container.parentNode.removeChild(container);
                 }
             } catch (e) {
-                // 清理失败，忽略
             }
         });
         
@@ -184,7 +175,6 @@ function cleanupModal(modal, nodeInstance) {
                         canvas.parentNode.removeChild(canvas);
                     }
                 } catch (e) {
-                    // 清理失败，忽略
                 }
             });
         });
@@ -224,7 +214,6 @@ function cleanupModal(modal, nodeInstance) {
                             canvas.parentNode.removeChild(canvas);
                         }
                     } catch (e) {
-                        // 清理失败，忽略
                     }
                 }
             });
@@ -238,7 +227,6 @@ function cleanupModal(modal, nodeInstance) {
                         canvas.parentNode.removeChild(canvas);
                     }
                 } catch (e) {
-                    // 清理失败，忽略
                 }
             });
         }, 300);
@@ -247,7 +235,6 @@ function cleanupModal(modal, nodeInstance) {
         console.error('❌ 模态弹窗清理失败:', error);
         // 终极暴力清理
         try {
-            // 移除模态弹窗
             if (modal && modal.parentNode) {
                 modal.parentNode.removeChild(modal);
             }
@@ -284,16 +271,13 @@ app.registerExtension({
             
             try {
             
-            // 添加节点创建时的回调
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
                 
-                // 设置节点样式
                 this.color = COLORS.NODE_COLOR;
                 this.bgcolor = COLORS.NODE_BG_COLOR;
                 
-                // 清理的节点状态显示
                 this.addWidget("text", "editor_status", "Visual Editor Ready", () => {}, {
                     serialize: false
                 });
@@ -323,19 +307,16 @@ app.registerExtension({
                         alert("Failed to open editor: " + error.message);
                     }
                     
-                    // 返回false阻止默认双击行为
                     return false;
                 };
                 
                 return r;
             };
             
-            // 添加执行后回调
             const onExecuted = nodeType.prototype.onExecuted;
             nodeType.prototype.onExecuted = function(message) {
                 const r = onExecuted ? onExecuted.apply(this, arguments) : undefined;
                 
-                // 更新状态显示
                 const statusWidget = this.widgets.find(w => w.name === "editor_status");
                 const qualityWidget = this.widgets.find(w => w.name === "prompt_quality");
                 const countWidget = this.widgets.find(w => w.name === "selected_count");
@@ -348,13 +329,11 @@ app.registerExtension({
                         const metadataStr = Array.isArray(message.text) ? message.text[5] : message.text;
                         const metadata = JSON.parse(metadataStr);
                         
-                        // 更新提示词质量显示
                         if (qualityWidget && metadata.prompt_analysis) {
                             const score = metadata.prompt_analysis.score;
                             qualityWidget.value = `Quality: ${score.toFixed(1)}/100 (${metadata.prompt_analysis.grade})`;
                         }
                         
-                        // 更新选中对象计数
                         if (countWidget) {
                             countWidget.value = `${metadata.selected_count} ${safeT('selected_count', 'selected')}`;
                         }
@@ -368,7 +347,6 @@ app.registerExtension({
             
             
             
-            // 添加右键菜单选项
             const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
             nodeType.prototype.getExtraMenuOptions = function(_, options) {
                 const r = getExtraMenuOptions ? getExtraMenuOptions.apply(this, arguments) : undefined;
@@ -422,7 +400,6 @@ app.registerExtension({
             nodeType.prototype.ensureTransformControls = function() {
                 if (!this.transformControls) {
                     try {
-                        // this.transformControls = createTransformControls(this); // 临时注释，模块不存在
                     } catch (error) {
                         handleError('懒加载变换控制模块', error);
                         return null;
@@ -499,13 +476,11 @@ app.registerExtension({
                 } catch (e) {
                 }
                 
-                // 创建模态弹窗
                 
                 try {
                     const modal = createUnifiedModal(imageData, layersData, this);
                     
                     if (modal) {
-                        // 创建模态框元素缓存以减少重复DOM查询
                         const elements = createModalElementsCache(modal);
                         
                         // 初始化画布
@@ -555,13 +530,11 @@ app.registerExtension({
                     return;
                 }
                 
-                // 检查是否已存在图层显示容器
                 const existingContainer = modal.querySelector('#layers-display-container');
                 if (existingContainer) {
                     return;
                 }
                 
-                // 创建图层显示容器
                 const layersDisplayContainer = DOMFactory.createLayerContainer('layers-display-container');
                 
                 // 安全地插入到image-canvas中（与drawing-layer同级）
@@ -594,21 +567,17 @@ app.registerExtension({
             // 🎨 绑定图层可见性事件
             nodeType.prototype.bindLayerVisibilityEvents = function(modal) {
                 
-                // 使用事件委托绑定可见性按钮点击事件 - 使用缓存元素
                 const elements = modal.cachedElements || createModalElementsCache(modal);
                 const layersList = elements.layersList();
                 if (!layersList) {
                     return;
                 }
                 
-                // 移除现有的事件监听器（如果存在）
                 if (layersList.visibilityEventsBound) {
                     return; // 已经绑定过，避免重复绑定
                 }
                 
-                // 使用命名函数以便后续可以移除
                 const visibilityClickHandler = (e) => {
-                    // 检查是否是可见性按钮点击
                     if (e.target.classList.contains('layer-visibility-btn')) {
                         e.stopPropagation();
                         e.preventDefault(); // 防止意外的默认行为
@@ -644,7 +613,6 @@ app.registerExtension({
             
             // 🎨 图层顺序调整功能
             
-            // 绑定图层顺序调整事件 - 委托给图层顺序控制模块
             nodeType.prototype.bindLayerOrderEvents = function(modal) {
                 if (this.layerOrderController) {
                     this.layerOrderController.bindLayerOrderEvents(modal);
@@ -659,7 +627,6 @@ app.registerExtension({
             nodeType.prototype.activateLayerTransform = function(modal, layerId, layerType) {
                 
                 try {
-                    // 使用变换控制模块启动变换（包含完整的操作框功能）
                     const transformControls = this.ensureTransformControls();
                     
                     if (!transformControls) {
@@ -693,20 +660,17 @@ app.registerExtension({
                 this.layerOrderController.reorderLayers(modal, draggedLayerId, targetLayerId);
             };
             
-            // 获取所有图层按当前顺序 - 委托给图层顺序控制模块（懒加载）
             nodeType.prototype.getAllLayersInOrder = function(modal) {
                 if (!this.ensureController('layerOrderController', createLayerOrderController)) return [];
                 return this.layerOrderController.getAllLayersInOrder(modal);
             };
             
             
-            // 更新图层Z-index - 委托给图层顺序控制模块（懒加载）
             nodeType.prototype.updateLayersZIndex = function(modal, orderedLayers) {
                 if (!this.ensureController('layerOrderController', createLayerOrderController)) return;
                 this.layerOrderController.updateLayersZIndex(modal, orderedLayers);
             };
             
-            // 更新图层面板显示 - 使用模块化接口
             nodeType.prototype.updateLayersListDisplay = function(modal, orderedLayers = null) {
                 // 如果没有提供排序后的图层，则获取当前图层顺序
                 let allLayers = orderedLayers;
@@ -714,7 +678,6 @@ app.registerExtension({
                     allLayers = this.getAllLayersInOrder(modal);
                 }
                 
-                // 使用统一的图层显示更新接口
                 const success = updateLayerDisplay(modal, allLayers, {
                     updateType: 'list',
                     preventDuplicate: true,
@@ -727,15 +690,12 @@ app.registerExtension({
                 }
             };
             
-            // 绑定图层事件 - 统一入口
             nodeType.prototype.bindLayerEvents = function(modal) {
                 
-                // 绑定图层可见性控制
                 if (typeof this.bindLayerVisibilityEvents === 'function') {
                     this.bindLayerVisibilityEvents(modal);
                 }
                 
-                // 绑定图层排序事件（拖拽和上下移动按钮）
                 if (typeof this.bindLayerOrderEvents === 'function') {
                     this.bindLayerOrderEvents(modal);
                 }
@@ -766,7 +726,6 @@ app.registerExtension({
                         }
                     });
                     
-                    // 检查image-canvas中的所有标注容器
                     const annotationContainers = imageCanvas.querySelectorAll('[id^="annotation-svg-"]');
                     annotationContainers.forEach(container => {
                         const style = window.getComputedStyle(container);
@@ -780,8 +739,6 @@ app.registerExtension({
             
             
             
-            // 添加标注到独立SVG容器并自动分组 - 新版本
-            // 添加标注到SVG并创建独立容器 - 已迁移到SVG模块
             nodeType.prototype.addAnnotationToSVGWithGrouping = function(svg, annotationElement, annotationId) {
                 return addAnnotationToSVGWithGrouping(svg, annotationElement, annotationId, this);
             };
@@ -799,7 +756,6 @@ app.registerExtension({
                 if (!modal.annotations) return;
                 
                 
-                // 获取当前所有图层来计算正确的z-index
                 const allLayers = this.getAllLayersInOrder(modal);
                 
                 modal.annotations.forEach(annotation => {
@@ -813,7 +769,6 @@ app.registerExtension({
                             baseZIndex + (allLayers.length - layerIndex) : 
                             baseZIndex + allLayers.length + 1;
                         
-                        // 使用图层顺序控制器来设置Z-index
                         if (this.layerOrderController) {
                             this.layerOrderController.updateAnnotationZIndex(modal, annotation.id, zIndex);
                         } else {
@@ -825,7 +780,6 @@ app.registerExtension({
             
             // 🎨 图层顺序状态管理
             
-            // 获取当前的有序图层列表 - 用于新标注z-index计算
             nodeType.prototype.getCurrentOrderedLayers = function(modal) {
                 if (!modal.layerOrderStates || !modal.layerOrderStates.has('currentOrder')) {
                     // 如果没有保存的状态，返回空数组
@@ -879,12 +833,10 @@ app.registerExtension({
                     });
                     
                     if (restoredLayers.length > 0) {
-                        // 更新图层数据顺序 - 委托给模块
                         if (this.layerOrderController) {
                             this.layerOrderController.updateLayersOrder(modal, restoredLayers);
                         }
                         
-                        // 更新Z-index
                         this.updateLayersZIndex(modal, restoredLayers);
                         
                         return true;
@@ -895,7 +847,6 @@ app.registerExtension({
                 return false;
             };
             
-            // 获取图层顺序状态
             nodeType.prototype.getLayerOrderState = function(modal) {
                 if (modal.layerOrderStates && modal.layerOrderStates.has('currentOrder')) {
                     return modal.layerOrderStates.get('currentOrder');
@@ -921,7 +872,6 @@ app.registerExtension({
                     return;
                 }
                 
-                // 使用统一的画布图层显示更新接口
                 if (modal.annotations && modal.annotations.length > 0) {
                     updateLayerDisplay(modal, modal.annotations, {
                         updateType: 'canvas',
@@ -936,7 +886,6 @@ app.registerExtension({
             
             // 🎨 创建画布图层显示
             nodeType.prototype.createCanvasLayerDisplay = function(container, layer, index) {
-                // 获取modal引用
                 const modal = container.closest('#unified-editor-modal');
                 if (!modal) {
                     handleError('无法找到modal容器');
@@ -944,10 +893,8 @@ app.registerExtension({
                 }
                 
                 
-                // 获取连接的图像数据
                 this.loadConnectedLayerImage(layer, (imageUrl) => {
                     
-                    // 获取当前画布缩放值
                     const currentZoom = modal.currentZoom || 1.0;
                     const finalScale = layer.transform.scale * currentZoom;
                     
@@ -1092,7 +1039,6 @@ app.registerExtension({
             // 🎨 处理Add Image按钮
             nodeType.prototype.handleAddLayerImage = function(modal) {
                 
-                // 创建文件输入
                 const fileInput = createElement('input', {
                     type: 'file',
                     accept: 'image/*',
@@ -1224,10 +1170,8 @@ app.registerExtension({
                 }
                 
                 
-                // 更新下拉框显示文本
                 this.updateDropdownTextForRestore(modal);
                 
-                // 更新选中计数
                 this.updateSelectionCountForRestore(modal);
             };
             
@@ -1265,8 +1209,6 @@ app.registerExtension({
                 }
             };
             
-            // 调用标准的updateObjectSelector函数
-            // 调用标准updateObjectSelector - 已迁移到数据管理模块
             nodeType.prototype.callStandardUpdateObjectSelector = function(modal) {
                 return callStandardUpdateObjectSelector(modal, this);
             };
@@ -1283,7 +1225,6 @@ app.registerExtension({
                     modal.selectedLayers.delete(annotationId);
                 }
                 
-                // 更新下拉框显示文本和选中计数
                 this.standardUpdateDropdownText(modal);
                 this.standardUpdateSelectionCount(modal);
                 
@@ -1376,7 +1317,6 @@ app.registerExtension({
                         }
                     }
                     
-                    // 更新滑块和显示值
                     opacitySlider.value = restoredOpacity;
                     opacityValue.textContent = restoredOpacity + '%';
                     modal.currentOpacity = restoredOpacity;
@@ -1387,7 +1327,6 @@ app.registerExtension({
                 }
             };
 
-            // 添加编号标签
             nodeType.prototype.addNumberLabel = function(svg, annotation, coords) {
                 const text = createSVG('text');
                 const x = Math.min(coords[0], coords[2]) + 5;
@@ -1409,14 +1348,12 @@ app.registerExtension({
                 // 为所有annotation形状添加点击和悬停事件
                 const shapes = svg.querySelectorAll('.annotation-shape');
                 shapes.forEach(shape => {
-                    // 使用EventManager批量绑定事件
                     EventManager.delegate(svg, '.annotation-shape', 'click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         
                         const annotationId = e.target.dataset.annotationId;
                         
-                        // 更新选择状态
                         this.selectAnnotationInPanel(modal, annotationId);
                         this.highlightAnnotationOnCanvas(e.target);
                     });
@@ -1481,7 +1418,6 @@ app.registerExtension({
 
             // 在画布上高亮annotation
             nodeType.prototype.highlightAnnotationOnCanvas = function(shape) {
-                // 移除其他高亮
                 const svg = shape.closest('svg');
                 if (svg) {
                     svg.querySelectorAll('.annotation-shape.highlighted').forEach(s => {
@@ -1491,7 +1427,6 @@ app.registerExtension({
                     });
                 }
                 
-                // 添加当前高亮
                 shape.classList.add('highlighted');
                 shape.style.strokeWidth = '5';
                 shape.style.filter = 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.8))';
@@ -1501,10 +1436,8 @@ app.registerExtension({
             // 调试annotation可见性
             nodeType.prototype.debugAnnotationVisibility = function(modal, svg) {
                 
-                // 检查SVG容器
                 const svgRect = svg.getBoundingClientRect();
                 
-                // 检查每个annotation形状
                 const shapes = svg.querySelectorAll('.annotation-shape');
                 
                 shapes.forEach((shape, index) => {
@@ -1512,7 +1445,6 @@ app.registerExtension({
                     const computedStyle = window.getComputedStyle(shape);
                 });
                 
-                // 检查图层面板状态
                 const annotationObjects = modal.cachedElements?.annotationObjects || modal.querySelector('#annotation-objects');
                 if (annotationObjects) {
                     const layerItems = annotationObjects.children;
@@ -1551,7 +1483,6 @@ app.registerExtension({
                     const labelX = Math.min(coords[0], coords[2]) + 8;
                     const labelY = Math.min(coords[1], coords[3]) - 8;
                     
-                    // 创建标签组 - 使用统一创建函数
                     const group = createSVG('g');
                     group.setAttribute('class', 'annotation-label');
                     group.setAttribute('data-annotation-number', number);
@@ -1571,10 +1502,8 @@ app.registerExtension({
                     text.setAttribute('paint-order', 'stroke fill');
                     text.textContent = number;
                     
-                    // 添加文本到组
                     group.appendChild(text);
                     
-                    // 添加到SVG
                     svg.appendChild(group);
                     
                 } catch (error) {
@@ -1593,7 +1522,6 @@ app.registerExtension({
                         // 对所有层级的元素进行状态恢复
                         const allItems = annotationObjects.querySelectorAll('*');
                         allItems.forEach(item => {
-                            // 移除任何可能的禁用状态
                             item.style.opacity = '1';
                             item.style.pointerEvents = 'auto';
                             item.classList.remove('disabled', 'inactive', 'grayed-out');
@@ -1611,7 +1539,6 @@ app.registerExtension({
                     // 也检查传统的layer-item选择器
                     const layerItems = modal.querySelectorAll('.layer-list-item');
                     layerItems.forEach(item => {
-                        // 移除灰色/禁用状态
                         item.style.opacity = '1';
                         item.style.pointerEvents = 'auto';
                         item.style.color = '#ffffff'; // 确保文字是白色
@@ -1635,7 +1562,6 @@ app.registerExtension({
             
             
             
-            // 绑定基础事件
             nodeType.prototype.bindBasicEvents = function(modal) {
                 // 🔗 初始化时同步后端节点参数到前端UI
                 const promptTemplateWidget = this.widgets?.find(w => w.name === "prompt_template");
@@ -1706,7 +1632,6 @@ app.registerExtension({
                             
                             // 🎯 实际保存逻辑：保存Fabric画布数据和标注数据到节点widget
                             try {
-                                // 使用dataManager统一处理数据保存
                                 if (this.dataManager) {
                                     // 🎯 优先保存Fabric.js画布的完整数据（包含canvas图像）
                                     if (this.fabricManager && this.fabricManager.fabricCanvas) {
@@ -1830,7 +1755,6 @@ app.registerExtension({
                                 targetShape.setAttribute('data-original-stroke-width', targetShape.getAttribute('stroke-width') || '3');
                             }
                             
-                            // 设置边框属性以确保可见
                             targetShape.setAttribute('stroke-width', '6');
                             if (!currentStroke || currentStroke === 'none') {
                                 // 如果没有边框，使用填充颜色或默认黄色作为边框
@@ -1906,7 +1830,6 @@ app.registerExtension({
                         modal.currentOpacity = opacityPercent;
                         opacityValue.textContent = opacityPercent + '%';
                         
-                        // 更新所有现有标注的不透明度
                         // 计算不透明度值 (0-1)
                         const fillOpacity = opacityPercent / 100;
                         const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0);
@@ -1954,7 +1877,6 @@ app.registerExtension({
                                     const markerEnd = shape.getAttribute('marker-end');
                                     if (markerEnd && markerEnd.includes('arrowhead')) {
                                         const color = currentStroke;
-                                        // 创建新的不透明度marker
                                         const colorHex = color.replace('#', '');
                                         const markerId = `arrowhead-${colorHex}-opacity-${Math.round(opacityPercent)}`;
                                         
@@ -1980,13 +1902,11 @@ app.registerExtension({
                                             defs.appendChild(marker);
                                         }
                                         
-                                        // 更新箭头的marker引用
                                         shape.setAttribute('marker-end', `url(#${markerId})`);
                                     }
                                 }
                         });
                         
-                        // 更新annotations数据中的不透明度
                         if (modal.annotations) {
                             modal.annotations.forEach(annotation => {
                                 annotation.opacity = opacityPercent;
@@ -2035,7 +1955,6 @@ app.registerExtension({
                     bindEvent(selectAllCheckbox, 'change', (e) => {
                         const isChecked = e.target.checked;
                         
-                        // 获取所有图层复选框
                         const layerCheckboxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]');
                         layerCheckboxes.forEach(checkbox => {
                             checkbox.checked = isChecked;
@@ -2052,7 +1971,6 @@ app.registerExtension({
                             });
                         }
                         
-                        // 调用高亮功能
                         highlightSelectedAnnotations(modal, selectedAnnotationIds);
                         
                     });
@@ -2074,7 +1992,6 @@ app.registerExtension({
                         }
                     };
                     
-                    // 使用事件委托监听图层复选框变化
                     const annotationObjects = modal.cachedElements?.annotationObjects || modal.querySelector('#annotation-objects');
                     if (annotationObjects) {
                         EventManager.delegate(annotationObjects, 'input[type="checkbox"]', 'change', (e) => {
@@ -2084,7 +2001,6 @@ app.registerExtension({
                                 // 🔧 调用原始的多选高亮功能
                                 // 导入并调用annotations模块的updateMultiSelection功能
                                 try {
-                                    // 获取当前选中的标注ID列表
                                     const selectedAnnotationIds = [];
                                     const checkedBoxes = modal.querySelectorAll('#annotation-objects input[type="checkbox"]:checked');
                                     checkedBoxes.forEach(checkbox => {
@@ -2095,7 +2011,6 @@ app.registerExtension({
                                     });
                                     
                                     
-                                    // 调用高亮功能
                                     highlightSelectedAnnotations(modal, selectedAnnotationIds);
                                     
                                 } catch (error) {
@@ -2225,7 +2140,6 @@ app.registerExtension({
                 
                 if (promptData) {
                     try {
-                        // 使用dataManager统一自动保存数据
                         if (this.dataManager) {
                             const saveSuccess = this.dataManager.saveAnnotationData(modal, promptData);
                             if (saveSuccess) {
@@ -2260,7 +2174,6 @@ app.registerExtension({
                 
             };
             
-            // 更新所有标注的不透明度
             nodeType.prototype.updateAllAnnotationsOpacity = function(modal, opacityPercent) {
                 const svg = modal.querySelector('#drawing-layer svg');
                 if (!svg) return;
@@ -2269,7 +2182,6 @@ app.registerExtension({
                 const fillOpacity = opacityPercent / 100;
                 const strokeOpacity = Math.min(fillOpacity + 0.3, 1.0);
                 
-                // 更新所有SVG形状的不透明度 - 直接更新SVG属性而不是style
                 const shapes = svg.querySelectorAll('.annotation-shape');
                 shapes.forEach(shape => {
                     // 清除任何可能存在的style.opacity
@@ -2297,7 +2209,6 @@ app.registerExtension({
                     }
                 });
                 
-                // 更新annotations数据中的不透明度
                 if (modal.annotations) {
                     modal.annotations.forEach(annotation => {
                         annotation.opacity = opacityPercent;
@@ -2317,13 +2228,11 @@ app.registerExtension({
                 
                 const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
                 
-                // 检查是否已存在
                 const existingMarker = defs.querySelector(`#${markerId}`);
                 if (existingMarker) {
                     return markerId;
                 }
                 
-                // 创建新的marker - 使用统一创建函数
                 const marker = createSVG('marker');
                 marker.setAttribute('id', markerId);
                 marker.setAttribute('markerWidth', '10');
@@ -2344,7 +2253,6 @@ app.registerExtension({
                 return markerId;
             };
             
-            // 更新箭头marker的不透明度
             nodeType.prototype.updateArrowheadMarker = function(arrowElement, color, opacity) {
                 try {
                     const svg = arrowElement.closest('svg');
@@ -2354,10 +2262,8 @@ app.registerExtension({
                     // 生成新的marker ID
                     const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
                     
-                    // 检查是否已存在
                     let existingMarker = defs.querySelector(`#${markerId}`);
                     if (!existingMarker) {
-                        // 创建新的marker - 使用统一创建函数
                         const marker = createSVG('marker');
                         marker.setAttribute('id', markerId);
                         marker.setAttribute('markerWidth', '10');
@@ -2376,16 +2282,13 @@ app.registerExtension({
                         defs.appendChild(marker);
                     }
                     
-                    // 更新箭头的marker引用
                     arrowElement.setAttribute('marker-end', `url(#${markerId})`);
                 } catch (error) {
                     handleError(' 更新箭头marker', error);
                 }
             };
             
-            // 获取对象信息（从annotations模块获取）
             nodeType.prototype.getObjectInfo = function(annotation, index) {
-                // 获取形状图标
                 const getShapeIcon = (type) => {
                     const icons = {
                         'rectangle': '🔴▭',
@@ -2420,7 +2323,6 @@ app.registerExtension({
                     description += `${colorName}${shapeName} `;
                 }
                 
-                // 添加尺寸信息
                 if (annotation.geometry && annotation.geometry.coordinates) {
                     const coords = annotation.geometry.coordinates;
                     if (annotation.type === 'rectangle' && coords.length >= 4) {
@@ -2461,7 +2363,6 @@ app.registerExtension({
             
             // 清空所有标注 - 已迁移到标注事件模块
             nodeType.prototype.clearAllAnnotations = function(modal) {
-                // 使用Fabric.js管理器清空画布
                 if (modal.fabricManager) {
                     modal.fabricManager.fabricCanvas.clear();
                     modal.fabricManager.fabricCanvas.renderAll();
@@ -2475,19 +2376,15 @@ app.registerExtension({
                 KontextUtils.showNotification('导出功能开发中', 'info');
             };
 
-            // 更新恢复后的图层选择面板 - 使用新的下拉复选框界面
             nodeType.prototype.updateRestoredObjectSelector = function(modal) {
                 
-                // 调用模块中的updateObjectSelector函数
                 if (typeof window.updateObjectSelector === 'function') {
                     window.updateObjectSelector(modal);
                 } else {
                 }
             };
             
-            // 获取恢复标注的对象信息
 
-            // 获取恢复标注的对象信息 - 与新创建标注使用相同的格式化逻辑
             nodeType.prototype.getRestoredObjectInfo = function(annotation, index) {
                 const { type: tool, color } = annotation;
                 
@@ -2611,7 +2508,6 @@ app.registerExtension({
                     selectionCount.textContent = `${layersData.length} annotations`;
                 }
                 
-                // 更新其他统计信息
                 const statsInfo = {
                     totalAnnotations: layersData.length,
                     rectangles: layersData.filter(l => l.type === 'rectangle').length,
@@ -2693,7 +2589,6 @@ app.registerExtension({
                         });
                     }
                     
-                    // 添加图像按钮事件
                     const addLayerImage = modal.querySelector('#add-layer-image');
                     if (addLayerImage) {
                         bindEvent(addLayerImage, 'click', () => {
@@ -2774,7 +2669,6 @@ app.registerExtension({
                 const layerX = modal.querySelector('#layer-x');
                 const layerY = modal.querySelector('#layer-y');
                 
-                // 检查可见性
                 const visibilityButton = selectedLayer.querySelector('.layer-visibility');
                 const isVisible = visibilityButton && visibilityButton.textContent === '👁️';
                 
@@ -2873,7 +2767,6 @@ app.registerExtension({
                     // 隐藏空状态消息
                     if (noLayersMessage) noLayersMessage.style.display = 'none';
                     
-                    // 创建主图像显示项
                     const imageElement = document.createElement('div');
                     imageElement.className = 'ps-layer-item vpe-layer-item';
                     imageElement.setAttribute('data-layer', 'main_image');
@@ -2887,7 +2780,6 @@ app.registerExtension({
                         <span style="color: #10b981; font-size: 9px; margin-left: 8px;">Fabric.js编辑</span>
                     `;
                     
-                    // 添加点击事件（虽然只有一个主图像，保持一致性）
                     imageElement.addEventListener('click', () => {
                         dynamicLayersContainer.querySelectorAll('.ps-layer-item').forEach(item => {
                             item.style.background = '';
@@ -2908,11 +2800,9 @@ app.registerExtension({
                 const layerItems = modal.querySelectorAll('#dynamic-ps-layers .ps-layer-item');
                 
                 layerItems.forEach(item => {
-                    // 移除旧的事件监听器
                     const newItem = item.cloneNode(true);
                     item.parentNode.replaceChild(newItem, item);
                     
-                    // 绑定新的事件监听器
                     bindEvent(newItem, 'click', (e) => {
                         if (e.target.classList.contains('layer-visibility')) return;
                         
@@ -2957,7 +2847,6 @@ app.registerExtension({
                 loadImageForLayer(modal, layerId, this);
             };
             
-            // 创建默认图层 - 委托给file_manager模块
             // createDefaultLayer functionality removed - using main image only
             
             // 处理图层图像文件 - 委托给file_manager模块
@@ -2995,7 +2884,6 @@ app.registerExtension({
                     drawTool.click();
                 }
                 
-                // 设置绘制模式为图层绘制
                 this.currentLayerDrawingMode = layerId;
                 
                 this.showLayerStatusMessage(modal, `已进入 ${layerId} 绘制模式`, '#10b981');
@@ -3020,20 +2908,16 @@ app.registerExtension({
         
         // === 自由变换功能实现 ===
         
-        // 添加画布点击选择图层功能
         nodeType.prototype.initCanvasLayerSelection = function(modal) {
             const elements = modal.cachedElements || createModalElementsCache(modal);
             const imageCanvas = elements.imageCanvas();
             if (!imageCanvas) return;
             
-            // 添加画布点击事件
             bindEvent(imageCanvas, 'click', (e) => {
-                // 检查是否启用了变换模式
                 if (!modal.transformModeActive) {
                     return; // 如果变换模式未激活，不处理点击事件（保持绘制模式）
                 }
                 
-                // 检查是否点击在图层上
                 const clickedLayer = this.getLayerAtPosition(modal, e.clientX, e.clientY);
                 
                 if (clickedLayer) {
@@ -3046,7 +2930,6 @@ app.registerExtension({
                 }
             });
             
-            // 添加双击激活变换
             bindEvent(imageCanvas, 'dblclick', (e) => {
                 const clickedLayer = this.getLayerAtPosition(modal, e.clientX, e.clientY);
                 if (clickedLayer) {
@@ -3056,7 +2939,6 @@ app.registerExtension({
             
         };
         
-        // 获取指定位置的图层
         nodeType.prototype.getLayerAtPosition = function(modal, clientX, clientY) {
             const imageCanvas = modal.querySelector('#image-canvas');
             if (!imageCanvas) return null;
@@ -3065,7 +2947,6 @@ app.registerExtension({
             const x = clientX - canvasRect.left;
             const y = clientY - canvasRect.top;
             
-            // 检查连接图层
             const layerElements = imageCanvas.querySelectorAll('[id^="canvas-layer-"]');
             for (let element of layerElements) {
                 const rect = element.getBoundingClientRect();
@@ -3083,7 +2964,6 @@ app.registerExtension({
                 }
             }
             
-            // 检查标注图层
             const annotationElements = imageCanvas.querySelectorAll('[id^="annotation-svg-"]');
             for (let element of annotationElements) {
                 const rect = element.getBoundingClientRect();
@@ -3106,7 +2986,6 @@ app.registerExtension({
         
         // 清除变换状态
         
-        // 获取图层元素
         nodeType.prototype.getLayerElement = function(modal, layerId, layerType) {
             
             let element = null;
@@ -3127,7 +3006,6 @@ app.registerExtension({
                     const svg = element.querySelector('svg') || element;
                     const shapes = svg.querySelectorAll('path, circle, rect, line, polygon, text');
                     if (shapes.length > 0) {
-                        // 返回一个包含所有形状边界的虚拟元素
                         return { 
                             isVirtualElement: true,
                             svgContainer: element,
@@ -3196,7 +3074,6 @@ app.registerExtension({
             return element;
         };
         
-        // 获取图层当前变换
         nodeType.prototype.getLayerTransform = function(element) {
             if (!element) return { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
             

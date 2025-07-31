@@ -4,7 +4,7 @@
  */
 
 import { t, getCurrentLanguage, toggleLanguage, updateAllUITexts, loadLanguageFromStorage } from './visual_prompt_editor_i18n.js';
-import { updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
+import { updateOperationTypeSelect, Z_INDEX, MODAL_STYLES, applyStyles } from './visual_prompt_editor_utils.js';
 
 /**
  * 创建主模态弹窗
@@ -12,14 +12,11 @@ import { updateOperationTypeSelect } from './visual_prompt_editor_utils.js';
 export function createMainModal() {
     const modal = document.createElement('div');
     modal.id = 'unified-editor-modal'; // 使用与原始版本相同的ID
-    modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.95); z-index: 25000;
-        display: flex; justify-content: center; align-items: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
     
-    // 添加CSS重置和隔离 (与原始版本一致)
+    // 应用统一的Modal overlay样式
+    applyStyles(modal, MODAL_STYLES.overlay);
+    modal.style.zIndex = Z_INDEX.MODAL;
+    
     const globalStyle = document.createElement('style');
     globalStyle.textContent = `
         #unified-editor-modal * {
@@ -207,7 +204,6 @@ export function createToolbar() {
         </div>
     `;
     
-    // 添加工具栏样式
     const style = document.createElement('style');
     style.textContent = `
         /* 基础按钮样式 */
@@ -387,7 +383,6 @@ export function createUnifiedCanvasArea(modal = null) {
         min-width: 0;
     `;
     
-    // 创建Fabric.js画布容器
     const canvasContainer = document.createElement('div');
     canvasContainer.id = 'canvas-container';
     canvasContainer.style.cssText = `
@@ -395,7 +390,6 @@ export function createUnifiedCanvasArea(modal = null) {
         display: flex; align-items: center; justify-content: center;
     `;
     
-    // 创建独立的zoom容器，具有正确的定位和变换原点
     const zoomContainer = document.createElement('div');
     zoomContainer.id = 'zoom-container';
     zoomContainer.style.cssText = `
@@ -412,7 +406,6 @@ export function createUnifiedCanvasArea(modal = null) {
         justify-content: center;
     `;
     
-    // 创建Fabric.js画布容器
     const fabricCanvasContainer = document.createElement('div');
     fabricCanvasContainer.id = 'fabric-canvas-container';
     fabricCanvasContainer.style.cssText = `
@@ -450,7 +443,6 @@ export function createPromptArea() {
         flex-shrink: 0; /* 防止右侧面板被压缩 */
     `;
     
-    // 创建标签页标题栏
     const tabHeader = document.createElement('div');
     tabHeader.style.cssText = `
         display: flex; background: #333; border-bottom: 1px solid #404040;
@@ -960,7 +952,6 @@ export function initializeTabSwitching() {
             // 点击标签页
             switchToTab(tabKey, tabContents);
             
-            // 更新标签激活状态
             tabs.forEach(t => {
                 t.style.background = '#444';
                 t.style.color = '#ccc';
@@ -982,7 +973,6 @@ export function initializeTabSwitching() {
         // 激活默认标签页
         switchToTab(tabKey, tabContents);
         
-        // 设置默认标签页样式
         tabs.forEach(t => {
             t.style.background = '#444';
             t.style.color = '#ccc';
@@ -1014,17 +1004,14 @@ function switchToTab(tabKey, tabContents) {
         return;
     }
     
-    // 更新标签页内容
     
     // 清空当前内容
     tabContentContainer.innerHTML = '';
     
-    // 添加新内容
     tabContentContainer.appendChild(tabContents[tabKey]);
     
     // 标签页内容已更新
     
-    // 获取modal引用以便重新绑定事件
     const modal = tabContentContainer.closest('#unified-editor-modal');
     
     // 🔴 立即应用翻译到新添加的内容
@@ -1101,7 +1088,6 @@ function switchToTab(tabKey, tabContents) {
             
             
             if (templateCategory && operationType) {
-                // 使用静态导入的函数
                 try {
                     updateOperationTypeSelect(operationType, 'global');
                 } catch (err) {
@@ -1212,7 +1198,6 @@ function initializeAIEnhancerFeatures() {
  * 选择增强器
  */
 function selectEnhancer(enhancerType) {
-    // 更新选择状态
     const enhancerCards = document.querySelectorAll('.enhancer-card');
     enhancerCards.forEach(card => {
         const cardType = card.getAttribute('data-enhancer');
@@ -1269,13 +1254,11 @@ async function generatePrompt(enhancerType) {
     
     if (!generateBtn || !previewStatus || !previewContent) return;
     
-    // 更新按钮状态
     generateBtn.disabled = true;
     generateBtn.innerHTML = '<span style="animation: spin 1s linear infinite; display: inline-block;">⚙️</span> 正在生成...';
     if (regenerateBtn) regenerateBtn.disabled = true;
     if (confirmBtn) confirmBtn.disabled = true;
     
-    // 更新状态
     previewStatus.textContent = '生成中...';
     previewStatus.style.background = 'rgba(245, 158, 11, 0.2)';
     previewStatus.style.color = '#f59e0b';
@@ -1296,15 +1279,12 @@ async function generatePrompt(enhancerType) {
         const result = await callEnhancerAPI(enhancerType, params);
         
         if (result.success) {
-            // 更新预览内容
             displayEnhancedPrompt(result.prompt, previewContent);
             
-            // 更新状态
             previewStatus.textContent = '生成完成';
             previewStatus.style.background = 'rgba(16, 185, 129, 0.2)';
             previewStatus.style.color = '#10b981';
             
-            // 添加质量分析
             analyzePromptQuality(result.prompt);
         } else {
             throw new Error(result.error || '生成失败');
@@ -1321,15 +1301,12 @@ async function generatePrompt(enhancerType) {
         
         const randomPrompt = samplePrompts[Math.floor(Math.random() * samplePrompts.length)];
         
-        // 更新预览
         displayEnhancedPrompt(randomPrompt, previewContent);
         
-        // 更新状态
         previewStatus.textContent = '生成完成（示例）';
         previewStatus.style.background = 'rgba(16, 185, 129, 0.2)';
         previewStatus.style.color = '#10b981';
         
-        // 添加质量分析（示例模式）
         analyzePromptQuality(randomPrompt, true);
     } finally {
         // 恢复按钮状态
@@ -1367,20 +1344,17 @@ async function callEnhancerAPI(enhancerType, params) {
         switch (enhancerType) {
             case 'api':
                 endpoint = '/kontext/api_enhance';
-                // 添加API特定参数
                 requestData.api_provider = getAPIConfig().provider || 'siliconflow';
                 requestData.api_key = getAPIConfig().apiKey || '';
                 requestData.model_preset = getAPIConfig().model || 'deepseek-ai/DeepSeek-V3';
                 break;
             case 'ollama':
                 endpoint = '/kontext/ollama_enhance';
-                // 添加Ollama特定参数
                 requestData.ollama_base_url = getOllamaConfig().baseUrl || 'http://localhost:11434';
                 requestData.model_name = getOllamaConfig().model || 'llama3.1:8b';
                 break;
             case 'textgen':
                 endpoint = '/kontext/textgen_enhance';
-                // 添加TextGen特定参数
                 requestData.base_url = getTextGenConfig().baseUrl || 'http://localhost:5000';
                 requestData.model_name = getTextGenConfig().model || 'llama-3.1-8b-instruct';
                 break;
@@ -1504,7 +1478,6 @@ function confirmPrompt() {
  */
 function applyPromptToWorkflow(promptText) {
     try {
-        // 获取当前节点实例
         const currentNode = window.currentVPENode;
         if (!currentNode) {
             console.error('无法获取当前节点实例');
@@ -1512,13 +1485,11 @@ function applyPromptToWorkflow(promptText) {
             return;
         }
 
-        // 更新节点的输出widgets
         const promptWidget = currentNode.widgets?.find(w => w.name === "enhanced_prompt");
         if (promptWidget) {
             promptWidget.value = promptText;
         }
 
-        // 更新annotation_data widget（如果存在标注数据）
         const modal = document.getElementById('unified-editor-modal');
         if (modal?.annotations && modal.annotations.length > 0) {
             const annotationWidget = currentNode.widgets?.find(w => w.name === "annotation_data");
@@ -1611,7 +1582,6 @@ function setupRealtimePreview(enhancerType) {
 function displayEnhancedPrompt(promptText, previewContainer) {
     if (!previewContainer || !promptText) return;
     
-    // 创建增强的显示格式
     const displayHTML = `
         <div style="color: #10b981; line-height: 1.4; font-size: 10px; margin-bottom: 8px;">
             ${promptText}
@@ -1681,7 +1651,6 @@ function copyPromptToClipboard(promptText) {
         `;
         toast.textContent = '✅ 提示词已复制！';
         
-        // 添加动画样式
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideInFromRight {
@@ -1953,7 +1922,6 @@ export function loadLayersToPanel(modal, layers) {
                 checkbox.checked = !checkbox.checked;
             }
             
-            // 更新视觉反馈
             const isSelected = layerItem.querySelector('input[type="checkbox"]').checked;
             layerItem.style.borderColor = isSelected ? '#673AB7' : 'transparent';
             layerItem.style.background = isSelected ? '#3a2a5c' : '#2b2b2b';

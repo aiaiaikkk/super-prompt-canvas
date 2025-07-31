@@ -11,8 +11,7 @@ import {
     createCanvasArea, 
     createPromptArea 
 } from './visual_prompt_editor_ui.js';
-// Layer system imports removed - using Fabric.js native layer management
-// Removed imports for deleted modules - replaced with temporary implementations
+import { globalImageCache } from './visual_prompt_editor_utils.js';
 // import { createSVGAnnotationCreator } from './visual_prompt_editor_svg_creator.js';
 // import { createAnnotationRestorer } from './visual_prompt_editor_annotation_restorer.js';
 // import { createAnnotationEventHandler } from './visual_prompt_editor_annotation_events.js';
@@ -26,12 +25,10 @@ import {
 import { 
     initializeTabSwitching
 } from './visual_prompt_editor_ui.js';
-// Removed import from non-existent visual_prompt_editor_canvas.js
 // import { initCanvasDrawing, initZoomAndPanControls } from './visual_prompt_editor_canvas.js';
 import { 
     bindPromptEvents
 } from './visual_prompt_editor_prompts.js';
-// Removed import from non-existent visual_prompt_editor_annotations.js
 // import { bindCanvasInteractionEvents, bindTabEvents } from './visual_prompt_editor_annotations.js';
 import { 
     initializeLanguageSystem
@@ -47,32 +44,24 @@ import {
 export function createUnifiedModal(imageData, layersData, nodeInstance) {
     
     try {
-        // 设置当前节点实例到全局，供图像获取函数使用
         window.currentVPENode = nodeInstance;
         window.currentVPEInstance = nodeInstance; // 保存完整实例引用
         
-        // 移除已存在的编辑器 (与原始版本一致)
         const existingModal = document.getElementById('unified-editor-modal');
         if (existingModal) {
             existingModal.remove();
         }
         
-        // 创建主模态
         const { modal, content } = createMainModal();
         
-        // 创建标题栏
         const titleBar = createTitleBar();
         
-        // 创建工具栏
         const toolbar = createToolbar();
         
-        // 创建主体区域
         const mainArea = createMainArea();
         
-        // 创建左侧画布区域
         const { canvasArea, canvasContainer, zoomContainer } = createCanvasArea();
         
-        // 创建右侧提示词编辑区域
         const promptArea = createPromptArea();
         
         // 组装界面
@@ -82,7 +71,6 @@ export function createUnifiedModal(imageData, layersData, nodeInstance) {
         mainArea.appendChild(canvasArea);
         mainArea.appendChild(promptArea);
         
-        // 添加到页面
         document.body.appendChild(modal);
         
         // 保存modal引用到实例
@@ -102,7 +90,6 @@ export function createUnifiedModal(imageData, layersData, nodeInstance) {
         // 保存输入图像数据，用于后续加载
         modal.inputImageData = imageData;
         
-        // Layer connection data removed - using Fabric.js objects
         
         return modal;
         
@@ -119,9 +106,8 @@ export function createUnifiedModal(imageData, layersData, nodeInstance) {
 export async function initModalFunctionality(modal, layersData, nodeInstance) {
     
     try {
-        // Layer system controllers removed - using Fabric.js native management
         
-        // 🚀 立即初始化标注系统模块 - using temporary implementations
+        // 初始化标注系统模块
         try {
             nodeInstance.svgAnnotationCreator = createTemporarySVGAnnotationCreator();
             nodeInstance.annotationRestorer = createTemporaryAnnotationRestorer(nodeInstance);
@@ -135,7 +121,6 @@ export async function initModalFunctionality(modal, layersData, nodeInstance) {
             // 先创建数据管理器
             nodeInstance.dataManager = createDataManager(nodeInstance);
             
-            // 获取后端canvas尺寸设置
             const canvasWidth = getBackendCanvasSize(nodeInstance, 'canvas_width', 800);
             const canvasHeight = getBackendCanvasSize(nodeInstance, 'canvas_height', 600);
             
@@ -163,7 +148,6 @@ export async function initModalFunctionality(modal, layersData, nodeInstance) {
             console.error('Fabric.js and module initialization failed:', error);
         }
         
-        // Layer detection removed - using Fabric.js objects only
         
         // 🎯 延迟初始化非关键功能，避免阻塞界面
         setTimeout(() => {
@@ -203,21 +187,19 @@ function initializeDelayedFeatures(modal, nodeInstance) {
             console.error('Tab switching initialization failed:', error);
         }
         
-        // 初始化画布绘制 - temporarily removed due to missing module
         try {
             // initCanvasDrawing(modal);
         } catch (error) {
             console.error('Canvas drawing initialization failed:', error);
         }
         
-        // 初始化缩放和平移控制 - temporarily removed due to missing module  
+  
         try {
             // initZoomAndPanControls(modal);
         } catch (error) {
             console.error('Zoom and pan controls initialization failed:', error);
         }
         
-        // 绑定提示词事件
         try {
             if (typeof bindPromptEvents === 'function') {
                 bindPromptEvents(modal);
@@ -227,7 +209,6 @@ function initializeDelayedFeatures(modal, nodeInstance) {
             console.error('Prompt events binding failed:', error);
         }
         
-        // 绑定画布交互事件
         try {
             if (typeof bindCanvasInteractionEvents === 'function') {
                 bindCanvasInteractionEvents(modal, nodeInstance);
@@ -237,7 +218,6 @@ function initializeDelayedFeatures(modal, nodeInstance) {
             console.error('Canvas interaction events binding failed:', error);
         }
         
-        // 绑定选项卡事件
         try {
             if (typeof bindTabEvents === 'function') {
                 bindTabEvents(modal);
@@ -247,7 +227,6 @@ function initializeDelayedFeatures(modal, nodeInstance) {
             console.error('Tab events binding failed:', error);
         }
         
-        // 绑定基础界面事件（undo、clear、opacity等按钮）
         try {
             if (nodeInstance.eventHandlers && nodeInstance.eventHandlers.bindBasicEvents) {
                 nodeInstance.eventHandlers.bindBasicEvents(modal);
@@ -263,7 +242,6 @@ function initializeDelayedFeatures(modal, nodeInstance) {
     }
 }
 
-// loadConnectedImageLayers function removed - using Fabric.js objects
 
 /**
  * Initialize Fabric.js layer display only
@@ -300,19 +278,16 @@ function bindLayerSelectionEvents(modal, nodeInstance) {
             return;
         }
         
-        // 使用事件委托处理图层选择
         layersList.addEventListener('click', (e) => {
             const layerItem = e.target.closest('.layer-list-item');
             if (layerItem) {
                 e.stopPropagation();
                 
-                // 移除其他图层的选中状态
                 layersList.querySelectorAll('.layer-list-item').forEach(item => {
                     item.classList.remove('selected');
                     item.style.background = '#2b2b2b';
                 });
                 
-                // 设置当前图层为选中
                 layerItem.classList.add('selected');
                 layerItem.style.background = '#10b981';
                 
@@ -360,7 +335,7 @@ function showEmptyLayerState(modal) {
     }
 }
 
-// Temporary implementations for deleted modules
+// 临时实现
 function createTemporarySVGAnnotationCreator() {
     return {
         createAnnotation: () => {},
@@ -405,7 +380,6 @@ function getBackendCanvasSize(nodeInstance, widgetName, defaultValue) {
  */
 function syncCanvasSizeToFrontend(modal, width, height) {
     try {
-        // 更新尺寸输入框
         const widthInput = modal.querySelector('#vpe-canvas-width');
         const heightInput = modal.querySelector('#vpe-canvas-height');
         
@@ -417,7 +391,6 @@ function syncCanvasSizeToFrontend(modal, width, height) {
             heightInput.value = height;
         }
         
-        // 检查是否匹配预设尺寸
         const sizeSelect = modal.querySelector('#vpe-canvas-size');
         if (sizeSelect) {
             const sizeString = `${width}x${height}`;
@@ -443,19 +416,20 @@ function syncCanvasSizeToFrontend(modal, width, height) {
 }
 
 /**
- * 将输入图像加载为Fabric.js图层
+ * 将输入图像加载为Fabric.js图层 - 带智能缓存和自动调整画布尺寸
  */
-function loadInputImageAsLayer(fabricManager, imageData) {
+async function loadInputImageAsLayer(fabricManager, imageData) {
     if (!fabricManager || !fabricManager.fabricCanvas) {
+        console.warn('⚠️ FabricManager or canvas not available');
         return;
     }
 
     if (!imageData) {
+        console.warn('⚠️ No image data provided - using default canvas size');
         return;
     }
 
     try {
-
         // 处理不同格式的图像数据
         let imageUrl = null;
 
@@ -478,9 +452,56 @@ function loadInputImageAsLayer(fabricManager, imageData) {
         }
 
         if (!imageUrl) {
+            console.warn('⚠️ Could not extract image URL from data - using default canvas size');
             return;
         }
 
+        // 🚀 检查画布中是否已存在输入图像
+        const existingInputImages = fabricManager.fabricCanvas.getObjects().filter(obj => 
+            obj.fabricId && obj.fabricId.startsWith('input_image_')
+        );
+
+        const sameUrlImage = existingInputImages.find(obj => 
+            obj.getSrc && obj.getSrc() === imageUrl
+        );
+
+        if (sameUrlImage) {
+            console.log(`✅ Same input image already exists on canvas, skipping reload: ${imageUrl.substring(imageUrl.lastIndexOf('/') + 1)}`);
+            
+            // 确保画布尺寸匹配现有图像
+            const imageWidth = sameUrlImage.width || sameUrlImage.getElement().naturalWidth;
+            const imageHeight = sameUrlImage.height || sameUrlImage.getElement().naturalHeight;
+            
+            const currentCanvasWidth = fabricManager.fabricCanvas.getWidth();
+            const currentCanvasHeight = fabricManager.fabricCanvas.getHeight();
+
+            if (currentCanvasWidth !== imageWidth || currentCanvasHeight !== imageHeight) {
+                console.log(`🔄 Adjusting canvas size to match existing image: ${imageWidth}x${imageHeight}`);
+                fabricManager.fabricCanvas.setDimensions({
+                    width: imageWidth,
+                    height: imageHeight
+                });
+                syncCanvasSizeToFrontend(fabricManager.modal, imageWidth, imageHeight);
+            }
+            
+            // 选中现有图像并更新图层面板
+            fabricManager.fabricCanvas.setActiveObject(sameUrlImage);
+            fabricManager.fabricCanvas.renderAll();
+            
+            if (fabricManager.updateLayerPanel) {
+                fabricManager.updateLayerPanel();
+            }
+            
+            return; // 直接返回，不重复加载
+        }
+
+        // 如果存在不同URL的输入图像，移除旧的输入图像（图像已更改）
+        if (existingInputImages.length > 0) {
+            console.log(`🔄 Input image changed, removing ${existingInputImages.length} old input image(s)`);
+            existingInputImages.forEach(oldImage => {
+                fabricManager.fabricCanvas.remove(oldImage);
+            });
+        }
 
         // 确保fabric库可用
         if (!window.fabric) {
@@ -488,95 +509,84 @@ function loadInputImageAsLayer(fabricManager, imageData) {
             return;
         }
 
-        // 使用Fabric.js加载图像
-        window.fabric.Image.fromURL(imageUrl, (fabricImage) => {
-            if (!fabricImage) {
-                console.error('❌ Fabric.js加载图像失败');
-                return;
-            }
+        console.log(`🖼️ Loading image with caching and auto-resize: ${imageUrl.substring(imageUrl.lastIndexOf('/') + 1)}`);
 
-            try {
-                // 获取画布尺寸
-                const canvasWidth = fabricManager.fabricCanvas.getWidth();
-                const canvasHeight = fabricManager.fabricCanvas.getHeight();
+        const fabricImage = await globalImageCache.getImage(imageUrl);
+        
+        if (!fabricImage) {
+            console.error('❌ 图像缓存加载失败');
+            return;
+        }
 
-                // 获取图像原始尺寸
-                const imageWidth = fabricImage.width || fabricImage.getElement().naturalWidth;
-                const imageHeight = fabricImage.height || fabricImage.getElement().naturalHeight;
+        try {
+            const imageWidth = fabricImage.width || fabricImage.getElement().naturalWidth;
+            const imageHeight = fabricImage.height || fabricImage.getElement().naturalHeight;
 
-                // 计算合适的缩放比例，保持图像比例并适应画布
-                let scaleX = 1;
-                let scaleY = 1;
+            console.log(`📐 Input image dimensions: ${imageWidth}x${imageHeight}`);
 
-                if (imageWidth > canvasWidth || imageHeight > canvasHeight) {
-                    const scaleToFitWidth = canvasWidth / imageWidth;
-                    const scaleToFitHeight = canvasHeight / imageHeight;
-                    const scale = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.9; // 留一些边距
-                    
-                    scaleX = scale;
-                    scaleY = scale;
-                }
+            // 🚀 新功能：自动调整画布尺寸匹配输入图像
+            const currentCanvasWidth = fabricManager.fabricCanvas.getWidth();
+            const currentCanvasHeight = fabricManager.fabricCanvas.getHeight();
 
-                // 计算居中位置
-                const scaledWidth = imageWidth * scaleX;
-                const scaledHeight = imageHeight * scaleY;
-                const centerX = (canvasWidth - scaledWidth) / 2;
-                const centerY = (canvasHeight - scaledHeight) / 2;
-
-                // 一次性设置所有属性
-                fabricImage.set({
-                    left: centerX,
-                    top: centerY,
-                    scaleX: scaleX,
-                    scaleY: scaleY,
-                    selectable: true,
-                    hasControls: true,
-                    hasBorders: true,
-                    fabricId: `input_image_${Date.now()}`,
-                    name: 'Input Image'
-                });
-
-                // 添加到画布
-                fabricManager.fabricCanvas.add(fabricImage);
+            if (currentCanvasWidth !== imageWidth || currentCanvasHeight !== imageHeight) {
+                console.log(`🔄 Resizing canvas from ${currentCanvasWidth}x${currentCanvasHeight} to ${imageWidth}x${imageHeight}`);
                 
-                // 渲染画布
-                fabricManager.fabricCanvas.renderAll();
-
-                // 延迟设置选中状态和更新坐标，确保完全渲染完成
-                requestAnimationFrame(() => {
-                    // 强制更新对象坐标和控制点
-                    fabricImage.setCoords();
-                    
-                    // 设置为选中状态
-                    fabricManager.fabricCanvas.setActiveObject(fabricImage);
-                    
-                    // 再次强制更新所有对象的坐标
-                    fabricManager.fabricCanvas.forEachObject(obj => obj.setCoords());
-                    
-                    // 最终渲染
-                    fabricManager.fabricCanvas.renderAll();
-                    
+                fabricManager.fabricCanvas.setDimensions({
+                    width: imageWidth,
+                    height: imageHeight
                 });
 
-                // 更新图层面板
-                if (fabricManager.updateLayerPanel) {
-                    fabricManager.updateLayerPanel();
-                }
-
-                // 触发自动保存
-                if (fabricManager._scheduleAutoSave) {
-                    fabricManager._scheduleAutoSave();
-                }
-
-
-            } catch (error) {
-                console.error('❌ 设置Fabric图像属性时出错:', error);
+                // 同步画布尺寸到前端控件
+                syncCanvasSizeToFrontend(fabricManager.modal, imageWidth, imageHeight);
+            } else {
+                console.log(`✅ Canvas size already matches image: ${imageWidth}x${imageHeight}`);
             }
 
-        }, {
-            // 图像加载选项
-            crossOrigin: 'anonymous'
-        });
+            fabricImage.set({
+                left: 0,
+                top: 0,
+                scaleX: 1,
+                scaleY: 1,
+                selectable: true,
+                hasControls: true,
+                hasBorders: true,
+                fabricId: `input_image_${Date.now()}`,
+                name: 'Input Image'
+            });
+
+            fabricManager.fabricCanvas.add(fabricImage);
+            
+            // 渲染画布
+            fabricManager.fabricCanvas.renderAll();
+
+            // 延迟设置选中状态和更新坐标，确保完全渲染完成
+            requestAnimationFrame(() => {
+                // 强制更新对象坐标和控制点
+                fabricImage.setCoords();
+                
+                fabricManager.fabricCanvas.setActiveObject(fabricImage);
+                
+                // 再次强制更新所有对象的坐标
+                fabricManager.fabricCanvas.forEachObject(obj => obj.setCoords());
+                
+                // 最终渲染
+                fabricManager.fabricCanvas.renderAll();
+                
+                console.log(`✅ Image loaded successfully: ${imageWidth}x${imageHeight}, cache: ${globalImageCache.cache.has(imageUrl) ? 'HIT' : 'MISS'}`);
+            });
+
+            if (fabricManager.updateLayerPanel) {
+                fabricManager.updateLayerPanel();
+            }
+
+            // 触发自动保存
+            if (fabricManager._scheduleAutoSave) {
+                fabricManager._scheduleAutoSave();
+            }
+
+        } catch (error) {
+            console.error('❌ 设置Fabric图像属性时出错:', error);
+        }
 
     } catch (error) {
         console.error('❌ 加载输入图像失败:', error);

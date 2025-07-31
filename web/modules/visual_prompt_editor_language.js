@@ -15,7 +15,6 @@ export function initializeLanguageSystem(modal) {
     // 初始化语言切换按钮
     const languageToggle = modal.querySelector('#vpe-language-toggle');
     if (languageToggle) {
-        // 绑定点击事件
         languageToggle.addEventListener('click', () => {
             const newLang = toggleLanguage();
             
@@ -30,7 +29,6 @@ export function initializeLanguageSystem(modal) {
             showLanguageChangeNotification(newLang);
         });
         
-        // 添加悬停效果
         languageToggle.addEventListener('mouseenter', () => {
             languageToggle.style.transform = 'translateY(-1px)';
             languageToggle.style.boxShadow = '0 4px 8px rgba(33, 150, 243, 0.3)';
@@ -69,7 +67,6 @@ function showLanguageChangeNotification(language) {
     const langText = language === 'en' ? 'English' : '中文';
     notification.textContent = `🌐 Language switched to ${langText}`;
     
-    // 添加动画样式
     if (!document.getElementById('language-notification-styles')) {
         const style = document.createElement('style');
         style.id = 'language-notification-styles';
@@ -134,7 +131,6 @@ export function getPlaceholderText(key) {
  * 更新下拉选项文本
  */
 export function updateSelectOptions(modal) {
-    // 更新操作类型选项
     const operationSelect = modal.querySelector('#current-layer-operation');
     if (operationSelect) {
         const options = operationSelect.querySelectorAll('option');
@@ -148,7 +144,6 @@ export function updateSelectOptions(modal) {
         });
     }
     
-    // 更新模板分类选项
     const templateSelect = modal.querySelector('#template-category');
     if (templateSelect) {
         const options = templateSelect.querySelectorAll('option');
@@ -162,7 +157,6 @@ export function updateSelectOptions(modal) {
         });
     }
     
-    // 更新AI增强器编辑意图选项
     const editIntentSelect = modal.querySelector('#edit-intent');
     if (editIntentSelect) {
         const options = editIntentSelect.querySelectorAll('option');
@@ -176,7 +170,6 @@ export function updateSelectOptions(modal) {
         });
     }
     
-    // 更新AI增强器处理风格选项
     const processingStyleSelect = modal.querySelector('#processing-style');
     if (processingStyleSelect) {
         const options = processingStyleSelect.querySelectorAll('option');
@@ -190,7 +183,6 @@ export function updateSelectOptions(modal) {
         });
     }
     
-    // 更新AI增强器Temperature选项
     const temperatureSelect = modal.querySelector('#temperature');
     if (temperatureSelect) {
         const options = temperatureSelect.querySelectorAll('option');
@@ -205,7 +197,6 @@ export function updateSelectOptions(modal) {
         });
     }
     
-    // 更新AI增强器随机种子选项
     const seedSelect = modal.querySelector('#seed');
     if (seedSelect) {
         const options = seedSelect.querySelectorAll('option');
@@ -225,7 +216,6 @@ export function updateSelectOptions(modal) {
  * 更新动态文本内容
  */
 export function updateDynamicTexts(modal) {
-    // 更新选择计数
     const selectionCount = modal.querySelector('#selection-count');
     if (selectionCount) {
         const count = selectionCount.textContent.match(/\d+/);
@@ -234,7 +224,6 @@ export function updateDynamicTexts(modal) {
         }
     }
     
-    // 更新占位符文本
     const placeholderElements = [
         { selector: '#dropdown-text', key: 'placeholder_select_layers' },
         { selector: '#current-layer-description', key: 'placeholder_layer_description' },
@@ -271,10 +260,8 @@ function forceDynamicContentRefresh(modal) {
         console.warn('Error updating layer list:', e);
     }
     
-    // 更新下拉选项
     updateSelectOptions(modal);
     
-    // 更新动态文本
     updateDynamicTexts(modal);
     
     // 强制更新所有带有计数的元素

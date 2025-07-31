@@ -38,7 +38,6 @@ function shouldRequireLayerSelection(category, operationType) {
  * 绑定提示词相关事件
  */
 export function bindPromptEvents(modal, getObjectInfoFunction) {
-    // 绑定提示词事件
     
     // 初始化分类选择器
     initializeCategorySelector(modal);
@@ -84,7 +83,6 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
     const descriptionStatus = modal.querySelector('#description-status');
     
     if (generatedDescription) {
-        // 添加编辑状态指示
         let isModified = false;
         let saveTimeout = null;
         let originalValue = generatedDescription.value; // 记录原始值
@@ -96,7 +94,6 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
             
             if (hasChanged && !isModified) {
                 isModified = true;
-                // 添加视觉指示表示内容已修改
                 generatedDescription.style.borderColor = '#FF9800';
                 if (descriptionStatus) {
                     descriptionStatus.style.display = 'block';
@@ -117,12 +114,11 @@ export function bindPromptEvents(modal, getObjectInfoFunction) {
                 clearTimeout(saveTimeout);
             }
             
-            // 设置延迟自动保存 (2秒后)
             if (isModified) {
                 saveTimeout = setTimeout(() => {
                     autoSaveDescription(modal);
                     isModified = false;
-                    originalValue = currentValue; // 更新原始值
+                    originalValue = currentValue;
                     generatedDescription.style.borderColor = '#555';
                     if (descriptionStatus) {
                         descriptionStatus.style.background = '#4CAF50';
@@ -215,10 +211,8 @@ function generateDescription(modal, getObjectInfoFunction) {
         return;
     }
     
-    // 获取选中的标注对象（支持多选）
     const selectedAnnotationIds = getSelectedAnnotationIds(modal);
     
-    // 获取当前操作类型和分类
     const currentCategory = modal.querySelector('#template-category')?.value;
     const currentOperationType = operationType?.value;
     
@@ -247,7 +241,6 @@ function generateDescription(modal, getObjectInfoFunction) {
         }
     } else {
         // 有选择图层的情况（原逻辑）
-        // 检查是否有任何层设置了独立操作
         const individualOperationsInfo = selectedAnnotationIds.map(id => {
             const annotation = modal.annotations.find(ann => ann.id === id);
             return annotation ? {
@@ -275,7 +268,6 @@ function generateDescription(modal, getObjectInfoFunction) {
         }
     }
     
-    // 添加约束性和修饰性提示词
     const originalDescription = description;
     description = enhanceDescriptionWithPrompts(description, modal);
     
@@ -356,7 +348,6 @@ function getSelectedAnnotationIds(modal) {
     // 备用方案3：如果复选框也没有选中，则获取所有有修改设置的标注
     if (fromCheckboxes.length === 0) {
         const annotationsWithOperations = modal.annotations?.filter(ann => {
-            // 检查是否有任何自定义设置：操作类型设置、描述内容、或增强提示词
             const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
             const hasDescription = ann.description && ann.description.trim() !== '';
             const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
@@ -378,7 +369,6 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
     const includeNumbersCheckbox = modal.querySelector('#include-annotation-numbers');
     const includeNumbers = includeNumbersCheckbox ? includeNumbersCheckbox.checked : false;
     
-    // 获取全局设置作为回退
     const globalOperation = modal.querySelector('#operation-type')?.value;
     const globalDescription = modal.querySelector('#target-input')?.value?.trim();
     
@@ -387,7 +377,6 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         const annotation = modal.annotations.find(ann => ann.id === annotationId);
         if (!annotation) return null;
         
-        // 获取该标注的操作类型和描述（如果没有设置，使用全局设置）
         const operationType = annotation.operationType || globalOperation || 'change_color';
         const layerDescription = annotation.description || globalDescription || '';
         
@@ -399,7 +388,6 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         // 生成该层的对象描述
         const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
         
-        // 获取操作模板
         const template = OPERATION_TEMPLATES[operationType];
         if (!template) {
             return `Apply ${operationType} to ${objectDescription}`;
@@ -408,12 +396,10 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         // 生成该层的完整描述
         let layerPrompt = template.description(finalDescription).replace('{object}', objectDescription);
         
-        // 添加该标注的约束性提示词
         if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
             layerPrompt += `, ${annotation.constraintPrompts.join(', ')}`;
         }
         
-        // 添加该标注的修饰性提示词
         if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
             layerPrompt += `, ${annotation.decorativePrompts.join(', ')}`;
         }
@@ -480,7 +466,6 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
         objectDescription = annotationDescriptions[0];
     }
     
-    // 获取操作模板
     const template = OPERATION_TEMPLATES[operation];
     if (!template) {
         return `Apply ${operation} to ${objectDescription}.`;
@@ -499,7 +484,6 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
 function generateSingleAnnotationPrompt(annotation, operation, inputText, modal, includeNumbers = false) {
     const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
     
-    // 获取操作模板
     const template = OPERATION_TEMPLATES[operation];
     if (!template) {
         return `Apply ${operation} to ${objectDescription}.`;
@@ -560,7 +544,6 @@ function generateAnnotationDescription(annotation, includeNumbers = false) {
         description = `the ${color} ${shape} marked area`;
     }
     
-    // 添加位置信息
     let positionInfo = '';
     let centerX, centerY;
     
@@ -598,7 +581,6 @@ function generateAnnotationDescription(annotation, includeNumbers = false) {
  * 生成多模态图像编辑提示词 (保留原有函数用于兼容)
  */
 function generateMultimodalPrompt(selectedObject, operation, inputText, modal, getObjectInfoFunction) {
-    // 获取选中标注的详细信息
     let objectDescription = 'the marked area';
     
     if (selectedObject.startsWith('annotation_')) {
@@ -763,7 +745,6 @@ export function analyzePromptQuality(prompt) {
 export function showPromptQualityAnalysis(modal, prompt) {
     const analysis = analyzePromptQuality(prompt);
     
-    // 创建质量分析显示区域
     let qualityDisplay = modal.querySelector('#prompt-quality-display');
     if (!qualityDisplay) {
         qualityDisplay = document.createElement('div');
@@ -822,16 +803,13 @@ export function exportPromptData(modal) {
     if (!generatedDescription) {
     }
     
-    // 获取选中的约束性和修饰性提示词（支持多选）
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
     const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     
     // 🔴 优化：获取所有已编辑的标注（有操作类型设置的）+ 当前选中的标注
     let selectedAnnotationIds = getSelectedAnnotationIds(modal);
     
-    // 获取所有已修改设置的标注（不管是否当前选中）
     const annotationsWithOperations = modal.annotations?.filter(ann => {
-        // 检查是否有任何自定义设置：操作类型设置、描述内容、或增强提示词
         const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
         const hasDescription = ann.description && ann.description.trim() !== '';
         const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
@@ -844,7 +822,6 @@ export function exportPromptData(modal) {
     const allRelevantIds = [...new Set([...selectedAnnotationIds, ...annotationsWithOperations])];
     
     
-    // 使用合并后的ID列表
     selectedAnnotationIds = allRelevantIds;
     
     const selectedAnnotations = selectedAnnotationIds.map(id => {
@@ -865,7 +842,6 @@ export function exportPromptData(modal) {
     }).filter(ann => ann);
     
     
-    // 获取全局设置
     const operationType = modal.querySelector('#operation-type');
     const targetInput = modal.querySelector('#target-input');
     const templateCategory = modal.querySelector('#template-category');
@@ -937,24 +913,19 @@ function initializeCategorySelector(modal) {
     
     // Edit Control区域不再需要提示词选择器初始化
     
-    // 绑定分类选择器事件
     categorySelect.addEventListener('change', function() {
         const selectedCategory = this.value;
         
-        // 更新操作类型选择器
         updateOperationTypeSelect(operationSelect, selectedCategory);
         
-        // 更新图层选择标签
         updateLayerSelectionLabel(modal, selectedCategory);
         
-        // 设置第一个操作类型为默认选中（不再更新提示词选择器）
         if (operationSelect.options.length > 0) {
             const firstOperation = operationSelect.options[0].value;
             operationSelect.value = firstOperation;  // 设置选中值
         }
     });
     
-    // 绑定操作类型选择器事件
     operationSelect.addEventListener('change', function() {
         const selectedOperation = this.value;
         
@@ -1004,7 +975,6 @@ export function updatePromptSelectors(modal, operationType) {
     const layerDecorativeContainer = modal.querySelector('#layer-decorative-prompts-container');
     
     
-    // 更新图层编辑区域的提示词
     if (layerConstraintContainer && layerDecorativeContainer) {
         updateConstraintPrompts(layerConstraintContainer, operationType);
         updateDecorativePrompts(layerDecorativeContainer, operationType);
@@ -1033,7 +1003,6 @@ function updateConstraintPrompts(containerElement, operationType) {
     const constraints = CONSTRAINT_PROMPTS[operationType] || CONSTRAINT_PROMPTS['default'];
     if (!constraints || !checkboxContainer) return;
     
-    // 添加约束性提示词复选框
     constraints.forEach((constraint, index) => {
         const checkboxWrapper = document.createElement('div');
         checkboxWrapper.style.cssText = 'margin-bottom: 4px; display: flex; align-items: flex-start; gap: 6px;';
@@ -1086,7 +1055,6 @@ function updateDecorativePrompts(containerElement, operationType) {
     const decoratives = DECORATIVE_PROMPTS[operationType] || DECORATIVE_PROMPTS['default'];
     if (!decoratives || !checkboxContainer) return;
     
-    // 添加修饰性提示词复选框
     decoratives.forEach((decorative, index) => {
         const checkboxWrapper = document.createElement('div');
         checkboxWrapper.style.cssText = 'margin-bottom: 4px; display: flex; align-items: flex-start; gap: 6px;';
@@ -1124,13 +1092,11 @@ function updateDecorativePrompts(containerElement, operationType) {
 function enhanceDescriptionWithPrompts(baseDescription, modal) {
     let enhancedDescription = baseDescription;
     
-    // 获取选中的约束性提示词
     const selectedConstraints = getSelectedPrompts(modal, 'constraint');
     if (selectedConstraints.length > 0) {
         enhancedDescription += `, ${selectedConstraints.join(', ')}`;
     }
     
-    // 获取选中的修饰性提示词
     const selectedDecoratives = getSelectedPrompts(modal, 'decorative');
     if (selectedDecoratives.length > 0) {
         enhancedDescription += `, ${selectedDecoratives.join(', ')}`;
@@ -1184,7 +1150,6 @@ function getSelectedPrompts(modal, type) {
         if (window.fabricManager && window.fabricManager.modal && window.fabricManager.modal.annotations) {
             const annotations = window.fabricManager.modal.annotations;
             
-            // 获取所有选中对象的提示词
             let allPrompts = [];
             annotations.forEach((annotation) => {
                 if (type === 'constraint' && annotation.constraintPrompts) {
@@ -1218,7 +1183,6 @@ function getSelectedPrompts(modal, type) {
  */
 function generateGlobalPrompt(operationType, description, modal) {
     
-    // 获取操作模板
     const template = OPERATION_TEMPLATES[operationType];
     if (!template) {
         return description || `Apply ${operationType} to the entire image`;
@@ -1335,15 +1299,12 @@ function getImageDisplayScaleInfo(modal) {
             };
         }
         
-        // 获取画布容器和图像的边界框
         const canvasRect = canvasContainer.getBoundingClientRect();
         const imageRect = mainImage.getBoundingClientRect();
         
-        // 获取图像在画布中的相对位置
         const canvasOffsetX = imageRect.left - canvasRect.left;
         const canvasOffsetY = imageRect.top - canvasRect.top;
         
-        // 获取显示尺寸和原始尺寸
         const displayWidth = imageRect.width;
         const displayHeight = imageRect.height;
         const naturalWidth = mainImage.naturalWidth || mainImage.width;

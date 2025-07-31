@@ -42,12 +42,10 @@ export function getImageFromLoadImageNode(loadImageNode) {
 export function tryGetImageFromNode(sourceNode) {
     try {
         
-        // 检查是否有图像输出
         if (sourceNode.imgs && sourceNode.imgs.length > 0) {
             return sourceNode.imgs[0].src;
         }
         
-        // 检查widgets
         if (sourceNode.widgets) {
             for (let widget of sourceNode.widgets) {
                 if ((widget.name === 'image' || widget.name === 'filename') && widget.value) {
@@ -75,7 +73,6 @@ export function processLayerImageFile(modal, layerId, file, nodeInstance) {
         try {
             const imageData = e.target.result;
             
-            // 更新图层显示
             const layerItem = modal.querySelector(`[data-layer="${layerId}"]`);
             if (layerItem) {
                 const layerText = layerItem.querySelector('span:nth-child(2)');
@@ -83,7 +80,6 @@ export function processLayerImageFile(modal, layerId, file, nodeInstance) {
                     layerText.innerHTML = `📷 ${file.name.substring(0, 15)}${file.name.length > 15 ? '...' : ''}`;
                 }
                 
-                // 更新状态显示
                 const statusSpan = layerItem.querySelector('span:last-child');
                 if (statusSpan) {
                     statusSpan.textContent = 'Loaded';
@@ -121,13 +117,11 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
             return;
         }
         
-        // 移除同ID的现有图像
         const existingImage = imageCanvas.querySelector(`[data-layer-id="${layerId}"]`);
         if (existingImage) {
             existingImage.remove();
         }
         
-        // 创建图像容器
         const imageContainer = document.createElement('div');
         imageContainer.setAttribute('data-layer-id', layerId);
         imageContainer.style.cssText = `
@@ -140,7 +134,6 @@ export function displayImageInCanvas(modal, layerId, imageData, nodeInstance) {
             z-index: 100; // Will be managed by Fabric.js
         `;
         
-        // 创建图像元素
         const img = document.createElement('img');
         img.src = imageData;
         img.style.cssText = `
@@ -218,7 +211,6 @@ export function createDefaultLayer(modal, layerId, nodeInstance) {
 export function loadImageForLayer(modal, layerId, nodeInstance) {
     
     try {
-        // 创建文件输入元素
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
@@ -260,7 +252,6 @@ export function openLayerImageDialog(modal, nodeInstance) {
                 selectedLayer = availableLayers[0];
                 selectedLayer.style.background = '#10b981';
             } else {
-                // 创建一个默认的layer_1
                 const layerId = 'layer_1';
                 createDefaultLayer(modal, layerId, nodeInstance);
                 loadImageForLayer(modal, layerId, nodeInstance);

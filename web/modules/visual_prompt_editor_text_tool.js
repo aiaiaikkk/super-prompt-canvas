@@ -77,19 +77,15 @@ export class TextToolManager {
     async loadFontFile(file) {
         
         try {
-            // 创建字体名称（去除扩展名）
             const fontName = file.name.replace(/\.(ttf|otf|woff|woff2)$/i, '');
             
-            // 创建字体URL
             const fontUrl = URL.createObjectURL(file);
             
-            // 创建FontFace对象
             const fontFace = new FontFace(fontName, `url(${fontUrl})`);
             
             // 加载字体
             await fontFace.load();
             
-            // 添加到document.fonts
             document.fonts.add(fontFace);
             
             // 存储到自定义字体集合
@@ -99,7 +95,6 @@ export class TextToolManager {
                 file: file
             });
             
-            // 更新字体选择器
             this.updateFontSelector(fontName);
             
             alert(`字体 "${fontName}" 上传成功！`);
@@ -116,7 +111,6 @@ export class TextToolManager {
     updateFontSelector(newFontName) {
         const fontSelector = this.modal.querySelector('#font-family-select');
         if (fontSelector) {
-            // 检查是否已存在该字体选项
             const existingOption = Array.from(fontSelector.options).find(
                 option => option.value === newFontName
             );
@@ -226,7 +220,6 @@ export class TextToolManager {
         
         const pointer = this.fabricCanvas.getPointer(e.e);
         
-        // 创建可编辑文字对象（使用IText而不是Text）
         const text = new window.fabric.IText('双击编辑文字', {
             left: pointer.x,
             top: pointer.y,
@@ -244,7 +237,6 @@ export class TextToolManager {
             lockMovementY: false
         });
         
-        // 添加到画布
         this.fabricCanvas.add(text);
         this.fabricCanvas.setActiveObject(text);
         this.fabricCanvas.renderAll();
@@ -303,7 +295,6 @@ export class TextToolManager {
         if (typeof properties.textBold !== 'undefined') this.textBold = properties.textBold;
         if (typeof properties.textItalic !== 'undefined') this.textItalic = properties.textItalic;
         
-        // 更新UI控件状态
         this.updateUIControls();
     }
     
@@ -330,7 +321,6 @@ export class TextToolManager {
      * 清理资源
      */
     cleanup() {
-        // 清理自定义字体的URL对象
         this.customFonts.forEach(font => {
             if (font.url && font.url.startsWith('blob:')) {
                 URL.revokeObjectURL(font.url);

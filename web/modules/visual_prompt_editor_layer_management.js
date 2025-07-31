@@ -32,7 +32,6 @@ export class LayerManager {
      */
     initialize() {
         
-        // 创建背景图层
         this.backgroundLayer = {
             id: 'background',
             name: '背景',
@@ -43,7 +42,6 @@ export class LayerManager {
             zIndex: 0
         };
         
-        // 创建3个用户图层
         for (let i = 1; i <= 3; i++) {
             this.layers.push({
                 id: `layer_${i}`,
@@ -292,7 +290,6 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
     
     nodeInstance._swapDebounce.add(swapKey);
     
-    // 设置超时清理防抖标记
     setTimeout(() => {
         nodeInstance._swapDebounce.delete(swapKey);
     }, 1000);
@@ -337,7 +334,6 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
         }
         
         // 继续执行交换逻辑...
-        // 使用layerOrderController模块中的实现
         try {
             if (nodeInstance?.layerOrderController?.performLayerSwap) {
                 nodeInstance.layerOrderController.performLayerSwap(modal, allLayers, layerId1, layerId2, swapKey);

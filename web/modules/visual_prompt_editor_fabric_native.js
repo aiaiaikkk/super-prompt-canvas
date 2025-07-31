@@ -89,19 +89,14 @@ export class FabricNativeManager {
             // 加载Fabric.js
             await loadFabricJS();
             
-            // 创建Canvas - 官方标准方式
             this.createOfficialCanvas();
             
-            // 绑定官方事件 - 完全按照官方文档
             this.bindOfficialEvents();
             
-            // 设置官方工具栏
             this.setupOfficialToolbar();
             
-            // 设置画布拖拽上传功能
             this.setupCanvasDragDrop();
             
-            // 设置默认颜色（红色）
             this.setColor('#ff0000');
             
             // 同步工具栏不透明度滑块的默认值
@@ -118,10 +113,8 @@ export class FabricNativeManager {
                 this.textToolManager = null;
             }
             
-            // 设置初始缩放显示
             this.updateZoomDisplay(this.canvasViewScale);
             
-            // 绑定键盘事件 - Fabric.js官方支持
             this.bindKeyboardEvents();
             
             // 初始化图层面板显示
@@ -130,7 +123,6 @@ export class FabricNativeManager {
             // 恢复保存的Fabric画布数据
             await this.restoreSavedCanvasData();
             
-            // 设置全局引用供其他模块使用
             window.fabricManager = this;
             
             return true;
@@ -158,7 +150,6 @@ export class FabricNativeManager {
         // 保存画布容器引用用于视图缩放
         this.canvasContainer = canvasContainer;
         
-        // 创建Canvas元素 - 官方标准
         const canvasElement = document.createElement('canvas');
         canvasElement.id = 'fabric-official-canvas';
         canvasElement.width = 800;
@@ -168,7 +159,6 @@ export class FabricNativeManager {
         canvasContainer.innerHTML = '';
         canvasContainer.appendChild(canvasElement);
         
-        // 创建Fabric Canvas实例 - 修复控制点显示问题
         this.fabricCanvas = new fabric.Canvas(canvasElement, {
             width: 800,
             height: 600,
@@ -188,7 +178,6 @@ export class FabricNativeManager {
         canvasElement.style.width = '800px';
         canvasElement.style.height = '600px';
         
-        // 设置官方推荐的对象默认属性
         fabric.Object.prototype.set({
             transparentCorners: false,
             cornerColor: '#4CAF50',
@@ -199,7 +188,6 @@ export class FabricNativeManager {
             hasRotatingPoint: true
         });
         
-        // 设置自由绘制画笔的默认属性
         this.fabricCanvas.freeDrawingBrush.width = 2;
         this.fabricCanvas.freeDrawingBrush.color = '#ff0000'; // 默认红色
         
@@ -258,6 +246,11 @@ export class FabricNativeManager {
             this._scheduleAutoSave();
         });
         
+        // 鼠标滚轮事件 - 选中对象缩放
+        this.fabricCanvas.on('mouse:wheel', (opt) => {
+            this.handleMouseWheelScaling(opt);
+        });
+        
         // 对象移动事件 - 图层顺序改变时更新面板
         this.fabricCanvas.on('object:moving', () => {
             // 移动过程中不更新，避免频繁重绘
@@ -283,7 +276,6 @@ export class FabricNativeManager {
             this._scheduleAutoSave();
         });
         
-        // 移除Fabric内容缩放，改为DOM视图缩放
         // this.fabricCanvas.on('mouse:wheel', (opt) => {
         //     this.handleCanvasZoom(opt);
         // });
@@ -362,7 +354,6 @@ export class FabricNativeManager {
                 // 减少事件阻止的激进程度
                 e.e.preventDefault();
                 
-                // 使用requestAnimationFrame替代setTimeout
                 requestAnimationFrame(() => {
                     this.handleCtrlClick(e.target);
                 });
@@ -449,7 +440,6 @@ export class FabricNativeManager {
         const pointer = this.fabricCanvas.getPointer(e.e);
         const { x: startX, y: startY } = this.startPoint;
         
-        // 更新对象尺寸
         if (this.currentTool === 'rectangle') {
             const width = Math.abs(pointer.x - startX);
             const height = Math.abs(pointer.y - startY);
@@ -508,11 +498,9 @@ export class FabricNativeManager {
             // 从多选集合中移除
             this.multiSelectObjects.delete(targetObject);
         } else {
-            // 添加到多选集合
             this.multiSelectObjects.add(targetObject);
         }
         
-        // 更新Fabric.js选择状态
         this.updateFabricSelection();
     }
     
@@ -527,7 +515,6 @@ export class FabricNativeManager {
         // 缓存之前选中对象的状态
         this.cacheCurrentLayerState();
         
-        // 更新modal的selectedLayers Set，用于提示词系统
         if (!this.modal.selectedLayers) {
             this.modal.selectedLayers = new Set();
         }
@@ -573,10 +560,8 @@ export class FabricNativeManager {
             // 为选中的Fabric对象创建或更新标注数据
             this.syncFabricObjectsToAnnotations(selectedObjects);
             
-            // 绑定约束和修饰提示词选择事件
             this.bindPromptSelectionEvents();
             
-            // 绑定操作类型和描述文本的同步事件
             this.bindLayerDataSyncEvents();
         } else {
             // 没有选中对象时，隐藏局部编辑相关UI
@@ -660,13 +645,11 @@ export class FabricNativeManager {
             }
         }
         
-        // 更新选择计数显示
         this.updateSelectionCountDisplay();
         
         // 加载约束和修饰提示词
         this.loadConstraintAndDecorativePrompts();
         
-        // 绑定操作类型选择器事件
         this.bindOperationTypeChangeEvent();
     }
     
@@ -684,7 +667,6 @@ export class FabricNativeManager {
      * 加载约束和修饰提示词
      */
     loadConstraintAndDecorativePrompts() {
-        // 获取当前选中的操作类型
         const operationSelect = this.modal.querySelector('#current-layer-operation');
         const operationType = operationSelect ? operationSelect.value : 'change_color';
         
@@ -708,7 +690,6 @@ export class FabricNativeManager {
         
         const prompts = CONSTRAINT_PROMPTS[operationType] || [];
         
-        // 创建约束性提示词选择器
         const promptsHTML = prompts.map((prompt, index) => `
             <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
                 <input type="checkbox" 
@@ -756,7 +737,6 @@ export class FabricNativeManager {
         
         const prompts = DECORATIVE_PROMPTS[operationType] || [];
         
-        // 创建修饰性提示词选择器
         const promptsHTML = prompts.map((prompt, index) => `
             <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
                 <input type="checkbox" 
@@ -801,7 +781,6 @@ export class FabricNativeManager {
     updateAnnotationConstraintPrompts() {
         if (!this.modal.selectedLayers || !this.modal.annotations) return;
         
-        // 获取当前选中的约束性提示词
         const constraintContainer = this.modal.querySelector('#layer-constraint-prompts-container');
         if (!constraintContainer) return;
         
@@ -813,7 +792,6 @@ export class FabricNativeManager {
             }
         });
         
-        // 更新所有选中对象的约束性提示词
         this.modal.selectedLayers.forEach(layerId => {
             const annotation = this.modal.annotations.find(ann => ann.id === layerId);
             if (annotation) {
@@ -828,7 +806,6 @@ export class FabricNativeManager {
     updateAnnotationDecorativePrompts() {
         if (!this.modal.selectedLayers || !this.modal.annotations) return;
         
-        // 获取当前选中的修饰性提示词
         const decorativeContainer = this.modal.querySelector('#layer-decorative-prompts-container');
         if (!decorativeContainer) return;
         
@@ -840,7 +817,6 @@ export class FabricNativeManager {
             }
         });
         
-        // 更新所有选中对象的修饰性提示词
         this.modal.selectedLayers.forEach(layerId => {
             const annotation = this.modal.annotations.find(ann => ann.id === layerId);
             if (annotation) {
@@ -855,15 +831,12 @@ export class FabricNativeManager {
     bindOperationTypeChangeEvent() {
         const operationSelect = this.modal.querySelector('#current-layer-operation');
         if (operationSelect) {
-            // 移除之前的事件监听器（如果存在）
             operationSelect.removeEventListener('change', this.operationTypeChangeHandler);
             
-            // 创建事件处理器并保存引用
             this.operationTypeChangeHandler = () => {
                 this.loadConstraintAndDecorativePrompts();
             };
             
-            // 添加新的事件监听器
             operationSelect.addEventListener('change', this.operationTypeChangeHandler);
         }
     }
@@ -872,7 +845,6 @@ export class FabricNativeManager {
      * 绑定约束和修饰提示词选择事件
      */
     bindPromptSelectionEvents() {
-        // 绑定约束性提示词复选框事件
         const constraintCheckboxes = this.modal.querySelectorAll('.constraint-prompt-checkbox');
         constraintCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', () => {
@@ -880,7 +852,6 @@ export class FabricNativeManager {
             });
         });
         
-        // 绑定修饰性提示词复选框事件
         const decorativeCheckboxes = this.modal.querySelectorAll('.decorative-prompt-checkbox');
         decorativeCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', () => {
@@ -896,7 +867,6 @@ export class FabricNativeManager {
         const selectedPrompts = Array.from(this.modal.querySelectorAll('.constraint-prompt-checkbox:checked'))
             .map(checkbox => checkbox.dataset.prompt);
         
-        // 更新所有选中的Fabric对象的约束性提示词
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
                 const annotation = this.modal.annotations.find(ann => ann.id === layerId);
@@ -914,7 +884,6 @@ export class FabricNativeManager {
         const selectedPrompts = Array.from(this.modal.querySelectorAll('.decorative-prompt-checkbox:checked'))
             .map(checkbox => checkbox.dataset.prompt);
         
-        // 更新所有选中的Fabric对象的修饰性提示词
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
                 const annotation = this.modal.annotations.find(ann => ann.id === layerId);
@@ -929,7 +898,6 @@ export class FabricNativeManager {
      * 绑定图层数据同步事件
      */
     bindLayerDataSyncEvents() {
-        // 绑定操作类型选择器
         const operationSelect = this.modal.querySelector('#current-layer-operation');
         if (operationSelect) {
             operationSelect.addEventListener('change', () => {
@@ -937,7 +905,6 @@ export class FabricNativeManager {
             });
         }
         
-        // 绑定描述文本框
         const descriptionTextarea = this.modal.querySelector('#current-layer-description');
         if (descriptionTextarea) {
             descriptionTextarea.addEventListener('input', () => {
@@ -953,7 +920,6 @@ export class FabricNativeManager {
         const operationSelect = this.modal.querySelector('#current-layer-operation');
         const operationType = operationSelect ? operationSelect.value : 'change_color';
         
-        // 更新所有选中的Fabric对象的操作类型
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
                 const annotation = this.modal.annotations.find(ann => ann.id === layerId);
@@ -971,7 +937,6 @@ export class FabricNativeManager {
         const descriptionTextarea = this.modal.querySelector('#current-layer-description');
         const description = descriptionTextarea ? descriptionTextarea.value : '';
         
-        // 更新所有选中的Fabric对象的描述
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
                 const annotation = this.modal.annotations.find(ann => ann.id === layerId);
@@ -988,13 +953,11 @@ export class FabricNativeManager {
     updateSelectionCountDisplay() {
         const selectedCount = this.modal.selectedLayers ? this.modal.selectedLayers.size : 0;
         
-        // 更新选择计数文本
         const selectionCountElements = this.modal.querySelectorAll('#selection-count, #selection-count-info');
         selectionCountElements.forEach(element => {
             element.textContent = `${selectedCount} selected`;
         });
         
-        // 更新生成按钮
         const generateBtn = this.modal.querySelector('#generate-prompt');
         if (generateBtn) {
             if (selectedCount > 0) {
@@ -1025,7 +988,6 @@ export class FabricNativeManager {
             currentLayerInfo.style.display = 'none';
         }
         
-        // 更新选择计数显示
         this.updateSelectionCountDisplay();
     }
     
@@ -1043,11 +1005,9 @@ export class FabricNativeManager {
                 obj.fabricId = this.generateFabricObjectId();
             }
             
-            // 检查是否已有对应的标注数据
             let annotation = this.modal.annotations.find(ann => ann.id === obj.fabricId);
             
             if (!annotation) {
-                // 创建新的标注数据
                 annotation = {
                     id: obj.fabricId,
                     type: obj.type || 'object',
@@ -1060,7 +1020,6 @@ export class FabricNativeManager {
                 };
                 this.modal.annotations.push(annotation);
             } else {
-                // 更新现有标注的bounds
                 annotation.bounds = this.getFabricObjectBounds(obj);
                 annotation.fabricObject = obj;
             }
@@ -1113,12 +1072,10 @@ export class FabricNativeManager {
             );
             
             if (validObjects.length > 1) {
-                // 创建ActiveSelection，传入对象数组和画布
                 const activeSelection = new fabric.ActiveSelection(validObjects, {
                     canvas: this.fabricCanvas
                 });
                 
-                // 设置为活动对象
                 this.fabricCanvas.setActiveObject(activeSelection);
             } else if (validObjects.length === 1) {
                 // 如果只有一个有效对象，单选
@@ -1192,7 +1149,6 @@ export class FabricNativeManager {
             this.isDrawingPolygon = true;
             this.showPolygonPreview();
         } else {
-            // 更新多边形预览
             this.updatePolygonPreview();
         }
     }
@@ -1212,15 +1168,12 @@ export class FabricNativeManager {
     showPolygonPreview() {
         if (this.polygonPoints.length < 1) return;
         
-        // 创建临时线条显示多边形轮廓
         const points = [...this.polygonPoints];
         if (points.length >= 2) {
-            // 移除之前的预览线条
             if (this.tempPolygonLine) {
                 this.fabricCanvas.remove(this.tempPolygonLine);
             }
             
-            // 创建新的预览线条
             this.tempPolygonLine = new fabric.Polyline(points, {
                 fill: 'transparent',
                 stroke: this.currentColor || '#ff0000',
@@ -1257,13 +1210,11 @@ export class FabricNativeManager {
             return;
         }
         
-        // 移除预览线条
         if (this.tempPolygonLine) {
             this.fabricCanvas.remove(this.tempPolygonLine);
             this.tempPolygonLine = null;
         }
         
-        // 创建正式的多边形对象 - Fabric.js官方API
         const polygon = new fabric.Polygon(this.polygonPoints, {
             ...this.drawingOptions,
             selectable: true,
@@ -1273,7 +1224,6 @@ export class FabricNativeManager {
         });
         
         
-        // 添加到画布并选中
         this.fabricCanvas.add(polygon);
         this.fabricCanvas.setActiveObject(polygon);
         this.fabricCanvas.renderAll();
@@ -1286,7 +1236,6 @@ export class FabricNativeManager {
      * 取消多边形绘制
      */
     cancelPolygon() {
-        // 移除预览线条
         if (this.tempPolygonLine) {
             this.fabricCanvas.remove(this.tempPolygonLine);
             this.tempPolygonLine = null;
@@ -1321,7 +1270,6 @@ export class FabricNativeManager {
             'freehand': this.modal.querySelector('[data-tool="freehand"]')
         };
         
-        // 绑定工具按钮事件
         Object.entries(toolButtons).forEach(([tool, button]) => {
             if (button) {
                 button.addEventListener('click', () => {
@@ -1339,13 +1287,10 @@ export class FabricNativeManager {
             });
         }
         
-        // 设置颜色选择器
         this.setupColorPicker();
         
-        // 设置画布背景颜色选择器
         this.setupCanvasBackgroundPicker();
         
-        // 设置缩放控制按钮
         this.setupZoomControls();
         
     }
@@ -1430,12 +1375,10 @@ export class FabricNativeManager {
         this.currentColor = color;
         this.updateDrawingOptions();
         
-        // 更新自由绘制画笔颜色
         if (this.fabricCanvas.freeDrawingBrush) {
             this.fabricCanvas.freeDrawingBrush.color = color;
         }
         
-        // 更新文字工具颜色
         if (this.textToolManager) {
             this.textToolManager.textColor = color;
         }
@@ -1541,7 +1484,6 @@ export class FabricNativeManager {
                 
                 const files = e.dataTransfer.files;
                 if (files.length > 0 && files[0].type.startsWith('image/')) {
-                    // 使用统一的上传方法
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         this.uploadImageToCanvas(event.target.result, {
@@ -1573,7 +1515,6 @@ export class FabricNativeManager {
             this.cancelPolygon();
         }
         
-        // 设置光标
         switch (toolName) {
             case 'select':
                 this.fabricCanvas.defaultCursor = 'default';
@@ -1643,11 +1584,9 @@ export class FabricNativeManager {
     applyCanvasViewScale() {
         if (!this.canvasContainer) return;
         
-        // 设置CSS transform缩放整个画布容器
         this.canvasContainer.style.transform = `scale(${this.canvasViewScale})`;
         this.canvasContainer.style.transformOrigin = 'center';
         
-        // 更新缩放显示
         this.updateZoomDisplay(this.canvasViewScale);
         
         // 调整容器的父元素以适应缩放后的大小
@@ -1677,11 +1616,9 @@ export class FabricNativeManager {
     fitCanvasView() {
         if (!this.canvasContainer) return;
         
-        // 获取画布容器的父容器
         const parentContainer = this.canvasContainer.parentElement;
         if (!parentContainer) return;
         
-        // 获取尺寸
         const containerWidth = this.canvasContainer.offsetWidth;
         const containerHeight = this.canvasContainer.offsetHeight;
         const parentWidth = parentContainer.clientWidth;
@@ -1742,7 +1679,6 @@ export class FabricNativeManager {
                            obj.type === 'image' ? '🖼️ 图片' :
                            obj.type === 'text' ? '🅰️ 文字' : `📐 ${obj.type}`;
             
-            // 检查是否选中（使用实际对象引用比较）
             const isSelected = activeObjects.some(activeObj => activeObj === obj);
             
             return `
@@ -2017,7 +1953,6 @@ export class FabricNativeManager {
             return;
         }
         
-        // 获取第一个选中对象的ID（目前只支持单选状态恢复）
         const firstObject = selectedObjects[0];
         if (firstObject && firstObject.fabricId) {
             this.currentSelectedLayerId = firstObject.fabricId;
@@ -2036,7 +1971,6 @@ export class FabricNativeManager {
             clearTimeout(this.autoSaveTimeout);
         }
         
-        // 设置新的定时器
         this.autoSaveTimeout = setTimeout(() => {
             this.performAutoSave();
         }, this.autoSaveDelay);
@@ -2072,7 +2006,6 @@ export class FabricNativeManager {
             if (fabricData) {
                 const success = await this.dataManager.restoreFabricCanvas(this.fabricCanvas, fabricData);
                 if (success) {
-                    // 更新图层面板
                     this.updateLayerPanel();
                 }
             }
@@ -2090,13 +2023,11 @@ export class FabricNativeManager {
         }
         
         try {
-            // 设置Fabric.js画布尺寸 - 使用官方API
             this.fabricCanvas.setDimensions({
                 width: width,
                 height: height
             });
             
-            // 设置HTML canvas元素尺寸
             const canvasElement = this.fabricCanvas.getElement();
             if (canvasElement) {
                 canvasElement.width = width;
@@ -2145,7 +2076,6 @@ export class FabricNativeManager {
                     return;
                 }
 
-                // 设置默认属性
                 const defaults = {
                     selectable: true,
                     hasControls: true,
@@ -2175,12 +2105,10 @@ export class FabricNativeManager {
                     });
                 }
 
-                // 添加到画布
                 this.fabricCanvas.add(fabricImage);
                 this.fabricCanvas.setActiveObject(fabricImage);
                 this.fabricCanvas.renderAll();
 
-                // 更新图层面板
                 this.updateLayerPanel();
 
                 // 触发自动保存
@@ -2209,7 +2137,6 @@ export class FabricNativeManager {
                 // 强制重新渲染控制点
                 this.fabricCanvas.renderAll();
                 
-                // 使用requestAnimationFrame确保在下一帧重新计算
                 requestAnimationFrame(() => {
                     activeObject.setCoords();
                     this.fabricCanvas.renderAll();
@@ -2218,6 +2145,53 @@ export class FabricNativeManager {
         } catch (error) {
             console.error('❌ 修复控制点显示失败:', error);
         }
+    }
+    
+    /**
+     * 处理鼠标滚轮缩放选中对象
+     */
+    handleMouseWheelScaling(opt) {
+        const evt = opt.e;
+        const activeObject = this.fabricCanvas.getActiveObject();
+        
+        // 只有在有选中对象时才处理
+        if (!activeObject) {
+            return;
+        }
+        
+        // 阻止默认滚动行为
+        evt.preventDefault();
+        evt.stopPropagation();
+        
+        // 获取滚轮方向
+        const delta = evt.deltaY;
+        const scaleFactor = delta < 0 ? 1.1 : 0.9; // 向上滚动放大，向下滚动缩小
+        
+        // 获取当前缩放值
+        const currentScaleX = activeObject.scaleX || 1;
+        const currentScaleY = activeObject.scaleY || 1;
+        
+        // 计算新的缩放值，限制缩放范围
+        const newScaleX = Math.max(0.1, Math.min(5.0, currentScaleX * scaleFactor));
+        const newScaleY = Math.max(0.1, Math.min(5.0, currentScaleY * scaleFactor));
+        
+        // 应用缩放
+        activeObject.set({
+            scaleX: newScaleX,
+            scaleY: newScaleY
+        });
+        
+        // 更新对象坐标
+        activeObject.setCoords();
+        
+        // 重新渲染画布
+        this.fabricCanvas.renderAll();
+        
+        // 触发自动保存
+        this._scheduleAutoSave();
+        
+        // 触发对象修改事件
+        this.fabricCanvas.fire('object:modified', { target: activeObject });
     }
 }
 

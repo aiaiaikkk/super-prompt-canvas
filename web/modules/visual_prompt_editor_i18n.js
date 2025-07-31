@@ -2046,7 +2046,6 @@ export function toggleLanguage() {
 export function updateAllUITexts(modal) {
     if (!modal) return;
     
-    // 更新所有带有 data-i18n 属性的元素
     const elements = modal.querySelectorAll('[data-i18n]');
     elements.forEach(element => {
         const key = element.getAttribute('data-i18n');
@@ -2064,7 +2063,6 @@ export function updateAllUITexts(modal) {
         }
     });
     
-    // 更新所有带有 data-i18n-title 属性的元素的 title 属性
     const elementsWithTitle = modal.querySelectorAll('[data-i18n-title]');
     elementsWithTitle.forEach(element => {
         const key = element.getAttribute('data-i18n-title');
@@ -2074,7 +2072,6 @@ export function updateAllUITexts(modal) {
         }
     });
     
-    // 更新所有带有 data-i18n-placeholder 属性的元素的 placeholder 属性
     const elementsWithPlaceholder = modal.querySelectorAll('[data-i18n-placeholder]');
     elementsWithPlaceholder.forEach(element => {
         const key = element.getAttribute('data-i18n-placeholder');
@@ -2084,7 +2081,6 @@ export function updateAllUITexts(modal) {
         }
     });
     
-    // 更新选择计数文本
     const selectionCount = modal.querySelector('#selection-count');
     if (selectionCount) {
         const count = selectionCount.textContent.match(/\d+/);
@@ -2093,7 +2089,6 @@ export function updateAllUITexts(modal) {
         }
     }
     
-    // 更新select元素的option文本
     const selectElements = modal.querySelectorAll('select');
     selectElements.forEach(select => {
         const options = select.querySelectorAll('option[data-i18n]');
