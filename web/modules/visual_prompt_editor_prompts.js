@@ -3,7 +3,7 @@
  * 负责生成适合多模态图像编辑模型的提示词
  */
 
-import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect, KontextUtils } from './visual_prompt_editor_utils.js';
+import { OPERATION_TEMPLATES, TEMPLATE_CATEGORIES, CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, updateOperationTypeSelect, KontextUtils, intelligentReasoning } from './visual_prompt_editor_utils.js';
 import { t } from './visual_prompt_editor_i18n.js';
 
 /**
@@ -269,7 +269,11 @@ function generateDescription(modal, getObjectInfoFunction) {
     }
     
     const originalDescription = description;
-    description = enhanceDescriptionWithPrompts(description, modal);
+    
+    // 只有在全局操作时才添加约束和修饰提示词，避免与层级操作重复
+    if (selectedAnnotationIds.length === 0) {
+        description = enhanceDescriptionWithPrompts(description, modal);
+    }
     
     generatedDescription.value = description;
     
@@ -372,12 +376,34 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
     const globalOperation = modal.querySelector('#operation-type')?.value;
     const globalDescription = modal.querySelector('#target-input')?.value?.trim();
     
+    console.log('🧠 智能推理：开始生成多层提示词...');
+    console.log('🐛 DEBUG: globalOperation =', globalOperation);
+    console.log('🐛 DEBUG: globalDescription =', globalDescription);
+    
+    // 🧠 使用智能推理系统分析用户意图
+    const selectedAnnotations = selectedAnnotationIds.map(id => 
+        modal.annotations.find(ann => ann.id === id)
+    ).filter(ann => ann);
+    
+    const intelligentAnalysis = intelligentReasoning.analyzeUserIntent(
+        modal, 
+        selectedAnnotations, 
+        globalOperation || 'add_object', 
+        globalDescription || ''
+    );
+    
+    console.log('🧠 智能分析结果:', intelligentAnalysis);
+    
     // 为每个选中的标注生成独立的描述
     const layerDescriptions = selectedAnnotationIds.map(annotationId => {
         const annotation = modal.annotations.find(ann => ann.id === annotationId);
         if (!annotation) return null;
         
-        const operationType = annotation.operationType || globalOperation || 'change_color';
+        // 优先使用globalOperation，忽略annotation中可能的旧值
+        const operationType = globalOperation || annotation.operationType || 'add_object';
+        console.log('🐛 DEBUG: annotation.operationType =', annotation.operationType);
+        console.log('🐛 DEBUG: globalOperation =', globalOperation);
+        console.log('🐛 DEBUG: final operationType =', operationType);
         const layerDescription = annotation.description || globalDescription || '';
         
         // 如果标注没有描述，尝试从当前层描述框获取
@@ -389,19 +415,50 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         const objectDescription = generateAnnotationDescription(annotation, includeNumbers);
         
         const template = OPERATION_TEMPLATES[operationType];
+        console.log('🐛 DEBUG: template =', template);
+        console.log('🐛 DEBUG: finalDescription =', finalDescription);
+        console.log('🐛 DEBUG: objectDescription =', objectDescription);
+        
         if (!template) {
             return `Apply ${operationType} to ${objectDescription}`;
         }
         
-        // 生成该层的完整描述
-        let layerPrompt = template.description(finalDescription).replace('{object}', objectDescription);
+        // 🧠 使用智能推理系统生成上下文感知的描述
+        let layerPrompt;
+        if (template.description && typeof template.description === 'function') {
+            // 使用检测到的场景来生成上下文感知的描述
+            const scenario = intelligentAnalysis.scenario.type;
+            layerPrompt = template.description(finalDescription, scenario).replace('{object}', objectDescription);
+            console.log(`🧠 使用 ${scenario} 场景生成智能描述:`, layerPrompt);
+        } else {
+            layerPrompt = template.description(finalDescription).replace('{object}', objectDescription);
+        }
+        console.log('🐛 DEBUG: layerPrompt after template.description =', layerPrompt);
         
-        if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
-            layerPrompt += `, ${annotation.constraintPrompts.join(', ')}`;
+        // 🧠 智能选择约束条件 - 优先使用AI推荐的约束
+        let constraintsToUse = [];
+        if (intelligentAnalysis.strategy.recommendedConstraints && intelligentAnalysis.strategy.recommendedConstraints.length > 0) {
+            constraintsToUse = intelligentAnalysis.strategy.recommendedConstraints;
+            console.log(`🧠 应用智能推荐约束条件:`, constraintsToUse);
+        } else if (annotation.constraintPrompts && annotation.constraintPrompts.length > 0) {
+            constraintsToUse = annotation.constraintPrompts;
         }
         
-        if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
-            layerPrompt += `, ${annotation.decorativePrompts.join(', ')}`;
+        if (constraintsToUse.length > 0) {
+            layerPrompt += `, ${constraintsToUse.join(', ')}`;
+        }
+        
+        // 🧠 智能选择修饰词 - 优先使用AI推荐的修饰词
+        let decorativesToUse = [];
+        if (intelligentAnalysis.strategy.recommendedDecoratives && intelligentAnalysis.strategy.recommendedDecoratives.length > 0) {
+            decorativesToUse = intelligentAnalysis.strategy.recommendedDecoratives;
+            console.log(`🧠 应用智能推荐修饰词:`, decorativesToUse);
+        } else if (annotation.decorativePrompts && annotation.decorativePrompts.length > 0) {
+            decorativesToUse = annotation.decorativePrompts;
+        }
+        
+        if (decorativesToUse.length > 0) {
+            layerPrompt += `, ${decorativesToUse.join(', ')}`;
         }
         
         return layerPrompt;
@@ -422,7 +479,13 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
         combinedDescription = `${layerDescriptions.join(', ')}, and ${lastDesc}`;
     }
     
+    // 🧠 显示智能推理结果给用户
+    if (intelligentAnalysis.recommendations.length > 0) {
+        console.log('🧠 智能推荐:', intelligentAnalysis.recommendations);
+        // 可以选择在UI中显示推荐，但为了保持简洁暂时只在控制台显示
+    }
     
+    console.log('🧠 最终智能生成的提示词:', combinedDescription);
     return combinedDescription;
 }
 
@@ -908,8 +971,8 @@ function initializeCategorySelector(modal) {
         }
     }
     
-    // 初始化为全局调整模板（第一个选项）
-    updateOperationTypeSelect(operationSelect, 'global');
+    // 初始化为局部编辑模板（第一个选项）
+    updateOperationTypeSelect(operationSelect, 'local');
     
     // Edit Control区域不再需要提示词选择器初始化
     
@@ -929,15 +992,18 @@ function initializeCategorySelector(modal) {
     operationSelect.addEventListener('change', function() {
         const selectedOperation = this.value;
         
-        // 可以在这里添加操作类型切换的逻辑
-        // 例如更新UI显示或预填充描述模板
+        // 更新约束性和修饰性提示词选择器
+        updatePromptSelectors(modal, selectedOperation);
     });
     
     
     // 初始化时也更新标签
     updateLayerSelectionLabel(modal, categorySelect.value);
     
-    
+    // 初始化时更新提示词选择器
+    if (operationSelect.value) {
+        updatePromptSelectors(modal, operationSelect.value);
+    }
     
     // Edit Control区域已简化，调试信息已移除
 }
@@ -1000,8 +1066,12 @@ function updateConstraintPrompts(containerElement, operationType) {
     `;
     
     const checkboxContainer = actualContainer.querySelector('#constraint-checkboxes');
-    const constraints = CONSTRAINT_PROMPTS[operationType] || CONSTRAINT_PROMPTS['default'];
-    if (!constraints || !checkboxContainer) return;
+    const constraints = CONSTRAINT_PROMPTS[operationType] || [];
+    
+    if (!constraints || constraints.length === 0 || !checkboxContainer) {
+        checkboxContainer.innerHTML = `<div style="color: #888; font-size: 11px; padding: 8px;">No constraint prompts available for "${operationType}" operation type.</div>`;
+        return;
+    }
     
     constraints.forEach((constraint, index) => {
         const checkboxWrapper = document.createElement('div');
@@ -1052,8 +1122,12 @@ function updateDecorativePrompts(containerElement, operationType) {
     `;
     
     const checkboxContainer = actualContainer.querySelector('#decorative-checkboxes');
-    const decoratives = DECORATIVE_PROMPTS[operationType] || DECORATIVE_PROMPTS['default'];
-    if (!decoratives || !checkboxContainer) return;
+    const decoratives = DECORATIVE_PROMPTS[operationType] || [];
+    
+    if (!decoratives || decoratives.length === 0 || !checkboxContainer) {
+        checkboxContainer.innerHTML = `<div style="color: #888; font-size: 11px; padding: 8px;">No decorative prompts available for "${operationType}" operation type.</div>`;
+        return;
+    }
     
     decoratives.forEach((decorative, index) => {
         const checkboxWrapper = document.createElement('div');
@@ -1182,15 +1256,35 @@ function getSelectedPrompts(modal, type) {
  * 生成全局操作的提示词（无需选择图层）
  */
 function generateGlobalPrompt(operationType, description, modal) {
+    console.log('🧠 智能推理：开始生成全局提示词...');
+    
+    // 🧠 使用智能推理系统分析全局操作意图
+    const intelligentAnalysis = intelligentReasoning.analyzeUserIntent(
+        modal, 
+        [], // 全局操作没有特定的选中标注
+        operationType, 
+        description || ''
+    );
+    
+    console.log('🧠 全局操作智能分析结果:', intelligentAnalysis);
     
     const template = OPERATION_TEMPLATES[operationType];
     if (!template) {
         return description || `Apply ${operationType} to the entire image`;
     }
     
-    // 对于全局操作，直接使用描述，不需要 {object} 占位符
+    // 🧠 使用检测到的场景生成上下文感知的全局描述
     let prompt;
-    if (template.template && template.template.includes('{object}')) {
+    if (template.description && typeof template.description === 'function') {
+        const scenario = intelligentAnalysis.scenario.type;
+        prompt = template.description(description, scenario);
+        console.log(`🧠 使用 ${scenario} 场景生成全局智能描述:`, prompt);
+        
+        // 对于全局操作，如果模板包含 {object}，替换为 "the entire image"
+        if (prompt.includes('{object}')) {
+            prompt = prompt.replace('{object}', 'the entire image');
+        }
+    } else if (template.template && template.template.includes('{object}')) {
         // 如果模板包含 {object}，替换为 "the entire image"
         prompt = template.template
             .replace('{object}', 'the entire image')
@@ -1200,6 +1294,23 @@ function generateGlobalPrompt(operationType, description, modal) {
         prompt = template.description(description);
     }
     
+    // 🧠 为全局操作添加智能推荐的约束和修饰词
+    if (intelligentAnalysis.strategy.recommendedConstraints && intelligentAnalysis.strategy.recommendedConstraints.length > 0) {
+        prompt += `, ${intelligentAnalysis.strategy.recommendedConstraints.join(', ')}`;
+        console.log(`🧠 全局操作应用智能推荐约束条件:`, intelligentAnalysis.strategy.recommendedConstraints);
+    }
+    
+    if (intelligentAnalysis.strategy.recommendedDecoratives && intelligentAnalysis.strategy.recommendedDecoratives.length > 0) {
+        prompt += `, ${intelligentAnalysis.strategy.recommendedDecoratives.join(', ')}`;
+        console.log(`🧠 全局操作应用智能推荐修饰词:`, intelligentAnalysis.strategy.recommendedDecoratives);
+    }
+    
+    // 🧠 显示全局操作的智能推理结果
+    if (intelligentAnalysis.recommendations.length > 0) {
+        console.log('🧠 全局操作智能推荐:', intelligentAnalysis.recommendations);
+    }
+    
+    console.log('🧠 最终全局智能生成的提示词:', prompt);
     return prompt;
 }
 
@@ -1354,5 +1465,5 @@ function getImageDisplayScaleInfo(modal) {
     }
 }
 
-// 导出需要在其他模块中使用的函数
-// updatePromptSelectors 已在第927行直接导出，此处删除重复导出
+// Export functions that need to be used in other modules
+// updatePromptSelectors is already exported on line 1034, removing duplicate export

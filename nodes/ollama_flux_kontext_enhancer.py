@@ -143,7 +143,6 @@ class OllamaFluxKontextEnhancerV2:
                     
                     if name:
                         model_names.append(name)
-                        print(f"✅ Ollama Client detected model: {name}")
                 
                 return model_names
                 
@@ -152,9 +151,7 @@ class OllamaFluxKontextEnhancerV2:
                     print(f"Ollama Client detection failed: {e}")
                 return []
         
-        # Start model detection process
-        if not silent:
-            print(f"Detecting Ollama models from URL: {url}")
+        # Start model detection process (silent mode for normal operation)
         
         # Try multiple URL formats (smart detection)
         urls_to_try = [url]
@@ -180,16 +177,12 @@ class OllamaFluxKontextEnhancerV2:
                 if http_models:
                     all_models.update(http_models)
                     successful_url = test_url
-                    if not silent:
-                        print(f"Found {len(http_models)} models via HTTP API from {test_url}")
                 
                 # Method 2: Ollama Client
                 client_models = try_ollama_client(test_url)
                 if client_models:
                     all_models.update(client_models)
                     successful_url = test_url
-                    if not silent:
-                        print(f"Found {len(client_models)} models via Ollama Client from {test_url}")
                 
                 # Exit early if models found
                 if all_models:
@@ -204,16 +197,11 @@ class OllamaFluxKontextEnhancerV2:
         model_list = sorted(list(all_models))
         
         if model_list:
-            if not silent:
-                print(f"Total {len(model_list)} unique models detected")
-            
             # Update cache (including successful URL)
             cls._cached_models = model_list
             cls._cache_timestamp = current_time
             if successful_url:
                 cls._last_successful_url = successful_url
-            if not silent:
-                print(f"Model list cached for {cls._cache_duration} seconds")
             
             return model_list
         
@@ -236,7 +224,6 @@ class OllamaFluxKontextEnhancerV2:
     @classmethod
     def refresh_model_cache(cls):
         """Manually refreshes the model cache"""
-        print("🔄 Manually refreshing model cache...")
         cls._cached_models = None
         cls._cache_timestamp = 0
         # Enable verbose logging during manual refresh
@@ -287,7 +274,6 @@ You are a professional image editing expert. Please convert annotation data into
 
 For more examples, please check guidance_template options."""
         except Exception as e:
-            print(f"Failed to get template content: {e}")
             return """Enter your custom AI guidance instructions...
 
 For example:
@@ -323,7 +309,6 @@ For more examples, please check guidance_template options."""
                 default_model = available_models[0]
             
         except Exception as e:
-            print(f"Failed to get dynamic model list: {e}")
             available_models = ["Error getting models - Check Ollama"]
             default_model = available_models[0]
         
@@ -483,7 +468,6 @@ For more examples, please check guidance_template options."""
             # 删除最旧的条目
             oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
             del self.cache[oldest_key]
-            print(f"🗑️ Removed oldest cache entry, cache size: {len(self.cache)}")
     
     def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
                                        edit_description: str, annotation_data: str = "",
@@ -780,16 +764,9 @@ For more examples, please check guidance_template options."""
         """检查Ollama服务是否可用"""
         try:
             import requests
-            print(f"Checking Ollama service at: {url}")
             response = requests.get(f"{url}/api/tags", timeout=5)
-            if response.status_code == 200:
-                print("Ollama service is accessible")
-                return True
-            else:
-                print(f"Ollama service returned status code: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"Failed to connect to Ollama service: {e}")
+            return response.status_code == 200
+        except Exception:
             return False
     
     def _unload_model(self, url: str, model: str, debug_mode: bool = False) -> bool:
@@ -815,16 +792,13 @@ For more examples, please check guidance_template options."""
             
             if response.status_code == 200:
                 self._log_debug(f"✅ Model {model} unloaded successfully", debug_mode)
-                print(f"✅ Model {model} unloaded successfully to free memory")
                 return True
             else:
                 self._log_debug(f"⚠️ Failed to unload model {model}: HTTP {response.status_code}", debug_mode)
-                print(f"⚠️ Failed to unload model {model}: HTTP {response.status_code}")
                 return False
                 
         except Exception as e:
             self._log_debug(f"❌ Error unloading model {model}: {e}", debug_mode)
-            print(f"❌ Error unloading model {model}: {e}")
             return False
     
     def _is_multimodal_model(self, model: str) -> bool:
@@ -950,7 +924,7 @@ For more examples, please check guidance_template options."""
             client = Client(host=url)
             # 测试连接
             models = client.list()
-            self._log_debug(f"🔗 Ollama connection successful, available models: {len(models.get('models', []))}", debug_mode)
+            self._log_debug(f"🔗 Ollama connection successful", debug_mode)
             return client
         except Exception as e:
             self._log_debug(f"❌ Ollama connection failed: {e}", debug_mode)
@@ -1217,7 +1191,6 @@ Rules:
                     "num_predict": 500,  # 限制输出长度
                     "num_ctx": 2048,     # 限制上下文长度
                 })
-                print(f"Applying speed optimizations for small model: {model}")
             
             # 对于qwen3等支持thinking模式的模型，在system prompt中明确要求不要thinking
             if "qwen3" in model.lower() or "qwen" in model.lower():
@@ -1259,12 +1232,7 @@ Rules:
                 self._log_debug("📝 Using text-only Generate API", debug_mode)
             
             # 发送请求到Ollama HTTP API
-            print(f"Sending request to Ollama API: {api_endpoint}")
-            print(f"Using model: {model}")
-            if "1.7b" in model.lower() or "1.5b" in model.lower():
-                print("Note: Small models may take longer to process complex prompts...")
-            else:
-                print("Note: This may take a while for complex prompts...")
+            self._log_debug(f"🤖 Sending request to: {api_endpoint}", debug_mode)
             
             try:
                 response = requests.post(
@@ -1273,23 +1241,22 @@ Rules:
                     timeout=300  # 增加超时时间到5分钟
                 )
             except requests.exceptions.Timeout:
-                print("Request timed out. Trying with a shorter, simplified prompt...")
+                self._log_debug("⏰ Request timed out, trying simplified prompt", debug_mode)
                 # 尝试使用简化的prompt重新生成
                 return self._generate_with_simplified_prompt(url, model, system_prompt, user_prompt, options, api_endpoint, debug_mode, seed)
             
-            print(f"Ollama API response status: {response.status_code}")
+            self._log_debug(f"📥 Response status: {response.status_code}", debug_mode)
             if response.status_code == 200:
                 # 先检查响应内容
                 response_text = response.text
-                print(f"Raw response length: {len(response_text)}")
-                print(f"Response preview: {response_text[:200]}...")
+                self._log_debug(f"📊 Response length: {len(response_text)}", debug_mode)
                 
                 try:
                     # 处理可能的流式响应
                     if '\n' in response_text:
                         # 可能是NDJSON格式（每行一个JSON对象）
                         lines = response_text.strip().split('\n')
-                        print(f"Found {len(lines)} lines in response")
+                        self._log_debug(f"📄 Found {len(lines)} lines in response", debug_mode)
                         
                         # 对于NDJSON流式响应，需要收集所有chunks的内容
                         collected_response = ""
@@ -1312,29 +1279,27 @@ Rules:
                                     final_result = chunk
                                     
                             except json.JSONDecodeError as e:
-                                print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}")
+                                self._log_debug(f"⚠️ Failed to parse line: {str(e)}", debug_mode)
                                 continue
                         
                         # 如果收集到了响应内容，创建完整的结果对象
                         if collected_response:
                             result = final_result or {}
                             result['response'] = collected_response
-                            print(f"Successfully collected streamed response, total length: {len(collected_response)}")
+                            self._log_debug(f"✅ Collected streamed response: {len(collected_response)} chars", debug_mode)
                         else:
                             # 如果没有收集到内容，使用最后一个JSON对象
                             result = final_result
                             if not result:
-                                print("Error: No valid JSON found in response lines")
+                                self._log_debug("❌ No valid JSON found in response lines", debug_mode)
                                 return None
                     else:
                         # 单行JSON响应
                         result = json.loads(response_text)
                     
-                    print(f"Parsed JSON successfully, result keys: {list(result.keys()) if result else 'None'}")
-                    self._log_debug(f"🔍 Ollama API response: {str(result)[:200]}...", debug_mode)
+                    self._log_debug(f"🔍 JSON parsed successfully", debug_mode)
                 except json.JSONDecodeError as e:
-                    print(f"JSON parsing error: {e}")
-                    print(f"Problematic response text: {response_text}")
+                    self._log_debug(f"❌ JSON parsing error: {e}", debug_mode)
                     return None
                 
                 generated_text = None
@@ -1352,32 +1317,27 @@ Rules:
                     # Generate API响应格式
                     if result and 'response' in result:
                         generated_text = result['response'].strip()
-                        print(f"Generated text length: {len(generated_text)}")
                         self._log_debug("📝 Generate API response parsed successfully", debug_mode)
                     else:
-                        print(f"Error: Generate API response missing 'response' field. Available fields: {list(result.keys()) if result else 'None'}")
-                        self._log_debug(f"❌ Generate API response missing 'response' field: {result}", debug_mode)
+                        self._log_debug(f"❌ Generate API response missing 'response' field", debug_mode)
                         return None
                 
                 if generated_text:
                     # 过滤掉qwen3等模型的thinking内容
                     filtered_text = self._filter_thinking_content(generated_text, debug_mode)
                     
-                    print(f"Success: Generated text original length: {len(generated_text)}, filtered length: {len(filtered_text)}")
-                    self._log_debug(f"✅ Ollama generation successful, original length: {len(generated_text)}, filtered length: {len(filtered_text)} characters", debug_mode)
+                    self._log_debug(f"✅ Generation successful: {len(filtered_text)} chars", debug_mode)
                     return filtered_text
                 else:
-                    print("Error: Generated text is empty after parsing")
+                    self._log_debug("❌ Generated text is empty", debug_mode)
                     return None
             else:
-                error_msg = f"Ollama API request failed - Status: {response.status_code}, Response: {response.text[:200]}"
-                print(f"Error: {error_msg}")
+                error_msg = f"Ollama API request failed - Status: {response.status_code}"
                 self._log_debug(f"❌ {error_msg}", debug_mode)
                 return None
                 
         except Exception as e:
             error_msg = f"Ollama generation exception: {str(e)}"
-            print(f"Error: {error_msg}")
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return None
     
@@ -1397,7 +1357,7 @@ Rules:
             if len(user_lines) > 10:
                 simplified_user += "\n[Content truncated for faster processing]"
             
-            print("Trying with simplified prompt due to timeout...")
+            self._log_debug("🔄 Trying with simplified prompt", debug_mode)
             
             # 构建简化的payload
             if "chat" in api_endpoint:
@@ -1439,13 +1399,13 @@ Rules:
                 
                 if generated_text:
                     filtered_text = self._filter_thinking_content(generated_text, debug_mode)
-                    print("Simplified prompt generation successful")
+                    self._log_debug("✅ Simplified prompt generation successful", debug_mode)
                     return filtered_text
                 
             return None
             
         except Exception as e:
-            print(f"Simplified prompt generation also failed: {e}")
+            self._log_debug(f"❌ Simplified prompt generation failed: {e}", debug_mode)
             return None
     
     def _filter_thinking_content(self, text: str, debug_mode: bool) -> str:
@@ -1686,42 +1646,15 @@ if WEB_AVAILABLE:
             data = await request.json()
             url = data.get("url", "http://127.0.0.1:11434")
             
-            print(f"🔄 API endpoint: Starting to fetch Ollama model list")
-            print(f"📡 API endpoint: Request URL: {url}")
-            print(f"🌐 API endpoint: Client source: {request.remote}")
-            
-            # Special handling for cloud environments: if localhost, may need different address
-            if "127.0.0.1" in url or "localhost" in url:
-                print("⚠️ API endpoint: Detected localhost address, may not be accessible in cloud environments")
-                print("💡 API endpoint: Recommend checking Ollama service configuration and network connection")
-            
             # Use exactly the same model detection logic as main node
-            print("🔍 API endpoint: Calling get_available_models method")
             model_names = OllamaFluxKontextEnhancerV2.get_available_models(url=url, force_refresh=True)
-            
-            print(f"✅ API endpoint: Detection complete, found {len(model_names)} models")
-            if model_names:
-                print(f"📋 API endpoint: Model list: {model_names}")
-            else:
-                print("❌ API endpoint: No models detected")
-                print("🔧 API endpoint: Possible reasons:")
-                print("   1. Ollama service not running")
-                print("   2. Network connection issues (common in cloud environments)")
-                print("   3. URL configuration error")
-                print("   4. Firewall blocking")
             
             return web.json_response(model_names)
             
         except Exception as e:
-            print(f"❌ API endpoint critical error: {e}")
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"🔍 API endpoint error details:\n{error_details}")
-            
             # 返回错误信息给前端
             return web.json_response({
                 "error": str(e),
-                "details": error_details,
                 "models": []
             }, status=500)
 

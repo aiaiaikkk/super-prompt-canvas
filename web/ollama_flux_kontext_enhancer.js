@@ -21,8 +21,6 @@ async function fetchOllamaModels(url) {
             url = "http://127.0.0.1:11434";
         }
         
-        if (url === "http://127.0.0.1:11434") {
-        }
         
         // 通过ComfyUI后端API获取模型，避免CORS问题
         const response = await fetch('/ollama_flux_enhancer/get_models', {

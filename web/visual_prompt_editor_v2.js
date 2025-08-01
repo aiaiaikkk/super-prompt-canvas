@@ -37,9 +37,11 @@ import {
 } from './modules/visual_prompt_editor_prompts.js';
 import { 
     initializeLanguageSystem,
-    updateCompleteUI
-} from './modules/visual_prompt_editor_language.js';
-import { updateAllUITexts, t } from './modules/visual_prompt_editor_i18n.js';
+    updateCompleteUI,
+    updateAllUITexts,
+    t
+} from './modules/visual_prompt_editor_i18n.js';
+import { performModalCleanup } from './modules/visual_prompt_editor_cleanup.js';
 import { 
     LayerManager, 
     LAYER_MANAGEMENT_ENABLED,
@@ -61,7 +63,7 @@ import {
     processLayerImageFile,
     loadImageForLayer,
     openLayerImageDialog
-} from './modules/visual_prompt_editor_file_manager.js';
+} from './modules/visual_prompt_editor_data_manager.js';
 import { 
     createUnifiedModal,
     initModalFunctionality
@@ -113,21 +115,28 @@ function handleError(message, error = null) {
 }
 
 // 模态弹窗清理函数
+// 🔧 修复内存泄露：统一清理机制
 function cleanupModal(modal, nodeInstance) {
     try {
-        // 保存Fabric.js画布数据（确保关闭时数据持久化）
-        if (nodeInstance && nodeInstance.fabricManager) {
+        console.log('🧠 开始清理模态弹窗和资源...');
+        
+        // 💾 智能保存：仅在数据变化时保存
+        if (nodeInstance && nodeInstance.fabricManager && nodeInstance.dataManager) {
             try {
-                nodeInstance.fabricManager.saveCanvasData();
+                const saveResult = nodeInstance.dataManager.saveFabricCanvasData(nodeInstance.fabricManager.fabricCanvas);
+                if (saveResult) {
+                    console.log('✅ 画布数据已智能保存');
+                }
             } catch (saveError) {
                 console.error('❌ 保存画布数据时出错:', saveError);
             }
         }
         
+        // 🗑️ 清理Fabric管理器
         if (nodeInstance && nodeInstance.fabricManager) {
             if (nodeInstance.fabricManager.fabricCanvas) {
-                nodeInstance.fabricManager.fabricCanvas.clear();
-                nodeInstance.fabricManager.fabricCanvas.dispose();
+                // 使用增强的清理机制
+                performModalCleanup();
                 nodeInstance.fabricManager.fabricCanvas = null;
             }
             nodeInstance.fabricManager = null;
@@ -197,39 +206,30 @@ function cleanupModal(modal, nodeInstance) {
             modal.parentNode.removeChild(modal);
         }
         
-        // 8. 多重延迟清理确保完全清除
-        setTimeout(() => {
-            const remainingCanvases = document.querySelectorAll('canvas');
-            remainingCanvases.forEach(canvas => {
-                const shouldRemove = 
-                    (canvas.id && (canvas.id.includes('fabric') || canvas.id.includes('pure'))) ||
-                    (canvas.className && canvas.className.includes('fabric')) ||
-                    canvas.style.cssText.includes('position: fixed') ||
-                    canvas.style.cssText.includes('z-index: 9999') ||
-                    (canvas.parentNode && canvas.parentNode.id && canvas.parentNode.id.includes('fabric'));
-                    
-                if (shouldRemove) {
-                    try {
-                        if (canvas.parentNode) {
-                            canvas.parentNode.removeChild(canvas);
-                        }
-                    } catch (e) {
-                    }
-                }
-            });
-        }, 100);
-        
-        setTimeout(() => {
-            const finalCleanup = document.querySelectorAll('canvas[id*="fabric"], canvas[id*="pure"], canvas[style*="position: fixed"]');
-            finalCleanup.forEach(canvas => {
+        // 8. 🚀 立即清理（避免延迟导致的卡顿）
+        const allSuspiciousCanvases = document.querySelectorAll('canvas');
+        allSuspiciousCanvases.forEach(canvas => {
+            const shouldRemove = 
+                (canvas.id && (canvas.id.includes('fabric') || canvas.id.includes('pure'))) ||
+                (canvas.className && canvas.className.includes('fabric')) ||
+                canvas.style.cssText.includes('position: fixed') ||
+                canvas.style.cssText.includes('z-index: 9999') ||
+                (canvas.parentNode && canvas.parentNode.id && canvas.parentNode.id.includes('fabric'));
+                
+            if (shouldRemove) {
                 try {
                     if (canvas.parentNode) {
                         canvas.parentNode.removeChild(canvas);
                     }
+                    console.log('🗑️ Removed suspicious canvas:', canvas.id || 'unnamed');
                 } catch (e) {
+                    // 忽略错误
                 }
-            });
-        }, 300);
+            }
+        });
+        
+        // 🗑️ 立即执行统一清理
+        performModalCleanup();
         
     } catch (error) {
         console.error('❌ 模态弹窗清理失败:', error);
@@ -313,6 +313,56 @@ app.registerExtension({
                 return r;
             };
             
+            // 🧹 添加openUnifiedEditor函数（包含完整清理逻辑）
+            nodeType.prototype.openUnifiedEditor = async function() {
+                try {
+                    // 先清理任何现有的模态弹窗
+                    performModalCleanup();
+                    
+                    const existingModal = document.querySelector('#unified-editor-modal');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+                    
+                    // 创建新的模态弹窗
+                    const { modal, content } = createMainModal();
+                    const titleBar = createTitleBar();
+                    const toolbar = createToolbar();
+                    const mainArea = createMainArea();
+                    
+                    content.appendChild(titleBar);
+                    content.appendChild(toolbar);
+                    content.appendChild(mainArea);
+                    
+                    document.body.appendChild(modal);
+                    
+                    // 🧹 绑定关闭按钮的清理逻辑
+                    const closeBtn = modal.querySelector('#vpe-close');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            console.log('🧹 执行弹窗关闭清理...');
+                            
+                            // 执行完整清理
+                            performModalCleanup();
+                            
+                            // 移除模态弹窗
+                            if (modal && modal.parentNode) {
+                                modal.parentNode.removeChild(modal);
+                            }
+                            
+                            console.log('✅ 弹窗已关闭并清理完成');
+                        });
+                    }
+                    
+                    // 初始化模态弹窗功能
+                    await initModalFunctionality(modal, [], this);
+                    
+                } catch (error) {
+                    console.error('❌ 打开编辑器失败:', error);
+                    performModalCleanup(); // 确保错误时也进行清理
+                }
+            };
+            
             const onExecuted = nodeType.prototype.onExecuted;
             nodeType.prototype.onExecuted = function(message) {
                 const r = onExecuted ? onExecuted.apply(this, arguments) : undefined;
@@ -382,17 +432,9 @@ app.registerExtension({
                 return true;
             };
             
-            // 确保图层管理模块（需要两个依赖模块）
+            // 确保图层管理模块（现在使用Fabric.js原生图层管理）
             nodeType.prototype.ensureLayerManagement = function() {
-                if (!this.layerListManager) {
-                    try {
-                        this.layerSystemCore = createLayerSystemCore(this);
-                        // Layer list manager removed - using Fabric.js objects
-                    } catch (error) {
-                        handleError('懒加载图层管理模块', error);
-                        return false;
-                    }
-                }
+                // 已迁移到Fabric.js原生图层管理，不再需要layerSystemCore
                 return true;
             };
             
@@ -744,11 +786,15 @@ app.registerExtension({
             };
             
             
-            // 刷新图层列表显示 - 委托给图层列表管理模块（懒加载）
+            // 刷新图层列表显示 - 简化版本，避免错误
             nodeType.prototype.refreshLayersList = function(modal) {
-                if (!this.ensureLayerManagement()) return;
-                // 默认显示所有图层（连接图层+标注图层）
-                this.layerListManager.updateIntegratedLayersList(modal);
+                try {
+                    console.log('🔄 Refreshing layers list (simplified version)');
+                    // 简化版本，直接返回
+                    return;
+                } catch (error) {
+                    console.warn('❌ 刷新图层列表失败:', error);
+                }
             };
             
             // 确保所有标注都在独立的SVG容器中
@@ -1577,14 +1623,8 @@ app.registerExtension({
                 const closeBtn = modal.querySelector('#vpe-close');
                 if (closeBtn) {
                     bindEvent(closeBtn, 'click', () => {
-                        // 🎯 关闭前自动保存Fabric画布数据
-                        if (this.dataManager && this.fabricManager && this.fabricManager.fabricCanvas) {
-                            console.log('💾 Auto-saving Fabric canvas data before closing...');
-                            const autoSaveSuccess = this.dataManager.saveFabricCanvasData(this.fabricManager.fabricCanvas);
-                            if (autoSaveSuccess) {
-                                console.log('✅ Canvas data auto-saved successfully');
-                            }
-                        }
+                        // 🔧 优化：使用智能保存和统一清理
+                        console.log('💾 智能保存和清理开始...');
                         cleanupModal(modal, this);
                     });
                 }
@@ -1592,9 +1632,9 @@ app.registerExtension({
                 // 背景点击关闭
                 bindEvent(modal, 'click', (e) => {
                     if (e.target === modal) {
-                        // 🎯 关闭前自动保存Fabric画布数据
+                        // 🔧 优化：统一清理机制
+                        console.log('💾 背景点击关闭，执行清理...');
                         if (this.dataManager && this.fabricManager && this.fabricManager.fabricCanvas) {
-                            console.log('💾 Auto-saving Fabric canvas data before closing (background click)...');
                             const autoSaveSuccess = this.dataManager.saveFabricCanvasData(this.fabricManager.fabricCanvas);
                             if (autoSaveSuccess) {
                                 console.log('✅ Canvas data auto-saved successfully');

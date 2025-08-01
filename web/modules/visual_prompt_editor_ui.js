@@ -172,19 +172,10 @@ export function createToolbar() {
                 <input type="color" id="vpe-bg-color" value="#ffffff" 
                        style="width: 32px; height: 24px; border: 2px solid #fff; border-radius: 4px; cursor: pointer; background: none;" 
                        title="Choose canvas background color" data-i18n-title="tooltip_bg_color">
-                <select id="vpe-canvas-size" style="font-size: 11px; padding: 2px 6px; background: #444; color: white; border: 1px solid #666; border-radius: 3px;" title="Canvas Size Preset" data-i18n-title="tooltip_canvas_size">
-                    <option value="512x512">正方形-小</option>
-                    <option value="768x768">正方形-中</option>
-                    <option value="1024x1024">正方形-大</option>
-                    <option value="1280x720">横向-16:9</option>
-                    <option value="720x1280">竖向-9:16</option>
-                    <option value="800x600" selected>默认-800x600</option>
-                    <option value="custom">自定义</option>
-                </select>
             </div>
             
             <!-- 自定义画布尺寸控制组 -->
-            <div id="vpe-custom-size-controls" style="display: none; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
+            <div id="vpe-custom-size-controls" style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="size">Size:</span>
                 <span style="color: #aaa; font-size: 10px;">W:</span>
                 <input type="number" id="vpe-canvas-width" min="200" max="2048" value="800" step="10" 
@@ -643,6 +634,7 @@ export function createControlsTabContent() {
             <div style="margin-bottom: 12px;">
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;" data-i18n="template_category">Template Category</label>
                 <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
+                    <option value="local" data-i18n="template_local">🎯 Local Editing (20 templates)</option>
                     <option value="global" data-i18n="template_global">🌍 Global Adjustments (15 templates)</option>
                     <option value="text" data-i18n="template_text">📝 Text Editing (5 templates)</option>
                     <option value="professional" data-i18n="template_professional">🔧 Professional Operations (15 templates)</option>

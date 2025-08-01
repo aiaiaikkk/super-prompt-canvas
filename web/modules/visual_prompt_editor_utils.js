@@ -1,12 +1,12 @@
-import { t } from './visual_prompt_editor_i18n.js';
+// import { t } from './visual_prompt_editor_i18n.js';
 import { getCoordinateSystem } from './shared/coordinate_system.js';
 
 /**
- * Visual Prompt Editor - 工具函数模块
- * 通用工具函数和常量定义
+ * Visual Prompt Editor - Utility Functions Module
+ * Common utility functions and constant definitions
  */
 
-// 工具映射
+// Tool mapping
 export const TOOL_NAMES = {
     'rectangle': { name: 'Rectangle', icon: '▭' },
     'circle': { name: 'Circle', icon: '⭕' },
@@ -23,10 +23,22 @@ export const COLOR_NAMES = {
     '#0000ff': { name: 'Blue', icon: '🔵' }
 };
 
-// 节点颜色常量 - 从constants.js迁移
+// 颜色常量 - 合并从constants.js
 export const COLORS = {
+    // 节点颜色
     NODE_COLOR: "#673AB7",
-    NODE_BG_COLOR: "#512DA8"
+    NODE_BG_COLOR: "#512DA8",
+    
+    // UI颜色
+    PRIMARY: "#2196F3",
+    SUCCESS: "#4CAF50",
+    SUCCESS_ALT: "#10b981",
+    BACKGROUND_DARK: "#2b2b2b",
+    SELECTED_BG: "#1a2332",
+    
+    // SVG默认颜色
+    DEFAULT_STROKE: "#000000",
+    DEFAULT_FILL: "none"
 };
 
 // Z-Index层级管理 - 统一界面层级
@@ -37,6 +49,108 @@ export const Z_INDEX = {
     EDITOR: 30000,        // 编辑器层级
     TOOLTIP: 40000,       // 工具提示层级
     OVERLAY: 50000        // 覆盖层级 (最高级别)
+};
+
+// 尺寸常量 - 从constants.js合并  
+export const DIMENSIONS = {
+    // 边框宽度
+    STROKE_WIDTH: {
+        THIN: 1,
+        NORMAL: 2, 
+        MEDIUM: 3,
+        THICK: 5,
+        EXTRA_THICK: 6
+    },
+    
+    // 边距和间距
+    PADDING: {
+        SMALL: 4,
+        MEDIUM: 8,
+        LARGE: 16
+    },
+    
+    // 圆角
+    BORDER_RADIUS: {
+        SMALL: 4,
+        MEDIUM: 8
+    }
+};
+
+// 时间常量 - 从constants.js合并
+export const TIMING = {
+    // 延迟时间 (毫秒)
+    SHORT_DELAY: 100,
+    MEDIUM_DELAY: 300,
+    LONG_DELAY: 500,
+    
+    // 动画时间
+    ANIMATION_DURATION: 300,
+    
+    // 通知显示时间
+    NOTIFICATION_DURATION: 3000
+};
+
+// DOM选择器常量 - 从constants.js合并
+export const SELECTORS = {
+    // 主要容器
+    MODAL: '#unified-editor-modal',
+    CANVAS_CONTAINER: '#canvas-container',
+    DRAWING_LAYER: '#drawing-layer svg',
+    
+    // 图层相关
+    LAYERS_LIST: '#layers-list',
+    LAYERS_DISPLAY_CONTAINER: '#layers-display-container',
+    
+    // UI控件
+    ANNOTATION_OBJECTS: '#annotation-objects',
+    SELECTION_COUNT: '#selection-count',
+    
+    // 画布相关
+    IMAGE_CANVAS: '#image-canvas',
+    ZOOM_CONTAINER: '#zoom-container'
+};
+
+// CSS类名常量 - 从constants.js合并
+export const CSS_CLASSES = {
+    HIGHLIGHTED: 'highlighted',
+    BRUSH_PATH: 'brush-path', 
+    ANNOTATION_SHAPE: 'annotation-shape',
+    LAYER_ITEM: 'layer-item',
+    LAYER_VISIBLE: 'layer-visible',
+    LAYER_HIDDEN: 'layer-hidden'
+};
+
+// 文本常量 - 从constants.js合并
+export const MESSAGES = {
+    ERRORS: {
+        GENERIC: '操作失败',
+        IMAGE_LOAD: '图像加载失败',
+        ANNOTATION_CREATE: '标注创建失败',
+        LAYER_TOGGLE: '图层切换失败'
+    },
+    SUCCESS: {
+        ANNOTATION_CREATED: '标注创建成功',
+        LAYER_TOGGLED: '图层状态已更新',
+        DATA_EXPORTED: '数据导出成功'
+    }
+};
+
+// 默认配置 - 从constants.js合并
+export const DEFAULTS = {
+    LANGUAGE: 'zh',
+    ZOOM_LEVEL: 1.0,
+    STROKE_WIDTH: 3, // DIMENSIONS.STROKE_WIDTH.MEDIUM
+    STROKE_COLOR: "#000000", // COLORS.DEFAULT_STROKE
+    FILL_COLOR: "none" // COLORS.DEFAULT_FILL
+};
+
+// 数值限制 - 从constants.js合并
+export const LIMITS = {
+    MAX_ANNOTATIONS: 100,
+    MAX_LAYERS: 50,
+    MIN_ZOOM: 0.1,
+    MAX_ZOOM: 5.0,
+    MAX_TEXT_LENGTH: 500
 };
 
 // 统一Modal样式常量 - 消除样式重复
@@ -89,6 +203,17 @@ export const createSVG = (tagName, attributes = {}) => {
 
 // 模板分类定义 - Flux Kontext优化版 (4大分类)
 export const TEMPLATE_CATEGORIES = {
+    local: {
+        name: '🎯 局部编辑',
+        description: 'Local object-specific editing operations',
+        templates: [
+            'add_object', 'change_color', 'change_style', 'replace_object', 'remove_object',
+            'change_texture', 'change_pose', 'change_expression', 'change_clothing', 'change_background',
+            'enhance_quality', 'blur_background', 'adjust_lighting', 'resize_object', 'enhance_skin_texture',
+            'character_expression', 'character_hair', 'character_accessories', 'zoom_focus', 'stylize_local',
+            'custom'
+        ]
+    },
     global: {
         name: '🌍 全局编辑',
         description: 'Whole image processing operations',
@@ -122,62 +247,152 @@ export const TEMPLATE_CATEGORIES = {
     }
 };
 
-// 操作类型模板 - Flux Kontext优化版，包含49个专业模板
+// 🧠 智能推理操作模板 - 基于用户真实场景和编辑意图设计
 export const OPERATION_TEMPLATES = {
-    // 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
+    // 局部编辑模板 - 基于用户心理和场景深度理解
     'change_color': {
-        template: 'make {object} {target}',  // 🔴 官方高频动词"make"替代"change"
-        description: (target) => `make {object} ${target || 'red'}`,
+        // 情境感知：不同场景下颜色变化的真实意图
+        template: 'transform {object} color to {target}',
+        description: (target, context) => {
+            const colorIntents = {
+                portrait: `enhance {object} with ${target || 'natural warm'} tones for a more flattering appearance`,
+                product: `showcase {object} in ${target || 'appealing'} color to attract customer attention`,
+                creative: `reimagine {object} with ${target || 'artistic'} color palette for creative expression`,
+                social: `beautify {object} with ${target || 'vibrant'} color that captures the moment perfectly`,
+                professional: `adjust {object} to ${target || 'accurate'} color standards for consistent results`
+            };
+            return colorIntents[context] || `thoughtfully transform {object} to ${target || 'desired'} color while preserving its essence`;
+        },
         category: 'local',
-        label: 'Change Color'
+        label: 'Color Transformation'
     },
     'change_style': {
-        template: 'turn {object} into {target} style',  // 🔴 官方标准句式"turn into"
-        description: (target) => `turn {object} into ${target || 'cartoon style'}`,
+        // 风格转换的深层美学理解
+        template: 'reimagine {object} in {target} aesthetic',
+        description: (target, context) => {
+            const styleIntents = {
+                portrait: `transform {object} with ${target || 'flattering'} style that enhances natural beauty`,
+                product: `present {object} in ${target || 'premium'} style that elevates perceived value`,
+                creative: `reinterpret {object} through ${target || 'innovative'} artistic vision`,
+                social: `stylize {object} with ${target || 'trendy'} aesthetic perfect for sharing`,
+                professional: `apply ${target || 'consistent'} style treatment to {object} for brand alignment`
+            };
+            return styleIntents[context] || `creatively transform {object} with ${target || 'distinctive'} style while honoring its character`;
+        },
         category: 'local',
-        label: 'Change Style'
+        label: 'Style Reimagining'
     },
     'replace_object': {
-        template: 'replace {object} with {target}',  // 🔴 采用官方"replace with"标准格式
-        description: (target) => `replace {object} with ${target || 'a different object'}`,
+        // 替换操作的情境智能
+        template: 'thoughtfully replace {object} with {target}',
+        description: (target, context) => {
+            const replaceIntents = {
+                portrait: `seamlessly replace {object} with ${target || 'more flattering element'} that complements the person`,
+                product: `strategically replace {object} with ${target || 'appealing alternative'} that enhances product appeal`,
+                creative: `artistically substitute {object} with ${target || 'meaningful element'} that serves the creative vision`,
+                social: `naturally replace {object} with ${target || 'better choice'} that improves the story`,
+                professional: `precisely replace {object} with ${target || 'specified element'} meeting exact requirements`
+            };
+            return replaceIntents[context] || `intelligently replace {object} with ${target || 'suitable alternative'} that serves the intended purpose`;
+        },
         category: 'local',
-        label: 'Replace Object'
+        label: 'Intelligent Replacement'
     },
     'add_object': {
-        template: 'add {target} to {object}',  // 🔴 官方"add to"介词结构
-        description: (target) => `add ${target || 'a new object'} to {object}`,
+        // 添加元素的场景理解
+        template: 'thoughtfully introduce {target} to complement {object}',
+        description: (target, context) => {
+            const addIntents = {
+                portrait: `gracefully add ${target || 'flattering element'} that enhances {object} and the overall portrait`,
+                product: `strategically place ${target || 'appealing element'} to make {object} more desirable`,
+                creative: `artistically introduce ${target || 'meaningful element'} that enriches the narrative around {object}`,
+                social: `naturally add ${target || 'interesting element'} that makes {object} more engaging and shareable`,
+                professional: `precisely add ${target || 'required element'} to {object} according to specifications`
+            };
+            return addIntents[context] || `meaningfully introduce ${target || 'complementary element'} that enhances {object} and serves the overall vision`;
+        },
         category: 'local',
-        label: 'Add Object'
+        label: 'Thoughtful Addition'
     },
     'remove_object': {
-        template: 'remove the {object}',  // 🔴 保持官方"remove the"定冠词格式
-        description: () => `remove the {object}`,
+        // 移除操作的智能推理
+        template: 'seamlessly eliminate {object} while preserving scene integrity',
+        description: (target, context) => {
+            const removeIntents = {
+                portrait: `gracefully remove {object} to create a more flattering and focused portrait`,
+                product: `cleanly eliminate {object} to showcase the product without distractions`,
+                creative: `artistically remove {object} to strengthen the visual narrative and composition`,
+                social: `naturally eliminate {object} to create a more appealing and shareable image`,
+                professional: `precisely remove {object} to meet exact specifications while maintaining quality`
+            };
+            return removeIntents[context] || `thoughtfully eliminate {object} while maintaining natural scene flow and visual harmony`;
+        },
         category: 'local',
-        label: 'Remove Object'
+        label: 'Seamless Removal'
     },
     'change_texture': {
-        template: 'change {object} texture to {target}',  // 🔴 优化为官方"change to"句式
-        description: (target) => `change {object} texture to ${target || 'smooth texture'}`,
+        // 材质变化的感官理解
+        template: 'transform {object} surface to {target} texture',
+        description: (target, context = 'default') => {
+            const textureIntents = {
+                portrait: `enhance {object} with ${target || 'natural'} texture that feels authentic and appealing`,
+                product: `upgrade {object} texture to ${target || 'premium'} finish that suggests quality and value`,
+                creative: `reimagine {object} with ${target || 'artistic'} texture that serves the creative concept`,
+                social: `beautify {object} with ${target || 'attractive'} texture that photographs beautifully`,
+                professional: `apply ${target || 'specified'} texture to {object} according to technical requirements`
+            };
+            return textureIntents[context] || `thoughtfully transform {object} surface to ${target || 'desired'} texture while maintaining natural appearance`;
+        },
         category: 'local',
-        label: 'Change Texture'
+        label: 'Texture Enhancement'
     },
     'change_pose': {
-        template: 'make {object} {target} pose',  // 🔴 采用官方"make pose"简洁表达
-        description: (target) => `make {object} ${target || 'standing'} pose`,
+        // 姿态调整的情感理解
+        template: 'guide {object} into {target} pose',
+        description: (target, context = 'default') => {
+            const poseIntents = {
+                portrait: `gracefully adjust {object} to ${target || 'flattering'} pose that conveys confidence and natural charm`,
+                product: `position {object} in ${target || 'appealing'} pose that showcases features and attracts interest`,
+                creative: `choreograph {object} into ${target || 'expressive'} pose that serves the artistic narrative`,
+                social: `arrange {object} in ${target || 'engaging'} pose that creates connection and tells a story`,
+                professional: `position {object} in ${target || 'required'} pose meeting specific compositional standards`
+            };
+            return poseIntents[context] || `naturally guide {object} into ${target || 'appropriate'} pose that enhances the overall composition`;
+        },
         category: 'local',
-        label: 'Change Pose'
+        label: 'Pose Refinement'
     },
     'change_expression': {
-        template: 'give {object} {target} expression',  // 🔴 使用官方高频动词"give"
-        description: (target) => `give {object} ${target || 'happy'} expression`,
+        // 表情变化的心理洞察
+        template: 'inspire {object} with {target} expression',
+        description: (target, context = 'default') => {
+            const expressionIntents = {
+                portrait: `enhance {object} with ${target || 'warm'} expression that radiates genuine emotion and connection`,
+                product: `infuse {object} with ${target || 'appealing'} expression that creates positive associations`,
+                creative: `imbue {object} with ${target || 'meaningful'} expression that deepens the artistic message`,
+                social: `bring out ${target || 'joyful'} expression in {object} that spreads positive energy`,
+                professional: `adjust {object} expression to ${target || 'appropriate'} tone for the intended audience`
+            };
+            return expressionIntents[context] || `naturally inspire {object} with ${target || 'authentic'} expression that conveys genuine emotion`;
+        },
         category: 'local',
-        label: 'Change Expression'
+        label: 'Expression Enhancement'
     },
     'change_clothing': {
-        template: 'change {object} clothing to {target}',  // 🔴 采用官方服装编辑标准句式
-        description: (target) => `change {object} clothing to ${target || 'casual clothes'}`,
+        // 服装变化的风格理解
+        template: 'dress {object} in {target} attire',
+        description: (target, context = 'default') => {
+            const clothingIntents = {
+                portrait: `elegantly dress {object} in ${target || 'flattering'} attire that enhances personal style and confidence`,
+                product: `showcase {object} in ${target || 'appealing'} clothing that demonstrates product features`,
+                creative: `costume {object} in ${target || 'thematic'} attire that supports the artistic vision`,
+                social: `style {object} in ${target || 'trendy'} outfit perfect for the occasion and sharing`,
+                professional: `outfit {object} in ${target || 'appropriate'} attire meeting dress code requirements`
+            };
+            return clothingIntents[context] || `thoughtfully dress {object} in ${target || 'suitable'} attire that complements the overall aesthetic`;
+        },
         category: 'local',
-        label: 'Change Clothing'
+        label: 'Wardrobe Styling'
     },
     'change_background': {
         template: 'change the background to {target}',  // 🔴 使用官方背景编辑标准格式
@@ -473,145 +688,295 @@ export const OPERATION_TEMPLATES = {
     }
 };
 
-// 约束性提示词库 - Flux Kontext整合版，支持49个模板
+// Enhanced Constraint System - High-quality prompt data
 export const CONSTRAINT_PROMPTS = {
-    // 局部编辑约束性提示词 (L01-L18)
-    'change_color': ['preserving original texture details', 'maintaining material properties', 'avoiding color bleeding'],
-    'change_style': ['maintaining structural integrity', 'preserving essential details', 'avoiding over-stylization'],
-    'replace_object': ['matching perspective angles', 'consistent lighting direction', 'maintaining scale proportions'],
-    'add_object': ['respecting spatial relationships', 'maintaining proper scale', 'avoiding visual conflicts'],
-    'remove_object': ['preserving background continuity', 'maintaining visual coherence', 'avoiding obvious gaps'],
-    'change_texture': ['preserving surface geometry', 'maintaining lighting interaction', 'avoiding pattern distortion'],
-    'change_pose': ['ensuring anatomical correctness', 'maintaining joint constraints', 'preserving muscle definition'],
-    'change_expression': ['maintaining facial symmetry', 'preserving skin texture', 'avoiding unnatural distortion'],
-    'change_clothing': ['ensuring proper fit', 'simulating fabric physics', 'maintaining style consistency'],
-    'change_background': ['maintaining depth relationships', 'preserving atmospheric perspective', 'matching lighting conditions'],
-    'enhance_quality': ['avoiding over-sharpening artifacts', 'preserving natural appearance', 'maintaining tonal balance'],
-    'blur_background': ['preserving subject sharpness', 'maintaining edge definition', 'avoiding halo effects'],
-    'adjust_lighting': ['preserving form definition', 'maintaining shadow detail', 'avoiding blown highlights'],
-    'resize_object': ['maintaining image quality', 'preserving detail resolution', 'avoiding scaling artifacts'],
-    'enhance_skin_texture': ['preserving natural skin tone', 'maintaining pore authenticity', 'avoiding over-smoothing artifacts'],
-    // 🔴 新增局部编辑约束性提示词
-    'character_expression': ['maintaining facial symmetry', 'preserving natural emotion', 'avoiding forced expressions'],
-    'character_hair': ['ensuring realistic hair physics', 'maintaining hair texture quality', 'avoiding unnatural hair placement'],
-    'character_accessories': ['ensuring proper fit and scale', 'maintaining realistic positioning', 'avoiding visual conflicts'],
     
-    // 全局编辑约束性提示词 (G01-G12)
-    'global_color_grade': ['preserving skin tone accuracy', 'maintaining color relationships', 'avoiding posterization'],
-    'global_style_transfer': ['preserving essential details', 'maintaining structural integrity', 'avoiding over-stylization'],
-    'global_brightness_contrast': ['avoiding highlight clipping', 'preserving shadow detail', 'maintaining tonal balance'],
-    'global_hue_saturation': ['preserving natural color relationships', 'avoiding oversaturation', 'maintaining color accuracy'],
-    'global_sharpen_blur': ['maintaining edge definition', 'controlling noise amplification', 'preserving fine details'],
-    'global_noise_reduction': ['preserving texture details', 'avoiding over-smoothing', 'maintaining edge sharpness'],
-    'global_enhance': ['optimizing dynamic range', 'maintaining natural appearance', 'avoiding over-processing'],
-    'global_filter': ['ensuring consistent application', 'preserving image integrity', 'maintaining detail clarity'],
-    // 🔴 新增全局编辑约束性提示词
-    'character_age': ['maintaining facial structure', 'preserving identity characteristics', 'avoiding unrealistic aging'],
-    'detail_enhance': ['maintaining image balance', 'avoiding over-enhancement', 'preserving natural appearance'],
-    'realism_enhance': ['maintaining artistic intent', 'avoiding uncanny valley effects', 'preserving style consistency'],
-    'camera_operation': ['maintaining subject focus', 'preserving composition balance', 'avoiding distortion'],
+    // === 🎨 Appearance Transformation Constraints ===
+    'change_color': [
+        'preserve original material textures (fabric weave, skin pores, surface roughness)',
+        'maintain consistent lighting reflections and shadows on the recolored surface',
+        'avoid color bleeding into adjacent objects or areas',
+        'keep the same level of saturation and brightness relative to scene lighting'
+    ],
     
-    // 文字编辑约束性提示词 (T01-T05) - 🔴 全新类型
-    'text_add': ['ensuring readable typography', 'maintaining text clarity', 'avoiding visual interference'],
-    'text_remove': ['preserving background integrity', 'maintaining visual coherence', 'avoiding obvious gaps'],
-    'text_edit': ['maintaining font consistency', 'preserving text formatting', 'ensuring readability'],
-    'text_resize': ['maintaining text proportions', 'preserving readability', 'avoiding distortion'],
-    'object_combine': ['ensuring seamless integration', 'maintaining visual harmony', 'preserving individual characteristics'],
+    'replace_object': [
+        'match the exact perspective angle and viewing direction of the original object',
+        'replicate the lighting direction, intensity, and color temperature from the scene',
+        'scale the replacement to maintain realistic proportional relationships',
+        'integrate cast shadows that match the scene\'s lighting conditions'
+    ],
     
-    // 专业操作约束性提示词 (P01-P14)
-    'geometric_warp': ['preserving straight lines where appropriate', 'maintaining architectural integrity', 'avoiding excessive distortion'],
-    'perspective_transform': ['ensuring proper vanishing points', 'maintaining realistic proportions', 'preserving structural relationships'],
-    'lens_distortion': ['simulating authentic optical characteristics', 'avoiding unnatural deformation', 'maintaining image quality'],
-    'global_perspective': ['straightening vertical lines', 'maintaining natural viewing angles', 'preserving composition balance'],
-    'content_aware_fill': ['seamlessly blending textures', 'maintaining contextual continuity', 'preserving lighting patterns'],
-    'seamless_removal': ['preserving lighting patterns', 'maintaining surface characteristics', 'ensuring visual coherence'],
-    'smart_patch': ['matching surrounding patterns', 'maintaining visual coherence', 'preserving texture quality'],
-    'style_blending': ['harmonizing color palettes', 'preserving distinctive characteristics', 'maintaining artistic integrity'],
-    'collage_integration': ['balancing visual weights', 'creating unified artistic narrative', 'maintaining composition flow'],
-    'texture_mixing': ['creating realistic surface interactions', 'maintaining tactile believability', 'preserving material authenticity'],
-    'precision_cutout': ['achieving pixel-perfect boundaries', 'maintaining natural edge transitions', 'preserving fine details'],
-    'alpha_composite': ['managing transparency interactions', 'preserving color accuracy', 'maintaining blending precision'],
-    'mask_feathering': ['creating soft natural transitions', 'maintaining selection accuracy', 'avoiding harsh edges'],
-    'depth_composite': ['respecting spatial relationships', 'maintaining atmospheric perspective', 'preserving depth cues'],
-    // 新增：来自kontext-presets的约束性提示词
-    'zoom_focus': ['maintaining subject clarity', 'preserving focus quality', 'avoiding distortion artifacts'],
-    'stylize_local': ['preserving essential details', 'maintaining structural integrity', 'avoiding over-stylization'],
-    'relight_scene': ['preserving natural shadows', 'maintaining surface characteristics', 'avoiding harsh lighting artifacts'],
-    'colorize_image': ['maintaining natural color relationships', 'preserving tonal balance', 'avoiding color bleeding'],
-    'teleport_context': ['maintaining visual coherence', 'preserving lighting consistency', 'avoiding perspective conflicts'],
-    'professional_product': ['ensuring catalog quality', 'maintaining product accuracy', 'avoiding commercial distortion'],
-    'custom': ['maintaining overall coherence', 'preserving artistic intent', 'ensuring realistic results'],
+    'change_style': [
+        'preserve the object\'s fundamental geometric structure and proportions',
+        'maintain recognizable key features while applying stylistic elements',
+        'ensure the style change doesn\'t conflict with the surrounding realistic environment',
+        'keep edge transitions smooth to avoid jarring visual breaks'
+    ],
+
+    // === 👤 Character Editing Constraints ===
+    'change_expression': [
+        'maintain bilateral facial symmetry and natural muscle movement patterns',
+        'preserve individual facial features and bone structure characteristics',
+        'ensure expression changes follow realistic facial anatomy constraints',
+        'keep eye contact direction and gaze focus consistent with the original'
+    ],
+    
+    'change_clothing': [
+        'ensure fabric draping follows realistic physics and body contours',
+        'match clothing style to the person\'s age, body type, and occasion context',
+        'maintain proper color harmony with skin tone and surrounding environment',
+        'preserve original body proportions visible through clothing fit'
+    ],
+    
+    'change_pose': [
+        'follow human anatomical joint limitations and natural range of motion',
+        'maintain realistic weight distribution and balance points',
+        'preserve muscle tension consistency throughout the pose change',
+        'ensure the new pose fits logically within the environmental context'
+    ],
+
+    // === 🏗️ Scene Editing Constraints ===
+    'change_background': [
+        'match atmospheric perspective depth cues (color temperature, contrast fading)',
+        'align lighting direction and color temperature with the new environment',
+        'preserve edge quality and natural interaction between subject and background',
+        'maintain consistent scale relationships between foreground and background elements'
+    ],
+    
+    'add_object': [
+        'calculate correct size based on distance and perspective in the scene',
+        'replicate existing lighting conditions including shadows and reflections',
+        'ensure the added object doesn\'t violate physical space occupancy',
+        'match the visual style and quality level of existing scene elements'
+    ],
+    
+    'remove_object': [
+        'analyze surrounding patterns and textures for coherent reconstruction',
+        'maintain continuous perspective lines and vanishing points',
+        'preserve lighting gradients and shadow patterns in the filled area',
+        'avoid creating impossible spatial configurations'
+    ],
+
+    // === 📐 Geometric Transformation Constraints ===
+    'resize_object': [
+        'maintain pixel quality and avoid interpolation artifacts during scaling',
+        'adjust shadow size and casting angle proportionally to the new scale',
+        'preserve relative positioning within the scene\'s spatial hierarchy',
+        'ensure the resized object doesn\'t create unrealistic proportional relationships'
+    ],
+    
+    'adjust_lighting': [
+        'respect the object\'s surface material properties (reflectivity, translucency)',
+        'maintain consistent color temperature with other light sources in the scene',
+        'calculate realistic shadow casting based on the new lighting direction',
+        'preserve fine surface details while adjusting overall illumination'
+    ],
+
+    // === 🌍 Global Editing Constraints ===
+    'global_color_grade': [
+        'maintain natural skin tone accuracy across all human subjects',
+        'preserve important detail visibility in shadows and highlights',
+        'keep color relationships harmonious and avoid unrealistic color casts',
+        'maintain adequate contrast for visual clarity and depth perception'
+    ],
+    
+    'global_style_transfer': [
+        'preserve essential compositional elements and focal point hierarchy',
+        'maintain sufficient detail for important visual information',
+        'ensure style application doesn\'t compromise image readability',
+        'keep the artistic transformation appropriate to the original subject matter'
+    ],
+    
+    'enhance_quality': [
+        'avoid over-sharpening that creates unrealistic edge halos',
+        'balance noise reduction with preservation of fine texture details',
+        'maintain natural color saturation levels without over-enhancement',
+        'preserve the original photographic character and authenticity'
+    ],
+
+    // === 📝 Text Editing Constraints ===
+    'text_add': [
+        'choose typography that matches the image\'s aesthetic and historical period',
+        'ensure text readability against the background through appropriate contrast',
+        'position text to enhance rather than obstruct important visual elements',
+        'scale text appropriately for the image resolution and viewing context'
+    ],
+    
+    'text_remove': [
+        'analyze underlying textures and patterns for seamless reconstruction',
+        'maintain consistent lighting and shadow patterns where text was removed',
+        'preserve any important visual information that might be behind the text',
+        'avoid creating obvious rectangular patches or unnatural texture transitions'
+    ],
+    
+    'text_edit': [
+        'match the original text\'s font characteristics (style, weight, spacing)',
+        'maintain the same text placement and alignment principles',
+        'preserve original color relationships and text treatment effects',
+        'ensure new text length fits appropriately within the available space'
+    ],
+
+    // === 🔧 Professional Operations Constraints ===
+    'content_aware_fill': [
+        'analyze multiple surrounding areas for consistent pattern sampling',
+        'maintain natural randomness to avoid obvious repetitive patterns',
+        'preserve lighting gradients and directional texture flows',
+        'ensure filled content doesn\'t create impossible visual contradictions'
+    ],
+    
+    'perspective_transform': [
+        'maintain straight lines that should remain straight in the corrected view',
+        'preserve proportional relationships between architectural elements',
+        'ensure the transformation doesn\'t create impossible geometric configurations',
+        'maintain realistic viewing angles that follow optical physics principles'
+    ],
+    
     'default': []
 };
 
-// 修饰性提示词库 - Flux Kontext整合版，支持49个模板
+// Enhanced Decorative System - High-quality aesthetic prompts
 export const DECORATIVE_PROMPTS = {
-    // 局部编辑修饰性提示词 (L01-L18)
-    'change_color': ['smooth color transition', 'natural blending', 'vibrant yet realistic tones', 'professional color grading'],
-    'change_style': ['artistic excellence', 'seamless style adaptation', 'visually striking', 'sophisticated aesthetic'],
-    'replace_object': ['seamless integration', 'photorealistic replacement', 'perfect visual harmony', 'natural placement'],
-    'add_object': ['natural positioning', 'environmental harmony', 'balanced composition', 'contextually appropriate'],
-    'remove_object': ['invisible removal', 'seamless background reconstruction', 'natural scene flow', 'perfect cleanup'],
-    'change_texture': ['realistic material properties', 'detailed surface quality', 'tactile authenticity', 'professional texturing'],
-    'change_pose': ['natural body mechanics', 'dynamic posing', 'graceful movement', 'lifelike positioning'],
-    'change_expression': ['emotional authenticity', 'expressive naturalness', 'subtle facial nuances', 'captivating presence'],
-    'change_clothing': ['fashionable appearance', 'elegant draping', 'realistic fabric behavior', 'stylistic harmony'],
-    'change_background': ['stunning backdrop', 'environmental beauty', 'atmospheric depth', 'cinematic composition'],
-    'enhance_quality': ['crystal clear details', 'professional quality', 'enhanced clarity', 'masterpiece-level refinement'],
-    'blur_background': ['beautiful bokeh', 'artistic depth of field', 'professional portrait look', 'elegant focus'],
-    'adjust_lighting': ['dramatic illumination', 'perfect lighting balance', 'dimensional modeling', 'cinematic mood'],
-    'resize_object': ['perfect proportions', 'seamless scaling', 'optimal size balance', 'visually harmonious'],
-    'enhance_skin_texture': ['realistic skin detail', 'natural pore structure', 'healthy skin appearance', 'photorealistic texture'],
-    // 🔴 新增局部编辑修饰性提示词
-    'character_expression': ['emotionally engaging', 'naturally expressive', 'captivating facial features', 'authentic human emotion'],
-    'character_hair': ['natural hair flow', 'realistic hair texture', 'stylistically appropriate', 'professionally styled'],
-    'character_accessories': ['stylistically matching', 'perfectly fitted', 'naturally integrated', 'fashion-forward design'],
     
-    // 全局编辑修饰性提示词 (G01-G12)
-    'global_color_grade': ['cinematic color palette', 'professional grading', 'rich tonal depth', 'visually stunning result'],
-    'global_style_transfer': ['artistic masterpiece', 'seamless style adaptation', 'visually captivating', 'sophisticated aesthetic'],
-    'global_brightness_contrast': ['perfect exposure balance', 'dramatic contrast', 'enhanced dynamic range', 'professional quality'],
-    'global_hue_saturation': ['vibrant yet natural colors', 'harmonious palette', 'rich saturation', 'color-accurate result'],
-    'global_sharpen_blur': ['crystal clear sharpness', 'artistic blur effect', 'enhanced clarity', 'professional processing'],
-    'global_noise_reduction': ['clean smooth result', 'artifact-free image', 'pristine quality', 'professional cleanup'],
-    'global_enhance': ['stunning visual impact', 'enhanced beauty', 'masterpiece quality', 'professional refinement'],
-    'global_filter': ['artistic filter effect', 'stylistic enhancement', 'creative transformation', 'visually appealing'],
-    // 🔴 新增全局编辑修饰性提示词
-    'character_age': ['naturally aging', 'age-appropriate features', 'realistic life progression', 'dignified maturation'],
-    'detail_enhance': ['rich fine details', 'enhanced texture clarity', 'professional detailing', 'crystal clear definition'],
-    'realism_enhance': ['photorealistic quality', 'lifelike appearance', 'natural authenticity', 'enhanced believability'],
-    'camera_operation': ['cinematic framing', 'professional composition', 'dynamic perspective', 'visually engaging angle'],
+    // === 🎨 Appearance Transformation Aesthetic Enhancement ===
+    'change_color': [
+        'apply color harmony principles (complementary, analogous, or triadic schemes)',
+        'enhance color vibrancy while maintaining natural appearance',
+        'create smooth color transitions with subtle gradient effects',
+        'optimize color balance to create visual interest and focal emphasis'
+    ],
     
-    // 文字编辑修饰性提示词 (T01-T05) - 🔴 全新类型
-    'text_add': ['elegant typography', 'perfectly integrated text', 'stylistically harmonious', 'professionally designed'],
-    'text_remove': ['seamless text removal', 'invisible cleanup', 'perfect background restoration', 'natural scene flow'],
-    'text_edit': ['improved readability', 'enhanced text clarity', 'professional typography', 'stylistically consistent'],
-    'text_resize': ['optimal text scaling', 'perfect size balance', 'enhanced readability', 'visually proportioned'],
-    'object_combine': ['seamless fusion', 'harmonious integration', 'unified composition', 'artistic synthesis'],
+    'replace_object': [
+        'ensure the replacement enhances the overall compositional balance',
+        'create natural visual flow and eye movement through the scene',
+        'optimize size and placement for golden ratio proportional relationships',
+        'enhance narrative coherence and emotional impact of the scene'
+    ],
     
-    // 专业操作修饰性提示词 (P01-P14)
-    'geometric_warp': ['precise geometric transformation', 'professional correction', 'seamless warp effect', 'architectural accuracy'],
-    'perspective_transform': ['perfect perspective alignment', 'natural viewpoint shift', 'dimensional accuracy', 'spatial harmony'],
-    'lens_distortion': ['realistic lens effect', 'professional optical simulation', 'authentic distortion', 'artistic enhancement'],
-    'global_perspective': ['architectural perfection', 'professional correction', 'balanced perspective', 'structural accuracy'],
-    'content_aware_fill': ['invisible object removal', 'intelligent reconstruction', 'seamless background fill', 'natural scene flow'],
-    'seamless_removal': ['flawless removal', 'perfect background reconstruction', 'invisible cleanup', 'natural continuity'],
-    'smart_patch': ['intelligent pattern matching', 'seamless patch integration', 'professional repair', 'flawless reconstruction'],
-    'style_blending': ['masterful style fusion', 'artistic harmony', 'creative blending', 'sophisticated aesthetic'],
-    'collage_integration': ['artistic collage effect', 'creative composition', 'visual harmony', 'unified aesthetic'],
-    'texture_mixing': ['realistic material blend', 'authentic texture fusion', 'professional surface quality', 'tactile realism'],
-    'precision_cutout': ['precision cutting', 'flawless edge quality', 'professional cutout', 'masterful selection'],
-    'alpha_composite': ['perfect alpha blending', 'seamless transparency', 'professional compositing', 'flawless integration'],
-    'mask_feathering': ['smooth edge transitions', 'natural feathering', 'professional softening', 'elegant blending'],
-    'depth_composite': ['realistic depth integration', 'dimensional accuracy', 'spatial harmony', 'atmospheric realism'],
-    // 新增：来自kontext-presets的修饰性提示词
-    'zoom_focus': ['dramatic focus enhancement', 'cinematic depth', 'professional zoom quality', 'artistic magnification'],
-    'stylize_local': ['artistic style enhancement', 'creative transformation', 'unique artistic flair', 'stylized perfection'],
-    'relight_scene': ['dramatic lighting effects', 'professional illumination', 'cinematic atmosphere', 'masterful lighting'],
-    'colorize_image': ['vibrant color restoration', 'natural color enhancement', 'artistic colorization', 'lifelike color depth'],
-    'teleport_context': ['seamless context transition', 'immersive environment', 'creative scene transformation', 'dynamic context shift'],
-    'professional_product': ['catalog-quality finish', 'commercial excellence', 'professional presentation', 'premium product showcase'],
-    'custom': ['personalized enhancement', 'creative freedom', 'unique artistic vision', 'customized perfection'],
+    'change_style': [
+        'apply sophisticated artistic interpretation with masterful technique',
+        'create visually striking style adaptation that enhances artistic appeal',
+        'maintain elegant balance between stylization and recognizability',
+        'develop rich visual texture and depth through style application'
+    ],
+
+    // === 👤 Character Editing Aesthetic Enhancement ===
+    'change_expression': [
+        'create authentic emotional resonance and human connection',
+        'enhance natural facial attractiveness through subtle refinements',
+        'develop expressive depth that conveys compelling personality',
+        'optimize facial harmony and symmetry for maximum visual appeal'
+    ],
+    
+    'change_clothing': [
+        'apply fashion design principles for stylistic sophistication',
+        'enhance body silhouette and proportional attractiveness',
+        'create color coordination that complements skin tone and environment',
+        'develop texture richness and fabric authenticity for visual luxury'
+    ],
+    
+    'change_pose': [
+        'create dynamic energy and graceful movement flow',
+        'enhance body language communication and emotional expression',
+        'optimize proportional relationships for maximum visual appeal',
+        'develop compelling gesture language that enhances narrative impact'
+    ],
+
+    // === 🏗️ Scene Editing Aesthetic Enhancement ===
+    'change_background': [
+        'create atmospheric depth and environmental mood enhancement',
+        'develop rich contextual storytelling through environmental design',
+        'optimize compositional framing and negative space utilization',
+        'enhance emotional resonance through environmental psychology principles'
+    ],
+    
+    'add_object': [
+        'enhance compositional interest and visual narrative richness',
+        'create natural focal point hierarchy and eye movement guidance',
+        'develop contextual storytelling through thoughtful object selection',
+        'optimize spatial relationships for maximum visual harmony'
+    ],
+    
+    'remove_object': [
+        'create cleaner, more focused compositional emphasis',
+        'enhance visual simplicity and elegant minimalism',
+        'optimize spatial flow and negative space relationships',
+        'develop improved visual hierarchy and focal point clarity'
+    ],
+
+    // === 📐 Geometric Transformation Aesthetic Enhancement ===
+    'resize_object': [
+        'optimize proportional relationships for golden ratio harmony',
+        'enhance visual weight distribution and compositional balance',
+        'create improved focal point emphasis through strategic sizing',
+        'develop better spatial rhythm and visual flow patterns'
+    ],
+    
+    'adjust_lighting': [
+        'create dramatic chiaroscuro effects for emotional depth',
+        'enhance three-dimensional form modeling and sculptural quality',
+        'develop atmospheric mood through sophisticated lighting design',
+        'optimize highlight and shadow relationships for maximum visual impact'
+    ],
+
+    // === 🌍 Global Editing Aesthetic Enhancement ===
+    'global_color_grade': [
+        'create cinematic color palette with professional film-grade quality',
+        'develop rich tonal depth and sophisticated color relationships',
+        'enhance emotional impact through color psychology principles',
+        'optimize visual hierarchy through strategic color emphasis'
+    ],
+    
+    'global_style_transfer': [
+        'create artistic masterpiece quality with sophisticated aesthetic vision',
+        'develop unique visual identity through creative style interpretation',
+        'enhance cultural and artistic significance through style application',
+        'optimize creative expression while maintaining compositional excellence'
+    ],
+    
+    'enhance_quality': [
+        'achieve crystal-clear professional photography standards',
+        'enhance fine detail definition for maximum visual clarity',
+        'develop rich texture depth and tactile visual quality',
+        'optimize dynamic range for stunning visual impact'
+    ],
+
+    // === 📝 Text Editing Aesthetic Enhancement ===
+    'text_add': [
+        'apply professional typography design principles for maximum readability',
+        'create elegant text integration that enhances overall composition',
+        'develop appropriate visual hierarchy through font size and weight relationships',
+        'optimize color contrast and spatial relationships for visual harmony'
+    ],
+    
+    'text_remove': [
+        'create seamless visual flow without textual interruption',
+        'enhance compositional purity and visual elegance',
+        'optimize spatial relationships and negative space utilization',
+        'develop cleaner aesthetic focus on core visual elements'
+    ],
+    
+    'text_edit': [
+        'enhance textual communication clarity and visual impact',
+        'create improved typographic sophistication and professional appearance',
+        'optimize text readability while maintaining aesthetic integration',
+        'develop consistent visual branding and stylistic coherence'
+    ],
+
+    // === 🔧 Professional Operations Aesthetic Enhancement ===
+    'content_aware_fill': [
+        'create invisible, seamless reconstruction with natural organic flow',
+        'enhance overall compositional integrity and visual coherence',
+        'develop rich textural authenticity and surface quality',
+        'optimize spatial relationships for improved visual harmony'
+    ],
+    
+    'perspective_transform': [
+        'create architectural elegance and geometric precision',
+        'enhance spatial clarity and dimensional accuracy',
+        'develop professional architectural photography quality',
+        'optimize viewing angle for maximum visual impact and clarity'
+    ],
+    
     'default': []
 };
 
@@ -657,15 +1022,13 @@ export function updateOperationTypeSelect(selectElement, category) {
     templates.forEach(({ id, label }) => {
         const option = document.createElement('option');
         option.value = id;
-        option.textContent = t(`op_${id}`, label);
+        option.textContent = label;
         selectElement.appendChild(option);
     });
     
-    if (category === 'local') {
-        const customOption = document.createElement('option');
-        customOption.value = 'custom';
-        customOption.textContent = t('op_custom', 'Custom Operation');
-        selectElement.appendChild(customOption);
+    // 显式设置默认选中第一个选项
+    if (templates.length > 0) {
+        selectElement.value = templates[0].id;
     }
     
     // 操作类型选择器更新完成
@@ -987,4 +1350,598 @@ export function getImageFromWidget(nodeInstance) {
         console.error('Failed to get image from widget:', e);
         return null;
     }
+}
+
+// 🧠 智能提示词推理系统 - 基于模型推理的用户意图理解
+export class IntelligentPromptReasoning {
+    constructor() {
+        this.contextCache = new Map();
+        this.userBehaviorHistory = [];
+        this.scenarioKeywords = {
+            portrait: ['face', 'person', 'human', 'head', 'eyes', 'hair', 'skin', 'smile', 'expression', 'selfie', 'headshot'],
+            product: ['product', 'item', 'object', 'brand', 'commercial', 'catalog', 'showcase', 'market', 'sell', 'buy'],
+            creative: ['art', 'artistic', 'creative', 'design', 'style', 'abstract', 'conceptual', 'imagination', 'fantasy', 'surreal'],
+            social: ['social', 'share', 'instagram', 'facebook', 'story', 'post', 'friend', 'party', 'event', 'celebration'],
+            professional: ['business', 'corporate', 'work', 'office', 'meeting', 'presentation', 'document', 'report', 'formal']
+        };
+    }
+
+    /**
+     * 分析用户真实编辑意图和场景
+     */
+    analyzeUserIntent(modal, selectedAnnotations = [], operationType = '', targetDescription = '') {
+        console.log('🧠 智能推理：开始分析用户编辑意图...');
+        
+        // 1. 分析图像内容和元数据
+        const imageContext = this.analyzeImageContext(modal);
+        
+        // 2. 分析用户选择行为模式
+        const behaviorPattern = this.analyzeBehaviorPattern(selectedAnnotations, operationType);
+        
+        // 3. 分析目标描述的语义特征
+        const semanticIntent = this.analyzeSemanticIntent(targetDescription);
+        
+        // 4. 综合推理用户场景
+        const detectedScenario = this.detectUserScenario(imageContext, behaviorPattern, semanticIntent);
+        
+        // 5. 生成个性化编辑策略
+        const editingStrategy = this.generateEditingStrategy(detectedScenario, operationType, targetDescription);
+        
+        console.log('🧠 智能推理结果:', {
+            scenario: detectedScenario,
+            strategy: editingStrategy,
+            confidence: editingStrategy.confidence
+        });
+        
+        return {
+            scenario: detectedScenario,
+            strategy: editingStrategy,
+            recommendations: this.generateRecommendations(detectedScenario, editingStrategy)
+        };
+    }
+
+    /**
+     * 分析图像上下文 - 理解图像内容和视觉特征
+     */
+    analyzeImageContext(modal) {
+        const imageElement = modal.querySelector('#uploaded-image');
+        const annotations = modal.annotations || [];
+        
+        // 分析标注分布和类型模式
+        const annotationAnalysis = this.analyzeAnnotationPatterns(annotations);
+        
+        // 分析图像尺寸比例（推断用途）
+        let aspectRatioIntent = 'unknown';
+        if (imageElement) {
+            const aspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
+            if (aspectRatio > 1.5) aspectRatioIntent = 'landscape_social'; // 横向，适合社交媒体
+            else if (aspectRatio < 0.8) aspectRatioIntent = 'portrait_mobile'; // 竖向，适合移动端
+            else aspectRatioIntent = 'square_product'; // 方形，适合产品展示
+        }
+        
+        return {
+            annotationPatterns: annotationAnalysis,
+            aspectRatioIntent: aspectRatioIntent,
+            complexityLevel: annotations.length > 5 ? 'complex' : annotations.length > 2 ? 'medium' : 'simple'
+        };
+    }
+
+    /**
+     * 分析标注模式 - 理解用户标注行为
+     */
+    analyzeAnnotationPatterns(annotations) {
+        const patterns = {
+            focusAreas: [], // 重点关注区域
+            editingComplexity: 'simple', // 编辑复杂度
+            intentSignals: [] // 意图信号
+        };
+        
+        // 分析标注集中度（判断是局部精修还是全局调整）
+        if (annotations.length === 1) {
+            patterns.editingComplexity = 'focused'; // 专注单一对象
+            patterns.intentSignals.push('precision_editing');
+        } else if (annotations.length <= 3) {
+            patterns.editingComplexity = 'moderate'; // 适度调整
+            patterns.intentSignals.push('selective_editing');
+        } else {
+            patterns.editingComplexity = 'comprehensive'; // 全面编辑
+            patterns.intentSignals.push('major_transformation');
+        }
+        
+        // 分析标注颜色使用模式（推断用户心理状态）
+        const colors = annotations.map(ann => ann.color);
+        const uniqueColors = [...new Set(colors)];
+        if (uniqueColors.length === 1) {
+            patterns.intentSignals.push('systematic_approach'); // 系统化方法
+        } else {
+            patterns.intentSignals.push('exploratory_approach'); // 探索性方法
+        }
+        
+        return patterns;
+    }
+
+    /**
+     * 分析用户行为模式 - 理解编辑习惯和偏好
+     */
+    analyzeBehaviorPattern(selectedAnnotations, operationType) {
+        // 记录用户行为到历史
+        this.userBehaviorHistory.push({
+            timestamp: Date.now(),
+            operationType: operationType,
+            selectionCount: selectedAnnotations.length,
+            hasCustomDescription: selectedAnnotations.some(ann => ann.description && ann.description.trim())
+        });
+        
+        // 保持历史记录在合理范围内
+        if (this.userBehaviorHistory.length > 20) {
+            this.userBehaviorHistory = this.userBehaviorHistory.slice(-10);
+        }
+        
+        // 分析用户偏好模式
+        const recentBehaviors = this.userBehaviorHistory.slice(-5);
+        const preferredOperations = this.getMostFrequentOperations(recentBehaviors);
+        const editingStyle = this.determineEditingStyle(recentBehaviors);
+        
+        return {
+            preferredOperations: preferredOperations,
+            editingStyle: editingStyle, // 'precise', 'creative', 'efficient', 'experimental'
+            experienceLevel: this.estimateExperienceLevel(recentBehaviors)
+        };
+    }
+
+    /**
+     * 分析语义意图 - 理解用户描述的深层含义
+     */
+    analyzeSemanticIntent(targetDescription) {
+        if (!targetDescription || !targetDescription.trim()) {
+            return { intent: 'undefined', emotionalTone: 'neutral', specificity: 'low' };
+        }
+        
+        const text = targetDescription.toLowerCase();
+        
+        // 情感色调分析
+        let emotionalTone = 'neutral';
+        if (text.match(/beautiful|elegant|stunning|gorgeous|amazing|perfect/)) {
+            emotionalTone = 'positive_aesthetic';
+        } else if (text.match(/remove|delete|eliminate|fix|correct|repair/)) {
+            emotionalTone = 'corrective';
+        } else if (text.match(/creative|artistic|unique|innovative|experimental/)) {
+            emotionalTone = 'creative_exploratory';
+        } else if (text.match(/professional|business|clean|formal|corporate/)) {
+            emotionalTone = 'professional_focused';
+        }
+        
+        // 特异性分析（描述的具体程度）
+        const specificity = text.length > 50 ? 'high' : text.length > 20 ? 'medium' : 'low';
+        
+        // 意图类别分析
+        let intent = 'enhancement';
+        if (text.match(/add|create|insert|place/)) intent = 'addition';
+        else if (text.match(/change|transform|convert|modify/)) intent = 'transformation';
+        else if (text.match(/remove|delete|eliminate/)) intent = 'removal';
+        else if (text.match(/enhance|improve|upgrade|optimize/)) intent = 'enhancement';
+        
+        return {
+            intent: intent,
+            emotionalTone: emotionalTone,
+            specificity: specificity,
+            keywords: this.extractKeywords(text)
+        };
+    }
+
+    /**
+     * 检测用户场景 - 综合判断用户的使用场景
+     */
+    detectUserScenario(imageContext, behaviorPattern, semanticIntent) {
+        const scenarios = ['portrait', 'product', 'creative', 'social', 'professional'];
+        const scores = {};
+        
+        // 为每个场景计算匹配度分数
+        scenarios.forEach(scenario => {
+            scores[scenario] = this.calculateScenarioScore(scenario, imageContext, behaviorPattern, semanticIntent);
+        });
+        
+        // 找到最高分场景
+        const bestScenario = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+        const confidence = scores[bestScenario];
+        
+        // 如果置信度过低，使用默认场景
+        if (confidence < 0.3) {
+            return { type: 'default', confidence: 0.5 };
+        }
+        
+        return { type: bestScenario, confidence: confidence };
+    }
+
+    /**
+     * 计算场景匹配分数
+     */
+    calculateScenarioScore(scenario, imageContext, behaviorPattern, semanticIntent) {
+        let score = 0;
+        
+        // 基于语义关键词的匹配
+        const keywords = semanticIntent.keywords || [];
+        const scenarioKeywords = this.scenarioKeywords[scenario] || [];
+        const keywordMatches = keywords.filter(kw => scenarioKeywords.some(sk => kw.includes(sk) || sk.includes(kw)));
+        score += keywordMatches.length * 0.3;
+        
+        // 基于情感色调的匹配
+        if (scenario === 'portrait' && semanticIntent.emotionalTone === 'positive_aesthetic') score += 0.4;
+        if (scenario === 'product' && semanticIntent.emotionalTone === 'professional_focused') score += 0.4;
+        if (scenario === 'creative' && semanticIntent.emotionalTone === 'creative_exploratory') score += 0.4;
+        if (scenario === 'professional' && semanticIntent.emotionalTone === 'professional_focused') score += 0.4;
+        
+        // 基于编辑复杂度的匹配
+        if (scenario === 'creative' && imageContext.complexityLevel === 'complex') score += 0.2;
+        if (scenario === 'professional' && behaviorPattern.editingStyle === 'precise') score += 0.3;
+        
+        // 基于图像比例的匹配
+        if (scenario === 'portrait' && imageContext.aspectRatioIntent === 'portrait_mobile') score += 0.3;
+        if (scenario === 'product' && imageContext.aspectRatioIntent === 'square_product') score += 0.3;
+        if (scenario === 'social' && imageContext.aspectRatioIntent === 'landscape_social') score += 0.3;
+        
+        return Math.min(score, 1.0); // 确保分数不超过1
+    }
+
+    /**
+     * 生成编辑策略 - 基于场景推理最佳编辑方案
+     */
+    generateEditingStrategy(detectedScenario, operationType, targetDescription) {
+        const scenario = detectedScenario.type;
+        const confidence = detectedScenario.confidence;
+        
+        // 获取场景特定的模板
+        const template = OPERATION_TEMPLATES[operationType];
+        if (!template) {
+            return { confidence: 0.1, recommendations: ['Use default template'] };
+        }
+        
+        // 生成上下文感知的描述
+        let enhancedDescription = targetDescription;
+        if (template.description && typeof template.description === 'function') {
+            enhancedDescription = template.description(targetDescription, scenario);
+        }
+        
+        // 选择最佳约束条件
+        const constraints = this.selectOptimalConstraints(operationType, scenario);
+        
+        // 选择最佳修饰提示词
+        const decoratives = this.selectOptimalDecoratives(operationType, scenario);
+        
+        return {
+            confidence: confidence,
+            enhancedDescription: enhancedDescription,
+            recommendedConstraints: constraints,
+            recommendedDecoratives: decoratives,
+            reasoning: this.generateReasoningExplanation(scenario, operationType)
+        };
+    }
+
+    /**
+     * 选择最优约束条件
+     */
+    selectOptimalConstraints(operationType, scenario) {
+        const constraints = CONSTRAINT_PROMPTS[operationType];
+        if (!constraints) return [];
+        
+        if (typeof constraints === 'object' && constraints[scenario]) {
+            return constraints[scenario].slice(0, 2); // 选择前2个最重要的约束
+        } else if (Array.isArray(constraints)) {
+            return constraints.slice(0, 2);
+        }
+        
+        return constraints.default || [];
+    }
+
+    /**
+     * 选择最优修饰词
+     */
+    selectOptimalDecoratives(operationType, scenario) {
+        const decoratives = DECORATIVE_PROMPTS[operationType];
+        if (!decoratives) return [];
+        
+        if (typeof decoratives === 'object' && decoratives[scenario]) {
+            return decoratives[scenario].slice(0, 3); // 选择前3个最重要的修饰词
+        } else if (Array.isArray(decoratives)) {
+            return decoratives.slice(0, 3);
+        }
+        
+        return decoratives.default || [];
+    }
+
+    /**
+     * 生成推理说明
+     */
+    generateReasoningExplanation(scenario, operationType) {
+        const explanations = {
+            portrait: `Optimized for portrait photography, focusing on human subjects, facial features, and personal appeal`,
+            product: `Configured for product photography, emphasizing commercial appeal, quality, and purchase intent`,
+            creative: `Designed for artistic expression, supporting creative vision and conceptual depth`,
+            social: `Tailored for social media sharing, optimizing engagement and visual appeal`,
+            professional: `Calibrated for professional use, ensuring quality standards and specification compliance`,
+            default: `Using balanced settings suitable for general editing purposes`
+        };
+        
+        return explanations[scenario] || explanations.default;
+    }
+
+    /**
+     * 生成智能推荐
+     */
+    generateRecommendations(detectedScenario, editingStrategy) {
+        const recommendations = [];
+        
+        if (detectedScenario.confidence < 0.6) {
+            recommendations.push('Consider adding more specific description to improve AI understanding');
+        }
+        
+        if (editingStrategy.recommendedConstraints.length > 0) {
+            recommendations.push(`Applying ${detectedScenario.type}-optimized constraints for better results`);
+        }
+        
+        if (editingStrategy.recommendedDecoratives.length > 0) {
+            recommendations.push(`Enhanced with ${detectedScenario.type}-specific aesthetic improvements`);
+        }
+        
+        return recommendations;
+    }
+
+    // 辅助方法
+    getMostFrequentOperations(behaviors) {
+        const operations = behaviors.map(b => b.operationType);
+        const frequency = {};
+        operations.forEach(op => frequency[op] = (frequency[op] || 0) + 1);
+        return Object.keys(frequency).sort((a, b) => frequency[b] - frequency[a]).slice(0, 3);
+    }
+
+    determineEditingStyle(behaviors) {
+        if (behaviors.length < 3) return 'exploratory';
+        
+        const avgSelectionCount = behaviors.reduce((sum, b) => sum + b.selectionCount, 0) / behaviors.length;
+        const hasCustomDescriptions = behaviors.some(b => b.hasCustomDescription);
+        
+        if (avgSelectionCount === 1 && hasCustomDescriptions) return 'precise';
+        if (avgSelectionCount > 3) return 'comprehensive';
+        if (hasCustomDescriptions) return 'creative';
+        return 'efficient';
+    }
+
+    estimateExperienceLevel(behaviors) {
+        if (behaviors.length < 2) return 'beginner';
+        
+        const hasVariedOperations = new Set(behaviors.map(b => b.operationType)).size > 2;
+        const hasCustomDescriptions = behaviors.some(b => b.hasCustomDescription);
+        
+        if (hasVariedOperations && hasCustomDescriptions) return 'advanced';
+        if (hasVariedOperations || hasCustomDescriptions) return 'intermediate';
+        return 'beginner';
+    }
+
+    extractKeywords(text) {
+        // 简单的关键词提取
+        return text.split(/\s+/).filter(word => word.length > 3).slice(0, 5);
+    }
+}
+
+// 创建全局智能推理实例
+export const intelligentReasoning = new IntelligentPromptReasoning();
+
+// === SVG Tools (merged from svg_utils.js and svg_creator.js) ===
+
+/**
+ * 同步创建箭头marker
+ * @param {Element} modal - 模态窗口元素
+ * @param {string} color - 颜色
+ * @param {number} opacity - 不透明度
+ * @returns {string} marker ID
+ */
+export function createArrowheadMarkerSync(modal, color, opacity) {
+    const svg = modal.querySelector('#drawing-layer svg');
+    const defs = svg ? svg.querySelector('defs') : null;
+    
+    if (!defs) {
+        console.warn('⚠️ 未找到defs容器，使用默认箭头marker');
+        return `arrowhead-${color.replace('#', '')}`;
+    }
+    
+    // 生成唯一的marker ID
+    const markerId = `arrowhead-${color.replace('#', '')}-opacity-${Math.round(opacity)}`;
+    
+    // 检查是否已存在
+    const existingMarker = defs.querySelector(`#${markerId}`);
+    if (existingMarker) {
+        return markerId;
+    }
+    
+    // 创建新的marker
+    const marker = createSVGElement('marker', {
+        id: markerId,
+        markerWidth: '10',
+        markerHeight: '7',
+        refX: '9',
+        refY: '3.5',
+        orient: 'auto'
+    });
+    
+    const fillOpacity = Math.min((opacity + 30) / 100, 1.0);
+    const polygon = createSVGElement('polygon', {
+        points: '0 0, 10 3.5, 0 7',
+        fill: color,
+        'fill-opacity': fillOpacity.toString()
+    });
+    
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    
+    return markerId;
+}
+
+/**
+ * 应用填充样式到SVG形状
+ * @param {SVGElement} shape - SVG形状元素
+ * @param {string} color - 颜色
+ * @param {string} fillMode - 填充模式 ('fill'|'outline')
+ * @param {number} opacity - 不透明度 (0-100)
+ */
+export function applyFillStyle(shape, color, fillMode, opacity) {
+    const normalizedOpacity = Math.max(0, Math.min(100, opacity)) / 100;
+    
+    if (fillMode === 'fill') {
+        shape.setAttribute('fill', color);
+        shape.setAttribute('fill-opacity', normalizedOpacity.toString());
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-opacity', normalizedOpacity.toString());
+        shape.setAttribute('stroke-width', '2');
+    } else {
+        shape.setAttribute('fill', 'none');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-opacity', normalizedOpacity.toString());
+        shape.setAttribute('stroke-width', '3');
+    }
+}
+
+/**
+ * 应用预览样式
+ * @param {SVGElement} shape - SVG形状元素
+ */
+export function applyPreviewStyle(shape) {
+    shape.setAttribute('stroke-dasharray', '5,5');
+    shape.setAttribute('stroke-opacity', '0.8');
+}
+
+/**
+ * 获取下一个标注编号
+ * @param {Array} annotations - 现有标注数组
+ * @returns {number} 下一个编号
+ */
+export function getNextAnnotationNumber(annotations) {
+    if (!annotations || annotations.length === 0) {
+        return 1;
+    }
+    
+    const maxNumber = Math.max(...annotations.map(ann => ann.number || 0));
+    return maxNumber + 1;
+}
+
+/**
+ * 添加编号标签
+ * @param {SVGElement} svg - SVG容器
+ * @param {Object} annotation - 标注对象
+ * @param {number} number - 编号
+ */
+export function addNumberLabel(svg, annotation, number) {
+    // 计算标签位置
+    let labelX, labelY;
+    
+    if (annotation.start && annotation.end) {
+        labelX = Math.min(annotation.start.x, annotation.end.x) - 5;
+        labelY = Math.min(annotation.start.y, annotation.end.y) - 5;
+    } else if (annotation.centerPoint) {
+        labelX = annotation.centerPoint.x - 10;
+        labelY = annotation.centerPoint.y - 10;
+    } else {
+        return;
+    }
+    
+    // 创建标签背景
+    const labelBg = createSVGElement('circle', {
+        cx: labelX,
+        cy: labelY,
+        r: '12',
+        fill: annotation.color || '#ff0000',
+        'fill-opacity': '0.9',
+        stroke: '#ffffff',
+        'stroke-width': '2',
+        'data-annotation-id': annotation.id,
+        'data-label-type': 'background'
+    });
+    
+    // 创建标签文字
+    const labelText = createSVGElement('text', {
+        x: labelX,
+        y: labelY + 4,
+        'text-anchor': 'middle',
+        'font-family': 'Arial, sans-serif',
+        'font-size': '12',
+        'font-weight': 'bold',
+        fill: '#ffffff',
+        'data-annotation-id': annotation.id,
+        'data-label-type': 'text'
+    });
+    
+    labelText.textContent = number.toString();
+    
+    svg.appendChild(labelBg);
+    svg.appendChild(labelText);
+}
+
+/**
+ * SVG注解创建器 (merged from svg_creator.js)
+ */
+export class SVGAnnotationCreator {
+    constructor() {
+        this.svgNamespace = 'http://www.w3.org/2000/svg';
+    }
+
+    /**
+     * 创建矩形SVG元素
+     */
+    createRectangleElement(annotation, modal) {
+        const rect = document.createElementNS(this.svgNamespace, 'rect');
+        
+        rect.setAttribute('x', Math.min(annotation.start.x, annotation.end.x));
+        rect.setAttribute('y', Math.min(annotation.start.y, annotation.end.y));
+        rect.setAttribute('width', Math.abs(annotation.end.x - annotation.start.x));
+        rect.setAttribute('height', Math.abs(annotation.end.y - annotation.start.y));
+        
+        this.applyAnnotationStyle(rect, annotation);
+        rect.setAttribute('data-annotation-id', annotation.id);
+        rect.setAttribute('data-shape-type', 'rectangle');
+        
+        return rect;
+    }
+
+    /**
+     * 创建圆形SVG元素
+     */
+    createCircleElement(annotation, modal) {
+        const circle = document.createElementNS(this.svgNamespace, 'circle');
+        
+        const centerX = (annotation.start.x + annotation.end.x) / 2;
+        const centerY = (annotation.start.y + annotation.end.y) / 2;
+        const radius = Math.sqrt(
+            Math.pow(annotation.end.x - annotation.start.x, 2) + 
+            Math.pow(annotation.end.y - annotation.start.y, 2)
+        ) / 2;
+        
+        circle.setAttribute('cx', centerX);
+        circle.setAttribute('cy', centerY);
+        circle.setAttribute('r', radius);
+        
+        this.applyAnnotationStyle(circle, annotation);
+        circle.setAttribute('data-annotation-id', annotation.id);
+        circle.setAttribute('data-shape-type', 'circle');
+        
+        return circle;
+    }
+
+    /**
+     * 应用标注样式
+     */
+    applyAnnotationStyle(element, annotation) {
+        const color = annotation.color || '#ff0000';
+        const strokeWidth = annotation.strokeWidth || 3;
+        
+        element.setAttribute('stroke', color);
+        element.setAttribute('stroke-width', strokeWidth);
+        element.setAttribute('fill', 'none');
+        element.setAttribute('stroke-opacity', '0.8');
+    }
+}
+
+/**
+ * 创建SVG注解创建器实例
+ */
+export function createSVGAnnotationCreator() {
+    return new SVGAnnotationCreator();
 }

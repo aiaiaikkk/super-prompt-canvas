@@ -3,6 +3,8 @@
  * 负责各种UI事件的绑定和处理，包括下拉框、文件上传、基础界面事件等
  */
 
+import { addManagedEventListener } from './visual_prompt_editor_cleanup.js';
+
 export class EventHandlers {
     constructor(nodeInstance) {
         this.nodeInstance = nodeInstance;
@@ -20,7 +22,7 @@ export class EventHandlers {
             return;
         }
         
-        dropdown.addEventListener('click', (e) => {
+        addManagedEventListener(dropdown, 'click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             
@@ -36,8 +38,8 @@ export class EventHandlers {
             }
         });
         
-        // 点击页面其他地方关闭下拉框
-        document.addEventListener('click', (e) => {
+        // 点击页面其他地方关闭下拉框 - 使用管理的事件监听器
+        addManagedEventListener(document, 'click', (e) => {
             if (!dropdown.contains(e.target)) {
                 dropdownMenu.style.display = 'none';
                 dropdownArrow.style.transform = 'rotate(0deg)';

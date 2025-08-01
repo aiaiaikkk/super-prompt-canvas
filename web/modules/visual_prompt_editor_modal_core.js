@@ -32,7 +32,7 @@ import {
 // import { bindCanvasInteractionEvents, bindTabEvents } from './visual_prompt_editor_annotations.js';
 import { 
     initializeLanguageSystem
-} from './visual_prompt_editor_language.js';
+} from './visual_prompt_editor_i18n.js';
 import { 
     createFabricNativeManager
 } from './visual_prompt_editor_fabric_native.js';
@@ -391,22 +391,10 @@ function syncCanvasSizeToFrontend(modal, width, height) {
             heightInput.value = height;
         }
         
-        const sizeSelect = modal.querySelector('#vpe-canvas-size');
-        if (sizeSelect) {
-            const sizeString = `${width}x${height}`;
-            const options = Array.from(sizeSelect.options);
-            const matchingOption = options.find(option => option.value === sizeString);
-            
-            if (matchingOption) {
-                sizeSelect.value = sizeString;
-            } else {
-                // 如果不匹配预设，选择"自定义"选项并显示自定义控件
-                sizeSelect.value = 'custom';
-                const customControls = modal.querySelector('#vpe-custom-size-controls');
-                if (customControls) {
-                    customControls.style.display = 'flex';
-                }
-            }
+        // 自定义控件现在总是显示
+        const customControls = modal.querySelector('#vpe-custom-size-controls');
+        if (customControls) {
+            customControls.style.display = 'flex';
         }
         
         
