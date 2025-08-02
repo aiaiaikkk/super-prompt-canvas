@@ -278,11 +278,33 @@ function bindLayerSelectionEvents(modal, nodeInstance) {
             return;
         }
         
+        // 初始化当前选中图层跟踪
+        if (!modal.currentSelectedLayer) {
+            modal.currentSelectedLayer = null;
+        }
+        
         layersList.addEventListener('click', (e) => {
             const layerItem = e.target.closest('.layer-list-item');
             if (layerItem) {
                 e.stopPropagation();
                 
+                const layerId = layerItem.dataset.layerId;
+                const layerType = layerItem.dataset.layerType;
+                
+                // 如果点击的是当前选中的图层，不需要处理
+                if (modal.currentSelectedLayer === layerId) {
+                    return;
+                }
+                
+                // 保存当前图层状态（如果有当前选中的图层）
+                if (modal.currentSelectedLayer) {
+                    const currentNodeInstance = nodeInstance || modal.nodeInstance || window.currentVPEInstance;
+                    if (currentNodeInstance?.dataManager) {
+                        currentNodeInstance.dataManager.cacheLayerState(modal.currentSelectedLayer, modal);
+                    }
+                }
+                
+                // 更新UI选中状态
                 layersList.querySelectorAll('.layer-list-item').forEach(item => {
                     item.classList.remove('selected');
                     item.style.background = '#2b2b2b';
@@ -291,9 +313,18 @@ function bindLayerSelectionEvents(modal, nodeInstance) {
                 layerItem.classList.add('selected');
                 layerItem.style.background = '#10b981';
                 
-                const layerId = layerItem.dataset.layerId;
-                const layerType = layerItem.dataset.layerType;
+                // 更新当前选中图层
+                modal.currentSelectedLayer = layerId;
                 
+                // 恢复新选中图层的状态
+                const currentNodeInstance = nodeInstance || modal.nodeInstance || window.currentVPEInstance;
+                if (currentNodeInstance?.dataManager) {
+                    const restored = currentNodeInstance.dataManager.restoreLayerState(layerId, modal);
+                    if (!restored) {
+                        // 如果没有缓存状态，清空表单
+                        clearLayerEditingForm(modal);
+                    }
+                }
                 
                 // 触发图层选中事件
                 const event = new CustomEvent('layerSelected', {
@@ -306,6 +337,41 @@ function bindLayerSelectionEvents(modal, nodeInstance) {
         
     } catch (error) {
         console.error('Failed to bind layer selection events:', error);
+    }
+}
+
+/**
+ * 清空图层编辑表单
+ */
+function clearLayerEditingForm(modal) {
+    try {
+        // 清空操作类型
+        const operationType = modal.querySelector('#operation-type');
+        if (operationType) {
+            operationType.value = '';
+            operationType.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // 清空描述文本
+        const targetInput = modal.querySelector('#target-input');
+        if (targetInput) {
+            targetInput.value = '';
+        }
+        
+        // 清空约束性提示词选择
+        const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container .constraint-prompt-checkbox');
+        constraintCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        // 清空修饰性提示词选择
+        const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container .decorative-prompt-checkbox');
+        decorativeCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+    } catch (error) {
+        console.error('Failed to clear layer editing form:', error);
     }
 }
 

@@ -104,6 +104,7 @@ export function createToolbar() {
                 <button class="vpe-tool" data-tool="polygon" title="Polygon (Left click to add points, Right click to finish)" data-i18n-title="tooltip_polygon">🔷</button>
                 <button class="vpe-tool" data-tool="text" title="Text Tool (Click to add text)" data-i18n-title="tooltip_text">📝</button>
                 <button class="vpe-tool" data-tool="freehand" title="Freehand Drawing" data-i18n-title="tooltip_freehand">✏️</button>
+                <button class="vpe-tool" data-tool="crop" title="Custom Crop (Left click to add points, Right click to close, Enter to apply)" data-i18n-title="tooltip_crop">✂️</button>
             </div>
             
             <!-- 操作工具组 -->
@@ -596,22 +597,58 @@ export function createLayersTabContent() {
                               placeholder="Enter description for selected layer(s)..." data-i18n-placeholder="placeholder_layer_description"></textarea>
                 </div>
                 
+                <!-- Apply to Selected 提示说明 -->
+                <div style="margin-bottom: 8px;">
+                    <div style="color: #888; font-size: 11px; text-align: center; padding: 4px 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px; border-left: 3px solid #4CAF50;" data-i18n="apply_to_selected_hint">
+                        💡 将当前提示和描述应用到所有选中的图层
+                    </div>
+                </div>
+                
                 <div style="display: flex; gap: 8px;">
-                    <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_apply_to_selected">
+                    <button id="apply-to-selected" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;" data-i18n="btn_apply_to_selected" title="Apply the current prompt and description to all selected layers" data-i18n-title="tooltip_apply_to_selected">
                         ✅ Apply to Selected
                     </button>
                 </div>
-            </div>
-            
-            <!-- 空状态提示 -->
-            <div id="no-layers-message" style="text-align: center; color: #888; padding: 40px 20px;">
-                <div style="font-size: 18px; margin-bottom: 8px;">📝</div>
-                <div style="font-size: 14px; margin-bottom: 4px;" data-i18n="no_layers_title">No annotation layers yet</div>
-                <div style="font-size: 11px;" data-i18n="no_layers_subtitle">Create annotations to start editing</div>
+                
+                <!-- 生成局部编辑提示词功能区域 -->
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #555;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button id="generate-local-prompt" style="flex: 1; padding: 12px; background: #9C27B0; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; transition: all 0.2s ease;" data-i18n="btn_generate_local_prompt">
+                            🎯 Generate Local Edit Prompt
+                        </button>
+                    </div>
+                    
+                    <!-- 生成的局部编辑描述区域 -->
+                    <div id="local-generated-description-container" style="display: none;">
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px; font-weight: 500;" data-i18n="generated_description">🤖 Generated Description</label>
+                        <textarea id="local-generated-description" 
+                                  style="width: 100%; height: 100px; padding: 10px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 6px; font-size: 12px; resize: vertical; font-family: inherit; line-height: 1.4;"
+                                  placeholder="Generated local editing description will appear here..." data-i18n-placeholder="placeholder_generated_description" readonly></textarea>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button id="copy-local-description" style="padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;" data-i18n="btn_copy">
+                                📋 Copy
+                            </button>
+                            <button id="apply-local-description" style="padding: 6px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;" data-i18n="btn_apply">
+                                ✅ Apply
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
     `;
+    
+    // 更新国际化文本，包括tooltip
+    updateAllUITexts(layersContent);
+    
+    // 绑定"Apply to Selected"按钮事件
+    const applyButton = layersContent.querySelector('#apply-to-selected');
+    if (applyButton) {
+        applyButton.addEventListener('click', () => {
+            applySettingsToSelectedLayers(layersContent, applyButton);
+        });
+    }
     
     return layersContent;
 }
@@ -634,7 +671,6 @@ export function createControlsTabContent() {
             <div style="margin-bottom: 12px;">
                 <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 4px;" data-i18n="template_category">Template Category</label>
                 <select id="template-category" style="width: 100%; padding: 8px; background: #2b2b2b; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 8px;">
-                    <option value="local" data-i18n="template_local">🎯 Local Editing (20 templates)</option>
                     <option value="global" data-i18n="template_global">🌍 Global Adjustments (15 templates)</option>
                     <option value="text" data-i18n="template_text">📝 Text Editing (5 templates)</option>
                     <option value="professional" data-i18n="template_professional">🔧 Professional Operations (15 templates)</option>
@@ -1932,6 +1968,204 @@ export function loadLayersToPanel(modal, layers) {
     } catch (error) {
         console.error('❌ Error in loadLayersToPanel:', error);
         console.error('❌ Error stack:', error.stack);
+    }
+}
+
+/**
+ * 显示Toast通知
+ * @param {string} message - 通知消息
+ * @param {string} type - 通知类型 ('success', 'error', 'info')
+ * @param {Element} targetElement - 可选，相对定位的目标元素
+ */
+export function showToast(message, type = 'success', targetElement = null) {
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444', 
+        info: '#3b82f6'
+    };
+    
+    const toast = document.createElement('div');
+    
+    let positionStyle;
+    let animationName;
+    
+    if (targetElement) {
+        // 相对于目标元素定位，显示在元素上方
+        const rect = targetElement.getBoundingClientRect();
+        positionStyle = `
+            position: fixed;
+            left: ${rect.left + (rect.width / 2)}px;
+            top: ${rect.top - 60}px;
+            transform: translateX(-50%);
+            z-index: 30000;
+        `;
+        animationName = 'slideInFromTop';
+    } else {
+        // 默认右上角定位
+        positionStyle = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 30000;
+        `;
+        animationName = 'slideInFromRight';
+    }
+    
+    toast.style.cssText = `
+        ${positionStyle}
+        background: ${colors[type]}; color: white; padding: 8px 16px;
+        border-radius: 6px; font-size: 12px; font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        animation: ${animationName} 0.3s ease;
+        white-space: nowrap;
+    `;
+    toast.textContent = message;
+    
+    // 添加动画样式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInFromRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideInFromTop {
+            from { transform: translate(-50%, -20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(toast);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        toast.remove();
+        style.remove();
+    }, 3000);
+}
+
+/**
+ * 应用设置到选中的图层
+ */
+function applySettingsToSelectedLayers(layersContent, applyButton) {
+    try {
+        const modal = layersContent.closest('#unified-editor-modal');
+        if (!modal) {
+            showToast('❌ 无法找到模态窗口', 'error', applyButton);
+            return;
+        }
+        
+        console.log('🔍 Apply to Selected - Debugging:', {
+            modal: !!modal,
+            modalNodeInstance: !!modal.nodeInstance,
+            windowCurrentVPEInstance: !!window.currentVPEInstance,
+            windowCurrentVPENode: !!window.currentVPENode
+        });
+
+        // 获取当前设置
+        const operationType = modal.querySelector('#operation-type')?.value || '';
+        const targetInput = modal.querySelector('#target-input')?.value || '';
+        
+        const constraintPrompts = [];
+        const constraintCheckboxes = modal.querySelectorAll('#layer-constraint-prompts-container .constraint-prompt-checkbox:checked');
+        constraintCheckboxes.forEach(checkbox => {
+            const promptText = checkbox.nextElementSibling?.textContent?.trim();
+            if (promptText) {
+                constraintPrompts.push(promptText);
+            }
+        });
+        
+        const decorativePrompts = [];
+        const decorativeCheckboxes = modal.querySelectorAll('#layer-decorative-prompts-container .decorative-prompt-checkbox:checked');
+        decorativeCheckboxes.forEach(checkbox => {
+            const promptText = checkbox.nextElementSibling?.textContent?.trim();
+            if (promptText) {
+                decorativePrompts.push(promptText);
+            }
+        });
+
+        // 获取选中的图层
+        const selectedLayers = [];
+        
+        // 方法1: 从图层列表获取选中的图层
+        const layerItems = modal.querySelectorAll('#layers-list .layer-list-item');
+        layerItems.forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox && checkbox.checked) {
+                selectedLayers.push(item.dataset.layerId);
+            }
+        });
+        
+        // 方法2: 如果没有勾选的图层，使用当前选中的图层
+        if (selectedLayers.length === 0 && modal.currentSelectedLayer) {
+            selectedLayers.push(modal.currentSelectedLayer);
+        }
+        
+        // 方法3: 从modal.selectedLayers Set获取
+        if (selectedLayers.length === 0 && modal.selectedLayers && modal.selectedLayers.size > 0) {
+            selectedLayers.push(...Array.from(modal.selectedLayers));
+        }
+
+        if (selectedLayers.length === 0) {
+            showToast('❌ 请先选择要应用设置的图层', 'error', applyButton);
+            return;
+        }
+
+        // 获取nodeInstance来使用dataManager
+        let nodeInstance = modal.nodeInstance || window.currentVPEInstance || window.currentVPENode;
+        
+        // 如果还是没有找到，尝试从全局获取
+        if (!nodeInstance) {
+            nodeInstance = window.app?.graph?._nodes?.find(node => node.type === 'VisualPromptEditor');
+        }
+        
+        if (!nodeInstance) {
+            showToast('❌ 节点实例不可用', 'error', applyButton);
+            console.error('nodeInstance not found. Available:', {
+                modalNodeInstance: modal.nodeInstance,
+                windowCurrentVPEInstance: window.currentVPEInstance,
+                windowCurrentVPENode: window.currentVPENode
+            });
+            return;
+        }
+        
+        if (!nodeInstance.dataManager) {
+            // 尝试直接初始化layerStateCache作为备用方案
+            if (!modal.layerStateCache) {
+                modal.layerStateCache = new Map();
+            }
+            console.warn('dataManager not available, using modal layerStateCache as fallback');
+        }
+
+        // 应用设置到每个选中的图层
+        const layerState = {
+            operationType: operationType,
+            targetInput: targetInput,
+            constraintPrompts: constraintPrompts,
+            decorativePrompts: decorativePrompts,
+            timestamp: Date.now()
+        };
+
+        let appliedCount = 0;
+        selectedLayers.forEach(layerId => {
+            if (layerId) {
+                nodeInstance.dataManager.layerStateCache.set(layerId, { ...layerState });
+                appliedCount++;
+            }
+        });
+
+        if (appliedCount > 0) {
+            const message = appliedCount === 1 
+                ? '✅ 已应用到 1 个图层' 
+                : `✅ 已应用到 ${appliedCount} 个图层`;
+            showToast(message, 'success', applyButton);
+        } else {
+            showToast('❌ 没有成功应用到任何图层', 'error', applyButton);
+        }
+
+    } catch (error) {
+        console.error('Apply settings to layers failed:', error);
+        showToast('❌ 应用设置失败', 'error', applyButton);
     }
 }
 

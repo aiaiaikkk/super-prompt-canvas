@@ -20,10 +20,10 @@ function shouldRequireLayerSelection(category, operationType) {
         return false;
     }
     
-    // 局部编辑 - 需要选择图层
-    if (category === 'local') {
-        return true;
-    }
+    // 🗑️ 局部编辑已移除 - 现在通过图层选择自动处理
+    // if (category === 'local') {
+    //     return true;
+    // }
     
     // 文字编辑 - 需要选择图层
     if (category === 'text') {
@@ -922,7 +922,7 @@ export function exportPromptData(modal) {
         selected_annotations: selectedAnnotations,  // 🔴 新增：选中的标注及其独立设置
         global_operation_type: operationType?.value || 'add_object',  // 🔴 恢复：全局操作类型
         global_description: targetInput?.value || '',  // 🔴 恢复：全局描述
-        template_category: templateCategory?.value || 'local',  // 🔴 恢复：模板分类
+        template_category: templateCategory?.value || 'global',  // 🔴 修改：默认为全局模板
         constraint_prompts: selectedConstraints,  // 🔴 改为数组
         decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
@@ -971,8 +971,8 @@ function initializeCategorySelector(modal) {
         }
     }
     
-    // 初始化为局部编辑模板（第一个选项）
-    updateOperationTypeSelect(operationSelect, 'local');
+    // 初始化为全局编辑模板（现在的第一个选项）
+    updateOperationTypeSelect(operationSelect, 'global');
     
     // Edit Control区域不再需要提示词选择器初始化
     
@@ -1013,7 +1013,7 @@ function initializeCategorySelector(modal) {
  */
 function getCategoryPlaceholder(category) {
     const placeholders = {
-        local: 'Enter target changes for the selected object (e.g., "red color", "casual style")...',
+        // 🗑️ local: 'Enter target changes for the selected object...' - 已移除局部编辑
         global: 'Enter global adjustment parameters (e.g., "high contrast", "warm tones")...',
         text: 'Enter text content or editing instructions (e.g., "Hello World", "bigger size")...',  // 🔴 新增文字编辑
         professional: 'Enter professional operation details (e.g., "perspective correction", "smart fill")...'
@@ -1333,10 +1333,7 @@ function updateLayerSelectionLabel(modal, category) {
             labelText = '📋 Select Layers (Optional - Can work globally or locally)';
             labelColor = '#2196F3'; // 蓝色表示灵活
             break;
-        case 'local':
-            labelText = '📋 Select Layers (Required for local operations)';
-            labelColor = '#FF9800'; // 橙色表示必需
-            break;
+        // 🗑️ case 'local': - 已移除局部编辑，现在通过图层选择自动处理
         case 'text':
             labelText = '📋 Select Layers (Required for text operations)';
             labelColor = '#FF9800'; // 橙色表示必需

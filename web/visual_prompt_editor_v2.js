@@ -354,6 +354,9 @@ app.registerExtension({
                         });
                     }
                     
+                    // 存储nodeInstance引用以便在UI组件中使用
+                    modal.nodeInstance = this;
+                    
                     // 初始化模态弹窗功能
                     await initModalFunctionality(modal, [], this);
                     

@@ -61,6 +61,12 @@ export class FabricNativeManager {
         this.isDrawingPolygon = false;
         this.tempPolygonLine = null;
         
+        // 裁切工具状态
+        this.cropPoints = [];
+        this.isDrawingCrop = false;
+        this.tempCropLine = null;
+        this.cropAnchors = []; // 存储锚点标记
+        
         // 当前选中的图层ID（用于状态缓存）
         this.currentSelectedLayerId = null;
         
@@ -319,6 +325,19 @@ export class FabricNativeManager {
                 }
                 this.deleteSelected();
             }
+            
+            // 回车键确认裁切
+            if (e.key === 'Enter') {
+                // 检查焦点是否在输入框中，避免与文字输入冲突
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                if (this.currentTool === 'crop' && this.isDrawingCrop) {
+                    e.preventDefault();
+                    this.finishCrop();
+                }
+            }
         };
 
         const handleKeyUp = (e) => {
@@ -339,18 +358,22 @@ export class FabricNativeManager {
         // 存储引用用于清理
         this._keyEventHandlers = { handleKeyDown, handleKeyUp, handleBlur };
         
-        // 右键事件处理（多边形工具）
+        // 右键事件处理（多边形和裁切工具）
         this.fabricCanvas.wrapperEl.addEventListener('mousedown', (e) => {
             if (e.button === 2 && this.currentTool === 'polygon') {
                 e.preventDefault();
                 const pointer = this.fabricCanvas.getPointer(e);
                 this.handlePolygonRightClick(pointer);
+            } else if (e.button === 2 && this.currentTool === 'crop') {
+                e.preventDefault();
+                const pointer = this.fabricCanvas.getPointer(e);
+                this.finishCrop();
             }
         });
         
-        // 阻止右键菜单（多边形工具需要右键完成绘制）
+        // 阻止右键菜单（多边形和裁切工具需要右键完成绘制）
         this.fabricCanvas.wrapperEl.addEventListener('contextmenu', (e) => {
-            if (this.currentTool === 'polygon') {
+            if (this.currentTool === 'polygon' || this.currentTool === 'crop') {
                 e.preventDefault();
             }
         });
@@ -386,6 +409,12 @@ export class FabricNativeManager {
         // 多边形绘制特殊处理
         if (this.currentTool === 'polygon') {
             this.handlePolygonClick(pointer, e.e);
+            return;
+        }
+        
+        // 裁切工具特殊处理
+        if (this.currentTool === 'crop') {
+            this.handleCropClick(pointer, e.e);
             return;
         }
         
@@ -1269,6 +1298,460 @@ export class FabricNativeManager {
     }
     
     /**
+     * 处理裁切工具点击 - 左键添加锚点，右键闭合
+     */
+    handleCropClick(pointer, mouseEvent) {
+        if (mouseEvent.button === 2) {
+            // 右键点击 - 闭合路径
+            this.finishCrop();
+            return;
+        }
+        
+        if (mouseEvent.button === 0) {
+            // 左键点击 - 添加锚点
+            this.cropPoints.push({ x: pointer.x, y: pointer.y });
+            this.addCropAnchor(pointer.x, pointer.y);
+            
+            if (!this.isDrawingCrop) {
+                this.isDrawingCrop = true;
+                this.showCropPreview();
+            } else {
+                this.updateCropPreview();
+            }
+        }
+    }
+    
+    /**
+     * 添加裁切锚点可视化标记
+     */
+    addCropAnchor(x, y) {
+        const anchor = new fabric.Circle({
+            left: x - 3,
+            top: y - 3,
+            radius: 6,
+            fill: '#00ff00',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            originX: 'center',
+            originY: 'center'
+        });
+        
+        this.cropAnchors.push(anchor);
+        this.fabricCanvas.add(anchor);
+        this.fabricCanvas.bringToFront(anchor);
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 清除所有裁切锚点
+     */
+    clearCropAnchors() {
+        this.cropAnchors.forEach(anchor => {
+            this.fabricCanvas.remove(anchor);
+        });
+        this.cropAnchors = [];
+    }
+    
+    /**
+     * 显示裁切路径预览
+     */
+    showCropPreview() {
+        if (this.cropPoints.length < 2) return;
+        
+        const points = this.cropPoints.map(p => [p.x, p.y]).flat();
+        
+        this.tempCropLine = new fabric.Polyline(this.cropPoints, {
+            fill: 'transparent',
+            stroke: '#00ff00',
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+            selectable: false,
+            evented: false,
+            excludeFromExport: true
+        });
+        
+        this.fabricCanvas.add(this.tempCropLine);
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 更新裁切路径预览
+     */
+    updateCropPreview() {
+        if (this.tempCropLine) {
+            this.tempCropLine.set('points', [...this.cropPoints]);
+            this.fabricCanvas.renderAll();
+        } else {
+            this.showCropPreview();
+        }
+    }
+    
+    /**
+     * 完成裁切 - 创建裁切路径并应用到图像对象
+     */
+    finishCrop() {
+        if (this.cropPoints.length < 3) {
+            // 至少需要3个点才能组成裁切路径
+            this.cancelCrop();
+            return;
+        }
+        
+        // 创建裁切路径
+        const cropPath = new fabric.Polygon(this.cropPoints, {
+            fill: 'transparent',
+            stroke: 'transparent',
+            selectable: false,
+            evented: false,
+            absolutePositioned: true
+        });
+        
+        // 获取裁切区域的边界
+        const cropBounds = cropPath.getBoundingRect();
+        
+        // 查找裁切区域内的所有图像对象
+        const allObjects = this.fabricCanvas.getObjects();
+        const targetObjects = [];
+        
+        // 优先处理选中的对象
+        const activeObjects = this.fabricCanvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            activeObjects.forEach(obj => {
+                if (obj.type !== 'activeSelection' && this.isValidCropTarget(obj)) {
+                    targetObjects.push(obj);
+                }
+            });
+        } else {
+            // 如果没有选中对象，自动查找裁切区域内的图像
+            allObjects.forEach(obj => {
+                if (this.isValidCropTarget(obj) && this.isObjectInCropArea(obj, cropBounds)) {
+                    targetObjects.push(obj);
+                }
+            });
+        }
+        
+        if (targetObjects.length === 0) {
+            console.warn('未找到可裁切的图像对象。请确保裁切区域内有图像，或先选择要裁切的图像。');
+            this.cancelCrop();
+            return;
+        }
+        
+        // 对找到的对象应用裁切
+        targetObjects.forEach(obj => {
+            this.applyCropToObject(obj, cropPath);
+        });
+        
+        console.log(`✂️ 已对 ${targetObjects.length} 个对象应用裁切`);
+        
+        // 清理临时预览和锚点
+        if (this.tempCropLine) {
+            this.fabricCanvas.remove(this.tempCropLine);
+            this.tempCropLine = null;
+        }
+        this.clearCropAnchors();
+        
+        // 重置裁切状态
+        this.resetCropState();
+        
+        // 切换回选择工具
+        this.setTool('select');
+        this.updateToolButtonState('select');
+        
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 判断对象是否是有效的裁切目标
+     */
+    isValidCropTarget(object) {
+        // 过滤掉临时预览对象和锚点
+        if (object.excludeFromExport || 
+            this.cropAnchors.includes(object) || 
+            object === this.tempCropLine) {
+            return false;
+        }
+        
+        // 支持图像、矩形、圆形、多边形等可见对象
+        const validTypes = ['image', 'rect', 'circle', 'polygon', 'path', 'text', 'group'];
+        return validTypes.includes(object.type);
+    }
+    
+    /**
+     * 判断对象是否在裁切区域内
+     */
+    isObjectInCropArea(object, cropBounds) {
+        const objBounds = object.getBoundingRect();
+        
+        // 检查对象是否与裁切区域有重叠
+        return !(objBounds.left > cropBounds.left + cropBounds.width ||
+                 objBounds.left + objBounds.width < cropBounds.left ||
+                 objBounds.top > cropBounds.top + cropBounds.height ||
+                 objBounds.top + objBounds.height < cropBounds.top);
+    }
+    
+    /**
+     * 将裁切路径应用到对象 - 创建实际裁切后的新对象
+     */
+    applyCropToObject(object, cropPath) {
+        try {
+            // 创建临时画布用于渲染裁切
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 获取裁切区域边界
+            const cropBounds = cropPath.getBoundingRect();
+            
+            // 设置临时画布尺寸为裁切区域大小（确保足够的分辨率）
+            const pixelRatio = window.devicePixelRatio || 1;
+            const canvasWidth = Math.ceil(cropBounds.width * pixelRatio);
+            const canvasHeight = Math.ceil(cropBounds.height * pixelRatio);
+            
+            tempCanvas.width = canvasWidth;
+            tempCanvas.height = canvasHeight;
+            
+            // 缩放上下文以匹配设备像素比
+            tempCtx.scale(pixelRatio, pixelRatio);
+            
+            // 确保背景透明
+            tempCtx.clearRect(0, 0, cropBounds.width, cropBounds.height);
+            
+            // 创建裁切路径
+            tempCtx.save();
+            tempCtx.beginPath();
+            
+            // 将裁切路径绘制到临时画布（坐标调整为相对于裁切区域）
+            const points = cropPath.points;
+            if (points && points.length > 0) {
+                tempCtx.moveTo(points[0].x - cropBounds.left, points[0].y - cropBounds.top);
+                for (let i = 1; i < points.length; i++) {
+                    tempCtx.lineTo(points[i].x - cropBounds.left, points[i].y - cropBounds.top);
+                }
+                tempCtx.closePath();
+                tempCtx.clip();
+            }
+            
+            // 将原始对象渲染到临时画布
+            this.renderObjectToCanvas(object, tempCtx, cropBounds);
+            
+            tempCtx.restore();
+            
+            // 从临时画布创建新的图像
+            const croppedImageData = tempCanvas.toDataURL('image/png');
+            
+            // 清理临时画布资源
+            tempCanvas.width = 1;
+            tempCanvas.height = 1;
+            
+            // 创建新的 fabric.Image 对象
+            fabric.Image.fromURL(croppedImageData, (croppedImage) => {
+                if (!croppedImage) {
+                    console.error('❌ 创建裁切图像失败');
+                    return;
+                }
+                
+                // 设置裁切后图像的位置和属性
+                croppedImage.set({
+                    left: cropBounds.left,
+                    top: cropBounds.top,
+                    selectable: true,
+                    evented: true,
+                    hasControls: true,
+                    hasBorders: true,
+                    fabricId: `cropped_${object.fabricId || Date.now()}`,
+                    name: `Cropped ${object.name || 'Object'}`,
+                    // 保持原始对象的一些属性
+                    opacity: object.opacity || 1
+                });
+                
+                // 移除原始对象，添加裁切后的对象
+                this.fabricCanvas.remove(object);
+                this.fabricCanvas.add(croppedImage);
+                this.fabricCanvas.setActiveObject(croppedImage);
+                this.fabricCanvas.renderAll();
+                
+                // 触发图层面板更新
+                this._scheduleLayerPanelUpdate();
+                this._scheduleAutoSave();
+                
+                console.log('✂️ 裁切完成 - 创建了新的裁切图像');
+                
+            }, { 
+                crossOrigin: 'anonymous',
+                // 添加错误处理
+                onerror: () => {
+                    console.error('❌ 加载裁切图像失败');
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ 应用裁切失败:', error);
+        }
+    }
+    
+    /**
+     * 将对象渲染到指定画布
+     */
+    renderObjectToCanvas(object, ctx, cropBounds) {
+        try {
+            ctx.save();
+            
+            if (object.type === 'image') {
+                // 处理图像对象 - 使用 Fabric.js 的渲染方法
+                const img = object.getElement();
+                if (img && img.complete) {
+                    // 设置透明度
+                    ctx.globalAlpha = object.opacity || 1;
+                    
+                    // 计算对象在裁切区域内的位置
+                    const offsetX = object.left - cropBounds.left;
+                    const offsetY = object.top - cropBounds.top;
+                    
+                    // 应用对象变换
+                    ctx.translate(offsetX + object.width * object.scaleX / 2, offsetY + object.height * object.scaleY / 2);
+                    ctx.rotate((object.angle || 0) * Math.PI / 180);
+                    ctx.scale(object.scaleX || 1, object.scaleY || 1);
+                    
+                    // 绘制图像（以中心为原点）
+                    ctx.drawImage(
+                        img,
+                        -object.width / 2,
+                        -object.height / 2,
+                        object.width,
+                        object.height
+                    );
+                }
+            } else {
+                // 处理其他类型对象
+                const offsetX = object.left - cropBounds.left;
+                const offsetY = object.top - cropBounds.top;
+                
+                // 应用对象变换
+                ctx.translate(offsetX, offsetY);
+                ctx.rotate((object.angle || 0) * Math.PI / 180);
+                ctx.scale(object.scaleX || 1, object.scaleY || 1);
+                
+                // 根据对象类型进行不同的渲染
+                this.renderShapeToCanvas(object, ctx);
+            }
+            
+            ctx.restore();
+            
+        } catch (error) {
+            console.error('❌ 渲染对象到画布失败:', error);
+        }
+    }
+    
+    /**
+     * 将形状对象渲染到画布
+     */
+    renderShapeToCanvas(object, ctx) {
+        // 设置透明度
+        ctx.globalAlpha = object.opacity || 1;
+        
+        // 设置填充和描边样式
+        ctx.fillStyle = object.fill || 'transparent';
+        ctx.strokeStyle = object.stroke || 'transparent';
+        ctx.lineWidth = object.strokeWidth || 0;
+        
+        switch (object.type) {
+            case 'rect':
+                if (object.fill && object.fill !== 'transparent') {
+                    ctx.fillRect(0, 0, object.width, object.height);
+                }
+                if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                    ctx.strokeRect(0, 0, object.width, object.height);
+                }
+                break;
+                
+            case 'circle':
+                const radius = object.radius;
+                ctx.beginPath();
+                ctx.arc(radius, radius, radius, 0, 2 * Math.PI);
+                if (object.fill && object.fill !== 'transparent') {
+                    ctx.fill();
+                }
+                if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                    ctx.stroke();
+                }
+                break;
+                
+            case 'polygon':
+                if (object.points && object.points.length > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(object.points[0].x, object.points[0].y);
+                    for (let i = 1; i < object.points.length; i++) {
+                        ctx.lineTo(object.points[i].x, object.points[i].y);
+                    }
+                    ctx.closePath();
+                    if (object.fill && object.fill !== 'transparent') {
+                        ctx.fill();
+                    }
+                    if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                        ctx.stroke();
+                    }
+                }
+                break;
+                
+            case 'text':
+                if (object.text) {
+                    ctx.font = `${object.fontSize || 16}px ${object.fontFamily || 'Arial'}`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    
+                    if (object.fill && object.fill !== 'transparent') {
+                        ctx.fillText(object.text, 0, 0);
+                    }
+                    if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                        ctx.strokeText(object.text, 0, 0);
+                    }
+                }
+                break;
+                
+            case 'path':
+                // 对于路径对象，使用简化渲染
+                if (object.path && object.path.length > 0) {
+                    ctx.beginPath();
+                    // 这里可以根据需要解析SVG路径
+                    // 简化处理：直接绘制基本路径
+                    if (object.fill && object.fill !== 'transparent') {
+                        ctx.fill();
+                    }
+                    if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                        ctx.stroke();
+                    }
+                }
+                break;
+        }
+    }
+    
+    /**
+     * 取消裁切
+     */
+    cancelCrop() {
+        if (this.tempCropLine) {
+            this.fabricCanvas.remove(this.tempCropLine);
+            this.tempCropLine = null;
+        }
+        this.clearCropAnchors();
+        
+        // 重置状态
+        this.resetCropState();
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 重置裁切状态
+     */
+    resetCropState() {
+        this.cropPoints = [];
+        this.isDrawingCrop = false;
+        this.tempCropLine = null;
+        // 注意：不在这里清理锚点，因为已经在上层函数中处理了
+    }
+    
+    /**
      * 设置官方工具栏
      */
     setupOfficialToolbar() {
@@ -1280,7 +1763,8 @@ export class FabricNativeManager {
             'circle': this.modal.querySelector('[data-tool="circle"]'),
             'polygon': this.modal.querySelector('[data-tool="polygon"]'),
             'text': this.modal.querySelector('[data-tool="text"]'),
-            'freehand': this.modal.querySelector('[data-tool="freehand"]')
+            'freehand': this.modal.querySelector('[data-tool="freehand"]'),
+            'crop': this.modal.querySelector('[data-tool="crop"]')
         };
         
         Object.entries(toolButtons).forEach(([tool, button]) => {
@@ -1543,6 +2027,11 @@ export class FabricNativeManager {
             this.cancelPolygon();
         }
         
+        // 切换工具时，如果正在绘制裁切路径，则取消
+        if (this.isDrawingCrop && toolName !== 'crop') {
+            this.cancelCrop();
+        }
+        
         switch (toolName) {
             case 'select':
                 this.fabricCanvas.defaultCursor = 'default';
@@ -1569,6 +2058,11 @@ export class FabricNativeManager {
                 this.fabricCanvas.isDrawingMode = true;
                 this.fabricCanvas.freeDrawingBrush.width = 2;
                 this.fabricCanvas.freeDrawingBrush.color = '#ff0000';
+                break;
+                
+            case 'crop':
+                this.fabricCanvas.defaultCursor = 'crosshair';
+                this.fabricCanvas.hoverCursor = 'crosshair';
                 break;
         }
         

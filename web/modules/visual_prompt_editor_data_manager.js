@@ -1305,3 +1305,200 @@ function convertImageToFabricObject(modal, imageData, filename, nodeInstance) {
         console.error('Failed to convert image to Fabric object:', error);
     }
 }
+
+/**
+ * 收集当前编辑状态的完整数据
+ */
+export function collectCurrentEditingData(modal, nodeInstance) {
+    try {
+        const data = {
+            timestamp: Date.now(),
+            // 基础操作设置
+            operationType: modal.querySelector('#current-layer-operation')?.value || 'add_object',
+            description: modal.querySelector('#current-layer-description')?.value || '',
+            
+            // 约束性和修饰性提示词
+            constraintPrompts: collectSelectedPrompts(modal, '#layer-constraint-prompts-container'),
+            decorativePrompts: collectSelectedPrompts(modal, '#layer-decorative-prompts-container'),
+            
+            // 选中的图层信息
+            selectedLayers: collectSelectedLayersData(modal),
+            
+            // 生成的局部编辑提示词
+            generatedDescription: modal.querySelector('#local-generated-description')?.value || '',
+            
+            // Fabric.js画布数据
+            fabricData: null,
+            canvasImageData: null,
+            
+            // 画布设置
+            canvasWidth: parseInt(modal.querySelector('#vpe-canvas-width')?.value) || 800,
+            canvasHeight: parseInt(modal.querySelector('#vpe-canvas-height')?.value) || 600,
+            backgroundColor: modal.querySelector('#vpe-bg-color')?.value || '#ffffff',
+            
+            // 绘制工具设置
+            currentTool: modal.currentTool || 'select',
+            currentColor: modal.currentColor || '#ff0000',
+            fillMode: modal.fillMode || 'filled',
+            opacity: modal.currentOpacity || 50
+        };
+        
+        // 获取Fabric.js画布数据
+        if (nodeInstance.fabricManager && nodeInstance.fabricManager.fabricCanvas) {
+            try {
+                data.fabricData = nodeInstance.fabricManager.fabricCanvas.toJSON();
+                data.canvasImageData = nodeInstance.fabricManager.fabricCanvas.toDataURL({
+                    format: 'png',
+                    quality: 1.0
+                });
+            } catch (error) {
+                console.warn('Failed to get Fabric canvas data:', error);
+            }
+        }
+        
+        console.log('📊 收集到的编辑数据:', data);
+        return data;
+        
+    } catch (error) {
+        console.error('❌ 收集编辑数据失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 收集选中的提示词
+ */
+function collectSelectedPrompts(modal, containerSelector) {
+    const container = modal.querySelector(containerSelector);
+    const selectedPrompts = [];
+    
+    if (container) {
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(checkbox => {
+            const label = checkbox.closest('label');
+            if (label) {
+                selectedPrompts.push(label.textContent.trim());
+            }
+        });
+    }
+    
+    return selectedPrompts;
+}
+
+/**
+ * 收集选中的图层数据
+ */
+function collectSelectedLayersData(modal) {
+    const layersList = modal.querySelector('#layers-list');
+    const selectedLayers = [];
+    
+    if (layersList) {
+        const selectedItems = layersList.querySelectorAll('.layer-list-item.selected');
+        selectedItems.forEach(item => {
+            selectedLayers.push({
+                id: item.dataset.layerId,
+                type: item.dataset.layerType,
+                name: item.querySelector('.layer-name')?.textContent || `Layer ${selectedLayers.length + 1}`,
+                selected: true
+            });
+        });
+    }
+    
+    return selectedLayers;
+}
+
+/**
+ * 保存完整编辑数据到后端
+ */
+export function saveEditingDataToBackend(modal, nodeInstance) {
+    try {
+        console.log('💾 开始保存编辑数据到后端...');
+        
+        // 收集当前所有编辑数据
+        const editingData = collectCurrentEditingData(modal, nodeInstance);
+        
+        if (!editingData) {
+            console.error('❌ 无法收集到编辑数据');
+            return false;
+        }
+        
+        // 构建要传送到后端的数据结构
+        const backendData = {
+            // 基础编辑信息
+            operation_type: editingData.operationType,
+            target_description: editingData.description,
+            generated_prompt: editingData.generatedDescription,
+            
+            // 图层和选择信息
+            selected_annotations: editingData.selectedLayers,
+            
+            // 提示词增强
+            constraint_prompts: editingData.constraintPrompts,
+            decorative_prompts: editingData.decorativePrompts,
+            
+            // 画布数据
+            canvas_width: editingData.canvasWidth,
+            canvas_height: editingData.canvasHeight,
+            background_color: editingData.backgroundColor,
+            canvas_image_data: editingData.canvasImageData,
+            fabric_json: editingData.fabricData,
+            
+            // 工具设置
+            drawing_settings: {
+                tool: editingData.currentTool,
+                color: editingData.currentColor,
+                fill_mode: editingData.fillMode,
+                opacity: editingData.opacity
+            },
+            
+            // 元数据
+            timestamp: editingData.timestamp,
+            version: '2.0'
+        };
+        
+        // 保存到annotation_data widget
+        const success = saveAnnotationDataToWidget(nodeInstance, backendData);
+        
+        if (success) {
+            console.log('✅ 编辑数据已成功保存到后端');
+            return true;
+        } else {
+            console.error('❌ 保存编辑数据到后端失败');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('❌ 保存编辑数据到后端时出错:', error);
+        return false;
+    }
+}
+
+/**
+ * 保存数据到节点的annotation_data widget
+ */
+function saveAnnotationDataToWidget(nodeInstance, data) {
+    try {
+        const annotationDataWidget = nodeInstance.widgets?.find(w => w.name === "annotation_data");
+        
+        if (!annotationDataWidget) {
+            console.error('❌ 未找到annotation_data widget');
+            return false;
+        }
+        
+        // 将数据序列化为JSON字符串
+        const dataString = JSON.stringify(data, null, 2);
+        annotationDataWidget.value = dataString;
+        
+        // 触发节点更新
+        if (nodeInstance.setDirtyCanvas) {
+            nodeInstance.setDirtyCanvas(true, true);
+        }
+        
+        console.log('💾 数据已保存到annotation_data widget，大小:', dataString.length, '字符');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ 保存到widget失败:', error);
+        return false;
+    }
+}

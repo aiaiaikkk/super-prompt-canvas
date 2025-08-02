@@ -4,6 +4,7 @@
  */
 
 import { addManagedEventListener } from './visual_prompt_editor_cleanup.js';
+import { saveEditingDataToBackend, collectCurrentEditingData } from './visual_prompt_editor_data_manager.js';
 
 export class EventHandlers {
     constructor(nodeInstance) {
@@ -231,146 +232,8 @@ export class EventHandlers {
         this.bindLayerManagementToggleEvents(modal);
         this.bindMainDropdownEvents(modal);
         
-    }
-
-    /**
-     * 绑定图层管理事件
-     */
-    bindLayerManagementEvents(modal) {
-        
-        // 延迟绑定，确保DOM准备就绪
-        setTimeout(() => {
-            try {
-                this.bindLayerOrderEvents(modal);
-                
-                this.bindLayerVisibilityEvents(modal);
-                
-                
-            } catch (error) {
-                console.error('Layer management event binding failed:', error);
-            }
-        }, 150); // 比主文件中的延迟稍长一些
-    }
-
-    /**
-     * 绑定图层顺序调整事件
-     */
-    bindLayerOrderEvents(modal) {
-        try {
-        } catch (error) {
-            console.error('Layer order event binding failed:', error);
-        }
-    }
-
-    /**
-     * 绑定图层可见性事件
-     */
-    bindLayerVisibilityEvents(modal) {
-        try {
-        } catch (error) {
-            console.error('Layer visibility event binding failed:', error);
-        }
-    }
-
-
-    bindFileUploadEvents(modal) {
-        
-        const fileInput = modal.querySelector('#layer-image-upload');
-        if (!fileInput) {
-            return;
-        }
-        
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                this.handleImageUpload(modal, file);
-            } else {
-            }
-        });
-        
-    }
-
-    /**
-     * 处理图片上传
-     */
-    handleImageUpload(modal, file) {
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const imageData = e.target.result;
-            
-            // 这里可以添加图片处理逻辑
-            if (this.nodeInstance.processUploadedImage) {
-                this.nodeInstance.processUploadedImage(modal, imageData, file.name);
-            }
-        };
-        
-        reader.onerror = () => {
-            console.error('Image reading failed');
-        };
-        
-        reader.readAsDataURL(file);
-    }
-
-    /**
-     * 绑定图层管理切换事件
-     */
-    bindLayerManagementToggleEvents(modal) {
-        
-        const enableLayerManagement = modal.querySelector('#enable-layer-management');
-        if (!enableLayerManagement) {
-            return;
-        }
-        
-        enableLayerManagement.addEventListener('change', (e) => {
-            const enabled = e.target.checked;
-            
-            if (this.nodeInstance.toggleConnectedLayersDisplay) {
-                this.nodeInstance.toggleConnectedLayersDisplay(modal, enabled);
-            }
-            
-            this.updateLayerManagementUI(modal, enabled);
-        });
-        
-    }
-
-    /**
-     * 更新图层管理UI状态
-     */
-    updateLayerManagementUI(modal, enabled) {
-        const layerControls = modal.querySelector('#layer-controls');
-        const layersList = modal.querySelector('#layers-list');
-        
-        if (layerControls) {
-            layerControls.style.display = enabled ? 'block' : 'none';
-        }
-        
-        if (layersList) {
-            layersList.style.opacity = enabled ? '1' : '0.5';
-        }
-        
-    }
-
-    /**
-     * 绑定基础界面事件
-     */
-    bindBasicEvents(modal) {
-        
-        this.bindCloseAndSaveButtons(modal);
-        
-        this.bindOperationTypeEvents(modal);
-        
-        this.bindDrawingToolEvents(modal);
-        
-        this.bindLayerManagementEvents(modal);
-        
-        this.bindLayerPanelButtons(modal);
-        
-        this.bindCanvasSizeEvents(modal);
-        
-        this.bindFileUploadEvents(modal);
-        this.bindLayerManagementToggleEvents(modal);
-        this.bindMainDropdownEvents(modal);
+        // 🆕 绑定局部编辑提示词生成功能
+        this.bindLocalEditingEvents(modal);
         
     }
 
@@ -512,6 +375,153 @@ export class EventHandlers {
         this.bindFileUploadEvents(modal);
         this.bindLayerManagementToggleEvents(modal);
         this.bindMainDropdownEvents(modal);
+        
+        // 🆕 绑定局部编辑提示词生成功能
+        this.bindLocalEditingEvents(modal);
+        
+    }
+
+    /**
+     * 绑定图层管理事件
+     */
+    bindLayerManagementEvents(modal) {
+        
+        // 延迟绑定，确保DOM准备就绪
+        setTimeout(() => {
+            try {
+                this.bindLayerOrderEvents(modal);
+                
+                this.bindLayerVisibilityEvents(modal);
+                
+                
+            } catch (error) {
+                console.error('Layer management event binding failed:', error);
+            }
+        }, 150); // 比主文件中的延迟稍长一些
+    }
+
+    /**
+     * 绑定图层顺序调整事件
+     */
+    bindLayerOrderEvents(modal) {
+        try {
+        } catch (error) {
+            console.error('Layer order event binding failed:', error);
+        }
+    }
+
+    /**
+     * 绑定图层可见性事件
+     */
+    bindLayerVisibilityEvents(modal) {
+        try {
+        } catch (error) {
+            console.error('Layer visibility event binding failed:', error);
+        }
+    }
+
+
+    bindFileUploadEvents(modal) {
+        
+        const fileInput = modal.querySelector('#layer-image-upload');
+        if (!fileInput) {
+            return;
+        }
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                this.handleImageUpload(modal, file);
+            } else {
+            }
+        });
+        
+    }
+
+    /**
+     * 处理图片上传
+     */
+    handleImageUpload(modal, file) {
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageData = e.target.result;
+            
+            // 这里可以添加图片处理逻辑
+            if (this.nodeInstance.processUploadedImage) {
+                this.nodeInstance.processUploadedImage(modal, imageData, file.name);
+            }
+        };
+        
+        reader.onerror = () => {
+            console.error('Image reading failed');
+        };
+        
+        reader.readAsDataURL(file);
+    }
+
+    /**
+     * 绑定图层管理切换事件
+     */
+    bindLayerManagementToggleEvents(modal) {
+        
+        const enableLayerManagement = modal.querySelector('#enable-layer-management');
+        if (!enableLayerManagement) {
+            return;
+        }
+        
+        enableLayerManagement.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            
+            if (this.nodeInstance.toggleConnectedLayersDisplay) {
+                this.nodeInstance.toggleConnectedLayersDisplay(modal, enabled);
+            }
+            
+            this.updateLayerManagementUI(modal, enabled);
+        });
+        
+    }
+
+    /**
+     * 更新图层管理UI状态
+     */
+    updateLayerManagementUI(modal, enabled) {
+        const layerControls = modal.querySelector('#layer-controls');
+        const layersList = modal.querySelector('#layers-list');
+        
+        if (layerControls) {
+            layerControls.style.display = enabled ? 'block' : 'none';
+        }
+        
+        if (layersList) {
+            layersList.style.opacity = enabled ? '1' : '0.5';
+        }
+        
+    }
+
+    /**
+     * 绑定基础界面事件
+     */
+    bindBasicEvents(modal) {
+        
+        this.bindCloseAndSaveButtons(modal);
+        
+        this.bindOperationTypeEvents(modal);
+        
+        this.bindDrawingToolEvents(modal);
+        
+        this.bindLayerManagementEvents(modal);
+        
+        this.bindLayerPanelButtons(modal);
+        
+        this.bindCanvasSizeEvents(modal);
+        
+        this.bindFileUploadEvents(modal);
+        this.bindLayerManagementToggleEvents(modal);
+        this.bindMainDropdownEvents(modal);
+        
+        // 🆕 绑定局部编辑提示词生成功能
+        this.bindLocalEditingEvents(modal);
         
     }
 
@@ -755,8 +765,44 @@ export class EventHandlers {
         const saveBtn = modal.querySelector('#vpe-save');
         if (saveBtn) {
             saveBtn.onclick = () => {
-                // 保存逻辑
+                this.handleSaveEditingData(modal);
             };
+        }
+    }
+
+    /**
+     * 处理保存编辑数据到后端
+     */
+    handleSaveEditingData(modal) {
+        try {
+            console.log('💾 开始保存编辑数据...');
+            
+            // 显示保存中状态
+            const saveBtn = modal.querySelector('#vpe-save');
+            if (saveBtn) {
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '💾 Saving...';
+                saveBtn.disabled = true;
+                
+                // 保存数据到后端
+                const success = saveEditingDataToBackend(modal, this.nodeInstance);
+                
+                // 恢复按钮状态
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                    
+                    if (success) {
+                        this.showNotification('编辑数据已成功保存到后端！', 'success');
+                    } else {
+                        this.showNotification('保存失败，请检查数据和连接', 'error');
+                    }
+                }, 1000);
+            }
+            
+        } catch (error) {
+            console.error('❌ 保存编辑数据时出错:', error);
+            this.showNotification('保存时发生错误', 'error');
         }
     }
 
@@ -933,26 +979,7 @@ export class EventHandlers {
      * 显示画布尺寸更改通知
      */
     showCanvasSizeNotification(width, height) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed; top: 20px; right: 20px; z-index: 30000;
-            background: #4CAF50; color: white; padding: 12px 20px;
-            border-radius: 6px; font-size: 14px; font-weight: 500;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-            opacity: 0; transition: all 0.3s ease;
-        `;
-        notification.textContent = `✅ Canvas size updated: ${width}×${height}`;
-
-        document.body.appendChild(notification);
-
-        // 动画显示
-        setTimeout(() => notification.style.opacity = '1', 10);
-
-        // 3秒后自动移除
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => document.body.removeChild(notification), 300);
-        }, 3000);
+        this.showNotification(`✅ Canvas size updated: ${width}×${height}`, 'success');
     }
 
     /**
@@ -1024,17 +1051,390 @@ export class EventHandlers {
      * 显示图片上传成功通知
      */
     showImageUploadNotification(fileName) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed; top: 20px; right: 20px; z-index: 30000;
-            background: #FF9800; color: white; padding: 12px 20px;
-            border-radius: 6px; font-size: 14px; font-weight: 500;
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
-            opacity: 0; transition: all 0.3s ease;
-        `;
-        notification.textContent = `📁 Image uploaded: ${fileName}`;
+        this.showNotification(`📁 Image uploaded: ${fileName}`, 'warning');
+    }
 
-        document.body.appendChild(notification);
+    /**
+     * 绑定局部编辑提示词生成功能事件
+     */
+    bindLocalEditingEvents(modal) {
+        console.log('🎯 开始绑定局部编辑面板事件...');
+        
+        // 生成局部编辑提示词按钮
+        const generateBtn = modal.querySelector('#generate-local-prompt');
+        console.log('🔍 查找生成按钮:', { generateBtn: !!generateBtn, id: generateBtn?.id });
+        
+        if (generateBtn) {
+            console.log('✅ 找到生成按钮，绑定点击事件');
+            addManagedEventListener(generateBtn, 'click', (event) => {
+                console.log('🎯 生成按钮被点击!', event);
+                this.handleGenerateLocalPrompt(modal);
+            });
+            
+            // 添加悬停效果
+            generateBtn.addEventListener('mouseenter', () => {
+                generateBtn.style.background = '#AB47BC';
+                generateBtn.style.transform = 'translateY(-1px)';
+            });
+            generateBtn.addEventListener('mouseleave', () => {
+                generateBtn.style.background = '#9C27B0';
+                generateBtn.style.transform = 'translateY(0)';
+            });
+        } else {
+            console.error('❌ 找不到生成按钮元素 #generate-local-prompt');
+        }
+
+        // 绑定复制按钮事件
+        const copyBtn = modal.querySelector('#copy-local-description');
+        if (copyBtn) {
+            addManagedEventListener(copyBtn, 'click', () => {
+                this.copyLocalDescription(modal);
+            });
+        }
+
+        // 绑定应用按钮事件
+        const applyBtn = modal.querySelector('#apply-local-description');
+        if (applyBtn) {
+            addManagedEventListener(applyBtn, 'click', () => {
+                this.applyLocalDescription(modal);
+            });
+        }
+    }
+    
+    /**
+     * 处理生成局部编辑提示词
+     */
+    handleGenerateLocalPrompt(modal) {
+        try {
+            console.log('🎯 开始生成局部编辑提示词...');
+            
+            // 🎯 首先确保layer-operations容器是显示的
+            const layerOperations = modal.querySelector('#layer-operations');
+            if (layerOperations && layerOperations.style.display === 'none') {
+                layerOperations.style.display = 'block';
+                layerOperations.style.visibility = 'visible';
+                layerOperations.style.opacity = '1';
+                console.log('✅ 显示了layer-operations容器');
+            }
+            
+            // 获取当前设置
+            const operationType = modal.querySelector('#current-layer-operation')?.value || 'add_object';
+            const description = modal.querySelector('#current-layer-description')?.value || '';
+            
+            // 获取选中的约束性提示词
+            const constraintPrompts = this.getSelectedConstraintPrompts(modal);
+            
+            // 获取选中的修饰性提示词
+            const decorativePrompts = this.getSelectedDecorativePrompts(modal);
+            
+            // 获取选中的图层信息
+            const selectedLayers = this.getSelectedLayersInfo(modal);
+            
+            console.log('🔍 获取到的参数:', { 
+                operationType, 
+                description, 
+                constraintPrompts,
+                decorativePrompts,
+                selectedLayersCount: selectedLayers.length 
+            });
+            
+            // 生成局部编辑提示词
+            const promptData = this.generateLocalEditingPrompt({
+                operationType,
+                description,
+                constraintPrompts,
+                decorativePrompts,
+                selectedLayers
+            });
+            
+            console.log('✅ 生成的提示词数据:', promptData);
+            this.displayGeneratedLocalDescription(modal, promptData);
+            
+        } catch (error) {
+            console.error('❌ 生成局部编辑提示词失败:', error);
+            this.showNotification('生成失败，请检查选择的图层和参数', 'error');
+        }
+    }
+
+    /**
+     * 获取选中的约束性提示词
+     */
+    getSelectedConstraintPrompts(modal) {
+        const constraintContainer = modal.querySelector('#layer-constraint-prompts-container');
+        const selectedPrompts = [];
+        
+        if (constraintContainer) {
+            const checkboxes = constraintContainer.querySelectorAll('input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                const label = checkbox.closest('label');
+                if (label) {
+                    selectedPrompts.push(label.textContent.trim());
+                }
+            });
+        }
+        
+        return selectedPrompts;
+    }
+
+    /**
+     * 获取选中的修饰性提示词
+     */
+    getSelectedDecorativePrompts(modal) {
+        const decorativeContainer = modal.querySelector('#layer-decorative-prompts-container');
+        const selectedPrompts = [];
+        
+        if (decorativeContainer) {
+            const checkboxes = decorativeContainer.querySelectorAll('input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                const label = checkbox.closest('label');
+                if (label) {
+                    selectedPrompts.push(label.textContent.trim());
+                }
+            });
+        }
+        
+        return selectedPrompts;
+    }
+
+    /**
+     * 获取选中的图层信息
+     */
+    getSelectedLayersInfo(modal) {
+        const layersList = modal.querySelector('#layers-list');
+        const selectedLayers = [];
+        
+        if (layersList) {
+            const selectedItems = layersList.querySelectorAll('.layer-list-item.selected');
+            selectedItems.forEach(item => {
+                selectedLayers.push({
+                    id: item.dataset.layerId,
+                    type: item.dataset.layerType,
+                    name: item.querySelector('.layer-name')?.textContent || `Layer ${selectedLayers.length + 1}`
+                });
+            });
+        }
+        
+        return selectedLayers;
+    }
+
+    /**
+     * 生成局部编辑提示词
+     */
+    generateLocalEditingPrompt({ operationType, description, constraintPrompts, decorativePrompts, selectedLayers }) {
+        // Flux Kontext优化操作模板映射 - 使用英文专业提示词
+        const operationTemplates = {
+            // 局部编辑模板 (L01-L18) - Flux Kontext优化
+            'add_object': 'add {description} to the marked area',
+            'change_color': 'make the marked area {description}',
+            'change_style': 'turn the marked area into {description} style',
+            'replace_object': 'replace the marked area with {description}',
+            'remove_object': 'remove the marked area',
+            'change_texture': 'change the marked area texture to {description}',
+            'change_pose': 'make the marked area {description} pose',
+            'change_expression': 'give the marked area {description} expression',
+            'change_clothing': 'change the marked area clothing to {description}',
+            'change_background': 'change the background to {description}',
+            'enhance_quality': 'enhance the marked area quality',
+            'blur_background': 'blur the background behind the marked area',
+            'adjust_lighting': 'adjust lighting on the marked area',
+            'resize_object': 'make the marked area {description} size',
+            'enhance_skin_texture': 'enhance the marked area skin texture',
+            'character_expression': 'make the person {description}',
+            'character_hair': 'give the person {description} hair',
+            'character_accessories': 'give the person {description}',
+            'zoom_focus': 'zoom focus on the marked area',
+            'stylize_local': 'stylize the marked area with {description}',
+            'custom': 'apply custom modification to the marked area'
+        };
+
+        // 构建基础提示词 - 处理模板占位符
+        const baseTemplate = operationTemplates[operationType] || operationTemplates['custom'];
+        let positivePrompt = '';
+        
+        // 如果有描述，使用模板并替换占位符；否则使用默认描述
+        if (description && description.trim()) {
+            // 使用用户描述替换模板中的占位符
+            positivePrompt = baseTemplate.replace('{description}', description.trim());
+        } else {
+            // 使用默认描述替换占位符
+            const defaultDescriptions = {
+                'add_object': 'a new object',
+                'change_color': 'red',
+                'change_style': 'cartoon',
+                'replace_object': 'a different object',
+                'change_texture': 'smooth',
+                'change_pose': 'standing',
+                'change_expression': 'happy',
+                'change_clothing': 'casual clothes',
+                'change_background': 'natural landscape',
+                'resize_object': 'larger',
+                'character_expression': 'smile',
+                'character_hair': 'blonde',
+                'character_accessories': 'glasses',
+                'stylize_local': 'artistic style',
+                'custom': 'modification'
+            };
+            
+            const defaultDesc = defaultDescriptions[operationType] || 'modification';
+            positivePrompt = baseTemplate.replace('{description}', defaultDesc);
+        }
+
+        // 添加图层信息
+        if (selectedLayers.length > 0) {
+            const layerNames = selectedLayers.map(layer => layer.name).join(', ');
+            positivePrompt += ` (targeting: ${layerNames})`;
+        }
+
+        // 添加约束性提示词
+        if (constraintPrompts.length > 0) {
+            positivePrompt += `, ${constraintPrompts.join(', ')}`;
+        }
+
+        // 添加修饰性提示词
+        if (decorativePrompts.length > 0) {
+            positivePrompt += `, ${decorativePrompts.join(', ')}`;
+        }
+
+        // 生成负向提示词（基于操作类型） - Flux Kontext优化
+        const negativePrompts = {
+            'add_object': 'floating objects, unrealistic placement, size mismatch, poor integration',
+            'change_color': 'wrong colors, color bleeding, inconsistent coloring, unnatural hues',
+            'change_style': 'inconsistent style, style mixing, poor artistic quality, stylistic conflicts',
+            'replace_object': 'incomplete replacement, object remnants, blended objects, poor boundaries',
+            'remove_object': 'object traces, incomplete removal, artifacts, visible gaps',
+            'change_texture': 'unrealistic texture, poor surface quality, texture misalignment',
+            'change_pose': 'unnatural pose, anatomical errors, distorted proportions',
+            'change_expression': 'unnatural expression, distorted face, wrong emotion, facial artifacts',
+            'change_clothing': 'ill-fitting clothes, unrealistic fabric, clothing artifacts',
+            'change_background': 'inconsistent lighting, perspective mismatch, background artifacts',
+            'enhance_quality': 'blur, noise, artifacts, low resolution, over-sharpening',
+            'blur_background': 'subject blur, uneven blur, artifacts, poor depth separation',
+            'adjust_lighting': 'harsh lighting, unnatural shadows, lighting inconsistency',
+            'resize_object': 'distortion, pixel stretching, interpolation artifacts, poor scaling quality',
+            'enhance_skin_texture': 'plastic skin, over-smoothing, unnatural skin tone',
+            'character_expression': 'unnatural expression, distorted face, wrong emotion',
+            'character_hair': 'unnatural hair physics, poor hair texture, hair artifacts', 
+            'character_accessories': 'floating accessories, poor fit, unrealistic positioning',
+            'zoom_focus': 'blur artifacts, poor focus transition, unnatural depth',
+            'stylize_local': 'style inconsistency, over-stylization, quality loss',
+            'default': 'low quality, blurry, distorted, artifacts, inconsistent'
+        };
+
+        const negativePrompt = negativePrompts[operationType] || negativePrompts['default'];
+
+        // 计算质量分数（基于设置的完整性）
+        let qualityScore = 0.6; // 基础分数
+        if (description && description.trim()) qualityScore += 0.2;
+        if (constraintPrompts.length > 0) qualityScore += 0.1;
+        if (decorativePrompts.length > 0) qualityScore += 0.1;
+        if (selectedLayers.length > 0) qualityScore += 0.1;
+        qualityScore = Math.min(qualityScore, 1.0);
+
+        return {
+            positivePrompt,
+            negativePrompt,
+            qualityScore,
+            selectedLayersCount: selectedLayers.length,
+            operationType,
+            metadata: {
+                constraintPrompts,
+                decorativePrompts,
+                selectedLayers
+            }
+        };
+    }
+
+    /**
+     * 显示生成的局部编辑描述
+     */
+    displayGeneratedLocalDescription(modal, promptData) {
+        console.log('🔍 displayGeneratedLocalDescription被调用，promptData:', promptData);
+        
+        // 显示描述区域
+        const descContainer = modal.querySelector('#local-generated-description-container');
+        const descTextarea = modal.querySelector('#local-generated-description');
+        
+        console.log('🔍 查找描述容器:', { descContainer: !!descContainer, descTextarea: !!descTextarea });
+        
+        if (descContainer && descTextarea) {
+            descContainer.style.display = 'block';
+            console.log('✅ 显示描述区域');
+            
+            const description = `${promptData.positivePrompt}${promptData.negativePrompt ? ` | Avoid: ${promptData.negativePrompt}` : ''}`;
+            descTextarea.value = description;
+            console.log('✅ 设置描述文本');
+        } else {
+            console.error('❌ 找不到描述容器元素');
+        }
+        
+        // 显示成功通知
+        this.showNotification('局部编辑提示词生成成功！', 'success');
+        
+        console.log('🎯 displayGeneratedLocalDescription执行完成');
+    }
+
+    /**
+     * 复制局部编辑描述到剪贴板
+     */
+    copyLocalDescription(modal) {
+        const descTextarea = modal.querySelector('#local-generated-description');
+        if (descTextarea && descTextarea.value) {
+            navigator.clipboard.writeText(descTextarea.value).then(() => {
+                this.showNotification('描述已复制到剪贴板', 'success');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                // 回退方案
+                descTextarea.select();
+                document.execCommand('copy');
+                this.showNotification('描述已复制到剪贴板', 'success');
+            });
+        }
+    }
+
+    /**
+     * 应用局部编辑描述到主描述区域
+     */
+    applyLocalDescription(modal) {
+        const descTextarea = modal.querySelector('#local-generated-description');
+        const mainDescTextarea = modal.querySelector('#current-layer-description');
+        
+        if (descTextarea && mainDescTextarea && descTextarea.value) {
+            mainDescTextarea.value = descTextarea.value.split(' | Avoid:')[0]; // 只取正向提示词
+            this.showNotification('描述已应用到主编辑区域', 'success');
+        }
+    }
+
+    /**
+     * 显示通知消息（相对于弹窗内部定位）
+     */
+    showNotification(message, type = 'info') {
+        // 查找弹窗容器
+        const modal = document.getElementById('unified-editor-modal');
+        if (!modal) {
+            console.warn('Modal not found, falling back to body notification');
+            return;
+        }
+
+        const notification = document.createElement('div');
+        const colors = {
+            success: '#4CAF50',
+            error: '#f44336',
+            info: '#2196F3',
+            warning: '#FF9800'
+        };
+        
+        notification.style.cssText = `
+            position: absolute; top: 80px; right: 20px; z-index: 10000;
+            background: ${colors[type] || colors.info}; color: white; padding: 12px 20px;
+            border-radius: 6px; font-size: 14px; font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            opacity: 0; transition: all 0.3s ease; max-width: 300px;
+            pointer-events: none;
+        `;
+        notification.textContent = message;
+
+        // 添加到弹窗内部而不是body
+        modal.appendChild(notification);
 
         // 动画显示
         setTimeout(() => notification.style.opacity = '1', 10);
@@ -1042,7 +1442,11 @@ export class EventHandlers {
         // 3秒后自动移除
         setTimeout(() => {
             notification.style.opacity = '0';
-            setTimeout(() => document.body.removeChild(notification), 300);
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    modal.removeChild(notification);
+                }
+            }, 300);
         }, 3000);
     }
 }

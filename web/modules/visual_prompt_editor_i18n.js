@@ -98,6 +98,18 @@ export const I18N_TEXTS = {
         'en': 'Eraser',
         'zh': '橡皮擦'
     },
+    'tooltip_polygon': {
+        'en': 'Polygon (Left click to add points, Right click to finish)',
+        'zh': '多边形 (左键添加点，右键完成)'
+    },
+    'tooltip_text': {
+        'en': 'Text Tool (Click to add text)',
+        'zh': '文字工具 (点击添加文字)'
+    },
+    'tooltip_crop': {
+        'en': 'Custom Crop - Creates cropped image objects (Left click to add anchor points, Right click to close, Enter to apply)',
+        'zh': '自定义裁切 - 创建裁切后的图像对象 (左键添加锚点，右键闭合，回车确认)'
+    },
     'tooltip_undo': {
         'en': 'Undo',
         'zh': '撤销'
@@ -137,6 +149,14 @@ export const I18N_TEXTS = {
     'tooltip_zoom_out': {
         'en': 'Zoom Out',
         'zh': '缩小'
+    },
+    'tooltip_apply_to_selected': {
+        'en': 'Apply the current prompt and description to all selected layers',
+        'zh': '将当前提示和描述应用到所有选中的图层'
+    },
+    'apply_to_selected_hint': {
+        'en': '💡 Apply current prompt and description to all selected layers',
+        'zh': '💡 将当前提示和描述应用到所有选中的图层'
     },
     
     // 编辑操作按钮
@@ -571,15 +591,6 @@ export const I18N_TEXTS = {
         'zh': '🧹 清除'
     },
     
-    // 空状态提示
-    'no_layers_title': {
-        'en': 'No annotation layers yet',
-        'zh': '暂无标注图层'
-    },
-    'no_layers_subtitle': {
-        'en': 'Create annotations to start editing',
-        'zh': '创建标注以开始编辑'
-    },
     
     // 控制说明
     'canvas_controls_title': {
@@ -1769,12 +1780,12 @@ export const I18N_TEXTS = {
     
     // 标签页翻译
     'tab_layers': {
-        'en': '🔴 Layers',
-        'zh': '🔴 图层'
+        'en': '🔴 Local Editing',
+        'zh': '🔴 局部编辑'
     },
     'tab_controls': {
-        'en': '🎛️ Controls',
-        'zh': '🎛️ 控制'
+        'en': '🎛️ Global Editing',
+        'zh': '🎛️ 全局编辑'
     },
     'tab_ai_enhancer': {
         'en': '🤖 AI Enhancer',
@@ -1987,6 +1998,28 @@ export const I18N_TEXTS = {
     'textgen_url_placeholder': {
         'en': 'http://localhost:5000',
         'zh': 'http://localhost:5000'
+    },
+    
+    // 🆕 局部编辑提示词生成功能
+    'btn_generate_local_prompt': {
+        'en': '🎯 Generate Local Edit Prompt',
+        'zh': '🎯 生成局部编辑提示词'
+    },
+    'generated_description': {
+        'en': '🤖 Generated Description',
+        'zh': '🤖 生成的描述'
+    },
+    'placeholder_generated_description': {
+        'en': 'Generated local editing description will appear here...',
+        'zh': '生成的局部编辑描述将显示在这里...'
+    },
+    'btn_copy': {
+        'en': '📋 Copy',
+        'zh': '📋 复制'
+    },
+    'btn_apply': {
+        'en': '✅ Apply',
+        'zh': '✅ 应用'
     }
 };
 
