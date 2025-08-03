@@ -2,7 +2,7 @@
 Kontext Visual Prompt Window - ComfyUI Custom Nodes
 Intelligent Visual Prompt Builder - ComfyUI Custom Node Package
 
-Version: 1.2.1
+Version: 1.2.2
 Author: Kontext Team
 Repository: https://github.com/aiaiaikkk/kontext-super-prompt
 License: MIT
@@ -13,7 +13,7 @@ import os
 import sys
 
 # Version information
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 __author__ = "Kontext Team"
 __description__ = "Intelligent Visual Prompt Builder for Flux Kontext"
 
