@@ -1,5 +1,5 @@
 [project]
-name = "kontext_visual_prompt_window"
+name = "kontext-super-prompt"
 description = "Intelligent Visual Prompt Builder for Flux Kontext - Advanced image editing, visual annotation recognition, and structured prompt generation"
 version = "1.2.2"
 license = { text = "MIT License" }
