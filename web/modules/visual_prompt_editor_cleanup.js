@@ -135,7 +135,7 @@ export class ModalCleanupManager {
         for (const fabricCanvas of this.activeFabricCanvases) {
             try {
                 // 🗑️ 特别清理：获取并清理所有对象的base64数据
-                const objects = fabricCanvas.getObjects();
+                const objects = fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
                 objects.forEach(obj => {
                     if (obj.type === 'image' && obj._element) {
                         // 清理图像元素的src

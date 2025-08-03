@@ -349,7 +349,7 @@ export class DataManager {
         }
         
         try {
-            const objects = fabricCanvas.getObjects();
+            const objects = fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
             
             // 🧠 智能保存策略：检查时间间隔和内容变化
             const currentTime = Date.now();
@@ -370,13 +370,13 @@ export class DataManager {
             // 🗑️ 清理旧的base64数据
             this.clearPreviousCanvasData();
             
-            // 💾 性能优化：仅在需要时生成预览图
+            // 🗑️ 内存优化：生成小尺寸缩略图，避免大base64字符串
             let canvasDataURL = null;
             if (objects.length > 0) {
                 canvasDataURL = fabricCanvas.toDataURL({
-                    format: 'jpeg', // 🔧 使用JPEG进一步减少大小
-                    quality: 0.3, // 🔧 降低质量到30%
-                    multiplier: 0.3, // 🔧 进一步减少分辨率
+                    format: 'jpeg',
+                    quality: 0.3,
+                    multiplier: 0.15,
                     enableRetinaScaling: false
                 });
             }
@@ -783,6 +783,24 @@ export class DataManager {
      * 强制垃圾回收提示
      */
     forceGarbageCollection() {
+        // 🗑️ 特别清理widget中的大base64数据
+        if (this.nodeInstance && this.nodeInstance.widgets) {
+            const annotationWidget = this.nodeInstance.widgets.find(w => w.name === "annotation_data");
+            if (annotationWidget && annotationWidget.value) {
+                try {
+                    const data = JSON.parse(annotationWidget.value);
+                    if (data.canvasImageDataURL && data.canvasImageDataURL.length > 50000) {
+                        const sizeMB = (data.canvasImageDataURL.length / 1024 / 1024).toFixed(2);
+                        console.log(`🗑️ Clearing large base64 in widget: ${sizeMB}MB`);
+                        data.canvasImageDataURL = null;
+                        annotationWidget.value = JSON.stringify(data);
+                    }
+                } catch (e) {
+                    // 忽略解析错误
+                }
+            }
+        }
+        
         if (window.gc && typeof window.gc === 'function') {
             try {
                 window.gc();
@@ -1348,8 +1366,9 @@ export function collectCurrentEditingData(modal, nodeInstance) {
             try {
                 data.fabricData = nodeInstance.fabricManager.fabricCanvas.toJSON();
                 data.canvasImageData = nodeInstance.fabricManager.fabricCanvas.toDataURL({
-                    format: 'png',
-                    quality: 1.0
+                    format: 'jpeg',
+                    quality: 0.3,
+                    multiplier: 0.15
                 });
             } catch (error) {
                 console.warn('Failed to get Fabric canvas data:', error);

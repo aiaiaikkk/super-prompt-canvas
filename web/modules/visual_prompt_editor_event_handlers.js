@@ -840,7 +840,7 @@ export class EventHandlers {
         } else if (fabricManager && fabricManager.fabricCanvas) {
             // 备用：直接使用Fabric.js官方API
             const fabricCanvas = fabricManager.fabricCanvas;
-            const objects = fabricCanvas.getObjects();
+            const objects = fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
             
             if (objects.length > 0) {
                 const selection = new fabric.ActiveSelection(objects, {

@@ -114,6 +114,10 @@ export const I18N_TEXTS = {
         'en': 'Undo',
         'zh': '撤销'
     },
+    'tooltip_redo': {
+        'en': 'Redo',
+        'zh': '重做'
+    },
     'tooltip_clear': {
         'en': 'Clear All',
         'zh': '清除全部'

@@ -124,6 +124,8 @@ export function createToolbar() {
             <!-- 编辑操作组 -->
             <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="edit">Edit:</span>
+                <button id="vpe-undo" title="Undo" data-i18n-title="tooltip_undo" style="background: #555; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 11px; height: 24px; opacity: 0.5;" disabled>↶</button>
+                <button id="vpe-redo" title="Redo" data-i18n-title="tooltip_redo" style="background: #555; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 11px; height: 24px; opacity: 0.5;" disabled>↷</button>
                 <button id="vpe-clear" style="font-size: 11px; padding: 4px 8px;" title="Clear All" data-i18n="btn_clear" data-i18n-title="tooltip_clear">🗂️ Clear</button>
             </div>
             

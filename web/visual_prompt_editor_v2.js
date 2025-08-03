@@ -658,13 +658,7 @@ app.registerExtension({
             
             // 🎨 图层顺序调整功能
             
-            nodeType.prototype.bindLayerOrderEvents = function(modal) {
-                if (this.layerOrderController) {
-                    this.layerOrderController.bindLayerOrderEvents(modal);
-                } else {
-                    handleError('layerOrderController未初始化，无法绑定图层顺序事件');
-                }
-            };
+            // 已移除：bindLayerOrderEvents - 现在使用Fabric.js原生图层管理
             
             
             
@@ -699,29 +693,11 @@ app.registerExtension({
             };
             
             
-            // 重新排序图层 - 委托给图层顺序控制模块（懒加载）
-            nodeType.prototype.reorderLayers = function(modal, draggedLayerId, targetLayerId) {
-                if (!this.ensureController('layerOrderController', createLayerOrderController)) return;
-                this.layerOrderController.reorderLayers(modal, draggedLayerId, targetLayerId);
-            };
-            
-            nodeType.prototype.getAllLayersInOrder = function(modal) {
-                if (!this.ensureController('layerOrderController', createLayerOrderController)) return [];
-                return this.layerOrderController.getAllLayersInOrder(modal);
-            };
-            
-            
-            nodeType.prototype.updateLayersZIndex = function(modal, orderedLayers) {
-                if (!this.ensureController('layerOrderController', createLayerOrderController)) return;
-                this.layerOrderController.updateLayersZIndex(modal, orderedLayers);
-            };
+            // 已移除：reorderLayers, getAllLayersInOrder, updateLayersZIndex - 现在使用Fabric.js原生图层管理
             
             nodeType.prototype.updateLayersListDisplay = function(modal, orderedLayers = null) {
-                // 如果没有提供排序后的图层，则获取当前图层顺序
-                let allLayers = orderedLayers;
-                if (!allLayers) {
-                    allLayers = this.getAllLayersInOrder(modal);
-                }
+                // 已移除：getAllLayersInOrder调用 - 现在由Fabric.js管理图层
+                let allLayers = orderedLayers || [];
                 
                 const success = updateLayerDisplay(modal, allLayers, {
                     updateType: 'list',
@@ -741,9 +717,7 @@ app.registerExtension({
                     this.bindLayerVisibilityEvents(modal);
                 }
                 
-                if (typeof this.bindLayerOrderEvents === 'function') {
-                    this.bindLayerOrderEvents(modal);
-                }
+                // 已移除：bindLayerOrderEvents调用 - 现在使用Fabric.js原生图层管理
                 
             };
             
@@ -818,10 +792,7 @@ app.registerExtension({
                             baseZIndex + (allLayers.length - layerIndex) : 
                             baseZIndex + allLayers.length + 1;
                         
-                        if (this.layerOrderController) {
-                            this.layerOrderController.updateAnnotationZIndex(modal, annotation.id, zIndex);
-                        } else {
-                        }
+                        // 已移除：layerOrderController.updateAnnotationZIndex - 现在由Fabric.js管理
                     }, 100); // 给标注组创建一些时间
                 });
             };
@@ -882,11 +853,7 @@ app.registerExtension({
                     });
                     
                     if (restoredLayers.length > 0) {
-                        if (this.layerOrderController) {
-                            this.layerOrderController.updateLayersOrder(modal, restoredLayers);
-                        }
-                        
-                        this.updateLayersZIndex(modal, restoredLayers);
+                        // 已移除：layerOrderController.updateLayersOrder 和 updateLayersZIndex - 现在由Fabric.js管理
                         
                         return true;
                     }

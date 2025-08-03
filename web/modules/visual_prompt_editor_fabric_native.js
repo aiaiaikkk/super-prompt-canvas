@@ -74,6 +74,12 @@ export class FabricNativeManager {
         this.autoSaveTimeout = null;
         this.autoSaveDelay = 2000; // 2秒延迟保存
         
+        // Undo/Redo 功能
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxHistorySize = 20; // 最多保存20个历史状态
+        this.isPerformingUndoRedo = false; // 防止在undo/redo时触发保存状态
+        
         // 文字工具管理器
         this.textToolManager = null;
         
@@ -132,6 +138,8 @@ export class FabricNativeManager {
             // 延迟自动适应屏幕，确保界面完全渲染完成
             setTimeout(() => {
                 this.fitCanvasView();
+                // 初始化历史记录
+                this.initializeHistory();
             }, 500);
             
             window.fabricManager = this;
@@ -227,20 +235,14 @@ export class FabricNativeManager {
         
         // 官方选择事件 - 触发面板更新和提示词系统集成
         this.fabricCanvas.on('selection:created', (e) => {
-            this._scheduleLayerPanelUpdate();
             this.handleObjectSelection(e.selected || [e.target]);
-            // 修复控制点显示
             this.fixControlsDisplay();
-            // 更新锁定按钮状态
             this.updateLockButtonState();
         });
         
         this.fabricCanvas.on('selection:updated', (e) => {
-            this._scheduleLayerPanelUpdate();
             this.handleObjectSelection(e.selected || [e.target]);
-            // 修复控制点显示
             this.fixControlsDisplay();
-            // 更新锁定按钮状态
             this.updateLockButtonState();
         });
         
@@ -249,19 +251,25 @@ export class FabricNativeManager {
             if (!this.isCtrlPressed) {
                 this.multiSelectObjects.clear();
             }
-            this._scheduleLayerPanelUpdate();
             this.handleObjectSelection([]);
-            // 更新锁定按钮状态
             this.updateLockButtonState();
         });
         
         // 官方对象事件 - 优化更新频率
         this.fabricCanvas.on('object:added', (e) => {
+            // 过滤掉锁定指示器
+            if (e.target && !e.target.isLockIndicator && !e.target.skipInLayerList) {
+                this.saveState();
+            }
             this._scheduleLayerPanelUpdate();
             this._scheduleAutoSave();
         });
         
         this.fabricCanvas.on('object:removed', (e) => {
+            // 过滤掉锁定指示器
+            if (e.target && !e.target.isLockIndicator && !e.target.skipInLayerList) {
+                this.saveState();
+            }
             this._scheduleLayerPanelUpdate();
             this._scheduleAutoSave();
         });
@@ -272,12 +280,13 @@ export class FabricNativeManager {
         });
         
         this.fabricCanvas.on('object:moved', () => {
-            this._scheduleLayerPanelUpdate();
+            this.saveState();
             this._scheduleAutoSave();
         });
         
         // 对象修改事件 - 触发自动保存
         this.fabricCanvas.on('object:modified', () => {
+            this.saveState();
             this._scheduleAutoSave();
         });
         
@@ -337,6 +346,25 @@ export class FabricNativeManager {
                     e.preventDefault();
                     this.finishCrop();
                 }
+            }
+            
+            // Undo/Redo 快捷键
+            if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+                // 检查焦点是否在输入框中，避免冲突
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                e.preventDefault();
+                this.undo();
+            }
+            
+            if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
+                // 检查焦点是否在输入框中，避免冲突
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                e.preventDefault();
+                this.redo();
             }
         };
 
@@ -821,50 +849,34 @@ export class FabricNativeManager {
      * 更新选中对象的约束性提示词
      */
     updateAnnotationConstraintPrompts() {
-        if (!this.modal.selectedLayers || !this.modal.annotations) return;
+        const selectedPrompts = Array.from(this.modal.querySelectorAll('.constraint-prompt-checkbox:checked'))
+            .map(checkbox => checkbox.dataset.prompt);
         
-        const constraintContainer = this.modal.querySelector('#layer-constraint-prompts-container');
-        if (!constraintContainer) return;
-        
-        const selectedPrompts = [];
-        const checkboxes = constraintContainer.querySelectorAll('.constraint-prompt-checkbox:checked');
-        checkboxes.forEach(checkbox => {
-            if (checkbox.dataset.prompt) {
-                selectedPrompts.push(checkbox.dataset.prompt);
-            }
-        });
-        
-        this.modal.selectedLayers.forEach(layerId => {
-            const annotation = this.modal.annotations.find(ann => ann.id === layerId);
-            if (annotation) {
-                annotation.constraintPrompts = [...selectedPrompts];
-            }
-        });
+        if (this.modal.selectedLayers) {
+            this.modal.selectedLayers.forEach(layerId => {
+                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                if (annotation) {
+                    annotation.constraintPrompts = selectedPrompts;
+                }
+            });
+        }
     }
     
     /**
      * 更新选中对象的修饰性提示词
      */
     updateAnnotationDecorativePrompts() {
-        if (!this.modal.selectedLayers || !this.modal.annotations) return;
+        const selectedPrompts = Array.from(this.modal.querySelectorAll('.decorative-prompt-checkbox:checked'))
+            .map(checkbox => checkbox.dataset.prompt);
         
-        const decorativeContainer = this.modal.querySelector('#layer-decorative-prompts-container');
-        if (!decorativeContainer) return;
-        
-        const selectedPrompts = [];
-        const checkboxes = decorativeContainer.querySelectorAll('.decorative-prompt-checkbox:checked');
-        checkboxes.forEach(checkbox => {
-            if (checkbox.dataset.prompt) {
-                selectedPrompts.push(checkbox.dataset.prompt);
-            }
-        });
-        
-        this.modal.selectedLayers.forEach(layerId => {
-            const annotation = this.modal.annotations.find(ann => ann.id === layerId);
-            if (annotation) {
-                annotation.decorativePrompts = [...selectedPrompts];
-            }
-        });
+        if (this.modal.selectedLayers) {
+            this.modal.selectedLayers.forEach(layerId => {
+                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                if (annotation) {
+                    annotation.decorativePrompts = selectedPrompts;
+                }
+            });
+        }
     }
     
     /**
@@ -1792,6 +1804,31 @@ export class FabricNativeManager {
         
         this.setupLockControls();
         
+        this.setupUndoRedoControls();
+        
+    }
+    
+    /**
+     * 设置Undo/Redo控件
+     */
+    setupUndoRedoControls() {
+        const undoBtn = this.modal.querySelector('#vpe-undo');
+        const redoBtn = this.modal.querySelector('#vpe-redo');
+        
+        if (undoBtn) {
+            undoBtn.addEventListener('click', () => {
+                this.undo();
+            });
+        }
+        
+        if (redoBtn) {
+            redoBtn.addEventListener('click', () => {
+                this.redo();
+            });
+        }
+        
+        // 初始化按钮状态
+        this.updateUndoRedoButtons();
     }
     
     /**
@@ -2239,10 +2276,12 @@ export class FabricNativeManager {
      * 调度图层面板更新 - 防止频繁调用
      */
     _scheduleLayerPanelUpdate() {
-        clearTimeout(this._updateTimeout);
+        if (this._updateTimeout) {
+            clearTimeout(this._updateTimeout);
+        }
         this._updateTimeout = setTimeout(() => {
             this.updateLayerPanel();
-        }, 100);
+        }, 200);
     }
     
     /**
@@ -2252,8 +2291,13 @@ export class FabricNativeManager {
         const layersList = this.modal.querySelector('#layers-list');
         if (!layersList) return;
         
-        const objects = this.fabricCanvas.getObjects();
+        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
         const activeObjects = this.fabricCanvas.getActiveObjects();
+        
+        // 避免在undo/redo过程中重复更新
+        if (this.isPerformingUndoRedo) {
+            return;
+        }
         
         if (objects.length === 0) {
             layersList.innerHTML = `
@@ -2410,10 +2454,13 @@ export class FabricNativeManager {
      * 按索引选择对象 - Fabric.js官方setActiveObject API
      */
     selectObjectByIndex(index, updatePanel = false) {
-        const objects = this.fabricCanvas.getObjects();
-        if (objects[index]) {
+        const allObjects = this.fabricCanvas.getObjects();
+        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const targetObject = filteredObjects[index];
+        
+        if (targetObject) {
             this.fabricCanvas.discardActiveObject(); // 清除之前的选择
-            this.fabricCanvas.setActiveObject(objects[index]);
+            this.fabricCanvas.setActiveObject(targetObject);
             this.fabricCanvas.renderAll();
             
             if (updatePanel) {
@@ -2428,12 +2475,14 @@ export class FabricNativeManager {
      * 向上移动对象 - Fabric.js官方bringForward API
      */
     moveObjectUp(index) {
-        const objects = this.fabricCanvas.getObjects();
-        if (objects[index]) {
-            this.fabricCanvas.bringForward(objects[index]);
+        const allObjects = this.fabricCanvas.getObjects();
+        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const targetObject = filteredObjects[index];
+        
+        if (targetObject && !targetObject.isLockIndicator && !targetObject.skipInLayerList) {
+            this.fabricCanvas.bringForward(targetObject);
             this.fabricCanvas.renderAll();
-            // 触发object:moved事件会自动更新图层面板
-            this.fabricCanvas.fire('object:moved');
+            this._scheduleLayerPanelUpdate();
         }
     }
     
@@ -2441,12 +2490,14 @@ export class FabricNativeManager {
      * 向下移动对象 - Fabric.js官方sendBackwards API
      */
     moveObjectDown(index) {
-        const objects = this.fabricCanvas.getObjects();
-        if (objects[index]) {
-            this.fabricCanvas.sendBackwards(objects[index]);
+        const allObjects = this.fabricCanvas.getObjects();
+        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const targetObject = filteredObjects[index];
+        
+        if (targetObject && !targetObject.isLockIndicator && !targetObject.skipInLayerList) {
+            this.fabricCanvas.sendBackwards(targetObject);
             this.fabricCanvas.renderAll();
-            // 触发object:moved事件会自动更新图层面板
-            this.fabricCanvas.fire('object:moved');
+            this._scheduleLayerPanelUpdate();
         }
     }
     
@@ -2454,10 +2505,19 @@ export class FabricNativeManager {
      * 按索引删除对象 - Fabric.js官方remove API
      */
     deleteObjectByIndex(index) {
-        const objects = this.fabricCanvas.getObjects();
-        if (objects[index]) {
-            const objType = objects[index].type;
-            this.fabricCanvas.remove(objects[index]);
+        const allObjects = this.fabricCanvas.getObjects();
+        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const targetObject = filteredObjects[index];
+        
+        if (targetObject) {
+            // 确保不是锁定指示器
+            if (targetObject.isLockIndicator || targetObject.skipInLayerList) {
+                console.error('❌ 不能删除锁定指示器');
+                return;
+            }
+            
+            const objType = targetObject.type;
+            this.fabricCanvas.remove(targetObject);
             this.fabricCanvas.renderAll();
         }
     }
@@ -2478,14 +2538,14 @@ export class FabricNativeManager {
      * 获取所有对象 - Fabric.js官方API
      */
     getAllObjects() {
-        return this.fabricCanvas.getObjects();
+        return this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
     }
 
     /**
      * 选择所有对象 - Fabric.js官方API
      */
     selectAll() {
-        const objects = this.fabricCanvas.getObjects();
+        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
         if (objects.length > 0) {
             const selection = new fabric.ActiveSelection(objects, {
                 canvas: this.fabricCanvas
@@ -2752,16 +2812,8 @@ export class FabricNativeManager {
         try {
             const activeObject = this.fabricCanvas.getActiveObject();
             if (activeObject) {
-                // 强制重新计算对象坐标
                 activeObject.setCoords();
-                
-                // 强制重新渲染控制点
                 this.fabricCanvas.renderAll();
-                
-                requestAnimationFrame(() => {
-                    activeObject.setCoords();
-                    this.fabricCanvas.renderAll();
-                });
             }
         } catch (error) {
             console.error('❌ 修复控制点显示失败:', error);
@@ -2861,7 +2913,9 @@ export class FabricNativeManager {
             fontSize: 12,
             selectable: false,
             evented: false,
-            excludeFromExport: true
+            excludeFromExport: true,
+            isLockIndicator: true,  // 标记为锁定指示器
+            skipInLayerList: true   // 跳过图层列表显示
         });
         
         lockIcon.lockIndicatorFor = object.fabricId || object.id;
@@ -2889,7 +2943,7 @@ export class FabricNativeManager {
         if (!lockBtn) return;
         
         const activeObjects = this.fabricCanvas.getActiveObjects();
-        const allObjects = this.fabricCanvas.getObjects();
+        const allObjects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
         const lockedObjects = allObjects.filter(obj => obj.locked === true);
         
         if (activeObjects.length === 0) {
@@ -2923,11 +2977,20 @@ export class FabricNativeManager {
      * 通过索引切换对象锁定状态
      */
     toggleObjectLockByIndex(index) {
-        const objects = this.fabricCanvas.getObjects();
-        const targetObject = objects[index];
+        const allObjects = this.fabricCanvas.getObjects();
+        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        
+        // 找到过滤后对象在原始列表中的索引
+        const targetObject = filteredObjects[index];
         
         if (!targetObject) {
             console.error('❌ 找不到索引为', index, '的对象');
+            return;
+        }
+        
+        // 确保不是锁定指示器
+        if (targetObject.isLockIndicator || targetObject.skipInLayerList) {
+            console.error('❌ 不能操作锁定指示器');
             return;
         }
         
@@ -2942,8 +3005,6 @@ export class FabricNativeManager {
         
         // 更新图层面板显示
         this.updateLayerPanel();
-        
-        console.log(`🔒 ${newLockState ? '锁定' : '解锁'}了对象:`, targetObject.type, `(索引: ${index})`);
     }
     
     /**
@@ -2951,6 +3012,279 @@ export class FabricNativeManager {
      */
     isObjectLocked(object) {
         return object && object.locked === true;
+    }
+    
+    /**
+     * 保存当前画布状态到undo栈
+     */
+    saveState() {
+        if (this.isPerformingUndoRedo) return;
+        
+        try {
+            // 直接使用toJSON，然后过滤对象
+            const canvasData = this.fabricCanvas.toJSON();
+            
+            // 过滤掉锁定指示器对象
+            if (canvasData.objects) {
+                canvasData.objects = canvasData.objects.filter(obj => 
+                    !obj.isLockIndicator && !obj.skipInLayerList
+                );
+            }
+            
+            const state = JSON.stringify(canvasData);
+            
+            // 如果状态与上一个状态相同，不保存
+            if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] === state) {
+                return;
+            }
+            
+            this.undoStack.push(state);
+            
+            // 限制历史记录大小
+            if (this.undoStack.length > this.maxHistorySize) {
+                this.undoStack.shift();
+            }
+            
+            // 清空redo栈
+            this.redoStack = [];
+            
+            // 更新按钮状态
+            this.updateUndoRedoButtons();
+            
+        } catch (error) {
+            console.error('保存状态失败:', error);
+        }
+    }
+    
+    /**
+     * 执行undo操作
+     */
+    undo() {
+        if (this.undoStack.length === 0) return;
+        
+        try {
+            // 保存当前状态到redo栈
+            const currentCanvasData = this.fabricCanvas.toJSON();
+            if (currentCanvasData.objects) {
+                currentCanvasData.objects = currentCanvasData.objects.filter(obj => 
+                    !obj.isLockIndicator && !obj.skipInLayerList
+                );
+            }
+            const currentState = JSON.stringify(currentCanvasData);
+            this.redoStack.push(currentState);
+            
+            // 恢复上一个状态
+            const previousState = this.undoStack.pop();
+            this.loadCanvasFromState(previousState);
+            
+            this.updateUndoRedoButtons();
+            
+            // 强制图层面板同步
+            this.forceLayerPanelSync('undo');
+            
+        } catch (error) {
+            console.error('Undo操作失败:', error);
+            this.isPerformingUndoRedo = false;
+        }
+    }
+    
+    /**
+     * 执行redo操作
+     */
+    redo() {
+        if (this.redoStack.length === 0) return;
+        
+        try {
+            // 保存当前状态到undo栈
+            const currentCanvasData = this.fabricCanvas.toJSON();
+            if (currentCanvasData.objects) {
+                currentCanvasData.objects = currentCanvasData.objects.filter(obj => 
+                    !obj.isLockIndicator && !obj.skipInLayerList
+                );
+            }
+            const currentState = JSON.stringify(currentCanvasData);
+            this.undoStack.push(currentState);
+            
+            // 恢复redo状态
+            const nextState = this.redoStack.pop();
+            this.loadCanvasFromState(nextState);
+            
+            this.updateUndoRedoButtons();
+            
+            // 强制图层面板同步
+            this.forceLayerPanelSync('redo');
+            
+        } catch (error) {
+            console.error('Redo操作失败:', error);
+            this.isPerformingUndoRedo = false;
+        }
+    }
+    
+    /**
+     * 从JSON状态加载画布
+     */
+    loadCanvasFromState(stateJson) {
+        try {
+            // 临时禁用事件监听，避免在清理和加载过程中触发状态保存
+            this.isPerformingUndoRedo = true;
+            
+            // 保存锁定指示器
+            const allObjects = this.fabricCanvas.getObjects();
+            const lockIndicators = allObjects.filter(obj => obj.isLockIndicator || obj.skipInLayerList);
+            
+            // 使用Fabric.js的官方loadFromJSON方法，但优化时序
+            this.fabricCanvas.loadFromJSON(stateJson, () => {
+                // 恢复锁定指示器
+                lockIndicators.forEach(indicator => {
+                    if (!this.fabricCanvas.getObjects().includes(indicator)) {
+                        this.fabricCanvas.add(indicator);
+                        this.fabricCanvas.bringToFront(indicator);
+                    }
+                });
+                
+                // 渲染画布
+                this.fabricCanvas.renderAll();
+                
+                // 延迟单次更新图层面板
+                setTimeout(() => {
+                    this.isPerformingUndoRedo = false;
+                    this.updateLayerPanel();
+                }, 50);
+            });
+            
+        } catch (error) {
+            console.error('加载画布状态失败:', error);
+            this.isPerformingUndoRedo = false;
+        }
+    }
+    
+    /**
+     * 更新undo/redo按钮状态
+     */
+    updateUndoRedoButtons() {
+        const undoBtn = this.modal.querySelector('#vpe-undo');
+        const redoBtn = this.modal.querySelector('#vpe-redo');
+        
+        if (undoBtn) {
+            const canUndo = this.undoStack.length > 0;
+            undoBtn.disabled = !canUndo;
+            undoBtn.style.opacity = canUndo ? '1' : '0.5';
+            undoBtn.style.cursor = canUndo ? 'pointer' : 'not-allowed';
+        }
+        
+        if (redoBtn) {
+            const canRedo = this.redoStack.length > 0;
+            redoBtn.disabled = !canRedo;
+            redoBtn.style.opacity = canRedo ? '1' : '0.5';
+            redoBtn.style.cursor = canRedo ? 'pointer' : 'not-allowed';
+        }
+    }
+    
+    /**
+     * 初始化画布状态（保存初始状态）
+     */
+    initializeHistory() {
+        // 清空历史记录
+        this.undoStack = [];
+        this.redoStack = [];
+        
+        // 延迟保存初始状态，确保画布完全初始化
+        setTimeout(() => {
+            this.saveState();
+            console.log('🔄 Undo/Redo history initialized');
+        }, 100);
+    }
+    
+    /**
+     * 强制图层面板同步 - 专门用于undo/redo操作
+     */
+    forceLayerPanelSync(operation) {
+        const layersList = this.modal.querySelector('#layers-list');
+        if (!layersList) return;
+        
+        // 立即清空图层面板
+        layersList.innerHTML = '<div style="color: #888; padding: 10px;">正在同步...</div>';
+        
+        // 延迟重建，确保Canvas状态完全更新
+        setTimeout(() => {
+            const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+            
+            // 单次重建图层面板
+            this.rebuildLayerPanel();
+        }, 200);
+    }
+    
+    /**
+     * 重建图层面板 - 强制完全重建
+     */
+    rebuildLayerPanel() {
+        const layersList = this.modal.querySelector('#layers-list');
+        if (!layersList) return;
+        
+        // 先清空
+        layersList.innerHTML = '';
+        
+        // 重新获取对象并重建
+        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const activeObjects = this.fabricCanvas.getActiveObjects();
+        
+        if (objects.length === 0) {
+            layersList.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #888;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🎨</div>
+                    <div style="font-size: 12px;">暂无对象</div>
+                    <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                        使用绘制工具或上传图片创建对象
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // 反向显示对象（最新的在上面，符合图层逻辑）
+        const reversedObjects = [...objects].reverse();
+        layersList.innerHTML = reversedObjects.map((obj, displayIndex) => {
+            // 实际索引是反向的
+            const actualIndex = objects.length - 1 - displayIndex;
+            
+            const objType = obj.type === 'rect' ? '🟩 矩形' : 
+                           obj.type === 'circle' ? '🔴 圆形' : 
+                           obj.type === 'polygon' ? '🔷 多边形' :
+                           obj.type === 'path' ? '✏️ 路径' :
+                           obj.type === 'i-text' ? '📝 文字' :
+                           obj.type === 'textbox' ? '📄 文本框' :
+                           obj.type === 'image' ? '🖼️ 图片' : 
+                           '❓ 对象';
+            
+            const isSelected = activeObjects.includes(obj);
+            const isLocked = obj.locked === true;
+            
+            return `
+                <div class="fabric-layer-item" data-index="${actualIndex}" 
+                     style="display: flex; align-items: center; padding: 6px; background: ${isSelected ? '#444' : '#333'}; 
+                            margin-bottom: 2px; border-radius: 4px; cursor: pointer; border-left: 3px solid ${isSelected ? '#4CAF50' : 'transparent'};">
+                    <span style="flex: 1; color: white; font-size: 12px;">${objType} (原始: ${actualIndex})</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="fabric-layer-lock" data-index="${actualIndex}" 
+                                style="background: ${isLocked ? '#f44336' : '#4CAF50'}; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
+                                title="${isLocked ? '解锁图层' : '锁定图层'}">${isLocked ? '🔓' : '🔒'}</button>
+                        <button class="fabric-layer-up" data-index="${actualIndex}" 
+                                style="background: #2196F3; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
+                                title="向上移动" ${actualIndex >= objects.length - 1 ? 'disabled' : ''}>↑</button>
+                        <button class="fabric-layer-down" data-index="${actualIndex}" 
+                                style="background: #FF9800; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
+                                title="向下移动" ${actualIndex <= 0 ? 'disabled' : ''}>↓</button>
+                        <button class="fabric-layer-delete" data-index="${actualIndex}" 
+                                style="background: #f44336; color: white; border: none; padding: 2px 6px; border-radius: 2px; cursor: pointer; font-size: 10px;"
+                                title="删除图层">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 重新绑定事件（先清除之前的事件监听器，避免重复绑定）
+        this.unbindLayerPanelEvents();
+        this.bindLayerPanelEvents();
     }
 }
 

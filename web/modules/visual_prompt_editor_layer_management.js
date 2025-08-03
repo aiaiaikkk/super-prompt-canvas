@@ -744,12 +744,9 @@ export function swapAdjacentLayers(modal, layerId1, layerId2, nodeInstance, retr
         
         // 继续执行交换逻辑...
         try {
-            if (nodeInstance?.layerOrderController?.performLayerSwap) {
-                nodeInstance.layerOrderController.performLayerSwap(modal, allLayers, layerId1, layerId2, swapKey);
-            } else {
-                console.warn('layerOrderController.performLayerSwap method does not exist, skipping swap operation');
-                nodeInstance._swapDebounce.delete(swapKey);
-            }
+            // 已移除：layerOrderController.performLayerSwap - 现在由Fabric.js管理
+            console.log('Layer swap operation handled by Fabric.js native layer management');
+            nodeInstance._swapDebounce.delete(swapKey);
         } catch (swapError) {
             console.error('Layer swap operation failed:', swapError);
             nodeInstance._swapDebounce.delete(swapKey);

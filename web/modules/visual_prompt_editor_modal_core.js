@@ -511,9 +511,9 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
         }
 
         // 🚀 检查画布中是否已存在输入图像
-        const existingInputImages = fabricManager.fabricCanvas.getObjects().filter(obj => 
-            obj.fabricId && obj.fabricId.startsWith('input_image_')
-        );
+        const existingInputImages = fabricManager.fabricCanvas.getObjects()
+            .filter(obj => !obj.isLockIndicator && !obj.skipInLayerList)
+            .filter(obj => obj.fabricId && obj.fabricId.startsWith('input_image_'));
 
         const sameUrlImage = existingInputImages.find(obj => 
             obj.getSrc && obj.getSrc() === imageUrl

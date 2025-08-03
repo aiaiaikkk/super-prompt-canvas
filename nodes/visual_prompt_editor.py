@@ -1014,11 +1014,11 @@ class VisualPromptEditor:
             original_width, original_height = pil_image.size
             print(f"🎨 Canvas image loaded: {original_width}x{original_height}, format: {image_format}")
             
-            # 如果指定了目标尺寸，进行缩放
-            if target_width and target_height:
-                if original_width != target_width or original_height != target_height:
-                    pil_image = pil_image.resize((target_width, target_height), PILImage.Resampling.LANCZOS)
-                    print(f"🔄 Canvas image resized to: {target_width}x{target_height}")
+            # 如果指定了目标尺寸，进行缩放 (已禁用)
+            # if target_width and target_height:
+            #     if original_width != target_width or original_height != target_height:
+            #         pil_image = pil_image.resize((target_width, target_height), PILImage.Resampling.LANCZOS)
+            #         print(f"🔄 Canvas image resized to: {target_width}x{target_height}")
             
             # 转换为numpy数组
             img_array = np.array(pil_image)
