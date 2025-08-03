@@ -1,5 +1,5 @@
 """
-Kontext Visual Prompt Window - ComfyUI Custom Nodes
+kontext-super-prompt - ComfyUI Custom Nodes
 Intelligent Visual Prompt Builder - ComfyUI Custom Node Package
 
 Version: 1.2.2
