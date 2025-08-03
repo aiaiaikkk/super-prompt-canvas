@@ -16,5 +16,5 @@ Repository = "https://github.com/aiaiaikkk/kontext-super-prompt"
 
 [tool.comfy]
 PublisherId = "aiaiaikkk"
-DisplayName = "Kontext Visual Prompt Window"
+DisplayName = "kontext-super-prompt"
 Icon = ""
