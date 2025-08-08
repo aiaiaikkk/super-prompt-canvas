@@ -217,7 +217,8 @@ export class DataManager {
                         style: {
                             stroke: obj.stroke || "#ff0000",
                             strokeWidth: obj.strokeWidth || 2,
-                            fill: obj.fill || "transparent"
+                            fill: obj.fill || "transparent",
+                            opacity: obj.opacity !== undefined ? obj.opacity : 0.5  // 🔧 添加透明度属性
                         }
                     };
                     
@@ -1212,7 +1213,7 @@ export class DataManager {
                     // 🕵️ 性能诊断：监控Fabric.js toJSON操作
                     const toJSONStart = performance.now();
                     const fabricJSON = fabricCanvas.toJSON([
-                        'fabricId', 'name', 'locked', 
+                        'fabricId', 'name', 'locked', 'opacity',
                         'transformFirstData', 'hasTransformFirstChanges',
                         'originalBase64', 'src'  // 🚀 新增：保存上传图像数据
                     ]);
@@ -1417,7 +1418,7 @@ export class DataManager {
                     // 🕵️ 性能诊断：监控Fabric.js toJSON操作
                     const toJSONStart = performance.now();
                     const fabricJSON = fabricCanvas.toJSON([
-                        'fabricId', 'name', 'locked', 
+                        'fabricId', 'name', 'locked', 'opacity',
                         'transformFirstData', 'hasTransformFirstChanges',
                         'originalBase64', 'src'  // 🚀 新增：保存上传图像数据
                     ]);
@@ -2524,11 +2525,16 @@ export function collectCurrentEditingData(modal, nodeInstance) {
                 console.log('[LRPG] 🚀 CRITICAL: 开始Fabric序列化（修复后版本）');
                 // 🚀 重要修复：使用包含自定义属性的序列化方法
                 data.fabricData = nodeInstance.fabricManager.fabricCanvas.toJSON([
-                    'fabricId', 'name', 'originalBase64', 'src'
+                    'fabricId', 'name', 'originalBase64', 'src', 'opacity'
                 ]);
                 console.log('[LRPG] 🔍 CRITICAL: 修复后序列化结果 - 对象数量:', data.fabricData.objects?.length || 0);
                 data.fabricData.objects?.forEach((obj, index) => {
-                    console.log(`[LRPG] 📋 CRITICAL: 对象${index}: type=${obj.type}, fabricId=${obj.fabricId}, name=${obj.name}`);
+                    console.log(`[LRPG] 📋 CRITICAL: 对象${index}: type=${obj.type}, fabricId=${obj.fabricId}, name=${obj.name}, opacity=${obj.opacity}`);
+                    // 🔧 调试：检查每个对象的完整透明度信息
+                    const opacityKeys = Object.keys(obj).filter(key => key.toLowerCase().includes('opacity'));
+                    if (opacityKeys.length > 0) {
+                        console.log(`[LRPG] 🔍 对象${index}透明度相关属性:`, opacityKeys.map(key => `${key}=${obj[key]}`));
+                    }
                 });
                 // 避免内存泄漏：不生成大base64字符串
                 data.canvasImageData = null;
@@ -2833,7 +2839,7 @@ class OptimizedFabricSerializer {
 
             // 序列化画布
             const fabricJSON = fabricCanvas.toJSON([
-                'fabricId', 'name', 'locked',
+                'fabricId', 'name', 'locked', 'opacity',
                 'originalBase64', 'src'  // 🚀 新增：保存上传图像数据
             ]);
             
@@ -3160,8 +3166,8 @@ export function convertToTransformFirstData(promptData) {
                     imageData = obj._element.src;
                 }
                 console.log(`[LRPG] 📊 上传图像${obj.fabricId}数据长度:`, imageData ? imageData.length : 'null');
-            } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'polygon' || obj.type === 'path') {
-                // 🎯 标注类型识别
+            } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'polygon' || obj.type === 'path' || obj.type === 'text' || obj.type === 'i-text') {
+                // 🎯 标注类型识别 (包含文字标注)
                 imageSource = 'annotation';
                 imageData = null; // 标注不需要图像数据
                 console.log(`[LRPG] 🎯 标注${obj.fabricId}源类型识别为: annotation (${obj.type})`);
@@ -3253,8 +3259,28 @@ export function convertToTransformFirstData(promptData) {
                 flipX: obj.flipX || false,
                 flipY: obj.flipY || false,
                 // 🎯 多边形特殊数据
-                points: obj.points || undefined  // 多边形的点坐标数组
+                points: obj.points || undefined,  // 多边形的点坐标数组
+                
+                // 🎯 文字标注特殊数据
+                text: (obj.type === 'text' || obj.type === 'i-text') ? obj.text || 'Text' : undefined,
+                fontSize: (obj.type === 'text' || obj.type === 'i-text') ? obj.fontSize || 20 : undefined,
+                fontFamily: (obj.type === 'text' || obj.type === 'i-text') ? obj.fontFamily || 'Arial' : undefined,
+                fontWeight: (obj.type === 'text' || obj.type === 'i-text') ? obj.fontWeight || 'normal' : undefined,
+                textAlign: (obj.type === 'text' || obj.type === 'i-text') ? obj.textAlign || 'left' : undefined,
+                
+                // 🔧 修复：添加样式信息（包含透明度）
+                style: imageSource === 'annotation' ? {
+                    stroke: obj.stroke || "#ff0000",
+                    strokeWidth: obj.strokeWidth || 2,
+                    fill: obj.fill || (obj.type === 'text' || obj.type === 'i-text' ? "#000000" : "transparent"),
+                    opacity: obj.opacity !== undefined ? obj.opacity : 0.5
+                } : {}
             };
+            
+            // 🔧 调试：标注透明度传递
+            if (imageSource === 'annotation') {
+                console.log(`[LRPG] 🎨 标注${layerId}样式传递: opacity=${obj.opacity} -> style.opacity=${layerData.style?.opacity}`);
+            }
             
             // ✅ LRPG格式：裁切状态检查
             const hasTransformData = !!obj.transformFirstData;

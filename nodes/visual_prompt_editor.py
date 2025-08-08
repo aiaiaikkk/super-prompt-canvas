@@ -231,6 +231,13 @@ class VisualPromptEditor:
                 print(f"  - centerY: {layer_data.get('centerY', 'NOT_FOUND')}")
                 print(f"  - scaleX: {layer_data.get('scaleX', 'NOT_FOUND')}")
                 print(f"  - angle: {layer_data.get('angle', 'NOT_FOUND')}")
+                print(f"  - type: {layer_data.get('type', 'NOT_FOUND')}")
+                # 🔧 检查points数据（多边形）
+                if layer_data.get('type') == 'polygon':
+                    points = layer_data.get('points', [])
+                    print(f"  - points: {'有' if points else '无'} ({len(points)} 个点)")
+                    if points:
+                        print(f"  - points示例: {points[:2]}{'...' if len(points) > 2 else ''}")
                 print(f"  - crop_path: {'有' if layer_data.get('crop_path') else '无'} ({len(layer_data.get('crop_path', []))} 个点)")
         
         # ✅ LRPG格式：直接使用，无转换
@@ -606,45 +613,246 @@ class VisualPromptEditor:
             print(f"[LRPG] 🔲 绘制{annotation_type}标注: 中心({centerX}, {centerY}), 尺寸({width}, {height})")
             print(f"[LRPG] 📍 标注坐标: ({left}, {top}) -> ({right}, {bottom})")
             
-            # 创建绘制对象
-            draw = ImageDraw.Draw(canvas)
+            # 🔧 从前端数据中读取颜色和透明度信息
+            # 获取颜色信息 (支持 fill 和 stroke 属性)
+            color_hex = layer_data.get('fill') or layer_data.get('stroke') or '#ff0000'
+            if color_hex.startswith('#'):
+                color_hex = color_hex[1:]  # 去掉#号
             
-            # 设置绘制样式 - 红色边框，半透明填充
-            outline_color = (255, 0, 0, 255)  # 红色边框
-            fill_color = (255, 0, 0, 64)      # 半透明红色填充
+            # 将十六进制颜色转换为RGB
+            try:
+                r = int(color_hex[0:2], 16)
+                g = int(color_hex[2:4], 16) 
+                b = int(color_hex[4:6], 16)
+            except (ValueError, IndexError):
+                r, g, b = 255, 0, 0  # 默认红色
             
-            if annotation_type == 'rect':
-                # 绘制矩形
-                draw.rectangle([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
-                print(f"[LRPG] ✅ 矩形标注已绘制")
+            # 🔧 获取透明度信息（优化后的多路径支持）
+            # 优先级：style.opacity > 直接属性 > 默认值
+            opacity = None
+            
+            # 方法1：从style对象获取（主要路径）
+            if 'style' in layer_data and layer_data['style'] and 'opacity' in layer_data['style']:
+                opacity = layer_data['style'].get('opacity')
+                print(f"[LRPG] 🔍 从style.opacity获取: {opacity}")
+            
+            # 方法2：直接从layer_data获取（备用路径）
+            elif 'opacity' in layer_data:
+                opacity = layer_data.get('opacity')
+                print(f"[LRPG] 🔍 从layer_data.opacity获取: {opacity}")
+            
+            # 方法3：尝试从其他可能的路径获取
+            elif 'fill_opacity' in layer_data:
+                opacity = layer_data.get('fill_opacity')
+                print(f"[LRPG] 🔍 从fill_opacity获取: {opacity}")
                 
-            elif annotation_type == 'circle':
-                # 绘制圆形/椭圆
-                draw.ellipse([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
-                print(f"[LRPG] ✅ 圆形标注已绘制")
+            # 默认值
+            if opacity is None:
+                opacity = 0.5  # 默认50%透明度
+                print(f"[LRPG] 🔍 使用默认opacity: {opacity}")
+            
+            # 确保opacity在正确范围内
+            if opacity > 1:
+                opacity = opacity / 100.0  # 如果是百分比形式，转换为小数
+            
+            alpha = int(opacity * 255)
+            
+            # 🔧 调试：打印style内容确认修复效果
+            if 'style' in layer_data:
+                print(f"[LRPG] 🔍 style内容: {layer_data.get('style', {})}")
+            
+            print(f"[LRPG] 🎨 标注样式: 颜色=#{color_hex}, 透明度={opacity:.2f} (alpha={alpha})")
+            
+            # 🔧 使用透明度混合绘制方法
+            if opacity < 1.0:  # 需要透明度
+                # 创建一个RGBA透明图层用于绘制标注
+                annotation_layer = PILImage.new('RGBA', canvas.size, (0, 0, 0, 0))
+                draw_layer = ImageDraw.Draw(annotation_layer)
                 
-            elif annotation_type == 'polygon':
-                # 绘制多边形
-                points = layer_data.get('points', [])
-                if points and len(points) >= 3:
-                    # 将points转换为PIL格式的坐标列表 [(x1,y1), (x2,y2), ...]
-                    polygon_coords = []
-                    for point in points:
-                        if isinstance(point, dict) and 'x' in point and 'y' in point:
-                            polygon_coords.extend([point['x'], point['y']])
-                        elif isinstance(point, (list, tuple)) and len(point) >= 2:
-                            polygon_coords.extend([point[0], point[1]])
+                # 设置绘制样式（RGBA颜色）
+                outline_color = (r, g, b, 255)  # 边框完全不透明
+                fill_color = (r, g, b, alpha)   # 填充使用设置的透明度
+                
+                if annotation_type == 'rect':
+                    # 在透明图层上绘制矩形
+                    draw_layer.rectangle([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 透明矩形标注已绘制到图层")
                     
-                    if len(polygon_coords) >= 6:  # 至少3个点
-                        draw.polygon(polygon_coords, outline=outline_color, fill=fill_color)
-                        print(f"[LRPG] ✅ 多边形标注已绘制: {len(points)} 个点")
+                elif annotation_type == 'circle':
+                    # 在透明图层上绘制圆形/椭圆
+                    draw_layer.ellipse([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 透明圆形标注已绘制到图层")
+                    
+                elif annotation_type == 'polygon':
+                    # 绘制多边形
+                    points = layer_data.get('points', [])
+                    if points and len(points) >= 3:
+                        # 将points转换为PIL格式的坐标列表 [(x1,y1), (x2,y2), ...]
+                        polygon_coords = []
+                        for point in points:
+                            if isinstance(point, dict) and 'x' in point and 'y' in point:
+                                polygon_coords.extend([point['x'], point['y']])
+                            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                                polygon_coords.extend([point[0], point[1]])
+                        
+                        if len(polygon_coords) >= 6:  # 至少3个点
+                            draw_layer.polygon(polygon_coords, outline=outline_color, fill=fill_color)
+                            print(f"[LRPG] ✅ 透明多边形标注已绘制到图层: {len(points)} 个点")
+                        else:
+                            print(f"[LRPG] ⚠️ 多边形坐标数据不足: {polygon_coords}")
                     else:
-                        print(f"[LRPG] ⚠️ 多边形坐标数据不足: {polygon_coords}")
-                else:
-                    print(f"[LRPG] ⚠️ 多边形缺少points数据: {points}")
+                        print(f"[LRPG] ⚠️ 多边形缺少points数据: {points}")
+                        
+                elif annotation_type == 'text' or annotation_type == 'i-text':
+                    # 🎯 新增：文字标注绘制（透明版）
+                    text_content = layer_data.get('text', 'Text')
+                    font_size = layer_data.get('fontSize', 20)
                     
-            else:
-                print(f"[LRPG] ⚠️ 未支持的标注类型: {annotation_type}")
+                    try:
+                        from PIL import ImageFont
+                        import os
+                        
+                        # 中文字体回退列表
+                        chinese_fonts = [
+                            "C:/Windows/Fonts/msyh.ttf",      # 微软雅黑
+                            "C:/Windows/Fonts/simsun.ttc",    # 宋体
+                            "C:/Windows/Fonts/simhei.ttf",    # 黑体
+                            "C:/Windows/Fonts/simkai.ttf",    # 楷体
+                            "msyh.ttf",                       # 系统路径微软雅黑
+                            "simsun.ttc",                     # 系统路径宋体
+                            "simhei.ttf"                      # 系统路径黑体
+                        ]
+                        
+                        font = None
+                        for font_path in chinese_fonts:
+                            try:
+                                if os.path.exists(font_path) or not font_path.startswith("C:/"):
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"[LRPG] ✅ 成功加载中文字体: {font_path}")
+                                    break
+                            except Exception as e:
+                                print(f"[LRPG] ⚠️ 字体加载失败 {font_path}: {str(e)}")
+                                continue
+                        
+                        if font is None:
+                            font = ImageFont.load_default()
+                            print(f"[LRPG] ⚠️ 使用默认字体，可能不支持中文")
+                        
+                        # 计算文字位置 (centerX, centerY 为中心点)
+                        text_x = int(centerX - width / 2)
+                        text_y = int(centerY - height / 2)
+                        
+                        # 在透明图层上绘制文字
+                        draw_layer.text((text_x, text_y), text_content, font=font, fill=fill_color)
+                        print(f"[LRPG] ✅ 透明文字标注已绘制: '{text_content}'")
+                        
+                    except Exception as e:
+                        print(f"[LRPG] ❌ 文字标注绘制失败: {str(e)}")
+                        # 回退：使用基本绘制
+                        draw_layer.text((int(centerX), int(centerY)), text_content, fill=fill_color)
+                        
+                else:
+                    print(f"[LRPG] ⚠️ 未支持的标注类型: {annotation_type}")
+                
+                # 🎨 将透明图层混合到主画布上
+                if canvas.mode != 'RGBA':
+                    canvas = canvas.convert('RGBA')
+                canvas = PILImage.alpha_composite(canvas, annotation_layer)
+                # 转换回RGB（如果需要）
+                if canvas.mode == 'RGBA':
+                    # 创建白色背景并合成
+                    background = PILImage.new('RGB', canvas.size, (255, 255, 255))
+                    background.paste(canvas, mask=canvas.split()[-1])  # 使用alpha通道作为mask
+                    canvas = background
+                    
+                print(f"[LRPG] ✅ 透明标注已混合到主画布")
+                
+            else:  # 完全不透明，使用原来的方法
+                draw = ImageDraw.Draw(canvas)
+                # 设置绘制样式（RGB颜色）
+                outline_color = (r, g, b)
+                fill_color = (r, g, b)
+                
+                if annotation_type == 'rect':
+                    # 绘制矩形
+                    draw.rectangle([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 不透明矩形标注已绘制")
+                    
+                elif annotation_type == 'circle':
+                    # 绘制圆形/椭圆
+                    draw.ellipse([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 不透明圆形标注已绘制")
+                    
+                elif annotation_type == 'polygon':
+                    # 绘制多边形
+                    points = layer_data.get('points', [])
+                    if points and len(points) >= 3:
+                        # 将points转换为PIL格式的坐标列表 [(x1,y1), (x2,y2), ...]
+                        polygon_coords = []
+                        for point in points:
+                            if isinstance(point, dict) and 'x' in point and 'y' in point:
+                                polygon_coords.extend([point['x'], point['y']])
+                            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                                polygon_coords.extend([point[0], point[1]])
+                        
+                        if len(polygon_coords) >= 6:  # 至少3个点
+                            draw.polygon(polygon_coords, outline=outline_color, fill=fill_color)
+                            print(f"[LRPG] ✅ 不透明多边形标注已绘制: {len(points)} 个点")
+                        else:
+                            print(f"[LRPG] ⚠️ 多边形坐标数据不足: {polygon_coords}")
+                    else:
+                        print(f"[LRPG] ⚠️ 多边形缺少points数据: {points}")
+                        
+                elif annotation_type == 'text' or annotation_type == 'i-text':
+                    # 🎯 新增：文字标注绘制（不透明版）
+                    text_content = layer_data.get('text', 'Text')
+                    font_size = layer_data.get('fontSize', 20)
+                    
+                    try:
+                        from PIL import ImageFont
+                        import os
+                        
+                        # 中文字体回退列表
+                        chinese_fonts = [
+                            "C:/Windows/Fonts/msyh.ttf",      # 微软雅黑
+                            "C:/Windows/Fonts/simsun.ttc",    # 宋体
+                            "C:/Windows/Fonts/simhei.ttf",    # 黑体
+                            "C:/Windows/Fonts/simkai.ttf",    # 楷体
+                            "msyh.ttf",                       # 系统路径微软雅黑
+                            "simsun.ttc",                     # 系统路径宋体
+                            "simhei.ttf"                      # 系统路径黑体
+                        ]
+                        
+                        font = None
+                        for font_path in chinese_fonts:
+                            try:
+                                if os.path.exists(font_path) or not font_path.startswith("C:/"):
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"[LRPG] ✅ 成功加载中文字体: {font_path}")
+                                    break
+                            except Exception as e:
+                                print(f"[LRPG] ⚠️ 字体加载失败 {font_path}: {str(e)}")
+                                continue
+                        
+                        if font is None:
+                            font = ImageFont.load_default()
+                            print(f"[LRPG] ⚠️ 使用默认字体，可能不支持中文")
+                        
+                        # 计算文字位置 (centerX, centerY 为中心点)
+                        text_x = int(centerX - width / 2)
+                        text_y = int(centerY - height / 2)
+                        
+                        # 绘制文字
+                        draw.text((text_x, text_y), text_content, font=font, fill=fill_color)
+                        print(f"[LRPG] ✅ 不透明文字标注已绘制: '{text_content}'")
+                        
+                    except Exception as e:
+                        print(f"[LRPG] ❌ 文字标注绘制失败: {str(e)}")
+                        # 回退：使用基本绘制
+                        draw.text((int(centerX), int(centerY)), text_content, fill=fill_color)
+                        
+                else:
+                    print(f"[LRPG] ⚠️ 未支持的标注类型: {annotation_type}")
             
             return canvas
             
@@ -1065,7 +1273,7 @@ class VisualPromptEditor:
                     }
                 else:
                     # 标注图层的HD变换映射
-                    hd_transform_data[layer_id] = {
+                    hd_layer_data = {
                         'centerX': layer_data.get('centerX', 0) * scale,
                         'centerY': layer_data.get('centerY', 0) * scale,
                         'scaleX': layer_data.get('scaleX', 1),              # 标注缩放保持不变
@@ -1083,6 +1291,34 @@ class VisualPromptEditor:
                         '_debug_fabricId': layer_data.get('_debug_fabricId'),
                         '_debug_name': layer_data.get('_debug_name')
                     }
+                    
+                    # 🔧 针对不同类型标注添加特殊属性
+                    annotation_type = layer_data.get('type')
+                    if annotation_type == 'polygon':
+                        # 为多边形添加points数据，并缩放坐标
+                        original_points = layer_data.get('points', [])
+                        if original_points:
+                            hd_layer_data['points'] = [
+                                {'x': point.get('x', 0) * scale, 'y': point.get('y', 0) * scale}
+                                for point in original_points
+                            ]
+                            print(f"[LRPG] 🎯 HD缩放多边形points: {len(original_points)} 个点，缩放比例: {scale}")
+                        else:
+                            hd_layer_data['points'] = []
+                            print(f"[LRPG] ⚠️ 多边形没有points数据")
+                    elif annotation_type == 'path':
+                        # 为路径添加path数据
+                        hd_layer_data['path'] = layer_data.get('path', [])
+                    elif annotation_type == 'text' or annotation_type == 'i-text':
+                        # 🎯 新增：为文字标注添加文字相关数据
+                        hd_layer_data['text'] = layer_data.get('text', 'Text')
+                        hd_layer_data['fontSize'] = layer_data.get('fontSize', 20) * scale  # 🔧 字体大小按HD比例缩放
+                        hd_layer_data['fontFamily'] = layer_data.get('fontFamily', 'Arial')
+                        hd_layer_data['fontWeight'] = layer_data.get('fontWeight', 'normal')
+                        hd_layer_data['textAlign'] = layer_data.get('textAlign', 'left')
+                        print(f"[LRPG] 🎯 HD缩放文字标注: 原始字体大小{layer_data.get('fontSize', 20)} -> HD字体大小{hd_layer_data['fontSize']}")
+                    
+                    hd_transform_data[layer_id] = hd_layer_data
                 
                 print(f"[LRPG] 🔄 HD映射图层 {layer_id}:")
                 print(f"  - 原始中心: ({layer_data.get('centerX', 0):.1f}, {layer_data.get('centerY', 0):.1f})")

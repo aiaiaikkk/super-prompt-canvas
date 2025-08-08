@@ -75,6 +75,7 @@ export class FabricNativeManager {
         this.polygonPoints = [];
         this.isDrawingPolygon = false;
         this.tempPolygonLine = null;
+        this.polygonControlPoints = [];  // 存储控制点对象
         
         // 裁切工具状态 - 性能优化版
         this.cropPoints = [];
@@ -528,10 +529,14 @@ export class FabricNativeManager {
         this.fabricCanvas.wrapperEl.addEventListener('mousedown', (e) => {
             if (e.button === 2 && this.currentTool === 'polygon') {
                 e.preventDefault();
+                e.stopPropagation();
                 const pointer = this.fabricCanvas.getPointer(e);
+                console.log('🔷 右键点击事件触发，多边形点数:', this.polygonPoints.length);
+                console.log('🔷 多边形绘制状态:', this.isDrawingPolygon);
                 this.handlePolygonRightClick(pointer);
             } else if (e.button === 2 && this.currentTool === 'crop') {
                 e.preventDefault();
+                e.stopPropagation();
                 const pointer = this.fabricCanvas.getPointer(e);
                 this.finishCrop();
             }
@@ -541,6 +546,7 @@ export class FabricNativeManager {
         this.fabricCanvas.wrapperEl.addEventListener('contextmenu', (e) => {
             if (this.currentTool === 'polygon' || this.currentTool === 'crop') {
                 e.preventDefault();
+                e.stopPropagation();
             }
         });
         
@@ -1340,29 +1346,87 @@ export class FabricNativeManager {
      * 处理多边形点击 - 逐点绘制多边形
      */
     handlePolygonClick(pointer, originalEvent) {
+        console.log('🔷 处理多边形点击');
+        console.log('🔷 点击事件信息:', {
+            button: originalEvent.button,
+            isDrawingPolygon: this.isDrawingPolygon,
+            currentPoints: this.polygonPoints.length
+        });
+        
         // 只处理左键点击添加点
         if (originalEvent.button !== 0) {
+            console.log('🔷 非左键点击，忽略');
             return;
         }
         
         // 左键添加新点
         this.polygonPoints.push({x: pointer.x, y: pointer.y});
+        console.log('🔷 添加新点:', pointer);
+        console.log('🔷 当前总点数:', this.polygonPoints.length);
+        
+        // 添加控制点
+        this.addPolygonControlPoint(pointer.x, pointer.y);
         
         if (!this.isDrawingPolygon) {
             // 开始绘制多边形
             this.isDrawingPolygon = true;
+            console.log('🔷 开始绘制多边形');
             this.showPolygonPreview();
         } else {
+            console.log('🔷 更新多边形预览');
             this.updatePolygonPreview();
         }
     }
     
     /**
+     * 添加多边形控制点
+     */
+    addPolygonControlPoint(x, y) {
+        const controlPoint = new fabric.Circle({
+            left: x - 4,
+            top: y - 4,
+            radius: 4,
+            fill: '#ff0000',
+            stroke: '#ffffff',
+            strokeWidth: 1,
+            selectable: false,
+            evented: false,
+            hoverCursor: 'default',
+            moveCursor: 'default'
+        });
+        
+        this.polygonControlPoints.push(controlPoint);
+        this.fabricCanvas.add(controlPoint);
+        this.fabricCanvas.renderAll();
+    }
+    
+    /**
+     * 清理多边形控制点
+     */
+    clearPolygonControlPoints() {
+        this.polygonControlPoints.forEach(point => {
+            this.fabricCanvas.remove(point);
+        });
+        this.polygonControlPoints = [];
+    }
+
+    /**
      * 处理多边形右键点击 - 完成绘制
      */
     handlePolygonRightClick(pointer) {
+        console.log('🔷 处理多边形右键点击');
+        console.log('🔷 当前状态:', {
+            isDrawingPolygon: this.isDrawingPolygon,
+            polygonPoints: this.polygonPoints,
+            pointsCount: this.polygonPoints.length,
+            currentTool: this.currentTool
+        });
+        
         if (this.isDrawingPolygon) {
+            console.log('🔷 开始完成多边形绘制');
             this.finishPolygon();
+        } else {
+            console.log('🔷 多边形未在绘制状态，忽略右键点击');
         }
     }
     
@@ -1408,35 +1472,85 @@ export class FabricNativeManager {
      * 完成多边形绘制 - 使用Fabric.js官方Polygon
      */
     finishPolygon() {
+        console.log('🔷 完成多边形绘制开始');
+        console.log('🔷 多边形点数:', this.polygonPoints.length);
+        
         if (this.polygonPoints.length < 3) {
+            console.log('🔷 点数不足3个，取消多边形');
             // 至少需要3个点才能组成多边形
             this.cancelPolygon();
             return;
         }
         
         if (this.tempPolygonLine) {
+            console.log('🔷 移除临时多边形线');
             this.fabricCanvas.remove(this.tempPolygonLine);
             this.tempPolygonLine = null;
         }
         
-        const polygon = new fabric.Polygon(this.polygonPoints, {
-            ...this.drawingOptions,
-            selectable: true,
-            evented: true,
-            hasControls: true,
-            hasBorders: true,
-            fabricId: `fabric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        });
+        // 清理控制点
+        console.log('🔷 清理控制点');
+        this.clearPolygonControlPoints();
         
-        // 🎯 设置polygon序列化
-        this._setupFabricObjectSerialization(polygon);
+        console.log('🔷 创建Fabric.Polygon对象');
+        console.log('🔷 多边形点数据:', JSON.stringify(this.polygonPoints));
+        console.log('🔷 绘制选项:', JSON.stringify(this.drawingOptions));
         
-        this.fabricCanvas.add(polygon);
-        this.fabricCanvas.setActiveObject(polygon);
-        this.fabricCanvas.renderAll();
-        
-        // 重置多边形绘制状态
-        this.resetPolygonState();
+        try {
+            const polygonId = `fabric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const polygon = new fabric.Polygon(this.polygonPoints, {
+                ...this.drawingOptions,
+                selectable: true,
+                evented: true,
+                hasControls: true,
+                hasBorders: true,
+                id: polygonId,  // 🔧 设置ID属性用于数据收集
+                fabricId: polygonId,
+                points: this.polygonPoints  // 🔧 确保points属性被正确设置
+            });
+            
+            console.log('🔷 Polygon对象创建成功:', polygon);
+            console.log('🔷 Polygon类型:', polygon.type);
+            console.log('🔷 Polygon可见性:', polygon.visible);
+            console.log('🔷 Polygon透明度:', polygon.opacity);
+            
+            // 🎯 设置polygon序列化 - 直接实现以确保属性被正确序列化
+            const originalToObject = polygon.toObject.bind(polygon);
+            polygon.toObject = function(propertiesToInclude) {
+                const baseProps = ['fabricId', 'name', 'points'];
+                return originalToObject([
+                    ...baseProps,
+                    ...(propertiesToInclude || [])
+                ]);
+            };
+            
+            console.log('🔷 添加多边形到画布');
+            console.log('🔷 画布状态:', {
+                canvas: !!this.fabricCanvas,
+                objectsCount: this.fabricCanvas.getObjects().length
+            });
+            
+            this.fabricCanvas.add(polygon);
+            console.log('🔷 多边形已添加到画布');
+            
+            this.fabricCanvas.setActiveObject(polygon);
+            console.log('🔷 多边形已设为活动对象');
+            
+            this.fabricCanvas.renderAll();
+            console.log('🔷 画布已重新渲染');
+            
+            console.log('🔷 重置多边形绘制状态');
+            // 重置多边形绘制状态
+            this.resetPolygonState();
+            
+            console.log('🔷 多边形绘制完成');
+            
+        } catch (error) {
+            console.error('❌ 创建多边形时发生错误:', error);
+            console.error('❌ 错误堆栈:', error.stack);
+            // 重置状态以避免卡住
+            this.resetPolygonState();
+        }
     }
     
     /**
@@ -1447,6 +1561,9 @@ export class FabricNativeManager {
             this.fabricCanvas.remove(this.tempPolygonLine);
             this.tempPolygonLine = null;
         }
+        
+        // 清理控制点
+        this.clearPolygonControlPoints();
         
         // 重置状态
         this.resetPolygonState();
@@ -1460,6 +1577,7 @@ export class FabricNativeManager {
         this.polygonPoints = [];
         this.isDrawingPolygon = false;
         this.tempPolygonLine = null;
+        this.polygonControlPoints = [];  // 清理控制点数组
     }
     
     /**
@@ -2484,6 +2602,9 @@ export class FabricNativeManager {
         if (this.isDrawingCrop && toolName !== 'crop') {
             this.cancelCrop();
         }
+        
+        // 🔧 更新绘制选项以确保正确的样式
+        this.updateDrawingOptions();
         
         switch (toolName) {
             case 'select':
@@ -4092,8 +4213,8 @@ Object.assign(FabricNativeManager.prototype, {
                 const center = obj.getCenterPoint();
                 const matrix = obj.calcTransformMatrix();
                 
-                // 最简化的变换数据收集，避免任何手动计算
-                layerTransforms[obj.id] = {
+                // 基础变换数据
+                const transformData = {
                     // 使用原生API获取的中心点
                     centerX: center.x,
                     centerY: center.y,
@@ -4111,7 +4232,25 @@ Object.assign(FabricNativeManager.prototype, {
                     bounds: bounds
                 };
                 
-                console.log(`[LRPG_Transform] 收集图层 ${obj.id}:`, layerTransforms[obj.id]);
+                // 🔧 针对不同类型对象添加特殊属性
+                if (obj.type === 'polygon' && obj.points) {
+                    transformData.type = 'polygon';
+                    transformData.points = obj.points;
+                    console.log(`[LRPG_Transform] 🎯 多边形数据:`, {
+                        id: obj.id,
+                        pointsCount: obj.points.length,
+                        points: obj.points
+                    });
+                } else if (obj.type === 'path' && obj.path) {
+                    transformData.type = 'path';
+                    transformData.path = obj.path;
+                } else {
+                    transformData.type = obj.type || 'unknown';
+                }
+                
+                layerTransforms[obj.id] = transformData;
+                
+                console.log(`[LRPG_Transform] 收集图层 ${obj.id}:`, transformData);
             }
         });
         
