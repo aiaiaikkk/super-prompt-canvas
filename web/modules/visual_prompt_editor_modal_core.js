@@ -11,13 +11,13 @@ import {
     createCanvasArea, 
     createPromptArea 
 } from './visual_prompt_editor_ui.js';
-import { globalImageCache } from './visual_prompt_editor_utils.js';
+import { globalImageCache, globalImageSizeOptimizer, globalMemoryManager } from './visual_prompt_editor_utils.js';
 // import { createSVGAnnotationCreator } from './visual_prompt_editor_svg_creator.js';
 // import { createAnnotationRestorer } from './visual_prompt_editor_annotation_restorer.js';
 // import { createAnnotationEventHandler } from './visual_prompt_editor_annotation_events.js';
 // import { createTransformControls } from './visual_prompt_editor_transform_controls.js';
 import { 
-    createDataManager
+    DataManager
 } from './visual_prompt_editor_data_manager.js';
 import { 
     createEventHandlers
@@ -36,6 +36,7 @@ import {
 import { 
     createFabricNativeManager
 } from './visual_prompt_editor_fabric_native.js';
+import { globalImageScalingManager, MAX_DISPLAY_SIZE } from './visual_prompt_editor_image_scaling.js';
 
 /**
  * 创建统一编辑器模态弹窗
@@ -81,8 +82,8 @@ export function createUnifiedModal(imageData, layersData, nodeInstance) {
         
         // 调试：检查模态弹窗的位置和样式
         
-        // 初始化核心数据
-        modal.annotations = [];
+        // Transform-First架构：初始化核心数据
+        modal.annotations = []; // 保留用于前端标注功能兼容性
         modal.selectedLayers = new Set();
         modal.drawingState = null;
         modal.transformState = null;
@@ -104,8 +105,14 @@ export function createUnifiedModal(imageData, layersData, nodeInstance) {
  * 从主文件迁移的模态弹窗初始化逻辑
  */
 export async function initModalFunctionality(modal, layersData, nodeInstance) {
+    console.log('🚀 开始初始化模态弹窗功能...');
     
     try {
+        // 🚀 记录初始内存使用情况
+        const initialMemory = globalMemoryManager.checkMemoryUsage();
+        if (initialMemory) {
+            console.log(`📊 Initial memory usage: ${globalMemoryManager.formatBytes(initialMemory.used)} (${initialMemory.usagePercent.toFixed(1)}%)`);
+        }
         
         // 初始化标注系统模块
         try {
@@ -119,7 +126,7 @@ export async function initModalFunctionality(modal, layersData, nodeInstance) {
         // 🚀 立即初始化Fabric.js纯原生系统
         try {
             // 先创建数据管理器
-            nodeInstance.dataManager = createDataManager(nodeInstance);
+            nodeInstance.dataManager = new DataManager(nodeInstance.id);
             
             const canvasWidth = getBackendCanvasSize(nodeInstance, 'canvas_width', 800);
             const canvasHeight = getBackendCanvasSize(nodeInstance, 'canvas_height', 600);
@@ -229,8 +236,11 @@ function initializeDelayedFeatures(modal, nodeInstance) {
         
         try {
             if (nodeInstance.eventHandlers && nodeInstance.eventHandlers.bindBasicEvents) {
+                console.log('🔗 开始绑定基础界面事件...');
                 nodeInstance.eventHandlers.bindBasicEvents(modal);
+                console.log('✅ 基础界面事件绑定完成');
             } else {
+                console.warn('❌ 找不到事件处理器或bindBasicEvents方法');
             }
         } catch (error) {
             console.error('Basic interface events binding failed:', error);
@@ -522,20 +532,25 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
         if (sameUrlImage) {
             console.log(`✅ Same input image already exists on canvas, skipping reload: ${imageUrl.substring(imageUrl.lastIndexOf('/') + 1)}`);
             
-            // 确保画布尺寸匹配现有图像
-            const imageWidth = sameUrlImage.width || sameUrlImage.getElement().naturalWidth;
-            const imageHeight = sameUrlImage.height || sameUrlImage.getElement().naturalHeight;
+            // 确保画布尺寸匹配现有图像的原始分辨率
+            const originalWidth = sameUrlImage.originalWidth || sameUrlImage.getElement().naturalWidth;
+            const originalHeight = sameUrlImage.originalHeight || sameUrlImage.getElement().naturalHeight;
             
             const currentCanvasWidth = fabricManager.fabricCanvas.getWidth();
             const currentCanvasHeight = fabricManager.fabricCanvas.getHeight();
 
-            if (currentCanvasWidth !== imageWidth || currentCanvasHeight !== imageHeight) {
-                console.log(`🔄 Adjusting canvas size to match existing image: ${imageWidth}x${imageHeight}`);
+            if (currentCanvasWidth !== originalWidth || currentCanvasHeight !== originalHeight) {
+                console.log(`🔄 Adjusting canvas to match existing image original resolution: ${originalWidth}x${originalHeight}`);
                 fabricManager.fabricCanvas.setDimensions({
-                    width: imageWidth,
-                    height: imageHeight
+                    width: originalWidth,
+                    height: originalHeight
                 });
-                syncCanvasSizeToFrontend(fabricManager.modal, imageWidth, imageHeight);
+                syncCanvasSizeToFrontend(fabricManager.modal, originalWidth, originalHeight);
+              
+              // 同步画布尺寸到后端widgets
+              if (fabricManager.nodeInstance && fabricManager.nodeInstance.eventHandlers && fabricManager.nodeInstance.eventHandlers.syncCanvasSizeToBackend) {
+                  fabricManager.nodeInstance.eventHandlers.syncCanvasSizeToBackend(originalWidth, originalHeight);
+              }
             }
             
             // 选中现有图像并更新图层面板
@@ -578,35 +593,84 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
 
             console.log(`📐 Input image dimensions: ${imageWidth}x${imageHeight}`);
 
-            // 🚀 新功能：自动调整画布尺寸匹配输入图像
+            // 🚀 使用新的图像尺寸优化器
+            const optimization = globalImageSizeOptimizer.optimizeImageSize(fabricImage.getElement(), {
+                preserveAspectRatio: true,
+                useCSS: true,
+                downscaleLarge: true
+            });
+
+            // 兼容旧的显示尺寸计算
+            const displaySize = {
+                displayWidth: optimization.displayWidth,
+                displayHeight: optimization.displayHeight,
+                scale: optimization.scale,
+                needsScaling: optimization.optimized
+            };
+            
+            // 存储原始尺寸和缩放信息
+            const imageId = `input_image_${Date.now()}`;
+            globalImageScalingManager.storeOriginalSize(imageId, imageWidth, imageHeight);
+            globalImageScalingManager.storeDisplayScale(imageId, displaySize.scale);
+            
+            // 🚀 修正：保持画布原始尺寸，只缩放图像显示
+            // 画布尺寸应该始终保持图像的原始分辨率
             const currentCanvasWidth = fabricManager.fabricCanvas.getWidth();
             const currentCanvasHeight = fabricManager.fabricCanvas.getHeight();
-
+            
+            // 只有当画布尺寸与图像原始尺寸不匹配时才调整画布
             if (currentCanvasWidth !== imageWidth || currentCanvasHeight !== imageHeight) {
-                console.log(`🔄 Resizing canvas from ${currentCanvasWidth}x${currentCanvasHeight} to ${imageWidth}x${imageHeight}`);
-                
+                console.log(`🔄 Adjusting canvas to match original image resolution: ${imageWidth}x${imageHeight}`);
                 fabricManager.fabricCanvas.setDimensions({
                     width: imageWidth,
                     height: imageHeight
                 });
-
+                
                 // 同步画布尺寸到前端控件
                 syncCanvasSizeToFrontend(fabricManager.modal, imageWidth, imageHeight);
-            } else {
-                console.log(`✅ Canvas size already matches image: ${imageWidth}x${imageHeight}`);
+                
+                // 同步画布尺寸到后端widgets
+                if (fabricManager.nodeInstance && fabricManager.nodeInstance.eventHandlers && fabricManager.nodeInstance.eventHandlers.syncCanvasSizeToBackend) {
+                    fabricManager.nodeInstance.eventHandlers.syncCanvasSizeToBackend(imageWidth, imageHeight);
+                }
             }
 
+            // 设置图像属性 - 将图像定位到画布中心
+            const canvasWidth = fabricManager.fabricCanvas.getWidth();
+            const canvasHeight = fabricManager.fabricCanvas.getHeight();
+            
+            // 计算图像在画布中心的位置（考虑显示缩放）
+            const displayImageWidth = imageWidth * displaySize.scale;
+            const displayImageHeight = imageHeight * displaySize.scale;
+            const centerLeft = (canvasWidth - displayImageWidth) / 2;
+            const centerTop = (canvasHeight - displayImageHeight) / 2;
+            
+            console.log(`📍 图像中心定位: 画布${canvasWidth}x${canvasHeight}, 显示图像${displayImageWidth}x${displayImageHeight}, 中心位置(${centerLeft}, ${centerTop})`);
+            
             fabricImage.set({
-                left: 0,
-                top: 0,
-                scaleX: 1,
-                scaleY: 1,
+                left: centerLeft,
+                top: centerTop,
+                originX: 'left',
+                originY: 'top',
+                originalWidth: imageWidth,
+                originalHeight: imageHeight,
+                displayScale: displaySize.scale,
+                needsScaling: displaySize.needsScaling,
+                scaleX: displaySize.scale,  // 仅用于显示优化，保持原始分辨率
+                scaleY: displaySize.scale,  // 仅用于显示优化，保持原始分辨率
                 selectable: true,
                 hasControls: true,
                 hasBorders: true,
-                fabricId: `input_image_${Date.now()}`,
+                fabricId: imageId,
+                id: imageId,  // ✅ 修复：确保同时设置id和fabricId
                 name: 'Input Image'
             });
+            
+            if (displaySize.needsScaling) {
+                console.log(`📏 大图像显示优化: 原始分辨率${imageWidth}×${imageHeight}保持不变，显示缩放至${displaySize.displayWidth}×${displaySize.displayHeight} (${Math.round(displaySize.scale * 100)}%)`);
+            } else {
+                console.log(`✅ 小图像无需缩放: ${imageWidth}×${imageHeight}`);
+            }
 
             fabricManager.fabricCanvas.add(fabricImage);
             

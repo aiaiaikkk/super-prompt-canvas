@@ -7,6 +7,74 @@ import { t, getCurrentLanguage, toggleLanguage, updateAllUITexts, loadLanguageFr
 import { updateOperationTypeSelect, Z_INDEX, MODAL_STYLES, applyStyles } from './visual_prompt_editor_utils.js';
 
 /**
+ * DOM查询缓存管理器
+ * 🔧 减少重复DOM查询以提高性能
+ */
+class DOMCache {
+    constructor(modal) {
+        this.modal = modal;
+        this.cache = new Map();
+        this.batchOperations = [];
+    }
+    
+    /**
+     * 获取缓存的DOM元素
+     */
+    get(selector) {
+        if (!this.cache.has(selector)) {
+            this.cache.set(selector, this.modal.querySelector(selector));
+        }
+        return this.cache.get(selector);
+    }
+    
+    /**
+     * 批量获取多个DOM元素
+     */
+    getMultiple(selectors) {
+        const result = {};
+        selectors.forEach(selector => {
+            const key = selector.replace(/[^a-zA-Z0-9]/g, '_');
+            result[key] = this.get(selector);
+        });
+        return result;
+    }
+    
+    /**
+     * 清除缓存
+     */
+    clear() {
+        this.cache.clear();
+    }
+    
+    /**
+     * 添加批量操作
+     */
+    addBatchOperation(operation) {
+        this.batchOperations.push(operation);
+    }
+    
+    /**
+     * 执行批量操作
+     */
+    executeBatch() {
+        if (this.batchOperations.length === 0) return;
+        
+        // 使用requestAnimationFrame批量执行
+        requestAnimationFrame(() => {
+            this.batchOperations.forEach(op => op());
+            this.batchOperations = [];
+        });
+    }
+}
+
+/**
+ * 创建优化的DOM缓存实例
+ */
+export function createDOMCache(modal) {
+    return new DOMCache(modal);
+}
+
+/**
  * 创建主模态弹窗
  */
 export function createMainModal() {
@@ -193,13 +261,19 @@ export function createToolbar() {
             </div>
             
             <!-- 文件上传控制组 -->
-            <div style="display: flex; gap: 4px; align-items: center;">
+            <div style="display: flex; gap: 4px; align-items: center; border-right: 1px solid #555; padding-right: 8px;">
                 <span style="color: #ccc; font-size: 11px;" data-i18n="upload">Upload:</span>
                 <label for="vpe-image-upload" style="display: inline-block; cursor: pointer;">
                     <button type="button" id="vpe-upload-btn" style="font-size: 11px; padding: 4px 8px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer;" 
                             title="Upload Image to Canvas" data-i18n="btn_upload" data-i18n-title="tooltip_upload_image">📁 Upload</button>
                 </label>
                 <input type="file" id="vpe-image-upload" accept="image/*" style="display: none;" title="Select image file to upload">
+            </div>
+            
+            <!-- 内存监控组 -->
+            <div style="display: flex; gap: 4px; align-items: center;">
+                <button id="vpe-memory-monitor" style="font-size: 11px; padding: 4px 8px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                        title="Show Memory Usage Report" data-i18n-title="tooltip_memory_monitor">🧹 Memory</button>
             </div>
         </div>
     `;
@@ -961,13 +1035,14 @@ export function showControlInfo(modal) {
  * 初始化标签页功能
  */
 export function initializeTabSwitching() {
-    // 初始化标签页切换功能
+    console.log('🔄 初始化标签页切换功能...');
     
     // 查找所有标签页按钮
     const tabs = document.querySelectorAll('.vpe-tab-button');
-    // 标签页按钮数量: ${tabs.length}
+    console.log(`📝 标签页按钮数量: ${tabs.length}`);
     
     if (tabs.length === 0) {
+        console.warn('❌ 没有找到标签页按钮');
         return;
     }
     
@@ -982,10 +1057,10 @@ export function initializeTabSwitching() {
     
     tabs.forEach((tab, index) => {
         const tabKey = tab.getAttribute('data-i18n');
-        // 为标签页添加点击事件
+        console.log(`🏷️ 为标签页添加点击事件: ${tabKey}`);
         
         tab.addEventListener('click', function() {
-            // 点击标签页
+            console.log(`📱 点击标签页: ${tabKey}`);
             switchToTab(tabKey, tabContents);
             
             tabs.forEach(t => {
@@ -1358,14 +1433,14 @@ async function generatePrompt(enhancerType) {
  */
 async function callEnhancerAPI(enhancerType, params) {
     try {
-        // 构建annotation数据
+        // Transform-First架构：移除废弃的annotation数据构建
         const modal = document.getElementById('unified-editor-modal');
-        const annotationData = modal?.annotations || [];
         
-        // 构建请求数据
+        // 构建Transform-First请求数据
         const requestData = {
             annotation_data: JSON.stringify({
-                annotations: annotationData,
+                transform_version: "1.0",
+                layer_transforms: {},
                 include_annotation_numbers: false
             }),
             edit_description: params.description,

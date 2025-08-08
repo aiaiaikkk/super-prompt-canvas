@@ -6,25 +6,40 @@
 
 import { CONSTRAINT_PROMPTS, DECORATIVE_PROMPTS, generateId } from './visual_prompt_editor_utils.js';
 import { registerManagedFabricCanvas, addManagedEventListener } from './visual_prompt_editor_cleanup.js';
+import { globalImageScalingManager, MAX_DISPLAY_SIZE } from './visual_prompt_editor_image_scaling.js';
 
 // 动态加载Fabric.js库
 let fabric = null;
 
 async function loadFabricJS() {
-    if (window.fabric) {
-        fabric = window.fabric;
-        return fabric;
-    }
+    // 🔧 强制重新加载完整版Fabric.js，不使用已存在的不完整实例
+    console.log('🔧 强制加载完整版Fabric.js...');
     
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = '/extensions/KontextVisualPromptWindow_Intelligent/libs/fabric.js';
+        // 🔧 使用完整版Fabric.js
+        script.src = '/extensions/kontext-super-prompt/libs/fabric.js';
         script.onload = () => {
-            fabric = window.fabric;
-            resolve(fabric);
+            // 延迟一下确保Fabric.js完全初始化
+            setTimeout(() => {
+                fabric = window.fabric;
+                console.log('✅ 完整版Fabric.js强制加载成功');
+                console.log('Fabric.js版本:', fabric.version);
+                console.log('fabric.Canvas可用性:', typeof fabric.Canvas);
+                console.log('fabric.Object可用性:', typeof fabric.Object);
+                console.log('fabric.StaticCanvas可用性:', typeof fabric.StaticCanvas);
+                console.log('fabric.Rect可用性:', typeof fabric.Rect);
+                
+                if (typeof fabric.Canvas !== 'function') {
+                    console.error('❌ 即使重新加载，Canvas仍不可用');
+                    reject(new Error('Canvas构造函数仍不可用'));
+                } else {
+                    resolve(fabric);
+                }
+            }, 200);
         };
         script.onerror = () => {
-            console.error('Fabric.js加载失败');
+            console.error('❌ Fabric.js完整版加载失败');
             reject(new Error('Fabric.js加载失败'));
         };
         document.head.appendChild(script);
@@ -61,18 +76,31 @@ export class FabricNativeManager {
         this.isDrawingPolygon = false;
         this.tempPolygonLine = null;
         
-        // 裁切工具状态
+        // 裁切工具状态 - 性能优化版
         this.cropPoints = [];
         this.isDrawingCrop = false;
         this.tempCropLine = null;
         this.cropAnchors = []; // 存储锚点标记
+        this.cropPreviewPending = false; // 防止频繁重绘的标志
+        this.cropRenderThrottle = null; // 渲染节流器
+        
+        // Transform-First架构状态管理
+        this.transformFirstUpdatePending = false; // Transform-First数据更新标志
         
         // 当前选中的图层ID（用于状态缓存）
         this.currentSelectedLayerId = null;
         
-        // 自动保存相关
+        // 自动保存相关 - 🚀 优化版本
         this.autoSaveTimeout = null;
-        this.autoSaveDelay = 2000; // 2秒延迟保存
+        this.autoSaveDelay = 3000; // 增加到3秒延迟，减少频繁保存
+        this.lastAutoSaveTime = 0;
+        this.autoSaveEnabled = true; // 可以手动禁用自动保存
+        this.pendingAutoSave = false; // 标记有待处理的自动保存
+        
+        // 🚀 变换操作优化相关
+        this._isTransforming = false; // 标记是否正在变换中
+        this._transformEndTimeout = null; // 变换结束定时器
+        this._lastTransformTime = 0; // 上次变换时间
         
         // Undo/Redo 功能
         this.undoStack = [];
@@ -156,6 +184,7 @@ export class FabricNativeManager {
      * 创建Canvas - 完全按照Fabric.js官方文档
      */
     createOfficialCanvas() {
+        console.log('🎨 开始创建Fabric画布...');
         
         // 找到Canvas容器
         const canvasContainer = this.modal.querySelector('#fabric-canvas-container') || 
@@ -163,8 +192,11 @@ export class FabricNativeManager {
                                this.modal.querySelector('#canvas-container');
         
         if (!canvasContainer) {
+            console.error('❌ 找不到Canvas容器');
             throw new Error('找不到Canvas容器');
         }
+        
+        console.log('✅ 找到Canvas容器:', canvasContainer.id);
         
         // 保存画布容器引用用于视图缩放
         this.canvasContainer = canvasContainer;
@@ -178,7 +210,33 @@ export class FabricNativeManager {
         canvasContainer.innerHTML = '';
         canvasContainer.appendChild(canvasElement);
         
-        this.fabricCanvas = new fabric.Canvas(canvasElement, {
+        console.log('🔧 准备创建Fabric画布，fabric对象:', typeof fabric);
+        console.log('🔧 fabric.Canvas类型:', typeof fabric.Canvas);
+        
+        if (!fabric) {
+            console.error('❌ Fabric.js未正确加载');
+            throw new Error('Fabric.js未加载');
+        }
+        
+        // 检查不同的Canvas构造方式
+        let CanvasConstructor = null;
+        if (typeof fabric.Canvas === 'function') {
+            CanvasConstructor = fabric.Canvas;
+        } else if (fabric.canvas && typeof fabric.canvas === 'function') {
+            CanvasConstructor = fabric.canvas;
+        } else if (fabric.StaticCanvas && typeof fabric.StaticCanvas === 'function') {
+            CanvasConstructor = fabric.StaticCanvas;
+        }
+        
+        if (!CanvasConstructor) {
+            console.error('❌ 找不到有效的Canvas构造函数');
+            console.log('可用的fabric属性:', Object.keys(fabric));
+            throw new Error('Fabric.js Canvas构造函数不可用');
+        }
+        
+        console.log('✅ 使用Canvas构造函数:', CanvasConstructor.name || 'Unknown');
+        
+        this.fabricCanvas = new CanvasConstructor(canvasElement, {
             width: 800,
             height: 600,
             backgroundColor: '#ffffff',
@@ -279,19 +337,86 @@ export class FabricNativeManager {
             // 移动过程中不更新，避免频繁重绘
         });
         
-        this.fabricCanvas.on('object:moved', () => {
+        this.fabricCanvas.on('object:moved', (e) => {
+            this._constrainObjectToBounds(e.target);
             this.saveState();
             this._scheduleAutoSave();
         });
         
         // 对象修改事件 - 触发自动保存
-        this.fabricCanvas.on('object:modified', () => {
+        this.fabricCanvas.on('object:modified', (e) => {
+            const target = e.target;
+            if (target) {
+                console.log(`🔄 [OBJECT_MODIFIED] 对象修改: ${target.type}${target.type === 'image' ? ' (' + (target.width || 0) + 'x' + (target.height || 0) + ')' : ''}, 变换: ${JSON.stringify({
+                    scaleX: target.scaleX,
+                    scaleY: target.scaleY,
+                    angle: target.angle,
+                    left: target.left,
+                    top: target.top
+                })}`);
+            }
             this.saveState();
-            this._scheduleAutoSave();
+            
+            // 🚀 节流优化：变换操作时延长保存间隔
+            if (target && (target.type === 'image' || target._isTransforming)) {
+                // 标记正在变换中
+                this._isTransforming = true;
+                
+                // 清除之前的定时器
+                if (this._transformEndTimeout) {
+                    clearTimeout(this._transformEndTimeout);
+                }
+                
+                // 延迟保存，等待变换操作完全结束
+                this._transformEndTimeout = setTimeout(() => {
+                    this._isTransforming = false;
+                    this._scheduleAutoSave();
+                }, 1500); // 变换结束后1.5秒再保存
+            } else {
+                // 非变换操作，正常保存
+                this._scheduleAutoSave();
+            }
         });
         
         this.fabricCanvas.on('object:scaling', () => {
             // 缩放过程中不保存
+        });
+        
+        // 🚀 变换开始事件
+        this.fabricCanvas.on('transform:start', (e) => {
+            const target = e.target;
+            if (target) {
+                target._isTransforming = true;
+                this._isTransforming = true;
+                console.log(`🔄 [TRANSFORM_START] 开始变换: ${target.type}`);
+            }
+        });
+        
+        // 🚀 变换结束事件
+        this.fabricCanvas.on('transform:end', (e) => {
+            const target = e.target;
+            if (target) {
+                console.log(`🔄 [TRANSFORM_END] 变换结束: ${target.type}`);
+                
+                // 延迟标记变换结束，确保所有修改事件都已触发
+                setTimeout(() => {
+                    if (target) {
+                        target._isTransforming = false;
+                    }
+                    
+                    // 清除之前的定时器
+                    if (this._transformEndTimeout) {
+                        clearTimeout(this._transformEndTimeout);
+                    }
+                    
+                    // 延迟保存，等待可能的连续变换操作
+                    this._transformEndTimeout = setTimeout(() => {
+                        this._isTransforming = false;
+                        console.log(`🔄 [TRANSFORM_COMPLETE] 变换操作完全结束，触发保存`);
+                        this._scheduleAutoSave();
+                    }, 1000); // 变换结束后1秒再保存
+                }, 100);
+            }
         });
         
         // 文字编辑事件
@@ -304,7 +429,20 @@ export class FabricNativeManager {
             this.handleCanvasZoom(opt);
         });
         
-        this.fabricCanvas.on('object:scaled', () => {
+        this.fabricCanvas.on('object:scaled', (e) => {
+            const target = e.target;
+            if (target && target.type === 'image') {
+                const originalSize = (target.originalWidth || 0) * (target.originalHeight || 0);
+                // 使用Fabric.js原生API获取实际尺寸
+                const bounds = target.getBoundingRect();
+                const currentSize = bounds.width * bounds.height;
+                console.log(`📏 [IMAGE_SCALED] 图像缩放完成: 原始尺寸: ${target.originalWidth || 0}x${target.originalHeight || 0}, 显示尺寸: ${Math.round(bounds.width)}x${Math.round(bounds.height)}, 缩放比例: ${target.scaleX.toFixed(2)}x${target.scaleY.toFixed(2)}`);
+                
+                // 检查是否为大图像
+                if (originalSize > 1000000) { // 大于1百万像素
+                    console.warn(`⚠️ [PERFORMANCE] 大图像缩放操作可能影响性能 - 原始尺寸: ${(originalSize/1000000).toFixed(1)}MP`);
+                }
+            }
             this._scheduleAutoSave();
         });
         
@@ -496,7 +634,9 @@ export class FabricNativeManager {
         
         if (this.drawingObject) {
             // 为新创建的对象分配唯一ID
-            this.drawingObject.fabricId = this.generateFabricObjectId();
+            const newId = this.generateFabricObjectId();
+            this.drawingObject.fabricId = newId;
+            this.drawingObject.id = newId;  // ✅ 修复：统一ID字段
             this.fabricCanvas.add(this.drawingObject);
         }
     }
@@ -854,7 +994,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.constraintPrompts = selectedPrompts;
                 }
@@ -871,7 +1012,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.decorativePrompts = selectedPrompts;
                 }
@@ -923,7 +1065,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.constraintPrompts = selectedPrompts;
                 }
@@ -940,7 +1083,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.decorativePrompts = selectedPrompts;
                 }
@@ -976,7 +1120,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.operationType = operationType;
                 }
@@ -993,7 +1138,8 @@ export class FabricNativeManager {
         
         if (this.modal.selectedLayers) {
             this.modal.selectedLayers.forEach(layerId => {
-                const annotation = this.modal.annotations.find(ann => ann.id === layerId);
+                // Transform-First架构：移除废弃的annotation查找
+                const annotation = null;
                 if (annotation) {
                     annotation.description = description;
                 }
@@ -1049,17 +1195,21 @@ export class FabricNativeManager {
      * 将Fabric对象同步到标注数据系统
      */
     syncFabricObjectsToAnnotations(selectedObjects) {
-        if (!this.modal.annotations) {
-            this.modal.annotations = [];
-        }
+        // Transform-First架构：移除废弃的annotations同步逻辑
         
         selectedObjects.forEach(obj => {
             if (!obj.fabricId) {
                 // 为对象分配唯一ID
-                obj.fabricId = this.generateFabricObjectId();
+                const newId = this.generateFabricObjectId();
+                obj.fabricId = newId;
+                obj.id = newId;  // ✅ 修复：统一ID字段
+            } else if (!obj.id) {
+                // 确保已有fabricId的对象也有id字段
+                obj.id = obj.fabricId;
             }
             
-            let annotation = this.modal.annotations.find(ann => ann.id === obj.fabricId);
+            // Transform-First架构：移除废弃的annotation查找
+            let annotation = null;
             
             if (!annotation) {
                 annotation = {
@@ -1072,7 +1222,7 @@ export class FabricNativeManager {
                     decorativePrompts: [],
                     bounds: this.getFabricObjectBounds(obj)
                 };
-                this.modal.annotations.push(annotation);
+                // Transform-First架构：移除废弃的annotations push
             } else {
                 annotation.bounds = this.getFabricObjectBounds(obj);
                 annotation.fabricObject = obj;
@@ -1274,9 +1424,12 @@ export class FabricNativeManager {
             selectable: true,
             evented: true,
             hasControls: true,
-            hasBorders: true
+            hasBorders: true,
+            fabricId: `fabric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         });
         
+        // 🎯 设置polygon序列化
+        this._setupFabricObjectSerialization(polygon);
         
         this.fabricCanvas.add(polygon);
         this.fabricCanvas.setActiveObject(polygon);
@@ -1330,13 +1483,39 @@ export class FabricNativeManager {
             } else {
                 this.updateCropPreview();
             }
+            
+            // 🚀 性能优化：节流渲染，避免频繁重绘
+            this.throttledCropRender();
         }
     }
     
     /**
-     * 添加裁切锚点可视化标记
+     * 节流渲染 - 防止裁切工具频繁重绘
+     */
+    throttledCropRender() {
+        if (this.cropRenderThrottle) {
+            clearTimeout(this.cropRenderThrottle);
+        }
+        
+        this.cropRenderThrottle = setTimeout(() => {
+            if (this.fabricCanvas) {
+                this.fabricCanvas.renderAll();
+            }
+            this.cropRenderThrottle = null;
+        }, 16); // 约60FPS的渲染频率
+    }
+    
+    /**
+     * 添加裁切锚点可视化标记 - 性能优化版
      */
     addCropAnchor(x, y) {
+        // 🚀 性能优化：复用锚点对象，避免重复创建
+        if (this.cropAnchors.length >= 20) {
+            // 限制最大锚点数量，防止内存泄漏
+            console.warn('[Crop] 🚨 裁切锚点数量过多，请完成当前裁切或取消');
+            return;
+        }
+        
         const anchor = new fabric.Circle({
             left: x - 3,
             top: y - 3,
@@ -1348,23 +1527,54 @@ export class FabricNativeManager {
             evented: false,
             excludeFromExport: true,
             originX: 'center',
-            originY: 'center'
+            originY: 'center',
+            // 🚀 性能优化：禁用阴影和缓存
+            shadow: null,
+            cacheProperties: []
         });
         
         this.cropAnchors.push(anchor);
         this.fabricCanvas.add(anchor);
         this.fabricCanvas.bringToFront(anchor);
-        this.fabricCanvas.renderAll();
+        // 渲染将由父方法的throttledCropRender处理
     }
     
     /**
-     * 清除所有裁切锚点
+     * 清除所有裁切锚点 - 性能优化版
      */
     clearCropAnchors() {
-        this.cropAnchors.forEach(anchor => {
-            this.fabricCanvas.remove(anchor);
-        });
-        this.cropAnchors = [];
+        // 🚀 性能优化：批量移除锚点，减少DOM操作
+        if (this.cropAnchors.length > 0) {
+            // 使用批量操作而不是逐个移除
+            this.fabricCanvas.remove(...this.cropAnchors);
+            this.cropAnchors.length = 0; // 快速清空数组
+        }
+    }
+    
+    /**
+     * 统一清理裁切状态 - 消除代码重复
+     */
+    cleanupCropState() {
+        // 🚀 性能优化：清理渲染节流器
+        if (this.cropRenderThrottle) {
+            clearTimeout(this.cropRenderThrottle);
+            this.cropRenderThrottle = null;
+        }
+        
+        this.cropPreviewPending = false;
+        
+        // 清理预览线
+        if (this.tempCropLine) {
+            this.fabricCanvas.remove(this.tempCropLine);
+            this.tempCropLine = null;
+        }
+        
+        // 清理锚点
+        this.clearCropAnchors();
+        
+        // 重置状态变量
+        this.cropPoints.length = 0; // 快速清空数组
+        this.isDrawingCrop = false;
     }
     
     /**
@@ -1386,23 +1596,33 @@ export class FabricNativeManager {
         });
         
         this.fabricCanvas.add(this.tempCropLine);
-        this.fabricCanvas.renderAll();
+        // renderAll()在父方法中调用
     }
     
     /**
-     * 更新裁切路径预览
+     * 更新裁切路径预览 - 性能优化版
      */
     updateCropPreview() {
         if (this.tempCropLine) {
             this.tempCropLine.set('points', [...this.cropPoints]);
-            this.fabricCanvas.renderAll();
+            // 🚀 性能优化：使用requestAnimationFrame延迟渲染，避免频繁重绘
+            if (!this.cropPreviewPending) {
+                this.cropPreviewPending = true;
+                requestAnimationFrame(() => {
+                    if (this.fabricCanvas && this.tempCropLine) {
+                        this.fabricCanvas.renderAll();
+                    }
+                    this.cropPreviewPending = false;
+                });
+            }
         } else {
             this.showCropPreview();
         }
     }
     
     /**
-     * 完成裁切 - 创建裁切路径并应用到图像对象
+     * 完成裁切 - Transform-First架构版本
+     * 🚀 不再生成实际图像，只保存裁切变换元数据
      */
     finishCrop() {
         if (this.cropPoints.length < 3) {
@@ -1411,67 +1631,380 @@ export class FabricNativeManager {
             return;
         }
         
-        // 创建裁切路径
-        const cropPath = new fabric.Polygon(this.cropPoints, {
-            fill: 'transparent',
-            stroke: 'transparent',
-            selectable: false,
-            evented: false,
-            absolutePositioned: true
-        });
+        console.log('[Crop-TransformFirst] 🎯 开始Transform-First裁切处理...');
         
-        // 获取裁切区域的边界
-        const cropBounds = cropPath.getBoundingRect();
+        // 🚀 Transform-First: 创建裁切变换元数据，不执行实际裁切
+        const cropTransform = {
+            type: 'crop_mask',
+            crop_path: this.cropPoints.map(point => ({
+                x: point.x,
+                y: point.y
+            })),
+            timestamp: Date.now(),
+            transform_id: `crop_${Date.now()}`
+        };
         
-        // 查找裁切区域内的所有图像对象
-        const allObjects = this.fabricCanvas.getObjects();
-        const targetObjects = [];
-        
-        // 优先处理选中的对象
+        // 查找目标对象（优先选中对象）
         const activeObjects = this.fabricCanvas.getActiveObjects();
+        let targetObjects = [];
+        
         if (activeObjects.length > 0) {
-            activeObjects.forEach(obj => {
-                if (obj.type !== 'activeSelection' && this.isValidCropTarget(obj)) {
-                    targetObjects.push(obj);
-                }
-            });
+            targetObjects = activeObjects.filter(obj => 
+                obj.type !== 'activeSelection' && this.isValidCropTarget(obj)
+            );
         } else {
-            // 如果没有选中对象，自动查找裁切区域内的图像
-            allObjects.forEach(obj => {
-                if (this.isValidCropTarget(obj) && this.isObjectInCropArea(obj, cropBounds)) {
-                    targetObjects.push(obj);
-                }
-            });
+            // 自动查找裁切区域内的对象
+            const cropBounds = {
+                left: Math.min(...this.cropPoints.map(p => p.x)),
+                top: Math.min(...this.cropPoints.map(p => p.y)),
+                right: Math.max(...this.cropPoints.map(p => p.x)),
+                bottom: Math.max(...this.cropPoints.map(p => p.y))
+            };
+            
+            targetObjects = this.getValidObjects().filter(obj => 
+                this.isValidCropTarget(obj) && this.isObjectInCropArea(obj, cropBounds)
+            );
         }
         
         if (targetObjects.length === 0) {
-            console.warn('未找到可裁切的图像对象。请确保裁切区域内有图像，或先选择要裁切的图像。');
+            console.warn('[Crop-TransformFirst] ⚠️ 未找到可裁切的对象');
             this.cancelCrop();
             return;
         }
         
-        // 对找到的对象应用裁切
+        // 🚀 Transform-First: 将裁切作为变换属性添加到对象，不修改图像数据
         targetObjects.forEach(obj => {
-            this.applyCropToObject(obj, cropPath);
+            this.applyTransformFirstCrop(obj, cropTransform);
         });
         
-        console.log(`✂️ 已对 ${targetObjects.length} 个对象应用裁切`);
+        console.log(`[Crop-TransformFirst] ✅ 已为 ${targetObjects.length} 个对象添加裁切变换元数据`);
         
-        // 清理临时预览和锚点
-        if (this.tempCropLine) {
-            this.fabricCanvas.remove(this.tempCropLine);
-            this.tempCropLine = null;
-        }
-        this.clearCropAnchors();
-        
-        // 重置裁切状态
-        this.resetCropState();
-        
-        // 切换回选择工具
+        // 清理裁切状态并切换工具
+        this.cleanupCropState();
         this.setTool('select');
         this.updateToolButtonState('select');
         
-        this.fabricCanvas.renderAll();
+        // 触发Transform-First数据更新
+        this.throttledCropRender();
+    }
+    
+    /**
+     * Transform-First架构：应用裁切变换元数据
+     * 🚀 不处理实际图像，只添加变换信息
+     */
+    applyTransformFirstCrop(object, cropTransform) {
+        // 初始化对象的Transform-First数据
+        if (!object.transformFirstData) {
+            object.transformFirstData = {
+                transforms: [],
+                version: '1.0'
+            };
+        }
+        
+        // 添加裁切变换到对象
+        object.transformFirstData.transforms.push(cropTransform);
+        
+        // 🎨 添加可视化预览：半透明裁切蒙版
+        this.addCropPreviewMask(object, cropTransform);
+        
+        // 标记对象已被Transform-First修改
+        object.hasTransformFirstChanges = true;
+        
+        console.log(`[Crop-TransformFirst] 📊 对象 ${object.fabricId || 'unnamed'} 已添加裁切变换:`, {
+            crop_points: cropTransform.crop_path.length,
+            transform_id: cropTransform.transform_id
+        });
+        
+        // 触发数据管理器更新Transform数据
+        this._scheduleTransformFirstUpdate();
+    }
+    
+    /**
+     * 添加裁切预览效果 - 图像对象直接替换，其他对象显示蒙版
+     */
+    addCropPreviewMask(object, cropTransform) {
+        if (object.type === 'image') {
+            // 🖼️ 图像对象：直接应用裁切并替换原图
+            console.log('[Crop-TransformFirst] 🖼️ 图像对象 - 应用裁切并替换原图');
+            this.applyCropPreviewToImage(object, cropTransform);
+        } else {
+            // 📐 其他对象：显示裁切路径蒙版预览
+            console.log('[Crop-TransformFirst] 📐 非图像对象 - 显示裁切蒙版预览');
+            const previewMask = new fabric.Polygon(cropTransform.crop_path, {
+                fill: 'rgba(255, 255, 0, 0.2)', // 半透明黄色
+                stroke: '#ffff00',
+                strokeWidth: 2,
+                strokeDashArray: [8, 4],
+                selectable: false,
+                evented: false,
+                excludeFromExport: true,
+                cropPreviewFor: object.fabricId || object.id,
+                name: `Crop Preview for ${object.name || 'Object'}`
+            });
+            
+            this.fabricCanvas.add(previewMask);
+            this.fabricCanvas.bringToFront(previewMask);
+            
+            // 将预览蒙版与原对象关联
+            if (!object.cropPreviews) {
+                object.cropPreviews = [];
+            }
+            object.cropPreviews.push(previewMask);
+            
+            // 渲染画布以显示预览效果
+            this.fabricCanvas.renderAll();
+        }
+    }
+    
+    /**
+     * 为图像对象应用裁切预览效果
+     */
+    applyCropPreviewToImage(imageObject, cropTransform) {
+        try {
+            console.log('[Crop-TransformFirst] 🎨 开始应用图像裁切预览...');
+            
+            // 保存原始图像源（如果还没保存）
+            if (!imageObject._originalSrc) {
+                imageObject._originalSrc = imageObject.getSrc();
+            }
+            
+            // 计算裁切区域的边界框（相对于画布坐标）
+            const cropBounds = this.calculateCropBounds(cropTransform.crop_path);
+            
+            // 使用Fabric.js原生API进行坐标转换
+            const imageMatrix = imageObject.calcTransformMatrix();
+            const invertedMatrix = fabric.util.invertTransform(imageMatrix);
+            
+            // 转换裁切边界到图像本地坐标系
+            const topLeft = fabric.util.transformPoint({x: cropBounds.left, y: cropBounds.top}, invertedMatrix);
+            const bottomRight = fabric.util.transformPoint({
+                x: cropBounds.left + cropBounds.width, 
+                y: cropBounds.top + cropBounds.height
+            }, invertedMatrix);
+            
+            const imgCropBounds = {
+                left: topLeft.x,
+                top: topLeft.y,
+                width: bottomRight.x - topLeft.x,
+                height: bottomRight.y - topLeft.y
+            };
+            
+            console.log('[Crop-TransformFirst] 📐 裁切边界计算:', {
+                canvasCropBounds: cropBounds,
+                imageCropBounds: imgCropBounds,
+                imageObject: {
+                    left: imageObject.left,
+                    top: imageObject.top,
+                    scale: imageObject.scaleX
+                }
+            });
+            
+            // 创建临时画布，尺寸为裁切区域的大小
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 设置画布尺寸为裁切区域大小
+            tempCanvas.width = Math.max(1, Math.round(imgCropBounds.width));
+            tempCanvas.height = Math.max(1, Math.round(imgCropBounds.height));
+            
+            // 获取图像元素
+            const imgElement = imageObject.getElement();
+            if (!imgElement || !imgElement.complete) {
+                console.warn('[Crop-TransformFirst] ⚠️ 图像未加载完成，跳过裁切预览');
+                return;
+            }
+            
+            // 创建裁切路径（转换为图像坐标系，并相对于裁切区域）
+            tempCtx.beginPath();
+            cropTransform.crop_path.forEach((point, index) => {
+                const imgX = (point.x - imageObject.left) / imageObject.scaleX - imgCropBounds.left;
+                const imgY = (point.y - imageObject.top) / imageObject.scaleY - imgCropBounds.top;
+                
+                if (index === 0) {
+                    tempCtx.moveTo(imgX, imgY);
+                } else {
+                    tempCtx.lineTo(imgX, imgY);
+                }
+            });
+            tempCtx.closePath();
+            tempCtx.clip(); // 使用clip而不是填充
+            
+            // 绘制图像的裁切部分
+            tempCtx.drawImage(
+                imgElement,
+                imgCropBounds.left, imgCropBounds.top, imgCropBounds.width, imgCropBounds.height, // 源区域
+                0, 0, tempCanvas.width, tempCanvas.height // 目标区域
+            );
+            
+            // 将裁切后的图像设置回对象
+            const croppedDataURL = tempCanvas.toDataURL();
+            
+            // 创建新的图像对象完全替换原图
+            fabric.Image.fromURL(croppedDataURL, (croppedImg) => {
+                console.log('[Crop-TransformFirst] 📏 裁切后图像尺寸:', {
+                    originalImage: `${imageObject.width}x${imageObject.height}`,
+                    croppedImage: `${croppedImg.width}x${croppedImg.height}`,
+                    croppedCanvas: `${tempCanvas.width}x${tempCanvas.height}`
+                });
+                
+                // 新图像应该放置在裁切区域的左上角位置
+                const newLeft = cropBounds.left;
+                const newTop = cropBounds.top;
+                
+                // 计算新的缩放比例，使裁切后的图像显示大小与裁切区域一致
+                const newScaleX = cropBounds.width / croppedImg.width;
+                const newScaleY = cropBounds.height / croppedImg.height;
+                
+                // 设置新图像属性 - 精确匹配裁切区域的显示效果
+                croppedImg.set({
+                    left: newLeft,
+                    top: newTop,
+                    scaleX: newScaleX,
+                    scaleY: newScaleY,
+                    angle: imageObject.angle,
+                    fabricId: imageObject.fabricId, // 保持相同的 fabricId
+                    name: imageObject.name || 'Input Image',
+                    selectable: true,    // ✅ 可选择
+                    evented: true,       // ✅ 可交互
+                    hasControls: true,   // ✅ 有控制点
+                    hasBorders: true,    // ✅ 有边框
+                    moveCursor: 'move',  // ✅ 移动光标
+                    // 继承其他重要属性
+                    opacity: imageObject.opacity || 1,
+                    visible: true,
+                    excludeFromExport: false
+                });
+                
+                console.log('[Crop-TransformFirst] 📐 新图像定位:', {
+                    originalPosition: `(${imageObject.left}, ${imageObject.top})`,
+                    originalSize: `${imageObject.width}x${imageObject.height}`,
+                    originalScale: `${imageObject.scaleX}x${imageObject.scaleY}`,
+                    cropBounds: `(${cropBounds.left}, ${cropBounds.top}) ${cropBounds.width}x${cropBounds.height}`,
+                    newPosition: `(${newLeft}, ${newTop})`,
+                    newImageSize: `${croppedImg.width}x${croppedImg.height}`,
+                    newScale: `${newScaleX.toFixed(3)}x${newScaleY.toFixed(3)}`
+                });
+                
+                // ✂️ 清除Transform状态 - 裁切已在前端应用，避免后端重复处理
+                // 创建新的transformFirstData但移除crop transforms，因为裁切已经应用了
+                if (imageObject.transformFirstData) {
+                    // 复制原始transform数据但过滤掉已应用的crop transforms
+                    const filteredTransforms = imageObject.transformFirstData.transforms ? 
+                        imageObject.transformFirstData.transforms.filter(t => t.type !== 'crop_mask') : [];
+                    
+                    croppedImg.transformFirstData = {
+                        ...imageObject.transformFirstData,
+                        transforms: filteredTransforms
+                    };
+                    croppedImg.hasTransformFirstChanges = filteredTransforms.length > 0;
+                    console.log('[Crop-TransformFirst] ✅ 裁切已应用，移除crop transforms避免重复处理，保留其他变换');
+                    console.log(`[Crop-TransformFirst] 📊 剩余变换: ${filteredTransforms.length} 个`);
+                } else {
+                    // 没有transform数据，创建空的
+                    croppedImg.transformFirstData = { transforms: [] };
+                    croppedImg.hasTransformFirstChanges = false;
+                    console.log('[Crop-TransformFirst] ✅ 创建新的空transform数据');
+                }
+                
+                // ✂️ 完全移除原图像对象
+                this.fabricCanvas.remove(imageObject);
+                
+                // 添加新的裁切后图像
+                this.fabricCanvas.add(croppedImg);
+                
+                // 自动选中新创建的图像，方便用户进行后续操作
+                this.fabricCanvas.setActiveObject(croppedImg);
+                
+                // 确保对象坐标正确
+                croppedImg.setCoords();
+                
+                // 保存状态到撤销历史，方便用户撤销裁切操作
+                this.saveState();
+                
+                this.fabricCanvas.renderAll();
+                
+                console.log('[Crop-TransformFirst] ✅ 原图已被裁切后的新图像完全替换');
+                console.log(`[Crop-TransformFirst] 📊 新图像属性: 可选择=${croppedImg.selectable}, 可交互=${croppedImg.evented}`);
+                
+                // 触发自动保存，确保数据同步
+                this._scheduleAutoSave();
+                
+                // 立即触发数据管理器更新，确保"已处理图像"状态传递给后端
+                if (this.dataManager) {
+                    console.log('[Crop-TransformFirst] 📤 立即同步已处理图像状态到后端');
+                    this.dataManager.saveFabricCanvasDataAsync(this.fabricCanvas);
+                }
+            });
+            
+        } catch (error) {
+            console.error('[Crop-TransformFirst] ❌ 应用图像裁切预览失败:', error);
+        }
+    }
+    
+    /**
+     * 计算裁切路径的边界框
+     */
+    calculateCropBounds(cropPath) {
+        if (!cropPath || cropPath.length === 0) {
+            return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
+        }
+        
+        const xs = cropPath.map(p => p.x);
+        const ys = cropPath.map(p => p.y);
+        
+        const left = Math.min(...xs);
+        const top = Math.min(...ys);
+        const right = Math.max(...xs);
+        const bottom = Math.max(...ys);
+        
+        return {
+            left: left,
+            top: top,
+            right: right,
+            bottom: bottom,
+            width: right - left,
+            height: bottom - top
+        };
+    }
+    
+    /**
+     * 调度Transform-First数据更新
+     */
+    _scheduleTransformFirstUpdate() {
+        if (!this.transformFirstUpdatePending) {
+            this.transformFirstUpdatePending = true;
+            
+            // 异步触发数据更新，避免阻塞UI
+            setTimeout(() => {
+                this._triggerTransformFirstDataUpdate();
+                this.transformFirstUpdatePending = false;
+            }, 100); // 100ms延迟批量处理
+        }
+    }
+    
+    /**
+     * 触发Transform-First数据更新到data manager
+     */
+    _triggerTransformFirstDataUpdate() {
+        const transformObjects = this.fabricCanvas.getObjects().filter(obj => 
+            obj.hasTransformFirstChanges && obj.transformFirstData
+        );
+        
+        if (transformObjects.length > 0) {
+            console.log(`[Crop-TransformFirst] 📤 更新 ${transformObjects.length} 个对象的Transform数据`);
+            
+            // 通知data manager更新Transform-First数据
+            if (this._scheduleAutoSave) {
+                this._scheduleAutoSave();
+            }
+        }
+    }
+    
+    /**
+     * 过滤有效对象 - 统一过滤逻辑，消除重复代码
+     */
+    getValidObjects() {
+        return this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
     }
     
     /**
@@ -1503,104 +2036,9 @@ export class FabricNativeManager {
                  objBounds.top + objBounds.height < cropBounds.top);
     }
     
-    /**
-     * 将裁切路径应用到对象 - 创建实际裁切后的新对象
-     */
-    applyCropToObject(object, cropPath) {
-        try {
-            // 创建临时画布用于渲染裁切
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            // 获取裁切区域边界
-            const cropBounds = cropPath.getBoundingRect();
-            
-            // 设置临时画布尺寸为裁切区域大小（确保足够的分辨率）
-            const pixelRatio = window.devicePixelRatio || 1;
-            const canvasWidth = Math.ceil(cropBounds.width * pixelRatio);
-            const canvasHeight = Math.ceil(cropBounds.height * pixelRatio);
-            
-            tempCanvas.width = canvasWidth;
-            tempCanvas.height = canvasHeight;
-            
-            // 缩放上下文以匹配设备像素比
-            tempCtx.scale(pixelRatio, pixelRatio);
-            
-            // 确保背景透明
-            tempCtx.clearRect(0, 0, cropBounds.width, cropBounds.height);
-            
-            // 创建裁切路径
-            tempCtx.save();
-            tempCtx.beginPath();
-            
-            // 将裁切路径绘制到临时画布（坐标调整为相对于裁切区域）
-            const points = cropPath.points;
-            if (points && points.length > 0) {
-                tempCtx.moveTo(points[0].x - cropBounds.left, points[0].y - cropBounds.top);
-                for (let i = 1; i < points.length; i++) {
-                    tempCtx.lineTo(points[i].x - cropBounds.left, points[i].y - cropBounds.top);
-                }
-                tempCtx.closePath();
-                tempCtx.clip();
-            }
-            
-            // 将原始对象渲染到临时画布
-            this.renderObjectToCanvas(object, tempCtx, cropBounds);
-            
-            tempCtx.restore();
-            
-            // 从临时画布创建新的图像
-            const croppedImageData = tempCanvas.toDataURL('image/png');
-            
-            // 清理临时画布资源
-            tempCanvas.width = 1;
-            tempCanvas.height = 1;
-            
-            // 创建新的 fabric.Image 对象
-            fabric.Image.fromURL(croppedImageData, (croppedImage) => {
-                if (!croppedImage) {
-                    console.error('❌ 创建裁切图像失败');
-                    return;
-                }
-                
-                // 设置裁切后图像的位置和属性
-                croppedImage.set({
-                    left: cropBounds.left,
-                    top: cropBounds.top,
-                    selectable: true,
-                    evented: true,
-                    hasControls: true,
-                    hasBorders: true,
-                    fabricId: `cropped_${object.fabricId || Date.now()}`,
-                    name: `Cropped ${object.name || 'Object'}`,
-                    // 保持原始对象的一些属性
-                    opacity: object.opacity || 1
-                });
-                
-                // 移除原始对象，添加裁切后的对象
-                this.fabricCanvas.remove(object);
-                this.fabricCanvas.add(croppedImage);
-                this.fabricCanvas.setActiveObject(croppedImage);
-                this.fabricCanvas.renderAll();
-                
-                // 触发图层面板更新
-                this._scheduleLayerPanelUpdate();
-                this._scheduleAutoSave();
-                
-                console.log('✂️ 裁切完成 - 创建了新的裁切图像');
-                
-            }, { 
-                crossOrigin: 'anonymous',
-                // 添加错误处理
-                onerror: () => {
-                    console.error('❌ 加载裁切图像失败');
-                }
-            });
-            
-        } catch (error) {
-            console.error('❌ 应用裁切失败:', error);
-        }
-    }
+    // 🚫 DEPRECATED: 旧的图像缓存裁切方法已被Transform-First架构替代
+    // applyCropToObject 方法已移除，因为它违背了Transform-First架构
+    // 现在使用 applyTransformFirstCrop 方法，只传输变换元数据，不缓存图像数据
     
     /**
      * 将对象渲染到指定画布
@@ -1616,14 +2054,13 @@ export class FabricNativeManager {
                     // 设置透明度
                     ctx.globalAlpha = object.opacity || 1;
                     
-                    // 计算对象在裁切区域内的位置
-                    const offsetX = object.left - cropBounds.left;
-                    const offsetY = object.top - cropBounds.top;
+                    // 使用Fabric.js原生变换矩阵
+                    const objectMatrix = object.calcTransformMatrix();
+                    const offsetMatrix = [1, 0, 0, 1, -cropBounds.left, -cropBounds.top];
+                    const combinedMatrix = fabric.util.multiplyTransformMatrices(offsetMatrix, objectMatrix);
                     
-                    // 应用对象变换
-                    ctx.translate(offsetX + object.width * object.scaleX / 2, offsetY + object.height * object.scaleY / 2);
-                    ctx.rotate((object.angle || 0) * Math.PI / 180);
-                    ctx.scale(object.scaleX || 1, object.scaleY || 1);
+                    // 应用变换矩阵
+                    ctx.setTransform(...combinedMatrix);
                     
                     // 绘制图像（以中心为原点）
                     ctx.drawImage(
@@ -1656,7 +2093,7 @@ export class FabricNativeManager {
     }
     
     /**
-     * 将形状对象渲染到画布
+     * 将形状对象渲染到画布 - 优化后的版本
      */
     renderShapeToCanvas(object, ctx) {
         // 设置透明度
@@ -1666,6 +2103,16 @@ export class FabricNativeManager {
         ctx.fillStyle = object.fill || 'transparent';
         ctx.strokeStyle = object.stroke || 'transparent';
         ctx.lineWidth = object.strokeWidth || 0;
+        
+        // 统一的填充和描边处理函数 - 消除重复代码
+        const applyFillAndStroke = () => {
+            if (object.fill && object.fill !== 'transparent') {
+                ctx.fill();
+            }
+            if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
+                ctx.stroke();
+            }
+        };
         
         switch (object.type) {
             case 'rect':
@@ -1681,12 +2128,7 @@ export class FabricNativeManager {
                 const radius = object.radius;
                 ctx.beginPath();
                 ctx.arc(radius, radius, radius, 0, 2 * Math.PI);
-                if (object.fill && object.fill !== 'transparent') {
-                    ctx.fill();
-                }
-                if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
-                    ctx.stroke();
-                }
+                applyFillAndStroke();
                 break;
                 
             case 'polygon':
@@ -1697,12 +2139,7 @@ export class FabricNativeManager {
                         ctx.lineTo(object.points[i].x, object.points[i].y);
                     }
                     ctx.closePath();
-                    if (object.fill && object.fill !== 'transparent') {
-                        ctx.fill();
-                    }
-                    if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
-                        ctx.stroke();
-                    }
+                    applyFillAndStroke();
                 }
                 break;
                 
@@ -1722,46 +2159,25 @@ export class FabricNativeManager {
                 break;
                 
             case 'path':
-                // 对于路径对象，使用简化渲染
                 if (object.path && object.path.length > 0) {
                     ctx.beginPath();
-                    // 这里可以根据需要解析SVG路径
                     // 简化处理：直接绘制基本路径
-                    if (object.fill && object.fill !== 'transparent') {
-                        ctx.fill();
-                    }
-                    if (object.stroke && object.stroke !== 'transparent' && object.strokeWidth > 0) {
-                        ctx.stroke();
-                    }
+                    applyFillAndStroke();
                 }
                 break;
         }
     }
     
     /**
-     * 取消裁切
+     * 取消裁切 - 性能优化版
      */
     cancelCrop() {
-        if (this.tempCropLine) {
-            this.fabricCanvas.remove(this.tempCropLine);
-            this.tempCropLine = null;
-        }
-        this.clearCropAnchors();
-        
-        // 重置状态
-        this.resetCropState();
-        this.fabricCanvas.renderAll();
+        console.log('[Crop] 🚫 取消裁切操作');
+        this.cleanupCropState();
+        // 使用节流渲染，避免阻塞
+        this.throttledCropRender();
     }
     
-    /**
-     * 重置裁切状态
-     */
-    resetCropState() {
-        this.cropPoints = [];
-        this.isDrawingCrop = false;
-        this.tempCropLine = null;
-        // 注意：不在这里清理锚点，因为已经在上层函数中处理了
-    }
     
     /**
      * 设置官方工具栏
@@ -2064,7 +2480,7 @@ export class FabricNativeManager {
             this.cancelPolygon();
         }
         
-        // 切换工具时，如果正在绘制裁切路径，则取消
+        // 🚀 性能优化：切换工具时，如果正在绘制裁切路径，则高效取消
         if (this.isDrawingCrop && toolName !== 'crop') {
             this.cancelCrop();
         }
@@ -2291,7 +2707,7 @@ export class FabricNativeManager {
         const layersList = this.modal.querySelector('#layers-list');
         if (!layersList) return;
         
-        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const objects = this.getValidObjects();
         const activeObjects = this.fabricCanvas.getActiveObjects();
         
         // 避免在undo/redo过程中重复更新
@@ -2329,6 +2745,29 @@ export class FabricNativeManager {
             const isLocked = obj.locked === true;
             const lockIndicator = isLocked ? '🔒 ' : '';
             
+            // 为图像对象添加尺寸信息
+            let sizeInfo = '';
+            if (obj.type === 'image') {
+                if (obj.originalWidth && obj.originalHeight) {
+                    // 有原始尺寸信息，使用原生API获取显示尺寸
+                    const bounds = obj.getBoundingRect();
+                    const displayWidth = Math.round(bounds.width);
+                    const displayHeight = Math.round(bounds.height);
+                    sizeInfo = ` (${displayWidth}×${displayHeight}`;
+                    if (obj.needsScaling) {
+                        sizeInfo += `, 原始: ${obj.originalWidth}×${obj.originalHeight})`;
+                    } else {
+                        sizeInfo += ')';
+                    }
+                } else {
+                    // 没有原始尺寸信息，使用原生API获取当前尺寸
+                    const bounds = obj.getBoundingRect();
+                    const displayWidth = Math.round(bounds.width);
+                    const displayHeight = Math.round(bounds.height);
+                    sizeInfo = ` (${displayWidth}×${displayHeight})`;
+                }
+            }
+            
             return `
                 <div class="fabric-layer-item" data-index="${actualIndex}" 
                      style="
@@ -2345,7 +2784,7 @@ export class FabricNativeManager {
                      ">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 12px; color: ${isSelected ? 'white' : '#ccc'};">
-                            ${lockIndicator}${objType} (层级: ${actualIndex})
+                            ${lockIndicator}${objType}${sizeInfo} (层级: ${actualIndex})
                         </span>
                     </div>
                     <div style="display: flex; gap: 4px;">
@@ -2454,8 +2893,7 @@ export class FabricNativeManager {
      * 按索引选择对象 - Fabric.js官方setActiveObject API
      */
     selectObjectByIndex(index, updatePanel = false) {
-        const allObjects = this.fabricCanvas.getObjects();
-        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const filteredObjects = this.getValidObjects();
         const targetObject = filteredObjects[index];
         
         if (targetObject) {
@@ -2475,8 +2913,7 @@ export class FabricNativeManager {
      * 向上移动对象 - Fabric.js官方bringForward API
      */
     moveObjectUp(index) {
-        const allObjects = this.fabricCanvas.getObjects();
-        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const filteredObjects = this.getValidObjects();
         const targetObject = filteredObjects[index];
         
         if (targetObject && !targetObject.isLockIndicator && !targetObject.skipInLayerList) {
@@ -2490,8 +2927,7 @@ export class FabricNativeManager {
      * 向下移动对象 - Fabric.js官方sendBackwards API
      */
     moveObjectDown(index) {
-        const allObjects = this.fabricCanvas.getObjects();
-        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const filteredObjects = this.getValidObjects();
         const targetObject = filteredObjects[index];
         
         if (targetObject && !targetObject.isLockIndicator && !targetObject.skipInLayerList) {
@@ -2505,8 +2941,7 @@ export class FabricNativeManager {
      * 按索引删除对象 - Fabric.js官方remove API
      */
     deleteObjectByIndex(index) {
-        const allObjects = this.fabricCanvas.getObjects();
-        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const filteredObjects = this.getValidObjects();
         const targetObject = filteredObjects[index];
         
         if (targetObject) {
@@ -2535,17 +2970,17 @@ export class FabricNativeManager {
     }
 
     /**
-     * 获取所有对象 - Fabric.js官方API
+     * 获取所有对象 - Fabric.js官方API，使用统一过滤方法
      */
     getAllObjects() {
-        return this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        return this.getValidObjects();
     }
 
     /**
-     * 选择所有对象 - Fabric.js官方API
+     * 选择所有对象 - Fabric.js官方API，使用统一过滤方法
      */
     selectAll() {
-        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const objects = this.getValidObjects();
         if (objects.length > 0) {
             const selection = new fabric.ActiveSelection(objects, {
                 canvas: this.fabricCanvas
@@ -2642,36 +3077,128 @@ export class FabricNativeManager {
     }
     
     /**
-     * 调度自动保存
+     * 调度自动保存 - 🚀 优化版本：智能防抖
      */
     _scheduleAutoSave() {
-        if (!this.dataManager) return;
+        if (!this.dataManager || !this.autoSaveEnabled) return;
+        
+        const now = Date.now();
+        
+        // 🚀 如果距离上次保存时间太近（小于500ms），忽略此次保存
+        if (now - this.lastAutoSaveTime < 500) {
+            return;
+        }
         
         // 清除之前的定时器
         if (this.autoSaveTimeout) {
             clearTimeout(this.autoSaveTimeout);
+            this.autoSaveTimeout = null;
         }
+        
+        // 标记有待处理的自动保存
+        this.pendingAutoSave = true;
+        
+        // 🚀 动态调整延迟：如果连续操作，延长延迟时间
+        const dynamicDelay = this.pendingAutoSave ? 
+            Math.min(this.autoSaveDelay * 2, 8000) : // 最长8秒
+            this.autoSaveDelay;
         
         this.autoSaveTimeout = setTimeout(() => {
             this.performAutoSave();
-        }, this.autoSaveDelay);
+        }, dynamicDelay);
     }
     
     /**
-     * 执行自动保存
+     * 执行自动保存 - 🚀 优化版本：减少频繁保存
      */
     performAutoSave() {
         if (!this.dataManager || !this.fabricCanvas) {
             return;
         }
         
+        const now = Date.now();
+        
+        // 🚀 再次检查保存间隔
+        if (now - this.lastAutoSaveTime < 2000) { // 最少间隔2秒
+            return;
+        }
+        
+        // 🕵️ 性能诊断：记录开始时间和内存使用
+        const startTime = performance.now();
+        const objectCount = this.fabricCanvas.getObjects().length;
+        const activeObject = this.fabricCanvas.getActiveObject();
+        
+        // 📊 内存使用监控
+        let memoryInfo = null;
+        if (performance.memory) {
+            memoryInfo = {
+                used: (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+                total: (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+                limit: (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + 'MB'
+            };
+        }
+        
+        console.log(`🔍 [AUTO_SAVE] 开始自动保存 - 对象数量: ${objectCount}, 活动对象: ${activeObject ? activeObject.type + (activeObject.type === 'image' ? '(' + (activeObject.width || 0) + 'x' + (activeObject.height || 0) + ')' : '') : '无'}`);
+        if (memoryInfo) {
+            console.log(`📊 [MEMORY] 内存使用: ${memoryInfo.used} / ${memoryInfo.total} (限制: ${memoryInfo.limit})`);
+        }
+        
         try {
-            const success = this.dataManager.saveFabricCanvasData(this.fabricCanvas);
-            if (success) {
+            // 🚀 检查画布是否有实际变化
+            if (!this._hasCanvasChanged()) {
+                console.log(`🔍 [AUTO_SAVE] 画布无变化，跳过保存`);
+                return;
             }
+            
+            // 🚀 异步执行保存，避免阻塞UI
+            setTimeout(async () => {
+                try {
+                    const success = await this.dataManager.saveFabricCanvasDataAsync(this.fabricCanvas);
+                    if (success) {
+                        this.lastAutoSaveTime = Date.now();
+                        this.pendingAutoSave = false;
+                        
+                        // 🕵️ 性能诊断：记录耗时
+                        const endTime = performance.now();
+                        const duration = endTime - startTime;
+                        
+                        console.log(`💾 [AUTO_SAVE] 自动保存成功 - 耗时: ${duration.toFixed(2)}ms`);
+                        
+                        // ⚠️ 如果保存时间过长，发出警告
+                        if (duration > 500) {
+                            console.warn(`⚠️ [PERFORMANCE] 自动保存耗时过长: ${duration.toFixed(2)}ms - 可能存在性能问题!`);
+                            
+                            // 分析可能的性能瓶颈
+                            if (objectCount > 10) {
+                                console.warn(`🔍 [BOTTLENECK] 检测到大量对象 (${objectCount})，可能导致序列化缓慢`);
+                            }
+                            
+                            if (activeObject && activeObject.type === 'image') {
+                                const imgSize = (activeObject.width || 0) * (activeObject.height || 0);
+                                if (imgSize > 2000000) { // 大于2百万像素
+                                    console.warn(`🔍 [BOTTLENECK] 检测到大尺寸图像 (${activeObject.width || 0}x${activeObject.height || 0} = ${(imgSize/1000000).toFixed(1)}MP)，可能导致序列化缓慢`);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ 异步自动保存失败:', error);
+                }
+            }, 0);
+            
         } catch (error) {
             console.error('❌ 自动保存失败:', error);
         }
+    }
+    
+    /**
+     * 🚀 检查画布是否有实际变化
+     * 避免没有变化时的无用保存
+     */
+    _hasCanvasChanged() {
+        // 简单实现：检查是否有对象
+        // 可以进一步优化为检查对象属性是否真的改变了
+        return this.fabricCanvas.getObjects().length > 0;
     }
     
     /**
@@ -2732,6 +3259,41 @@ export class FabricNativeManager {
     }
 
     /**
+     * 限制对象在画布边界内
+     */
+    _constrainObjectToBounds(obj) {
+        if (!obj || !this.fabricCanvas) return;
+        
+        const canvasWidth = this.fabricCanvas.width;
+        const canvasHeight = this.fabricCanvas.height;
+        
+        // 获取对象的边界
+        const objWidth = obj.width * obj.scaleX;
+        const objHeight = obj.height * obj.scaleY;
+        
+        // 计算边界限制
+        const minLeft = -objWidth * 0.5; // 允许对象部分超出画布
+        const maxLeft = canvasWidth - objWidth * 0.5;
+        const minTop = -objHeight * 0.5;
+        const maxTop = canvasHeight - objHeight * 0.5;
+        
+        // 应用边界限制
+        let newLeft = Math.max(minLeft, Math.min(obj.left, maxLeft));
+        let newTop = Math.max(minTop, Math.min(obj.top, maxTop));
+        
+        // 只有位置改变时才更新
+        if (newLeft !== obj.left || newTop !== obj.top) {
+            obj.set({
+                left: newLeft,
+                top: newTop
+            });
+            this.fabricCanvas.renderAll();
+            
+            console.log(`🎯 [边界约束] 对象位置调整: (${obj.left.toFixed(1)}, ${obj.top.toFixed(1)}) -> (${newLeft.toFixed(1)}, ${newTop.toFixed(1)})`);
+        }
+    }
+
+    /**
      * 手动保存画布数据
      */
     saveCanvasData() {
@@ -2743,7 +3305,7 @@ export class FabricNativeManager {
     }
 
     /**
-     * 上传图像到画布
+     * 上传图像到画布 - 带自动缩放功能
      */
     uploadImageToCanvas(imageUrl, options = {}) {
         if (!this.fabricCanvas || !window.fabric) {
@@ -2765,36 +3327,120 @@ export class FabricNativeManager {
                     name: options.name || 'Uploaded Image'
                 };
 
-                fabricImage.set({...defaults, ...options});
+                // 🚀 一次性设置所有属性，防止fabricId被覆盖
+                fabricImage.set({
+                    ...defaults, 
+                    ...options,
+                    originalBase64: imageUrl, // 保存原始base64数据
+                    src: imageUrl // 确保src也被设置
+                });
+                
+                // 🔧 修复：重写toObject方法确保属性被序列化
+                const originalToObject = fabricImage.toObject.bind(fabricImage);
+                fabricImage.toObject = function(propertiesToInclude) {
+                    return originalToObject([
+                        'fabricId', 'name', 'originalBase64', 'src',
+                        ...(propertiesToInclude || [])
+                    ]);
+                };
+                
+                // 🎯 通用方法：为所有Fabric对象重写toObject确保自定义属性被序列化
+                this._setupFabricObjectSerialization = function(fabricObj) {
+                    const originalToObject = fabricObj.toObject.bind(fabricObj);
+                    fabricObj.toObject = function(propertiesToInclude) {
+                        const baseProps = ['fabricId', 'name'];
+                        // 根据对象类型添加特殊属性
+                        if (fabricObj.type === 'polygon') {
+                            baseProps.push('points');
+                        } else if (fabricObj.type === 'path') {
+                            baseProps.push('path');
+                        }
+                        return originalToObject([
+                            ...baseProps,
+                            ...(propertiesToInclude || [])
+                        ]);
+                    };
+                };
+                
+                console.log(`[LRPG] 🔖 上传图像fabricId设置: ${defaults.fabricId}`);
+                
+                // 🔍 调试：验证fabricId是否正确设置
+                console.log(`[LRPG] 🔍 验证fabricImage属性:`, {
+                    fabricId: fabricImage.fabricId,
+                    name: fabricImage.name,
+                    originalBase64: fabricImage.originalBase64 ? '存在' : '缺失',
+                    src: fabricImage.src ? '存在' : '缺失'
+                });
 
-                // 如果没有指定位置，自动居中和缩放
+                // 获取原始图像尺寸
+                const originalWidth = fabricImage.width;
+                const originalHeight = fabricImage.height;
+                
+                // 计算适合的显示尺寸
+                const displaySize = globalImageScalingManager.calculateDisplaySize(
+                    originalWidth, 
+                    originalHeight
+                );
+                
+                // 存储原始尺寸和缩放信息
+                globalImageScalingManager.storeOriginalSize(
+                    defaults.fabricId, 
+                    originalWidth, 
+                    originalHeight
+                );
+                globalImageScalingManager.storeDisplayScale(
+                    defaults.fabricId, 
+                    displaySize.scale
+                );
+                
+                // 设置图像的缩放信息
+                fabricImage.set({
+                    originalWidth: originalWidth,
+                    originalHeight: originalHeight,
+                    displayScale: displaySize.scale,
+                    needsScaling: displaySize.needsScaling
+                });
+
+                // 如果没有指定位置，自动居中
                 if (!options.left && !options.top) {
                     const canvasWidth = this.fabricCanvas.getWidth();
                     const canvasHeight = this.fabricCanvas.getHeight();
                     
-                    // 计算合适的缩放
-                    const maxScale = 0.8; // 最大占画布80%
-                    const scaleX = Math.min(maxScale, canvasWidth / fabricImage.width);
-                    const scaleY = Math.min(maxScale, canvasHeight / fabricImage.height);
-                    const scale = Math.min(scaleX, scaleY);
+                    // 如果图像需要缩放，使用计算后的显示尺寸
+                    if (displaySize.needsScaling) {
+                        fabricImage.set({
+                            scaleX: displaySize.scale,
+                            scaleY: displaySize.scale,
+                            left: (canvasWidth - displaySize.displayWidth) / 2,
+                            top: (canvasHeight - displaySize.displayHeight) / 2
+                        });
+                        
+                        console.log(`📏 上传图像已自动缩放: ${originalWidth}×${originalHeight} → ${displaySize.displayWidth}×${displaySize.displayHeight} (${Math.round(displaySize.scale * 100)}%)`);
+                    } else {
+                        // 不需要缩放，使用原始尺寸
+                        const maxScale = 0.8; // 最大占画布80%
+                        const scaleX = Math.min(maxScale, canvasWidth / originalWidth);
+                        const scaleY = Math.min(maxScale, canvasHeight / originalHeight);
+                        const scale = Math.min(scaleX, scaleY);
 
-                    fabricImage.set({
-                        scaleX: scale,
-                        scaleY: scale,
-                        left: (canvasWidth - fabricImage.width * scale) / 2,
-                        top: (canvasHeight - fabricImage.height * scale) / 2
-                    });
+                        fabricImage.set({
+                            scaleX: scale,
+                            scaleY: scale,
+                            left: (canvasWidth - originalWidth * scale) / 2,
+                            top: (canvasHeight - originalHeight * scale) / 2
+                        });
+                    }
                 }
 
                 this.fabricCanvas.add(fabricImage);
                 this.fabricCanvas.setActiveObject(fabricImage);
                 this.fabricCanvas.renderAll();
 
+                // 更新图层面板以显示尺寸信息
                 this.updateLayerPanel();
 
                 // 触发自动保存
                 this._scheduleAutoSave();
-
 
             }, {
                 crossOrigin: 'anonymous'
@@ -2943,7 +3589,7 @@ export class FabricNativeManager {
         if (!lockBtn) return;
         
         const activeObjects = this.fabricCanvas.getActiveObjects();
-        const allObjects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const allObjects = this.getValidObjects();
         const lockedObjects = allObjects.filter(obj => obj.locked === true);
         
         if (activeObjects.length === 0) {
@@ -2977,8 +3623,7 @@ export class FabricNativeManager {
      * 通过索引切换对象锁定状态
      */
     toggleObjectLockByIndex(index) {
-        const allObjects = this.fabricCanvas.getObjects();
-        const filteredObjects = allObjects.filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const filteredObjects = this.getValidObjects();
         
         // 找到过滤后对象在原始列表中的索引
         const targetObject = filteredObjects[index];
@@ -3015,23 +3660,29 @@ export class FabricNativeManager {
     }
     
     /**
+     * 获取过滤后的画布状态 - 统一状态处理逻辑
+     */
+    getFilteredCanvasState() {
+        const canvasData = this.fabricCanvas.toJSON();
+        
+        // 过滤掉锁定指示器对象
+        if (canvasData.objects) {
+            canvasData.objects = canvasData.objects.filter(obj => 
+                !obj.isLockIndicator && !obj.skipInLayerList
+            );
+        }
+        
+        return JSON.stringify(canvasData);
+    }
+    
+    /**
      * 保存当前画布状态到undo栈
      */
     saveState() {
         if (this.isPerformingUndoRedo) return;
         
         try {
-            // 直接使用toJSON，然后过滤对象
-            const canvasData = this.fabricCanvas.toJSON();
-            
-            // 过滤掉锁定指示器对象
-            if (canvasData.objects) {
-                canvasData.objects = canvasData.objects.filter(obj => 
-                    !obj.isLockIndicator && !obj.skipInLayerList
-                );
-            }
-            
-            const state = JSON.stringify(canvasData);
+            const state = this.getFilteredCanvasState();
             
             // 如果状态与上一个状态相同，不保存
             if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] === state) {
@@ -3057,20 +3708,14 @@ export class FabricNativeManager {
     }
     
     /**
-     * 执行undo操作
+     * 执行undo操作，使用统一状态处理
      */
     undo() {
         if (this.undoStack.length === 0) return;
         
         try {
             // 保存当前状态到redo栈
-            const currentCanvasData = this.fabricCanvas.toJSON();
-            if (currentCanvasData.objects) {
-                currentCanvasData.objects = currentCanvasData.objects.filter(obj => 
-                    !obj.isLockIndicator && !obj.skipInLayerList
-                );
-            }
-            const currentState = JSON.stringify(currentCanvasData);
+            const currentState = this.getFilteredCanvasState();
             this.redoStack.push(currentState);
             
             // 恢复上一个状态
@@ -3089,20 +3734,14 @@ export class FabricNativeManager {
     }
     
     /**
-     * 执行redo操作
+     * 执行redo操作，使用统一状态处理
      */
     redo() {
         if (this.redoStack.length === 0) return;
         
         try {
             // 保存当前状态到undo栈
-            const currentCanvasData = this.fabricCanvas.toJSON();
-            if (currentCanvasData.objects) {
-                currentCanvasData.objects = currentCanvasData.objects.filter(obj => 
-                    !obj.isLockIndicator && !obj.skipInLayerList
-                );
-            }
-            const currentState = JSON.stringify(currentCanvasData);
+            const currentState = this.getFilteredCanvasState();
             this.undoStack.push(currentState);
             
             // 恢复redo状态
@@ -3207,7 +3846,7 @@ export class FabricNativeManager {
         
         // 延迟重建，确保Canvas状态完全更新
         setTimeout(() => {
-            const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+            const objects = this.getValidObjects();
             
             // 单次重建图层面板
             this.rebuildLayerPanel();
@@ -3225,7 +3864,7 @@ export class FabricNativeManager {
         layersList.innerHTML = '';
         
         // 重新获取对象并重建
-        const objects = this.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+        const objects = this.getValidObjects();
         const activeObjects = this.fabricCanvas.getActiveObjects();
         
         if (objects.length === 0) {
@@ -3286,13 +3925,124 @@ export class FabricNativeManager {
         this.unbindLayerPanelEvents();
         this.bindLayerPanelEvents();
     }
+    
+    /**
+     * 销毁管理器 - 清理所有资源
+     * 🚀 增强版本：清理所有事件监听器
+     */
+    destroy() {
+        console.log('🧹 Destroying FabricNativeManager...');
+        
+        // 清理定时器
+        if (this.autoSaveTimer) {
+            clearTimeout(this.autoSaveTimer);
+            this.autoSaveTimer = null;
+        }
+        
+        if (this.layerPanelUpdateTimer) {
+            clearTimeout(this.layerPanelUpdateTimer);
+            this.layerPanelUpdateTimer = null;
+        }
+        
+        // 🚀 清理自动保存定时器
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+            this.autoSaveTimeout = null;
+        }
+        
+        // 🚀 清理所有手动添加的事件监听器
+        this._cleanupManualEventListeners();
+        
+        // 清理Fabric画布事件
+        if (this.fabricCanvas) {
+            // 先清理所有Fabric事件
+            this.fabricCanvas.off();
+            
+            // 清理画布对象
+            const objects = this.fabricCanvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.type === 'image' && obj._element) {
+                    obj._element.src = '';
+                    obj._element = null;
+                }
+                obj.canvas = null;
+            });
+            
+            // 清理背景图像
+            if (this.fabricCanvas.backgroundImage) {
+                if (this.fabricCanvas.backgroundImage._element) {
+                    this.fabricCanvas.backgroundImage._element.src = '';
+                    this.fabricCanvas.backgroundImage._element = null;
+                }
+                this.fabricCanvas.backgroundImage = null;
+            }
+            
+            // 清理画布
+            this.fabricCanvas.clear();
+            this.fabricCanvas.dispose();
+            this.fabricCanvas = null;
+        }
+        
+        // 清理其他引用
+        this.modal = null;
+        this.dataManager = null;
+        this.currentTool = null;
+        this.drawingMode = null;
+        this.isDrawing = false;
+        this.polygonPoints = [];
+        this.cropRect = null;
+        this.history = [];
+        this.historyStep = -1;
+        this.multiSelectObjects.clear();
+        
+        console.log('✅ FabricNativeManager destroyed');
+    }
+    
+    /**
+     * 🚀 清理所有手动添加的事件监听器
+     */
+    _cleanupManualEventListeners() {
+        // 清理键盘事件
+        if (this._keyEventHandlers) {
+            document.removeEventListener('keydown', this._keyEventHandlers.handleKeyDown);
+            document.removeEventListener('keyup', this._keyEventHandlers.handleKeyUp);
+            window.removeEventListener('blur', this._keyEventHandlers.handleBlur);
+            this._keyEventHandlers = null;
+        }
+        
+        // 清理画布包装器事件
+        if (this.fabricCanvas && this.fabricCanvas.wrapperEl) {
+            // 这里无法直接移除，因为使用了匿名函数
+            // 需要在创建时使用命名函数或保存引用
+        }
+        
+        // 清理其他UI元素事件
+        // 由于大部分使用了匿名函数，需要在创建时保存引用
+        // 这是一个临时解决方案，理想情况下应该重构为使用托管的事件监听器
+        
+        console.log('🧹 Manual event listeners cleanup attempted');
+    }
 }
 
 /**
  * 创建官方架构管理器实例
  */
-export async function createFabricNativeManager(modal, dataManager = null) {
+export async function createFabricNativeManager(modal, dataManager = null, options = {}) {
     const manager = new FabricNativeManager(modal, dataManager);
+    
+    // 应用LG Transform选项
+    if (options.lgTransformMode) {
+        manager.lgTransformMode = true;
+        console.log('[LRPG_Transform] 🎨 启用Transform-First模式');
+    }
+    
+    if (options.nodeId) {
+        manager.nodeId = options.nodeId;
+    }
+    
+    if (options.initialSize) {
+        manager.initialSize = options.initialSize;
+    }
     
     // 立即初始化
     await manager.initialize();
@@ -3304,6 +4054,377 @@ export async function createFabricNativeManager(modal, dataManager = null) {
     
     return manager;
 }
+
+// ================================
+// LRPG Transform-First 核心架构扩展
+// ================================
+
+/**
+ * 为FabricNativeManager添加LRPG Transform-First方法
+ */
+Object.assign(FabricNativeManager.prototype, {
+    /**
+     * LRPG架构：收集变换数据
+     * Transform-First设计的核心 - 只传输轻量级变换元数据
+     */
+    collectLGTransformData() {
+        const layerTransforms = {};
+        
+        // 收集背景信息
+        layerTransforms['background'] = {
+            width: this.originalSize.width,
+            height: this.originalSize.height
+        };
+        
+        // 收集所有对象的变换数据 - LRPG简化架构
+        const objects = this.fabricCanvas.getObjects();
+        console.log(`[LRPG_Transform] 📊 画布上总对象数: ${objects.length}`);
+        
+        // ✅ 调试：检查所有对象的ID情况
+        objects.forEach((obj, index) => {
+            console.log(`[LRPG_Transform] 对象${index}: type=${obj.type}, id=${obj.id}, fabricId=${obj.fabricId}`);
+        });
+        
+        objects.forEach(obj => {
+            if (obj.id) {
+                // 使用Fabric.js原生API直接获取变换数据
+                const bounds = obj.getBoundingRect();
+                const center = obj.getCenterPoint();
+                const matrix = obj.calcTransformMatrix();
+                
+                // 最简化的变换数据收集，避免任何手动计算
+                layerTransforms[obj.id] = {
+                    // 使用原生API获取的中心点
+                    centerX: center.x,
+                    centerY: center.y,
+                    // 直接使用对象属性
+                    scaleX: obj.scaleX || 1,
+                    scaleY: obj.scaleY || 1,
+                    angle: obj.angle || 0,
+                    width: obj.width,
+                    height: obj.height,
+                    flipX: obj.flipX || false,
+                    flipY: obj.flipY || false,
+                    // 可选：包含变换矩阵用于精确计算
+                    matrix: matrix,
+                    // 可选：包含边界框用于布局参考
+                    bounds: bounds
+                };
+                
+                console.log(`[LRPG_Transform] 收集图层 ${obj.id}:`, layerTransforms[obj.id]);
+            }
+        });
+        
+        return layerTransforms;
+    },
+
+    /**
+     * LG Tools风格的Transform数据提交
+     * 直接提交Transform数据，不需要图像传输
+     */
+    async submitLGTransformData(transformData) {
+        try {
+            // ✅ Widget架构：直接保存到annotation_data
+            const submitData = {
+                layer_transforms: transformData,
+                timestamp: Date.now(),
+                version: "widget_1.0"
+            };
+            
+            console.log('[Widget] 🚀 保存数据到annotation_data widget:', submitData);
+            
+            // 查找annotation_data widget
+            const annotationWidget = this.node.widgets.find(w => w.name === 'annotation_data');
+            if (annotationWidget) {
+                // 直接保存到widget
+                annotationWidget.value = JSON.stringify(submitData);
+                console.log('[Widget] ✅ 数据已保存到annotation_data widget');
+                return true;
+            } else {
+                console.error('[Widget] ❌ 未找到annotation_data widget');
+                return false;
+            }
+        } catch (error) {
+            console.error('[Widget] ❌ 保存数据异常:', error);
+            return false;
+        }
+    },
+
+    /**
+     * 保存当前变换数据到后端（关闭编辑器时调用）
+     * 这是关闭按钮所需的方法
+     */
+    async saveCurrentTransformsLG() {
+        try {
+            console.log('[Widget] 🔄 开始收集并保存当前变换数据到annotation_data...');
+            
+            // 收集当前的变换数据
+            const layerTransforms = this.collectLGTransformData();
+            
+            console.log('[Widget] 📊 收集到的变换数据:', {
+                layers: Object.keys(layerTransforms).length,
+                data: layerTransforms
+            });
+            
+            // 提交到后端
+            const success = await this.submitLGTransformData(layerTransforms);
+            
+            if (success) {
+                this.lastLGState = layerTransforms;
+                console.log('[Widget] ✅ 当前变换数据已成功保存到annotation_data');
+                return true;
+            } else {
+                console.error('[Widget] ❌ 变换数据保存失败');
+                return false;
+            }
+        } catch (error) {
+            console.error('[Widget] ❌ 保存变换数据异常:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * LG Tools风格：发送Transform-First数据
+     * 纯Transform数据传输，不包含图像
+     */
+    async sendLGCanvasData() {
+        if (!this.fabricCanvas || !this.node) {
+            console.warn('[LRPG] 发送条件不满足');
+            return;
+        }
+
+        try {
+            console.log('[LRPG] 🚀 开始LG Tools风格数据发送...');
+            
+            // 收集Transform数据（轻量级元数据）
+            const layerTransforms = this.collectLGTransformData();
+            
+            console.log('[LRPG] 📊 Transform数据大小:', {
+                transforms: JSON.stringify(layerTransforms).length,
+                total_objects: Object.keys(layerTransforms).length - 1  // 减去background
+            });
+            
+            // 使用LG Tools风格直接提交Transform数据
+            const success = await this.submitLGTransformData(layerTransforms);
+            
+            if (success) {
+                // 缓存当前变换状态
+                this.lastLGState = layerTransforms;
+                console.log('[LRPG] ✅ Transform数据发送完成');
+                return true;
+            } else {
+                console.error('[LRPG] ❌ Transform数据发送失败');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('[LRPG] ❌ 数据发送异常:', error);
+            return false;
+        }
+    },
+
+    /**
+     * 获取当前用户提示词
+     */
+    getCurrentUserPrompt() {
+        try {
+            // 从提示词编辑器获取当前内容
+            if (window.visualPromptEditor && window.visualPromptEditor.promptsManager) {
+                return window.visualPromptEditor.promptsManager.getLatestPrompt();
+            }
+            // 备用方式：从DOM元素获取
+            const promptTextarea = document.querySelector('#structured-prompt-output');
+            if (promptTextarea) {
+                return promptTextarea.value || "";
+            }
+            return "";
+        } catch (error) {
+            console.warn('[Kontext_Binary] 获取用户提示词失败:', error);
+            return "";
+        }
+    },
+
+    /**
+     * LRPG架构：生成主画布图像缓冲区
+     * 使用复用的临时Canvas避免内存泄漏
+     */
+    async generateMainImageBuffer() {
+        // 使用复用的临时Canvas
+        let tempCanvas = this._lgTempCanvas;
+        if (!tempCanvas) {
+            tempCanvas = this._lgTempCanvas = document.createElement('canvas');
+            console.log('[LRPG_Canvas] 创建LG复用临时Canvas');
+        }
+        
+        tempCanvas.width = this.originalSize.width;
+        tempCanvas.height = this.originalSize.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // 清空画布
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // 绘制完整画布内容到目标尺寸
+        tempCtx.drawImage(
+            this.fabricCanvas.lowerCanvasEl,
+            0, 0, this.fabricCanvas.lowerCanvasEl.width, this.fabricCanvas.lowerCanvasEl.height,
+            0, 0, this.originalSize.width, this.originalSize.height
+        );
+        
+        // 转换为二进制数据
+        const imageBlob = await new Promise(resolve => {
+            tempCanvas.toBlob(resolve, 'image/png', 1.0);
+        });
+        
+        return await imageBlob.arrayBuffer();
+    },
+
+    /**
+     * LRPG架构：生成蒙版缓冲区
+     */
+    async generateLGMaskBuffer() {
+        let maskCanvas = this._lgMaskCanvas;
+        if (!maskCanvas) {
+            maskCanvas = this._lgMaskCanvas = document.createElement('canvas');
+            console.log('[LRPG_Canvas] 创建LG蒙版Canvas');
+        }
+        
+        maskCanvas.width = this.originalSize.width;
+        maskCanvas.height = this.originalSize.height;
+        const maskCtx = maskCanvas.getContext('2d');
+        
+        // 清空画布
+        maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        
+        // 填充黑色背景
+        maskCtx.fillStyle = '#000000';
+        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+        
+        // 绘制白色蒙版区域（选中的对象）
+        maskCtx.fillStyle = '#ffffff';
+        this.fabricCanvas.getObjects().forEach(obj => {
+            const bounds = obj.getBoundingRect();
+            maskCtx.fillRect(bounds.left, bounds.top, bounds.width, bounds.height);
+        });
+        
+        const maskBlob = await new Promise(resolve => {
+            maskCanvas.toBlob(resolve, 'image/png', 1.0);
+        });
+        
+        return await maskBlob.arrayBuffer();
+    },
+
+    /**
+     * LRPG架构：检查是否需要发送数据
+     * Transform-First优化：只在变换真正改变时才发送
+     */
+    shouldSendLGData() {
+        const currentTransforms = this.collectLGTransformData();
+        const currentState = JSON.stringify(currentTransforms);
+        const lastState = JSON.stringify(this.lastLGState || {});
+        
+        if (currentState !== lastState) {
+            console.log('[LRPG_Canvas] 🔄 检测到变换数据变化，准备发送');
+            return true;
+        }
+        
+        return false;
+    },
+
+    /**
+     * LRPG架构：自动发送机制
+     * 在对象变化时自动触发Transform-First传输
+     */
+    _scheduleLGDataSend() {
+        if (this._lgSendTimeout) {
+            clearTimeout(this._lgSendTimeout);
+        }
+        
+        this._lgSendTimeout = setTimeout(() => {
+            if (this.shouldSendLGData()) {
+                this.sendLGCanvasData();
+            }
+        }, 500); // 500ms防抖
+    },
+
+    /**
+     * LRPG架构：初始化Transform-First事件绑定
+     */
+    initLGTransformTracking() {
+        if (!this.fabricCanvas) return;
+        
+        console.log('[LRPG_Canvas] 🚀 初始化Transform-First事件追踪');
+        
+        // 🔧 修复：设置WebSocket连接状态
+        this.wsConnected = true;
+        
+        // 🔧 修复：使用命名空间避免事件冲突
+        this.fabricCanvas.on('object:modified.lgTransform', () => {
+            this._scheduleLGDataSend();
+        });
+        
+        this.fabricCanvas.on('object:added.lgTransform', () => {
+            this._scheduleLGDataSend();
+        });
+        
+        this.fabricCanvas.on('object:removed.lgTransform', () => {
+            this._scheduleLGDataSend();
+        });
+        
+        // 选择变化时也可以发送
+        this.fabricCanvas.on('selection:updated.lgTransform', () => {
+            this._scheduleLGDataSend();
+        });
+        
+        this.fabricCanvas.on('selection:created.lgTransform', () => {
+            this._scheduleLGDataSend();
+        });
+    }
+});
+
+// 修改原有的初始化流程，集成LRPG Transform-First架构
+const originalInitialize = FabricNativeManager.prototype.initialize;
+FabricNativeManager.prototype.initialize = async function(modal = null) {
+    // 调用原有初始化
+    const result = await originalInitialize.call(this, modal);
+    
+    // 集成LRPG Transform-First架构
+    this.initLGTransformTracking();
+    
+    console.log('[LRPG_Canvas] ✅ Transform-First架构集成完成');
+    return result;
+};
+
+// 修改清理方法，清理LRPG相关资源
+const originalCleanup = FabricNativeManager.prototype.cleanup;
+FabricNativeManager.prototype.cleanup = function() {
+    console.log('[LRPG_Canvas] 🧹 清理LRPG Transform-First资源...');
+    
+    // 清理LG专用Canvas
+    if (this._lgTempCanvas) {
+        this._lgTempCanvas.width = 1;
+        this._lgTempCanvas.height = 1;
+        this._lgTempCanvas = null;
+    }
+    if (this._lgMaskCanvas) {
+        this._lgMaskCanvas.width = 1;
+        this._lgMaskCanvas.height = 1;
+        this._lgMaskCanvas = null;
+    }
+    
+    // 清理定时器
+    if (this._lgSendTimeout) {
+        clearTimeout(this._lgSendTimeout);
+        this._lgSendTimeout = null;
+    }
+    
+    // 清理状态缓存
+    this.lastLGState = null;
+    
+    // 调用原有清理
+    originalCleanup.call(this);
+    
+    console.log('[LRPG_Canvas] ✅ LRPG资源清理完成');
+};
 
 // ==================== Text Tool Manager (merged from text_tool.js) ====================
 
@@ -3639,5 +4760,13 @@ export function getTextToolManager(modal) {
         return null;
     }
     return modal._textToolManager;
+}
+
+/**
+ * 创建画布实例 (LRPG Transform集成使用的别名)
+ */
+export async function createLRPGCanvas(modal, options = {}) {
+    console.log('[LRPG_Transform] 🚀 创建LRPG画布实例 (FabricNativeManager)');
+    return await createFabricNativeManager(modal, null, options);
 }
 

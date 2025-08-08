@@ -861,7 +861,7 @@ function getImageFromSourceNode(sourceNode) {
     // 支持Reroute节点（路由节点）- 需要继续向上查找
     if (sourceNode.type === 'Reroute' || sourceNode.type.includes('Route')) {
         console.log('🔄 Found Reroute node, continuing upstream search...');
-        const upstreamImage = findUpstreamImageSource(sourceNode);
+        const upstreamImage = findUpstreamImageSource(sourceNode, new Set(), 0);
         if (upstreamImage) {
             console.log('✅ Found image through Reroute chain');
             return upstreamImage;
@@ -878,7 +878,7 @@ function getImageFromSourceNode(sourceNode) {
         if (hasImageOutput) {
             console.log('🔄 Found node with IMAGE output, searching upstream...');
             // 递归查找上游图像源
-            const upstreamImage = findUpstreamImageSource(sourceNode);
+            const upstreamImage = findUpstreamImageSource(sourceNode, new Set(), 0);
             if (upstreamImage) {
                 console.log('✅ Found image through processing chain');
                 return upstreamImage;
@@ -892,9 +892,18 @@ function getImageFromSourceNode(sourceNode) {
 
 /**
  * 递归查找上游图像源
+ * 🔧 添加深度限制以防止栈溢出
  */
-function findUpstreamImageSource(node, visited = new Set()) {
-    console.log('🔄 Recursively searching upstream from node:', node.type, 'ID:', node.id);
+function findUpstreamImageSource(node, visited = new Set(), depth = 0) {
+    const MAX_DEPTH = 20; // 最大递归深度限制
+    
+    console.log('🔄 Recursively searching upstream from node:', node.type, 'ID:', node.id, 'Depth:', depth);
+    
+    // 检查递归深度限制
+    if (depth > MAX_DEPTH) {
+        console.log('⚠️ Maximum recursion depth reached:', MAX_DEPTH, '- stopping search');
+        return null;
+    }
     
     if (visited.has(node.id)) {
         console.log('⚠️ Already visited node', node.id, '- avoiding cycle');
@@ -964,9 +973,9 @@ function findUpstreamImageSource(node, visited = new Set()) {
                     return directImage;
                 }
                 
-                // 递归查找
+                // 递归查找 - 传递深度信息
                 console.log('🔄 Continuing recursive search from:', sourceNode.type);
-                const upstreamImage = findUpstreamImageSource(sourceNode, visited);
+                const upstreamImage = findUpstreamImageSource(sourceNode, visited, depth + 1);
                 if (upstreamImage) {
                     console.log('✅ Recursive image found through:', sourceNode.type);
                     return upstreamImage;

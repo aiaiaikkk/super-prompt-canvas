@@ -127,7 +127,7 @@ export class ModalCleanupManager {
 
     /**
      * 清理Fabric画布实例
-     * 🔧 增强base64数据清理
+     * 🔧 增强base64数据清理 + 绕过Fabric.js内部错误
      */
     cleanupFabricCanvases() {
         console.log(`🎨 清理 ${this.activeFabricCanvases.size} 个Fabric画布`);
@@ -135,7 +135,7 @@ export class ModalCleanupManager {
         for (const fabricCanvas of this.activeFabricCanvases) {
             try {
                 // 🗑️ 特别清理：获取并清理所有对象的base64数据
-                const objects = fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+                const objects = fabricCanvas.getObjects ? fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList) : [];
                 objects.forEach(obj => {
                     if (obj.type === 'image' && obj._element) {
                         // 清理图像元素的src
@@ -157,28 +157,43 @@ export class ModalCleanupManager {
                     fabricCanvas.backgroundImage = null;
                 }
                 
-                // 清理画布对象
-                fabricCanvas.clear();
-                
-                // 移除所有事件监听器
-                fabricCanvas.off();
-                
-                // 🗑️ 清理内部canvas元素
-                if (fabricCanvas.lowerCanvasEl) {
-                    const ctx = fabricCanvas.lowerCanvasEl.getContext('2d');
-                    if (ctx) {
-                        ctx.clearRect(0, 0, fabricCanvas.lowerCanvasEl.width, fabricCanvas.lowerCanvasEl.height);
+                // 🔧 绕过Fabric.js的clear方法，直接清理对象
+                try {
+                    if (fabricCanvas._objects && Array.isArray(fabricCanvas._objects)) {
+                        fabricCanvas._objects.length = 0;
                     }
-                }
-                if (fabricCanvas.upperCanvasEl) {
-                    const ctx = fabricCanvas.upperCanvasEl.getContext('2d');
-                    if (ctx) {
-                        ctx.clearRect(0, 0, fabricCanvas.upperCanvasEl.width, fabricCanvas.upperCanvasEl.height);
+                    if (fabricCanvas.renderOnAddRemove !== undefined) {
+                        fabricCanvas.renderOnAddRemove = false;
                     }
+                } catch (e) {
+                    console.warn('Direct object clearing failed:', e);
                 }
                 
-                // 销毁画布实例
-                fabricCanvas.dispose();
+                // 🔧 安全的事件监听器清理
+                try {
+                    // 清理事件监听器映射
+                    if (fabricCanvas.__eventListeners) {
+                        fabricCanvas.__eventListeners = {};
+                    }
+                    // 尝试调用off方法，但不抛出错误
+                    if (fabricCanvas.off && typeof fabricCanvas.off === 'function') {
+                        try {
+                            fabricCanvas.off();
+                        } catch (innerError) {
+                            // 静默处理内部错误
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Event listener cleanup failed:', e);
+                }
+                
+                // 🔧 直接DOM操作，绕过Fabric.js内部清理
+                this._directCanvasCleanup(fabricCanvas);
+                
+                // 🔧 延迟销毁，避免竞争条件
+                setTimeout(() => {
+                    this._safeDisposeCanvas(fabricCanvas);
+                }, 100);
                 
             } catch (error) {
                 console.warn('清理Fabric画布失败:', error);
@@ -186,6 +201,117 @@ export class ModalCleanupManager {
         }
         
         this.activeFabricCanvases.clear();
+    }
+    
+    /**
+     * 直接清理Canvas DOM元素，绕过Fabric.js
+     */
+    _directCanvasCleanup(fabricCanvas) {
+        try {
+            // 直接操作lower canvas
+            const lowerCanvas = fabricCanvas.lowerCanvasEl;
+            if (lowerCanvas) {
+                // 保存原始尺寸信息
+                const width = lowerCanvas.width || 0;
+                const height = lowerCanvas.height || 0;
+                
+                // 安全获取上下文
+                let ctx = null;
+                try {
+                    ctx = lowerCanvas.getContext('2d');
+                } catch (e) {
+                    console.warn('Failed to get 2d context:', e);
+                }
+                
+                // 只有在上下文存在且有尺寸时才清理
+                if (ctx && width > 0 && height > 0) {
+                    try {
+                        // 填充透明色而不是clearRect
+                        ctx.fillStyle = 'rgba(0,0,0,0)';
+                        ctx.fillRect(0, 0, width, height);
+                    } catch (e) {
+                        console.warn('Context fill failed:', e);
+                    }
+                }
+                
+                // 从DOM中移除（如果存在父节点）
+                if (lowerCanvas.parentNode) {
+                    try {
+                        lowerCanvas.parentNode.removeChild(lowerCanvas);
+                    } catch (e) {
+                        console.warn('Failed to remove lower canvas from DOM:', e);
+                    }
+                }
+            }
+            
+            // 直接操作upper canvas
+            const upperCanvas = fabricCanvas.upperCanvasEl;
+            if (upperCanvas) {
+                const width = upperCanvas.width || 0;
+                const height = upperCanvas.height || 0;
+                
+                let ctx = null;
+                try {
+                    ctx = upperCanvas.getContext('2d');
+                } catch (e) {
+                    console.warn('Failed to get upper 2d context:', e);
+                }
+                
+                if (ctx && width > 0 && height > 0) {
+                    try {
+                        ctx.fillStyle = 'rgba(0,0,0,0)';
+                        ctx.fillRect(0, 0, width, height);
+                    } catch (e) {
+                        console.warn('Upper context fill failed:', e);
+                    }
+                }
+                
+                if (upperCanvas.parentNode) {
+                    try {
+                        upperCanvas.parentNode.removeChild(upperCanvas);
+                    } catch (e) {
+                        console.warn('Failed to remove upper canvas from DOM:', e);
+                    }
+                }
+            }
+            
+            // 清理container canvas
+            const containerCanvas = fabricCanvas.getElement && fabricCanvas.getElement();
+            if (containerCanvas && containerCanvas !== lowerCanvas && containerCanvas !== upperCanvas) {
+                if (containerCanvas.parentNode) {
+                    try {
+                        containerCanvas.parentNode.removeChild(containerCanvas);
+                    } catch (e) {
+                        console.warn('Failed to remove container canvas from DOM:', e);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.warn('Direct canvas cleanup failed:', error);
+        }
+    }
+    
+    /**
+     * 安全销毁Canvas实例
+     */
+    _safeDisposeCanvas(fabricCanvas) {
+        try {
+            // 在尝试dispose之前，先清除所有引用
+            fabricCanvas.lowerCanvasEl = null;
+            fabricCanvas.upperCanvasEl = null;
+            fabricCanvas.contextContainer = null;
+            fabricCanvas.contextTop = null;
+            fabricCanvas.wrapperEl = null;
+            
+            // 现在尝试调用dispose
+            if (fabricCanvas.dispose && typeof fabricCanvas.dispose === 'function') {
+                fabricCanvas.dispose();
+            }
+        } catch (error) {
+            // 即使dispose失败，我们也已经清理了主要资源
+            console.warn('Canvas dispose failed, but resources were cleared:', error);
+        }
     }
 
     /**
@@ -262,9 +388,13 @@ export class ModalCleanupManager {
         // 清理canvas元素
         const allCanvases = document.querySelectorAll('canvas');
         allCanvases.forEach(canvas => {
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            try {
+                const ctx = canvas.getContext('2d');
+                if (ctx && canvas.width && canvas.height) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            } catch (e) {
+                console.warn('Failed to clear canvas:', e);
             }
         });
     }
@@ -318,6 +448,16 @@ export class ModalCleanupManager {
  * 全局清理管理器实例
  */
 export const globalCleanupManager = new ModalCleanupManager();
+
+/**
+ * 🚀 将清理函数暴露到全局作用域
+ * 确保在弹窗关闭时可以访问这些函数
+ */
+if (typeof window !== 'undefined') {
+    window.registerManagedFabricCanvas = registerManagedFabricCanvas;
+    window.performModalCleanup = performModalCleanup;
+    window.globalCleanupManager = globalCleanupManager;
+}
 
 /**
  * 增强的事件监听器注册函数（自动管理清理）
@@ -411,7 +551,7 @@ export function cleanupBase64MemoryLeaks() {
         allCanvases.forEach(canvas => {
             try {
                 const ctx = canvas.getContext('2d');
-                if (ctx) {
+                if (ctx && canvas.width && canvas.height) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
             } catch (e) {
@@ -420,7 +560,7 @@ export function cleanupBase64MemoryLeaks() {
         });
         
         // 4. 立即强制垃圾回收（解决卡顿问题）
-        this.immediateGarbageCollection();
+        globalCleanupManager.immediateGarbageCollection();
         
         console.log(`✅ Base64清理完成，共清理 ${totalCleaned} 个大型图像`);
         

@@ -1074,14 +1074,16 @@ export const applyStyles = (element, styleObject) => {
 
 /**
  * 图像缓存管理器 - 避免重复加载相同图像
+ * 🚀 优化版本：降低内存限制，增强清理机制
  */
 export class ImageCache {
-    constructor(maxSize = 20, maxMemoryMB = 100) {
+    constructor(maxSize = 10, maxMemoryMB = 50) {
         this.cache = new Map(); // URL -> {fabricImage, timestamp, size}
         this.loadingPromises = new Map(); // URL -> Promise
         this.maxSize = maxSize;
         this.maxMemoryBytes = maxMemoryMB * 1024 * 1024;
         this.currentMemoryUsage = 0;
+        this.accessCount = new Map(); // URL -> 访问次数
         
         console.log(`🖼️ ImageCache initialized - Max: ${maxSize} images, ${maxMemoryMB}MB`);
     }
@@ -1093,7 +1095,12 @@ export class ImageCache {
         if (this.cache.has(url)) {
             const cached = this.cache.get(url);
             cached.timestamp = Date.now();
-            console.log(`✨ Image cache hit: ${url.substring(url.lastIndexOf('/') + 1)}`);
+            
+            // 🚀 更新访问计数
+            const count = this.accessCount.get(url) || 0;
+            this.accessCount.set(url, count + 1);
+            
+            console.log(`✨ Image cache hit: ${url.substring(url.lastIndexOf('/') + 1)} (accessed ${count + 1} times)`);
             return this._cloneFabricImage(cached.fabricImage);
         }
 
@@ -1158,6 +1165,9 @@ export class ImageCache {
             size: imageSize
         });
         
+        // 🚀 初始化访问计数
+        this.accessCount.set(url, 1);
+        
         this.currentMemoryUsage += imageSize;
         console.log(`💾 Image cached: ${url.substring(url.lastIndexOf('/') + 1)} (${this._formatSize(imageSize)}) - Total: ${this.cache.size} images, ${this._formatSize(this.currentMemoryUsage)}`);
     }
@@ -1192,24 +1202,32 @@ export class ImageCache {
     }
 
     /**
-     * 清理最久未使用的图像（LRU）
+     * 清理最久未使用的图像（LRU + 访问频率优化）
+     * 🚀 智能清理：优先清理访问次数少且最久未使用的图像
      */
     _evictLRU() {
-        let oldestUrl = null;
-        let oldestTime = Date.now();
+        let worstUrl = null;
+        let worstScore = Infinity;
 
         for (const [url, data] of this.cache) {
-            if (data.timestamp < oldestTime) {
-                oldestTime = data.timestamp;
-                oldestUrl = url;
+            const accessCount = this.accessCount.get(url) || 1;
+            const age = Date.now() - data.timestamp;
+            // 计算清理分数：年龄 / 访问次数（访问次数越少、年龄越大越容易被清理）
+            const score = age / accessCount;
+            
+            if (score < worstScore) {
+                worstScore = score;
+                worstUrl = url;
             }
         }
 
-        if (oldestUrl) {
-            const evicted = this.cache.get(oldestUrl);
-            this.cache.delete(oldestUrl);
+        if (worstUrl) {
+            const evicted = this.cache.get(worstUrl);
+            this.cache.delete(worstUrl);
+            this.accessCount.delete(worstUrl);
             this.currentMemoryUsage -= evicted.size;
-            console.log(`🗑️ Evicted LRU image: ${oldestUrl.substring(oldestUrl.lastIndexOf('/') + 1)} (${this._formatSize(evicted.size)})`);
+            const accessCount = this.accessCount.get(worstUrl) || 1;
+            console.log(`🗑️ Evicted image: ${worstUrl.substring(worstUrl.lastIndexOf('/') + 1)} (${this._formatSize(evicted.size)}, accessed ${accessCount} times)`);
         }
     }
 
@@ -1220,6 +1238,7 @@ export class ImageCache {
         if (this.cache.has(url)) {
             const cached = this.cache.get(url);
             this.cache.delete(url);
+            this.accessCount.delete(url);
             this.currentMemoryUsage -= cached.size;
             console.log(`❌ Cache invalidated: ${url.substring(url.lastIndexOf('/') + 1)}`);
         }
@@ -1227,11 +1246,22 @@ export class ImageCache {
 
     /**
      * 清空所有缓存
+     * 🚀 增强版本：彻底清理所有引用
      */
     clear() {
         const count = this.cache.size;
         const memory = this.currentMemoryUsage;
+        
+        // 🚀 清理所有图像对象的引用
+        for (const [url, data] of this.cache) {
+            if (data.fabricImage && data.fabricImage._element) {
+                data.fabricImage._element.src = '';
+                data.fabricImage._element = null;
+            }
+        }
+        
         this.cache.clear();
+        this.accessCount.clear();
         this.loadingPromises.clear();
         this.currentMemoryUsage = 0;
         console.log(`🧹 Cache cleared: ${count} images, ${this._formatSize(memory)} freed`);
@@ -1405,10 +1435,8 @@ export class IntelligentPromptReasoning {
      */
     analyzeImageContext(modal) {
         const imageElement = modal.querySelector('#uploaded-image');
-        const annotations = modal.annotations || [];
-        
-        // 分析标注分布和类型模式
-        const annotationAnalysis = this.analyzeAnnotationPatterns(annotations);
+        // Transform-First架构：移除废弃的annotations分析
+        const annotationAnalysis = { patterns: [], types: {} };
         
         // 分析图像尺寸比例（推断用途）
         let aspectRatioIntent = 'unknown';
@@ -1945,3 +1973,628 @@ export class SVGAnnotationCreator {
 export function createSVGAnnotationCreator() {
     return new SVGAnnotationCreator();
 }
+
+// === 🚀 大图像优化功能 - Kontext专属设计 ===
+
+/**
+ * 图像尺寸优化器 - 处理大图像的性能问题
+ * Kontext团队原创的display size limiting策略
+ */
+export class ImageSizeOptimizer {
+    constructor(maxDisplaySize = 768) {
+        this.maxDisplaySize = maxDisplaySize;
+        this.originalImageCache = new Map(); // 缓存原始图像信息
+        console.log(`🖼️ ImageSizeOptimizer initialized with max display size: ${maxDisplaySize}px`);
+    }
+
+    /**
+     * 优化图像尺寸 - LRPG专属的image_size_adjustment策略
+     * @param {HTMLImageElement} imageElement - 图像元素
+     * @param {Object} options - 选项
+     * @returns {Object} 优化结果
+     */
+    optimizeImageSize(imageElement, options = {}) {
+        const {
+            preserveAspectRatio = true,
+            useCSS = true, // 使用CSS变换而非修改图像数据
+            downscaleLarge = true
+        } = options;
+
+        const originalWidth = imageElement.naturalWidth;
+        const originalHeight = imageElement.naturalHeight;
+
+        // 缓存原始图像信息
+        const imageId = imageElement.src || imageElement.id;
+        if (imageId && !this.originalImageCache.has(imageId)) {
+            this.originalImageCache.set(imageId, {
+                width: originalWidth,
+                height: originalHeight,
+                aspectRatio: originalWidth / originalHeight
+            });
+        }
+
+        // 判断是否需要优化
+        const needsOptimization = downscaleLarge && (
+            originalWidth > this.maxDisplaySize || 
+            originalHeight > this.maxDisplaySize
+        );
+
+        if (!needsOptimization) {
+            return {
+                optimized: false,
+                displayWidth: originalWidth,
+                displayHeight: originalHeight,
+                scale: 1.0
+            };
+        }
+
+        // 计算缩放比例
+        let scale = 1.0;
+        if (preserveAspectRatio) {
+            scale = Math.min(
+                this.maxDisplaySize / originalWidth,
+                this.maxDisplaySize / originalHeight
+            );
+        } else {
+            scale = Math.min(
+                this.maxDisplaySize / originalWidth,
+                this.maxDisplaySize / originalHeight
+            );
+        }
+
+        const displayWidth = Math.round(originalWidth * scale);
+        const displayHeight = Math.round(originalHeight * scale);
+
+        console.log(`🔍 Image optimization: ${originalWidth}x${originalHeight} -> ${displayWidth}x${displayHeight} (scale: ${scale.toFixed(3)})`);
+
+        if (useCSS) {
+            // 使用CSS变换 - LRPG专属策略
+            this.applyCSSTransform(imageElement, displayWidth, displayHeight);
+        } else {
+            // 直接修改图像尺寸（不推荐）
+            imageElement.width = displayWidth;
+            imageElement.height = displayHeight;
+        }
+
+        return {
+            optimized: true,
+            displayWidth,
+            displayHeight,
+            scale,
+            originalWidth,
+            originalHeight
+        };
+    }
+
+    /**
+     * 应用CSS变换 - 保持原始数据但改变显示尺寸
+     */
+    applyCSSTransform(imageElement, displayWidth, displayHeight) {
+        imageElement.style.width = `${displayWidth}px`;
+        imageElement.style.height = `${displayHeight}px`;
+        imageElement.style.maxWidth = '100%';
+        imageElement.style.maxHeight = '100%';
+        imageElement.style.objectFit = 'contain';
+        imageElement.style.transformOrigin = 'top left';
+    }
+
+    /**
+     * 恢复原始尺寸
+     */
+    restoreOriginalSize(imageElement) {
+        const imageId = imageElement.src || imageElement.id;
+        const originalInfo = this.originalImageCache.get(imageId);
+        
+        if (originalInfo) {
+            imageElement.style.width = '';
+            imageElement.style.height = '';
+            imageElement.style.maxWidth = '';
+            imageElement.style.maxHeight = '';
+            imageElement.style.objectFit = '';
+            imageElement.style.transform = '';
+            
+            return {
+                width: originalInfo.width,
+                height: originalInfo.height
+            };
+        }
+        
+        return null;
+    }
+
+    /**
+     * 创建优化后的图像副本 - 用于导出
+     */
+    createOptimizedCopy(imageElement, quality = 0.85) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 使用显示尺寸而非原始尺寸
+            const displayWidth = imageElement.clientWidth || imageElement.width;
+            const displayHeight = imageElement.clientHeight || imageElement.height;
+            
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+            
+            // 绘制优化后的图像
+            ctx.drawImage(imageElement, 0, 0, displayWidth, displayHeight);
+            
+            // 转换为blob
+            canvas.toBlob((blob) => {
+                resolve({
+                    blob,
+                    width: displayWidth,
+                    height: displayHeight,
+                    url: URL.createObjectURL(blob)
+                });
+            }, 'image/jpeg', quality);
+        });
+    }
+
+    /**
+     * 清理缓存
+     */
+    clearCache() {
+        this.originalImageCache.clear();
+        console.log('🧹 ImageSizeOptimizer cache cleared');
+    }
+}
+
+/**
+ * 图像加载优化器 - 集成尺寸优化和缓存
+ */
+export class OptimizedImageLoader {
+    constructor(options = {}) {
+        this.sizeOptimizer = new ImageSizeOptimizer(options.maxDisplaySize);
+        this.loadingPromises = new Map();
+        this.loadedImages = new Map();
+    }
+
+    /**
+     * 加载并优化图像
+     */
+    async loadOptimizedImage(url, options = {}) {
+        const {
+            useCache = true,
+            optimizeSize = true,
+            ...optimizerOptions
+        } = options;
+
+        // 检查缓存
+        if (useCache && this.loadedImages.has(url)) {
+            return this.loadedImages.get(url);
+        }
+
+        // 避免重复加载
+        if (this.loadingPromises.has(url)) {
+            return this.loadingPromises.get(url);
+        }
+
+        const promise = new Promise((resolve, reject) => {
+            const img = new Image();
+            
+            img.onload = () => {
+                // 优化尺寸
+                if (optimizeSize) {
+                    const optimization = this.sizeOptimizer.optimizeImageSize(img, optimizerOptions);
+                    img._optimization = optimization;
+                }
+                
+                // 缓存结果
+                if (useCache) {
+                    this.loadedImages.set(url, img);
+                }
+                
+                this.loadingPromises.delete(url);
+                resolve(img);
+            };
+            
+            img.onerror = () => {
+                this.loadingPromises.delete(url);
+                reject(new Error(`Failed to load image: ${url}`));
+            };
+            
+            // 设置跨域
+            img.crossOrigin = 'anonymous';
+            img.src = url;
+        });
+
+        this.loadingPromises.set(url, promise);
+        return promise;
+    }
+
+    /**
+     * 预加载图像
+     */
+    preloadImages(urls) {
+        return Promise.all(urls.map(url => 
+            this.loadOptimizedImage(url).catch(err => {
+                console.warn(`Failed to preload image: ${url}`, err);
+                return null;
+            })
+        ));
+    }
+
+    /**
+     * 清理资源
+     */
+    dispose() {
+        this.sizeOptimizer.clearCache();
+        this.loadedImages.clear();
+        this.loadingPromises.clear();
+    }
+}
+
+/**
+ * 大图像处理工具集
+ */
+export const LargeImageUtils = {
+    /**
+     * 检测大图像
+     */
+    isLargeImage(imageElement, threshold = 1024 * 1024) {
+        const width = imageElement.naturalWidth;
+        const height = imageElement.naturalHeight;
+        const pixels = width * height;
+        return pixels > threshold;
+    },
+
+    /**
+     * 计算内存使用量
+     */
+    calculateMemoryUsage(imageElement) {
+        const width = imageElement.naturalWidth;
+        const height = imageElement.naturalHeight;
+        // 假设RGBA格式，4字节每像素
+        return width * height * 4;
+    },
+
+    /**
+     * 生成优化的画布尺寸
+     */
+    getOptimalCanvasSize(imageWidth, imageHeight, maxSize = 768) {
+        if (imageWidth <= maxSize && imageHeight <= maxSize) {
+            return { width: imageWidth, height: imageHeight };
+        }
+
+        const scale = Math.min(maxSize / imageWidth, maxSize / imageHeight);
+        return {
+            width: Math.round(imageWidth * scale),
+            height: Math.round(imageHeight * scale),
+            scale
+        };
+    },
+
+    /**
+     * 分块处理大图像 - 用于需要全分辨率处理的场景
+     */
+    async processInChunks(imageElement, processFunction, chunkSize = 512) {
+        const width = imageElement.naturalWidth;
+        const height = imageElement.naturalHeight;
+        const results = [];
+
+        // 创建临时画布
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = chunkSize;
+        canvas.height = chunkSize;
+
+        // 分块处理
+        for (let y = 0; y < height; y += chunkSize) {
+            for (let x = 0; x < width; x += chunkSize) {
+                const chunkWidth = Math.min(chunkSize, width - x);
+                const chunkHeight = Math.min(chunkSize, height - y);
+
+                // 清空画布
+                ctx.clearRect(0, 0, chunkSize, chunkSize);
+
+                // 绘制当前块
+                ctx.drawImage(
+                    imageElement,
+                    x, y, chunkWidth, chunkHeight,
+                    0, 0, chunkWidth, chunkHeight
+                );
+
+                // 处理当前块
+                const result = await processFunction({
+                    canvas,
+                    ctx,
+                    x, y,
+                    width: chunkWidth,
+                    height: chunkHeight,
+                    totalWidth: width,
+                    totalHeight: height
+                });
+
+                results.push(result);
+            }
+        }
+
+        return results;
+    }
+};
+
+// 创建全局实例
+export const globalImageSizeOptimizer = new ImageSizeOptimizer();
+export const globalOptimizedImageLoader = new OptimizedImageLoader();
+
+/**
+ * 内存管理器 - 优化大图像编辑后的内存清理
+ * LRPG专属的内存管理策略
+ */
+export class MemoryManager {
+    constructor() {
+        this.memoryThreshold = 100 * 1024 * 1024; // 100MB阈值
+        this.cleanupInterval = 30000; // 30秒清理间隔
+        this.lastCleanupTime = Date.now();
+        this.memoryHistory = [];
+        this.maxHistorySize = 10;
+        
+        // 初始化定时清理
+        this.startPeriodicCleanup();
+    }
+
+    /**
+     * 开始周期性清理
+     */
+    startPeriodicCleanup() {
+        setInterval(() => {
+            this.performCleanup();
+        }, this.cleanupInterval);
+    }
+
+    /**
+     * 检查内存使用情况
+     */
+    checkMemoryUsage() {
+        if (performance.memory) {
+            const used = performance.memory.usedJSHeapSize;
+            const total = performance.memory.totalJSHeapSize;
+            const limit = performance.memory.jsHeapSizeLimit;
+            
+            // 记录内存使用历史
+            this.memoryHistory.push({
+                timestamp: Date.now(),
+                used,
+                total,
+                limit
+            });
+            
+            // 保持历史记录大小
+            if (this.memoryHistory.length > this.maxHistorySize) {
+                this.memoryHistory.shift();
+            }
+            
+            return {
+                used,
+                total,
+                limit,
+                usagePercent: (used / limit) * 100
+            };
+        }
+        
+        return null;
+    }
+
+    /**
+     * 执行内存清理
+     */
+    performCleanup() {
+        const memoryInfo = this.checkMemoryUsage();
+        
+        if (!memoryInfo) {
+            return;
+        }
+        
+        // 检查是否需要清理
+        if (memoryInfo.used > this.memoryThreshold || 
+            memoryInfo.usagePercent > 70 ||
+            Date.now() - this.lastCleanupTime > this.cleanupInterval) {
+            
+            console.log(`🧹 Memory cleanup triggered - Used: ${this.formatBytes(memoryInfo.used)}, ${memoryInfo.usagePercent.toFixed(1)}%`);
+            
+            // 执行清理操作
+            this.cleanupImageCache();
+            this.cleanupFabricCanvases();
+            this.cleanupEventListeners();
+            this.forceGarbageCollection();
+            
+            this.lastCleanupTime = Date.now();
+        }
+    }
+
+    /**
+     * 清理图像缓存
+     */
+    cleanupImageCache() {
+        if (globalImageCache) {
+            const beforeSize = globalImageCache.cache.size;
+            
+            // 清理超过30分钟未使用的缓存
+            const now = Date.now();
+            const staleTime = 30 * 60 * 1000;
+            
+            for (const [url, entry] of globalImageCache.cache.entries()) {
+                if (now - entry.timestamp > staleTime) {
+                    globalImageCache.cache.delete(url);
+                    console.log(`🗑️ Cleaned stale image cache: ${url.substring(url.lastIndexOf('/') + 1)}`);
+                }
+            }
+            
+            const afterSize = globalImageCache.cache.size;
+            console.log(`📊 Image cache cleanup: ${beforeSize} → ${afterSize} entries`);
+        }
+    }
+
+    /**
+     * 清理Fabric画布
+     */
+    cleanupFabricCanvases() {
+        // 清理未使用的Fabric画布
+        if (window.fabric && fabric.Canvas) {
+            try {
+                // 检查是否存在getInstances方法
+                if (typeof fabric.Canvas.getInstances === 'function') {
+                    const canvases = fabric.Canvas.getInstances();
+                    
+                    canvases.forEach(canvas => {
+                        // 检查画布是否仍在使用
+                        if (!canvas.element || !document.body.contains(canvas.element)) {
+                            // 清理画布
+                            canvas.dispose();
+                            console.log('🗑️ Cleaned unused Fabric canvas');
+                        }
+                    });
+                } else {
+                    console.log('ℹ️ fabric.Canvas.getInstances方法不可用，跳过Fabric画布清理');
+                }
+            } catch (error) {
+                console.warn('⚠️ Fabric画布清理失败:', error);
+            }
+        }
+    }
+
+    /**
+     * 清理事件监听器
+     */
+    cleanupEventListeners() {
+        // 清理模态弹窗相关的事件监听器
+        const modals = document.querySelectorAll('.comfy-modal');
+        
+        modals.forEach(modal => {
+            if (!modal.style.display || modal.style.display === 'none') {
+                // 移除隐藏的模态弹窗的事件监听器
+                const clone = modal.cloneNode(true);
+                modal.parentNode.replaceChild(clone, modal);
+                console.log('🗑️ Cleaned event listeners for hidden modal');
+            }
+        });
+    }
+
+    /**
+     * 强制垃圾回收
+     */
+    forceGarbageCollection() {
+        try {
+            // 尝试触发垃圾回收
+            if (window.gc) {
+                window.gc();
+                console.log('🗑️ Forced garbage collection completed');
+            }
+            
+            // 清理大对象
+            this.clearLargeObjects();
+            
+        } catch (error) {
+            console.warn('Garbage collection not available');
+        }
+    }
+
+    /**
+     * 清理大对象
+     */
+    clearLargeObjects() {
+        // 清理大的base64数据
+        const清理Base64 = () => {
+            const largeBase64Regex = /data:image\/[^;]+;base64,[A-Za-z0-9+\/=]{100000,}/g;
+            const elements = document.querySelectorAll('*');
+            
+            elements.forEach(element => {
+                for (const attr of element.attributes) {
+                    if (largeBase64Regex.test(attr.value)) {
+                        element.setAttribute(attr.name, '');
+                        console.log('🗑️ Cleaned large base64 attribute');
+                    }
+                }
+            });
+        };
+        
+        setTimeout(清理Base64, 0);
+    }
+
+    /**
+     * 格式化字节数
+     */
+    formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * 获取内存使用报告
+     */
+    getMemoryReport() {
+        const memoryInfo = this.checkMemoryUsage();
+        
+        if (!memoryInfo) {
+            return 'Memory API not available';
+        }
+        
+        const cacheSize = globalImageCache ? globalImageCache.cache.size : 0;
+        const fabricCanvases = window.fabric && fabric.Canvas ? fabric.Canvas.getInstances().length : 0;
+        
+        return `
+Memory Usage Report:
+- Used: ${this.formatBytes(memoryInfo.used)} (${memoryInfo.usagePercent.toFixed(1)}%)
+- Total: ${this.formatBytes(memoryInfo.total)}
+- Limit: ${this.formatBytes(memoryInfo.limit)}
+- Image Cache: ${cacheSize} entries
+- Fabric Canvases: ${fabricCanvases}
+- Last Cleanup: ${new Date(this.lastCleanupTime).toLocaleTimeString()}
+        `.trim();
+    }
+
+    /**
+     * 在关闭模态弹窗时执行深度清理
+     */
+    cleanupOnModalClose(modal) {
+        console.log('🧹 Starting deep cleanup on modal close...');
+        
+        try {
+            // 1. 清理Fabric画布
+            if (modal.fabricCanvas) {
+                try {
+                    modal.fabricCanvas.dispose();
+                    modal.fabricCanvas = null;
+                    console.log('🗑️ Fabric canvas disposed');
+                } catch (e) {
+                    console.warn('Error disposing fabric canvas:', e);
+                }
+            }
+            
+            // 2. 清理大图像数据
+            if (modal.inputImageData) {
+                modal.inputImageData = null;
+                console.log('🗑️ Input image data cleared');
+            }
+            
+            // 3. 清理图层状态
+            if (modal.layerStates) {
+                modal.layerStates.clear();
+                console.log('🗑️ Layer states cleared');
+            }
+            
+            // 4. 🔴 注意：不再克隆节点，因为这会导致modal引用失效
+            // 事件监听器会在弹窗被移除时自动清理
+            console.log('🗑️ Event listeners will be auto-cleared on modal removal');
+            
+            // 5. 延迟执行垃圾回收
+            setTimeout(() => {
+                this.forceGarbageCollection();
+                console.log('✅ Deep cleanup completed');
+            }, 100);
+            
+        } catch (error) {
+            console.error('❌ Error during modal cleanup:', error);
+        }
+    }
+}
+
+// 创建全局内存管理器实例
+export const globalMemoryManager = new MemoryManager();

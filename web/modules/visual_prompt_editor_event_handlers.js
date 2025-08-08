@@ -3,8 +3,9 @@
  * 负责各种UI事件的绑定和处理，包括下拉框、文件上传、基础界面事件等
  */
 
-import { addManagedEventListener } from './visual_prompt_editor_cleanup.js';
+import { addManagedEventListener, performModalCleanup, addManagedTimeout } from './visual_prompt_editor_cleanup.js';
 import { saveEditingDataToBackend, collectCurrentEditingData } from './visual_prompt_editor_data_manager.js';
+import { globalMemoryManager } from './visual_prompt_editor_utils.js';
 
 export class EventHandlers {
     constructor(nodeInstance) {
@@ -62,25 +63,25 @@ export class EventHandlers {
         // 为所有选项绑定悬停和点击事件
         const options = dropdownOptions.querySelectorAll('.dropdown-option');
         options.forEach(option => {
-            // 悬停效果
-            option.addEventListener('mouseenter', function() {
+            // 悬停效果 - 使用管理的事件监听器
+            addManagedEventListener(option, 'mouseenter', function() {
                 this.style.background = '#3b82f6';
             });
-            option.addEventListener('mouseleave', function() {
+            addManagedEventListener(option, 'mouseleave', function() {
                 this.style.background = '#2b2b2b';
             });
             
-            // 复选框变化事件
+            // 复选框变化事件 - 使用管理的事件监听器
             const checkbox = option.querySelector('input[type="checkbox"]');
             if (checkbox) {
-                checkbox.addEventListener('change', (e) => {
+                addManagedEventListener(checkbox, 'change', (e) => {
                     const annotationId = checkbox.dataset.annotationId;
                     this.updateObjectSelection(modal, annotationId, checkbox.checked);
                 });
             }
             
-            // 点击选项事件
-            option.addEventListener('click', (e) => {
+            // 点击选项事件 - 使用管理的事件监听器
+            addManagedEventListener(option, 'click', (e) => {
                 if (e.target.type !== 'checkbox') {
                     const checkbox = option.querySelector('input[type="checkbox"]');
                     if (checkbox) {
@@ -106,7 +107,7 @@ export class EventHandlers {
             return;
         }
         
-        dropdown.addEventListener('click', (e) => {
+        addManagedEventListener(dropdown, 'click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             
@@ -121,8 +122,8 @@ export class EventHandlers {
             }
         });
         
-        // 点击其他地方关闭下拉框
-        document.addEventListener('click', (e) => {
+        // 点击其他地方关闭下拉框 - 使用管理的事件监听器
+        addManagedEventListener(document, 'click', (e) => {
             if (!dropdown.contains(e.target)) {
                 dropdownMenu.style.display = 'none';
                 dropdownArrow.style.transform = 'rotate(0deg)';
@@ -140,7 +141,7 @@ export class EventHandlers {
             return;
         }
         
-        fileInput.addEventListener('change', (e) => {
+        addManagedEventListener(fileInput, 'change', (e) => {
             const file = e.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 this.handleImageUpload(modal, file);
@@ -152,12 +153,28 @@ export class EventHandlers {
 
     /**
      * 处理图片上传
+     * 🔧 添加base64大小限制以防止内存泄露
      */
     handleImageUpload(modal, file) {
+        // 检查文件大小限制 (10MB)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        if (file.size > MAX_FILE_SIZE) {
+            this.showNotification('文件太大，请选择小于10MB的图片', 'error');
+            return;
+        }
         
         const reader = new FileReader();
         reader.onload = (e) => {
             const imageData = e.target.result;
+            
+            // 检查base64数据大小限制 (5MB base64)
+            const MAX_BASE64_SIZE = 5 * 1024 * 1024; // 5MB
+            if (imageData.length > MAX_BASE64_SIZE) {
+                this.showNotification('图片数据太大，请选择更小的图片', 'error');
+                return;
+            }
+            
+            console.log(`📸 图片上传成功: ${file.name}, 大小: ${(imageData.length / 1024).toFixed(1)}KB`);
             
             // 这里可以添加图片处理逻辑
             if (this.nodeInstance.processUploadedImage) {
@@ -167,6 +184,7 @@ export class EventHandlers {
         
         reader.onerror = () => {
             console.error('Image reading failed');
+            this.showNotification('图片读取失败', 'error');
         };
         
         reader.readAsDataURL(file);
@@ -182,7 +200,7 @@ export class EventHandlers {
             return;
         }
         
-        enableLayerManagement.addEventListener('change', (e) => {
+        addManagedEventListener(enableLayerManagement, 'change', (e) => {
             const enabled = e.target.checked;
             
             if (this.nodeInstance.toggleConnectedLayersDisplay) {
@@ -242,8 +260,8 @@ export class EventHandlers {
      */
     bindLayerManagementEvents(modal) {
         
-        // 延迟绑定，确保DOM准备就绪
-        setTimeout(() => {
+        // 延迟绑定，确保DOM准备就绪 - 使用管理的定时器
+        const timerId = addManagedTimeout(() => {
             try {
                 this.bindLayerOrderEvents(modal);
                 
@@ -284,7 +302,7 @@ export class EventHandlers {
             return;
         }
         
-        fileInput.addEventListener('change', (e) => {
+        addManagedEventListener(fileInput, 'change', (e) => {
             const file = e.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 this.handleImageUpload(modal, file);
@@ -296,12 +314,28 @@ export class EventHandlers {
 
     /**
      * 处理图片上传
+     * 🔧 添加base64大小限制以防止内存泄露
      */
     handleImageUpload(modal, file) {
+        // 检查文件大小限制 (10MB)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        if (file.size > MAX_FILE_SIZE) {
+            this.showNotification('文件太大，请选择小于10MB的图片', 'error');
+            return;
+        }
         
         const reader = new FileReader();
         reader.onload = (e) => {
             const imageData = e.target.result;
+            
+            // 检查base64数据大小限制 (5MB base64)
+            const MAX_BASE64_SIZE = 5 * 1024 * 1024; // 5MB
+            if (imageData.length > MAX_BASE64_SIZE) {
+                this.showNotification('图片数据太大，请选择更小的图片', 'error');
+                return;
+            }
+            
+            console.log(`📸 图片上传成功: ${file.name}, 大小: ${(imageData.length / 1024).toFixed(1)}KB`);
             
             // 这里可以添加图片处理逻辑
             if (this.nodeInstance.processUploadedImage) {
@@ -311,6 +345,7 @@ export class EventHandlers {
         
         reader.onerror = () => {
             console.error('Image reading failed');
+            this.showNotification('图片读取失败', 'error');
         };
         
         reader.readAsDataURL(file);
@@ -326,7 +361,7 @@ export class EventHandlers {
             return;
         }
         
-        enableLayerManagement.addEventListener('change', (e) => {
+        addManagedEventListener(enableLayerManagement, 'change', (e) => {
             const enabled = e.target.checked;
             
             if (this.nodeInstance.toggleConnectedLayersDisplay) {
@@ -386,8 +421,8 @@ export class EventHandlers {
      */
     bindLayerManagementEvents(modal) {
         
-        // 延迟绑定，确保DOM准备就绪
-        setTimeout(() => {
+        // 延迟绑定，确保DOM准备就绪 - 使用管理的定时器
+        const timerId = addManagedTimeout(() => {
             try {
                 this.bindLayerOrderEvents(modal);
                 
@@ -428,7 +463,7 @@ export class EventHandlers {
             return;
         }
         
-        fileInput.addEventListener('change', (e) => {
+        addManagedEventListener(fileInput, 'change', (e) => {
             const file = e.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 this.handleImageUpload(modal, file);
@@ -440,12 +475,28 @@ export class EventHandlers {
 
     /**
      * 处理图片上传
+     * 🔧 添加base64大小限制以防止内存泄露
      */
     handleImageUpload(modal, file) {
+        // 检查文件大小限制 (10MB)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        if (file.size > MAX_FILE_SIZE) {
+            this.showNotification('文件太大，请选择小于10MB的图片', 'error');
+            return;
+        }
         
         const reader = new FileReader();
         reader.onload = (e) => {
             const imageData = e.target.result;
+            
+            // 检查base64数据大小限制 (5MB base64)
+            const MAX_BASE64_SIZE = 5 * 1024 * 1024; // 5MB
+            if (imageData.length > MAX_BASE64_SIZE) {
+                this.showNotification('图片数据太大，请选择更小的图片', 'error');
+                return;
+            }
+            
+            console.log(`📸 图片上传成功: ${file.name}, 大小: ${(imageData.length / 1024).toFixed(1)}KB`);
             
             // 这里可以添加图片处理逻辑
             if (this.nodeInstance.processUploadedImage) {
@@ -455,6 +506,7 @@ export class EventHandlers {
         
         reader.onerror = () => {
             console.error('Image reading failed');
+            this.showNotification('图片读取失败', 'error');
         };
         
         reader.readAsDataURL(file);
@@ -470,7 +522,7 @@ export class EventHandlers {
             return;
         }
         
-        enableLayerManagement.addEventListener('change', (e) => {
+        addManagedEventListener(enableLayerManagement, 'change', (e) => {
             const enabled = e.target.checked;
             
             if (this.nodeInstance.toggleConnectedLayersDisplay) {
@@ -530,8 +582,8 @@ export class EventHandlers {
      */
     bindLayerManagementEvents(modal) {
         
-        // 延迟绑定，确保DOM准备就绪
-        setTimeout(() => {
+        // 延迟绑定，确保DOM准备就绪 - 使用管理的定时器
+        const timerId = addManagedTimeout(() => {
             try {
                 this.bindLayerOrderEvents(modal);
                 
@@ -587,7 +639,7 @@ export class EventHandlers {
     bindColorSelector(modal) {
         const colorButtons = modal.querySelectorAll('.vpe-color');
         colorButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
+            addManagedEventListener(button, 'click', (e) => {
                 const color = e.target.dataset.color;
                 
                 modal.currentColor = color;
@@ -616,7 +668,7 @@ export class EventHandlers {
         if (fillToggle) {
             modal.fillMode = 'filled';
             
-            fillToggle.addEventListener('click', () => {
+            addManagedEventListener(fillToggle, 'click', () => {
                 if (modal.fillMode === 'filled') {
                     modal.fillMode = 'outline';
                     fillToggle.textContent = '⭕ Outline';
@@ -644,15 +696,17 @@ export class EventHandlers {
         if (opacitySlider && opacityValue) {
             modal.currentOpacity = parseInt(opacitySlider.value) || 50;
             
-            opacitySlider.addEventListener('input', () => {
-                const opacityPercent = parseInt(opacitySlider.value);
-                modal.currentOpacity = opacityPercent;
-                opacityValue.textContent = opacityPercent + '%';
-                
-                if (window.fabricManager && window.fabricManager.setOpacity) {
-                    window.fabricManager.setOpacity(opacityPercent / 100);
-                }
-            });
+            if (opacitySlider && opacityValue) {
+                addManagedEventListener(opacitySlider, 'input', () => {
+                    const opacityPercent = parseInt(opacitySlider.value);
+                    modal.currentOpacity = opacityPercent;
+                    opacityValue.textContent = opacityPercent + '%';
+                    
+                    if (window.fabricManager && window.fabricManager.setOpacity) {
+                        window.fabricManager.setOpacity(opacityPercent / 100);
+                    }
+                });
+            }
         }
     }
 
@@ -662,9 +716,11 @@ export class EventHandlers {
     bindClearButton(modal) {
         const clearBtn = modal.querySelector('#vpe-clear');
         if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
+            if (clearBtn) {
+            addManagedEventListener(clearBtn, 'click', () => {
                 this.clearAllAnnotations(modal);
             });
+        }
         }
     }
 
@@ -697,10 +753,7 @@ export class EventHandlers {
             }
         }
         
-        // 清空传统数据
-        if (modal.annotations) {
-            modal.annotations = [];
-        }
+        // Transform-First架构：移除清空annotations的逻辑
         
     }
 
@@ -710,7 +763,7 @@ export class EventHandlers {
     bindToolSelector(modal) {
         const toolButtons = modal.querySelectorAll('.vpe-tool');
         toolButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
+            addManagedEventListener(button, 'click', (e) => {
                 const tool = e.target.dataset.tool;
                 this.setActiveTool(modal, tool);
             });
@@ -743,9 +796,80 @@ export class EventHandlers {
     bindOperationTypeEvents(modal) {
         const operationSelect = modal.querySelector('#current-layer-operation');
         if (operationSelect) {
-            operationSelect.addEventListener('change', (e) => {
+            if (operationSelect) {
+            addManagedEventListener(operationSelect, 'change', (e) => {
                 // 操作类型变化处理
             });
+        }
+        }
+    }
+
+    /**
+     * 执行完整的模态弹窗清理
+     * 🚀 增强版本，确保彻底清理所有资源
+     */
+    performCompleteModalCleanup(modal) {
+        console.log('🧹 开始执行模态弹窗完整清理...');
+        
+        try {
+            // 1. 清理 Fabric.js 画布
+            if (this.nodeInstance.fabricManager) {
+                // 🚀 调用完整的销毁方法
+                if (typeof this.nodeInstance.fabricManager.destroy === 'function') {
+                    this.nodeInstance.fabricManager.destroy();
+                }
+                
+                // 清理fabricManager引用
+                this.nodeInstance.fabricManager = null;
+            }
+            
+            // 2. 清理数据管理器
+            if (this.nodeInstance.dataManager) {
+                this.nodeInstance.dataManager.clearAllCaches();
+                this.nodeInstance.dataManager = null;
+            }
+            
+            // 3. 清理全局引用
+            if (window.currentVPENode === this.nodeInstance) {
+                window.currentVPENode = null;
+            }
+            if (window.currentVPEInstance === this.nodeInstance) {
+                window.currentVPEInstance = null;
+            }
+            
+            // 4. 清理图像缓存（只清理当前相关的）
+            if (window.globalImageCache && modal.inputImageData) {
+                // 如果有图像URL，从缓存中删除
+                if (typeof modal.inputImageData === 'string') {
+                    globalImageCache.cache.delete(modal.inputImageData);
+                } else if (modal.inputImageData && modal.inputImageData.filename) {
+                    const subfolder = modal.inputImageData.subfolder ? `${modal.inputImageData.subfolder}/` : '';
+                    const imageUrl = `/view?filename=${modal.inputImageData.filename}&subfolder=${subfolder}&type=input`;
+                    globalImageCache.cache.delete(imageUrl);
+                }
+            }
+            
+            // 5. 🚀 使用新的内存管理器进行深度清理
+            if (globalMemoryManager) {
+                globalMemoryManager.cleanupOnModalClose(modal);
+            }
+            
+            // 6. 执行通用清理
+            performModalCleanup();
+            
+            console.log('✅ 模态弹窗清理完成');
+            
+        } catch (error) {
+            console.error('❌ 模态弹窗清理出错:', error);
+            // 即使出错也要继续执行基本清理
+            try {
+                if (globalMemoryManager) {
+                    globalMemoryManager.cleanupOnModalClose(modal);
+                }
+                performModalCleanup();
+            } catch (e) {
+                console.error('❌ 基本清理也失败:', e);
+            }
         }
     }
 
@@ -756,8 +880,33 @@ export class EventHandlers {
         // 关闭按钮
         const closeBtn = modal.querySelector('#vpe-close');
         if (closeBtn) {
-            closeBtn.onclick = () => {
-                document.body.removeChild(modal);
+            closeBtn.onclick = async () => {
+                try {
+                    console.log('💾 正在保存变换数据并关闭编辑器...');
+                    
+                    // 🔄 先收集并提交实际的变换数据
+                    if (modal.fabricCanvas) {
+                        const fabricNative = modal.fabricCanvas.fabricNative;
+                        if (fabricNative && typeof fabricNative.saveCurrentTransformsLG === 'function') {
+                            await fabricNative.saveCurrentTransformsLG();
+                            console.log('[LRPG_WebSocket] ✅ 变换数据已提交到后端');
+                        }
+                    }
+                    
+                    // 🚀 执行完整的资源清理，防止内存泄漏
+                    this.performCompleteModalCleanup(modal);
+                } catch (cleanupError) {
+                    console.error('❌ 保存和清理过程中出错:', cleanupError);
+                } finally {
+                    // 🚀 确保弹窗总是被移除，无论清理是否成功
+                    try {
+                        if (modal && modal.parentNode) {
+                            document.body.removeChild(modal);
+                        }
+                    } catch (removeError) {
+                        console.error('❌ 移除弹窗失败:', removeError);
+                    }
+                }
             };
         }
 
@@ -787,8 +936,8 @@ export class EventHandlers {
                 // 保存数据到后端
                 const success = saveEditingDataToBackend(modal, this.nodeInstance);
                 
-                // 恢复按钮状态
-                setTimeout(() => {
+                // 恢复按钮状态 - 使用管理的定时器
+                addManagedTimeout(() => {
                     saveBtn.innerHTML = originalText;
                     saveBtn.disabled = false;
                     
@@ -812,14 +961,14 @@ export class EventHandlers {
     bindLayerPanelButtons(modal) {
         const clearSelectionBtn = modal.querySelector('#clear-selection');
         if (clearSelectionBtn) {
-            clearSelectionBtn.addEventListener('click', () => {
+            addManagedEventListener(clearSelectionBtn, 'click', () => {
                 this.clearAllAnnotations(modal);
             });
         }
 
         const selectAllBtn = modal.querySelector('#select-all-layers');
         if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => {
+            addManagedEventListener(selectAllBtn, 'click', () => {
                 this.selectAllFabricObjects(modal);
             });
         }
@@ -865,7 +1014,7 @@ export class EventHandlers {
         const applySizeBtn = modal.querySelector('#vpe-apply-size');
 
         if (canvasSizeSelect) {
-            canvasSizeSelect.addEventListener('change', (e) => {
+            addManagedEventListener(canvasSizeSelect, 'change', (e) => {
                 const selectedValue = e.target.value;
                 
                 if (selectedValue === 'custom') {
@@ -889,7 +1038,7 @@ export class EventHandlers {
         }
 
         if (applySizeBtn) {
-            applySizeBtn.addEventListener('click', () => {
+            addManagedEventListener(applySizeBtn, 'click', () => {
                 const width = parseInt(canvasWidthInput?.value || 800);
                 const height = parseInt(canvasHeightInput?.value || 600);
                 
@@ -904,7 +1053,7 @@ export class EventHandlers {
 
         [canvasWidthInput, canvasHeightInput].forEach(input => {
             if (input) {
-                input.addEventListener('keypress', (e) => {
+                addManagedEventListener(input, 'keypress', (e) => {
                     if (e.key === 'Enter') {
                         applySizeBtn?.click();
                     }
@@ -991,12 +1140,12 @@ export class EventHandlers {
 
         if (uploadBtn && fileInput) {
             // 点击按钮触发文件选择
-            uploadBtn.addEventListener('click', () => {
+            addManagedEventListener(uploadBtn, 'click', () => {
                 fileInput.click();
             });
 
             // 文件选择事件
-            fileInput.addEventListener('change', (e) => {
+            addManagedEventListener(fileInput, 'change', (e) => {
                 const file = e.target.files[0];
                 if (file && file.type.startsWith('image/')) {
                     this.handleToolbarImageUpload(modal, file);
@@ -1007,17 +1156,97 @@ export class EventHandlers {
                 }
             });
         }
+        
+        // 🚀 内存监控按钮
+        const memoryMonitorBtn = modal.querySelector('#vpe-memory-monitor');
+        if (memoryMonitorBtn) {
+            addManagedEventListener(memoryMonitorBtn, 'click', () => {
+                if (globalMemoryManager) {
+                    const report = globalMemoryManager.getMemoryReport();
+                    
+                    // 创建报告弹窗
+                    const reportDialog = document.createElement('div');
+                    reportDialog.className = 'comfy-modal';
+                    reportDialog.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(0, 0, 0, 0.8); z-index: 20000;
+                        display: flex; justify-content: center; align-items: center;
+                    `;
+                    
+                    const content = document.createElement('div');
+                    content.className = 'content';
+                    content.style.cssText = `
+                        background: #2b2b2b; color: white; padding: 30px;
+                        border-radius: 12px; max-width: 600px; max-height: 80vh;
+                        overflow-y: auto; position: relative;
+                        font-family: monospace; font-size: 14px; line-height: 1.6;
+                    `;
+                    
+                    content.innerHTML = `
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            <h2 style="margin: 0; color: #9C27B0;">🧹 Memory Usage Report</h2>
+                            <p style="margin: 10px 0 0 0; color: #888;">Real-time memory monitoring and optimization</p>
+                        </div>
+                        
+                        <pre style="background: #1a1a1a; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;">${report}</pre>
+                        
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button id="memory-force-cleanup" style="margin-right: 10px; padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer;">🗑️ Force Cleanup</button>
+                            <button id="memory-close-report" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
+                        </div>
+                    `;
+                    
+                    reportDialog.appendChild(content);
+                    document.body.appendChild(reportDialog);
+                    
+                    // 绑定按钮事件
+                    content.querySelector('#memory-close-report').onclick = () => {
+                        document.body.removeChild(reportDialog);
+                    };
+                    
+                    content.querySelector('#memory-force-cleanup').onclick = () => {
+                        globalMemoryManager.performCleanup();
+                        // 更新报告
+                        const updatedReport = globalMemoryManager.getMemoryReport();
+                        content.querySelector('pre').textContent = updatedReport;
+                    };
+                    
+                    reportDialog.onclick = (e) => {
+                        if (e.target === reportDialog) {
+                            document.body.removeChild(reportDialog);
+                        }
+                    };
+                }
+            });
+        }
     }
 
     /**
      * 处理工具栏图片上传
+     * 🔧 添加base64大小限制以防止内存泄露
      */
     handleToolbarImageUpload(modal, file) {
         try {
+            // 检查文件大小限制 (10MB)
+            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+            if (file.size > MAX_FILE_SIZE) {
+                this.showNotification('文件太大，请选择小于10MB的图片', 'error');
+                return;
+            }
+            
             const reader = new FileReader();
             
             reader.onload = (e) => {
                 const imageUrl = e.target.result;
+                
+                // 检查base64数据大小限制 (5MB base64)
+                const MAX_BASE64_SIZE = 5 * 1024 * 1024; // 5MB
+                if (imageUrl.length > MAX_BASE64_SIZE) {
+                    this.showNotification('图片数据太大，请选择更小的图片', 'error');
+                    return;
+                }
+                
+                console.log(`📸 工具栏图片上传成功: ${file.name}, 大小: ${(imageUrl.length / 1024).toFixed(1)}KB`);
                 
                 const fabricManager = this.getFabricManager();
                 if (fabricManager && fabricManager.uploadImageToCanvas) {
@@ -1036,14 +1265,14 @@ export class EventHandlers {
             
             reader.onerror = () => {
                 console.error('❌ 读取图片文件失败');
-                alert('Failed to read image file.');
+                this.showNotification('图片读取失败', 'error');
             };
             
             reader.readAsDataURL(file);
             
         } catch (error) {
             console.error('❌ 处理图片上传失败:', error);
-            alert('Failed to upload image. Please try again.');
+            this.showNotification('图片上传失败', 'error');
         }
     }
 
@@ -1071,12 +1300,12 @@ export class EventHandlers {
                 this.handleGenerateLocalPrompt(modal);
             });
             
-            // 添加悬停效果
-            generateBtn.addEventListener('mouseenter', () => {
+            // 添加悬停效果 - 使用管理的事件监听器
+            addManagedEventListener(generateBtn, 'mouseenter', () => {
                 generateBtn.style.background = '#AB47BC';
                 generateBtn.style.transform = 'translateY(-1px)';
             });
-            generateBtn.addEventListener('mouseleave', () => {
+            addManagedEventListener(generateBtn, 'mouseleave', () => {
                 generateBtn.style.background = '#9C27B0';
                 generateBtn.style.transform = 'translateY(0)';
             });
@@ -1436,13 +1665,13 @@ export class EventHandlers {
         // 添加到弹窗内部而不是body
         modal.appendChild(notification);
 
-        // 动画显示
-        setTimeout(() => notification.style.opacity = '1', 10);
+        // 动画显示 - 使用管理的定时器
+        addManagedTimeout(() => notification.style.opacity = '1', 10);
 
-        // 3秒后自动移除
-        setTimeout(() => {
+        // 3秒后自动移除 - 使用管理的定时器
+        addManagedTimeout(() => {
             notification.style.opacity = '0';
-            setTimeout(() => {
+            addManagedTimeout(() => {
                 if (notification.parentNode) {
                     modal.removeChild(notification);
                 }

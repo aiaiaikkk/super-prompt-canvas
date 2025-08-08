@@ -195,7 +195,7 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
 
 // 注册ComfyUI扩展
 app.registerExtension({
-    name: "Kontext.APIEnhancer.Extension",
+    name: "LRPG.APIEnhancer.Extension",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         // Check for API Flux Kontext Enhancer node (handle multiple possible names)
         const isAPIFluxNode = nodeData.name === "APIFluxKontextEnhancer" || 

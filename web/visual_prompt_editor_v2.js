@@ -8,6 +8,7 @@
  */
 
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
 
 // 导入模块
@@ -264,7 +265,7 @@ function cleanupModal(modal, nodeInstance) {
 }
 
 app.registerExtension({
-    name: "Kontext.VisualPromptEditor.V2",
+    name: "LRPG.VisualPromptEditor.V2",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "VisualPromptEditor") {
@@ -281,6 +282,9 @@ app.registerExtension({
                 this.addWidget("text", "editor_status", "Visual Editor Ready", () => {}, {
                     serialize: false
                 });
+                
+                // 设置LRPG WebSocket事件监听器
+                this.setupLRPGWebSocketListeners();
                 
                 // 监听双击事件
                 const originalOnDblClick = this.onDblClick;
@@ -339,8 +343,21 @@ app.registerExtension({
                     // 🧹 绑定关闭按钮的清理逻辑
                     const closeBtn = modal.querySelector('#vpe-close');
                     if (closeBtn) {
-                        closeBtn.addEventListener('click', () => {
-                            console.log('🧹 执行弹窗关闭清理...');
+                        closeBtn.addEventListener('click', async () => {
+                            console.log('💾 正在保存变换数据并关闭编辑器...');
+                            
+                            try {
+                                // 🔄 先收集并提交实际的变换数据
+                                if (modal.fabricCanvas) {
+                                    const fabricNative = modal.fabricCanvas.fabricNative;
+                                    if (fabricNative && typeof fabricNative.saveCurrentTransformsLG === 'function') {
+                                        await fabricNative.saveCurrentTransformsLG();
+                                        console.log('[Widget] ✅ 数据已保存到annotation_data');
+                                    }
+                                }
+                            } catch (submitError) {
+                                console.error('[Widget] ❌ 保存数据失败:', submitError);
+                            }
                             
                             // 执行完整清理
                             performModalCleanup();
@@ -350,7 +367,7 @@ app.registerExtension({
                                 modal.parentNode.removeChild(modal);
                             }
                             
-                            console.log('✅ 弹窗已关闭并清理完成');
+                            console.log('✅ 编辑器已保存并关闭');
                         });
                     }
                     
@@ -460,8 +477,14 @@ app.registerExtension({
                 let layersData = null;
                 
                 try {
-                    // 方法1：从输入连接获取
-                    if (this.inputs && this.inputs.length > 0) {
+                    // 方法0：优先使用WebSocket接收到的图像数据
+                    if (this.websocketImageData) {
+                        imageData = this.websocketImageData;
+                        console.log('[LRPG] 🎯 使用WebSocket接收到的图像数据');
+                    }
+                    
+                    // 方法1：从输入连接获取（如果没有WebSocket数据）
+                    if (!imageData && this.inputs && this.inputs.length > 0) {
                         const imageInput = this.inputs[0];
                         const layersInput = this.inputs[1];
                         
@@ -608,6 +631,87 @@ app.registerExtension({
             
             
             
+            
+            // 🚀 设置LRPG WebSocket事件监听器
+            nodeType.prototype.setupLRPGWebSocketListeners = function() {
+                if (!api || !api.addEventListener) {
+                    console.warn('[LRPG_WebSocket] API不可用，跳过WebSocket监听器设置');
+                    return;
+                }
+                
+                // 监听后端的LRPG编辑器请求
+                api.addEventListener("lrpg_editor_binary_request", (event) => {
+                    console.log('[LRPG_WebSocket] 🎯 接收到后端编辑器请求:', event.detail);
+                    
+                    // 检查是否是当前节点的请求
+                    if (event.detail.node_id && event.detail.node_id.toString() === this.id.toString()) {
+                        console.log('[LRPG_WebSocket] 🎯 匹配到当前节点请求，准备数据');
+                        
+                        // 存储WebSocket接收到的图像数据（使用LG Tools格式）
+                        if (event.detail.image_data) {
+                            this.websocketImageData = event.detail.image_data;  // Data URL格式
+                            this.websocketCanvasSize = {
+                                width: event.detail.canvas_width || 800,
+                                height: event.detail.canvas_height || 600
+                            };
+                            console.log('[LRPG_WebSocket] 📷 已接收Data URL图像数据，准备发送默认Transform数据');
+                        }
+                        
+                        // 🚀 自动打开编辑器，让用户立即可以编辑
+                        setTimeout(async () => {
+                            try {
+                                console.log('[LRPG_WebSocket] 🚀 自动打开编辑器供用户编辑');
+                                await this.openUnifiedEditor();
+                                
+                                // 编辑器打开后，发送确认响应
+                                const acknowledgmentData = {
+                                    node_id: event.detail.node_id,
+                                    timestamp: Date.now(),
+                                    protocol: 'lg_websocket_ack',
+                                    status: 'editor_opened',
+                                    message: '编辑器已打开，用户可以开始编辑'
+                                };
+                                
+                                const response = await fetch('/lrpg_editor/submit_transform', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(acknowledgmentData)
+                                });
+                                
+                                if (response.ok) {
+                                    console.log('[LRPG_WebSocket] ✅ 编辑器已打开，确认响应已发送');
+                                } else {
+                                    console.error('[LRPG_WebSocket] ❌ 确认响应发送失败');
+                                }
+                            } catch (error) {
+                                console.error('[LRPG_WebSocket] ❌ 自动打开编辑器失败:', error);
+                                // 如果自动打开失败，至少发送确认响应防止超时
+                                const fallbackData = {
+                                    node_id: event.detail.node_id,
+                                    timestamp: Date.now(),
+                                    protocol: 'lg_websocket_ack',
+                                    status: 'editor_open_failed',
+                                    message: '自动打开编辑器失败，需要用户手动双击'
+                                };
+                                
+                                try {
+                                    await fetch('/lrpg_editor/submit_transform', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(fallbackData)
+                                    });
+                                } catch (fallbackError) {
+                                    console.error('[LRPG_WebSocket] ❌ 发送降级确认失败:', fallbackError);
+                                }
+                            }
+                        }, 300);  // 稍微延迟，确保数据存储完成
+                        
+                        console.log('[LRPG_WebSocket] 📷 WebSocket图像数据已接收，准备自动打开编辑器');
+                    }
+                });
+                
+                console.log('[LRPG_WebSocket] ✅ WebSocket事件监听器已设置');
+            };
             
             // 🎨 绑定图层可见性事件
             nodeType.prototype.bindLayerVisibilityEvents = function(modal) {
