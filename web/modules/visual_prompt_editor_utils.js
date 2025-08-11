@@ -693,142 +693,401 @@ export const CONSTRAINT_PROMPTS = {
     
     // === 🎨 Appearance Transformation Constraints ===
     'change_color': [
-        'preserve original material textures (fabric weave, skin pores, surface roughness)',
-        'maintain consistent lighting reflections and shadows on the recolored surface',
-        'avoid color bleeding into adjacent objects or areas',
-        'keep the same level of saturation and brightness relative to scene lighting'
+        '保持原始材质纹理（织物编织、皮肤毛孔、表面粗糙度）',
+        '保持重新着色表面上一致的光照反射和阴影',
+        '避免颜色渗入相邻物体或区域',
+        '保持相对于场景光照的相同饱和度和亮度水平'
     ],
     
     'replace_object': [
-        'match the exact perspective angle and viewing direction of the original object',
-        'replicate the lighting direction, intensity, and color temperature from the scene',
-        'scale the replacement to maintain realistic proportional relationships',
-        'integrate cast shadows that match the scene\'s lighting conditions'
+        '匹配原始物体的精确视角和观看方向',
+        '复制场景中的光照方向、强度和色温',
+        '缩放替换物以保持现实的比例关系',
+        '集成与场景光照条件匹配的投射阴影'
     ],
     
     'change_style': [
-        'preserve the object\'s fundamental geometric structure and proportions',
-        'maintain recognizable key features while applying stylistic elements',
-        'ensure the style change doesn\'t conflict with the surrounding realistic environment',
-        'keep edge transitions smooth to avoid jarring visual breaks'
+        '保持物体的基本几何结构和比例',
+        '在应用风格元素时保持可识别的关键特征',
+        '确保风格变化不与周围的真实环境冲突',
+        '保持边缘过渡平滑以避免刺眼的视觉断裂'
     ],
 
     // === 👤 Character Editing Constraints ===
     'change_expression': [
-        'maintain bilateral facial symmetry and natural muscle movement patterns',
-        'preserve individual facial features and bone structure characteristics',
-        'ensure expression changes follow realistic facial anatomy constraints',
-        'keep eye contact direction and gaze focus consistent with the original'
+        '保持面部双侧对称和自然的肌肉运动模式',
+        '保持个人面部特征和骨骼结构特征',
+        '确保表情变化遵循真实的人体解剖学约束',
+        '保持眼神接触方向和注视焦点与原始一致'
     ],
     
     'change_clothing': [
-        'ensure fabric draping follows realistic physics and body contours',
-        'match clothing style to the person\'s age, body type, and occasion context',
-        'maintain proper color harmony with skin tone and surrounding environment',
-        'preserve original body proportions visible through clothing fit'
+        '确保织物悬垂遵循真实的物理规律和身体轮廓',
+        '使服装风格与年龄、体型和场合背景相匹配',
+        '保持与肤色和周围环境的适当色彩和谐',
+        '保持通过服装合身度可见的原始身体比例'
     ],
     
     'change_pose': [
-        'follow human anatomical joint limitations and natural range of motion',
-        'maintain realistic weight distribution and balance points',
-        'preserve muscle tension consistency throughout the pose change',
-        'ensure the new pose fits logically within the environmental context'
+        '遵循人体解剖学关节限制和自然的运动范围',
+        '保持现实的重量分布和平衡点',
+        '在整个姿势变化中保持肌肉张力一致性',
+        '确保新姿势在环境背景中逻辑合理'
     ],
 
     // === 🏗️ Scene Editing Constraints ===
     'change_background': [
-        'match atmospheric perspective depth cues (color temperature, contrast fading)',
-        'align lighting direction and color temperature with the new environment',
-        'preserve edge quality and natural interaction between subject and background',
-        'maintain consistent scale relationships between foreground and background elements'
+        '匹配大气透视深度线索（色温、对比度衰减）',
+        '使光照方向和色温与新环境对齐',
+        '保持主体和背景之间的边缘质量和自然交互',
+        '保持前景和背景元素之间的一致比例关系'
+    ],
+    
+    'change_texture': [
+        '在改变表面属性时保持原始物体的形状和形态',
+        '使新纹理与现有光照条件和环境背景相匹配',
+        '确保材质对光和阴影的现实响应',
+        '保持一致的纹理分辨率和细节质量'
+    ],
+    
+    'enhance_skin_texture': [
+        '保持自然的皮肤毛孔和微纹理细节',
+        '避免塑料或过度光滑的人工外观',
+        '保持一致的肤色变化和瑕疵特征',
+        '确保现实的次表面散射和半透明效果'
+    ],
+    
+    'blur_background': [
+        '在模糊背景时保持对主体的清晰聚焦',
+        '基于焦距创建自然的景深渐进',
+        '避免清晰和模糊区域之间不自然的生硬过渡',
+        '通过模糊保持背景光照和色彩氛围'
+    ],
+    
+    'character_expression': [
+        '保持面部双侧对称和自然的肌肉运动模式',
+        '保持个人面部特征和骨骼结构特征',
+        '确保表情变化遵循真实的人体解剖学约束',
+        '保持眼神接触方向和注视焦点与原始一致'
+    ],
+    
+    'character_hair': [
+        '保持自然的发丝分离和飞散细节',
+        '保持真实的头发物理特性和运动特征',
+        '确保与头发纹理和体积的一致光照交互',
+        '避免不自然的头盔式或过于完美的头发外观'
+    ],
+    
+    'character_accessories': [
+        '确保相对于角色的适当比例和尺度',
+        '保持与服装和身体位置的现实集成',
+        '保持与配饰的一致光照和阴影交互',
+        '避免悬浮或分离的配饰外观'
+    ],
+    
+    'character_age': [
+        '保持一致的面部结构和骨骼比例',
+        '保持自然的皮肤纹理和衰老特征',
+        '确保对头发颜色和纹理模式的现实变化',
+        '避免不成比例或不一致的衰老效果'
+    ],
+    
+    'detail_enhance': [
+        '避免产生不自然边缘光晕的过度锐化',
+        '保持自然的纹理变化和表面不规则性',
+        '保持原始艺术意图和风格特征',
+        '确保在所有焦点区域的一致细节增强'
+    ],
+    
+    'realism_enhance': [
+        '保持原始艺术意图和风格特征',
+        '保持一致的光照和阴影关系',
+        '避免与原始风格的超现实主义不一致',
+        '确保现实的材质属性和表面交互'
+    ],
+    
+    'camera_operation': [
+        '保持一致的光学特性和镜头行为',
+        '保持现实的景深和焦点过渡',
+        '避免不自然的相机角度或不可能的视角',
+        '确保适当的曝光和动态范围关系'
     ],
     
     'add_object': [
-        'calculate correct size based on distance and perspective in the scene',
-        'replicate existing lighting conditions including shadows and reflections',
-        'ensure the added object doesn\'t violate physical space occupancy',
-        'match the visual style and quality level of existing scene elements'
+        '基于场景中的距离和透视计算正确尺寸',
+        '复制现有光照条件，包括阴影和反射',
+        '确保添加的物体不违反物理空间占用',
+        '匹配现有场景元素的视觉风格和质量水平'
     ],
     
     'remove_object': [
-        'analyze surrounding patterns and textures for coherent reconstruction',
-        'maintain continuous perspective lines and vanishing points',
-        'preserve lighting gradients and shadow patterns in the filled area',
-        'avoid creating impossible spatial configurations'
+        '分析周围模式和纹理以进行连贯的重建',
+        '保持连续的透视线和消失点',
+        '保持填充区域中的光照渐变和阴影模式',
+        '避免创建不可能的空间配置'
     ],
 
     // === 📐 Geometric Transformation Constraints ===
     'resize_object': [
-        'maintain pixel quality and avoid interpolation artifacts during scaling',
-        'adjust shadow size and casting angle proportionally to the new scale',
-        'preserve relative positioning within the scene\'s spatial hierarchy',
-        'ensure the resized object doesn\'t create unrealistic proportional relationships'
+        '在缩放过程中保持像素质量并避免插值伪影',
+        '按比例调整阴影大小和投射角度以适应新尺度',
+        '保持在场景空间层次中的相对定位',
+        '确保调整大小的物体不会产生不现实的比例关系'
     ],
     
     'adjust_lighting': [
-        'respect the object\'s surface material properties (reflectivity, translucency)',
-        'maintain consistent color temperature with other light sources in the scene',
-        'calculate realistic shadow casting based on the new lighting direction',
-        'preserve fine surface details while adjusting overall illumination'
+        '尊重物体表面材质属性（反射率、半透明性）',
+        '保持与场景中其他光源的一致色温',
+        '基于新的光照方向计算现实的阴影投射',
+        '在调整整体照明时保持精细的表面细节'
     ],
 
     // === 🌍 Global Editing Constraints ===
     'global_color_grade': [
-        'maintain natural skin tone accuracy across all human subjects',
-        'preserve important detail visibility in shadows and highlights',
-        'keep color relationships harmonious and avoid unrealistic color casts',
-        'maintain adequate contrast for visual clarity and depth perception'
+        '在所有人体主体上保持自然的肤色准确性',
+        '保持阴影和高光中重要细节的可见性',
+        '保持色彩关系和谐并避免不自然的色偏',
+        '保持足够的对比度以确保视觉清晰度和深度感知'
     ],
     
     'global_style_transfer': [
-        'preserve essential compositional elements and focal point hierarchy',
-        'maintain sufficient detail for important visual information',
-        'ensure style application doesn\'t compromise image readability',
-        'keep the artistic transformation appropriate to the original subject matter'
+        '保持基本构图元素和焦点层次',
+        '保持重要视觉信息的足够细节',
+        '确保风格应用不影响图像可读性',
+        '保持艺术转换适合原始主题'
     ],
     
     'enhance_quality': [
-        'avoid over-sharpening that creates unrealistic edge halos',
-        'balance noise reduction with preservation of fine texture details',
-        'maintain natural color saturation levels without over-enhancement',
-        'preserve the original photographic character and authenticity'
+        '避免产生不自然边缘光晕的过度锐化',
+        '平衡降噪与精细纹理细节的保持',
+        '保持自然的色彩饱和度水平而不过度增强',
+        '保持原始摄影特征和真实性'
     ],
 
     // === 📝 Text Editing Constraints ===
     'text_add': [
-        'choose typography that matches the image\'s aesthetic and historical period',
-        'ensure text readability against the background through appropriate contrast',
-        'position text to enhance rather than obstruct important visual elements',
-        'scale text appropriately for the image resolution and viewing context'
+        '选择与图像美学和历史时期相匹配的字体',
+        '通过适当的对比度确保文本在背景上的可读性',
+        '定位文本以增强而不是阻碍重要的视觉元素',
+        '为图像分辨率和观看环境适当缩放文本'
     ],
     
     'text_remove': [
-        'analyze underlying textures and patterns for seamless reconstruction',
-        'maintain consistent lighting and shadow patterns where text was removed',
-        'preserve any important visual information that might be behind the text',
-        'avoid creating obvious rectangular patches or unnatural texture transitions'
+        '分析底层纹理和模式以进行无缝重建',
+        '保持文本移除处的一致光照和阴影模式',
+        '保持可能位于文本后面的任何重要视觉信息',
+        '避免创建明显的矩形补丁或不自然的纹理过渡'
     ],
     
     'text_edit': [
-        'match the original text\'s font characteristics (style, weight, spacing)',
-        'maintain the same text placement and alignment principles',
-        'preserve original color relationships and text treatment effects',
-        'ensure new text length fits appropriately within the available space'
+        '匹配原始文本的字体特征（样式、粗细、间距）',
+        '保持相同的文本放置和对齐原则',
+        '保持原始色彩关系和文本处理效果',
+        '确保新文本长度适当适应可用空间'
     ],
 
     // === 🔧 Professional Operations Constraints ===
     'content_aware_fill': [
-        'analyze multiple surrounding areas for consistent pattern sampling',
-        'maintain natural randomness to avoid obvious repetitive patterns',
-        'preserve lighting gradients and directional texture flows',
-        'ensure filled content doesn\'t create impossible visual contradictions'
+        '分析多个周围区域以进行一致的模式采样',
+        '保持自然的随机性以避免明显的重复模式',
+        '保持光照渐变和方向性纹理流动',
+        '确保填充内容不会产生不可能的视觉矛盾'
     ],
     
     'perspective_transform': [
-        'maintain straight lines that should remain straight in the corrected view',
-        'preserve proportional relationships between architectural elements',
-        'ensure the transformation doesn\'t create impossible geometric configurations',
-        'maintain realistic viewing angles that follow optical physics principles'
+        '保持在校正视图中应保持直线的直线',
+        '保持建筑元素之间的比例关系',
+        '确保转换不会产生不可能的几何配置',
+        '保持遵循光学物理学原理的现实观看角度'
+    ],
+    
+    'global_brightness_contrast': [
+        '避免高光和阴影的过曝或细节损失',
+        '保持自然的色调范围和对比度关系',
+        '保持图像中现实的亮度过渡',
+        '确保一致的对比度处理而无需人工增强'
+    ],
+    
+    'global_hue_saturation': [
+        '保持自然的肤色准确性和色彩关系',
+        '避免不自然的色偏或过饱和效果',
+        '保持和谐的色彩平衡和大气一致性',
+        '确保不同色彩区域的一致饱和度水平'
+    ],
+    
+    'global_sharpen_blur': [
+        '避免不自然的边缘光晕或过度锐化伪影',
+        '保持一致的焦点过渡和深度关系',
+        '保持原始图像质量而无需人工增强',
+        '确保所有焦点区域的统一处理'
+    ],
+    
+    'global_noise_reduction': [
+        '保持重要的精细细节和纹理信息',
+        '避免塑料或过度光滑的人工外观',
+        '保持自然的表面特性和材质属性',
+        '确保一致的降噪而不会损失细节'
+    ],
+    
+    'global_enhance': [
+        '避免产生人工外观的过度处理',
+        '保持自然图像特征和艺术意图',
+        '在进行细微改进时保持原始质量',
+        '确保所有图像区域的一致增强'
+    ],
+    
+    'global_filter': [
+        '避免不自然的滤镜效果或人工外观',
+        '保持一致的图像质量和艺术完整性',
+        '保持原始光照和色彩关系',
+        '确保无伪影的统一滤镜应用'
+    ],
+    
+    'global_perspective': [
+        '保持现实的空间关系和透视准确性',
+        '避免扭曲的比例或不可能的视角',
+        '保持一致的消失点和空间层次',
+        '确保自然的深度感知和尺寸准确性'
+    ],
+    
+    'colorize_image': [
+        '保持原始亮度值和色调关系',
+        '保持自然的色彩过渡和和谐平衡',
+        '避免不自然的色偏或不一致的着色',
+        '确保所有图像区域的一致色彩应用'
+    ],
+    
+    'relight_scene': [
+        '保持现实的光照方向和阴影一致性',
+        '保持自然的大气透视和深度线索',
+        '避免过曝或不自然的光照效果',
+        '确保与所有表面的一致光交互'
+    ],
+    
+    'teleport_context': [
+        '保持主体完整性和比例关系',
+        '确保一致的环境集成和空间和谐',
+        '保持现实的材质属性和表面交互',
+        '避免不自然的上下文过渡或空间不一致'
+    ],
+    
+    'text_resize': [
+        '保持文本可读性和比例关系',
+        '避免缩放期间的像素化或质量损失',
+        '保持一致的排版和字体特征',
+        '确保适合构图适当的文本尺寸'
+    ],
+    
+    'object_combine': [
+        '保持自然的文本-对象空间关系',
+        '确保一致的视觉层次和构图平衡',
+        '避免冲突的文本和对象视觉元素',
+        '保持可读性同时保持美学集成'
+    ],
+    
+    'zoom_focus': [
+        '保持图像质量并避免插值伪影',
+        '保持自然的焦点过渡和深度关系',
+        '避免不现实的放大或扭曲效果',
+        '确保整个图像的一致焦点强调'
+    ],
+    
+    'stylize_local': [
+        '保持主体识别和关键特征',
+        '避免失去基本特征的过度风格化',
+        '保持一致的艺术方向和美学统一',
+        '确保与环境的自然风格集成'
+    ],
+    
+    'custom': [
+        '保持自然图像质量并避免伪影',
+        '保持原始艺术意图和特征',
+        '确保所有图像区域的一致处理',
+        '避免不自然或不一致的处理效果'
+    ],
+    
+    'geometric_warp': [
+        '保持比例关系和空间准确性',
+        '避免不自然的扭曲或不可能的几何配置',
+        '保持一致的透视和观看角度',
+        '确保遵循物理学原理的现实转换'
+    ],
+    
+    'lens_distortion': [
+        '保持现实的光学特性和镜头行为',
+        '避免不自然的扭曲效果或光学不一致',
+        '保持一致的图像质量和细节完整性',
+        '确保真实镜头特性的准确模拟'
+    ],
+    
+    'seamless_removal': [
+        '保持自然的背景连续性和纹理模式',
+        '避免可见边界或明显的重建伪影',
+        '保持一致的光照和阴影关系',
+        '确保智能的内容感知填充'
+    ],
+    
+    'smart_patch': [
+        '保持一致的纹理模式和表面属性',
+        '避免明显的补丁边界或重复模式',
+        '保持自然的随机性和材质特征',
+        '确保与周围区域的无缝集成'
+    ],
+    
+    'style_blending': [
+        '保持和谐的风格过渡和艺术统一',
+        '避免冲突的风格元素或刺眼的视觉断裂',
+        '保持一致的美学方向和艺术意图',
+        '确保自然的风格演变和集成'
+    ],
+    
+    'collage_integration': [
+        '保持自然的元素关系和空间和谐',
+        '避免不一致的视觉风格或冲突元素',
+        '保持一致的光照和环境背景',
+        '确保不同组件的无缝混合'
+    ],
+    
+    'texture_mixing': [
+        '保持现实的材质属性和表面特征',
+        '避免不自然的纹理冲突或不一致的表面',
+        '保持对光照条件的一致材质响应',
+        '确保自然的材质过渡和交互'
+    ],
+    
+    'precision_cutout': [
+        '保持准确的边缘检测和自然边界',
+        '避免粗糙边缘或不完整的物体提取',
+        '保持一致的细节质量和物体完整性',
+        '确保与背景元素的清晰分离'
+    ],
+    
+    'alpha_composite': [
+        '保持自然的透明度和图层混合效果',
+        '避免不自然的透明度过渡或可见接缝',
+        '保持一致的空间关系和深度感知',
+        '确保现实的图层集成和交互'
+    ],
+    
+    'mask_feathering': [
+        '保持自然的边缘过渡和柔和混合效果',
+        '避免生硬边缘或不一致的羽化模式',
+        '保持边界区域的一致细节质量',
+        '确保遮罩和非遮罩区域之间的平滑集成'
+    ],
+    
+    'depth_composite': [
+        '保持现实的空间关系和深度感知',
+        '避免不一致的3D集成或空间冲突',
+        '保持一致的透视和尺寸准确性',
+        '确保自然的图层排序和深度交互'
+    ],
+    
+    'professional_product': [
+        '保持产品完整性和准确表示',
+        '避免不现实的展示或不一致的质量',
+        '保持专业的光照和构图标准',
+        '确保目录质量的结果和商业吸引力'
     ],
     
     'default': []
@@ -839,142 +1098,401 @@ export const DECORATIVE_PROMPTS = {
     
     // === 🎨 Appearance Transformation Aesthetic Enhancement ===
     'change_color': [
-        'apply color harmony principles (complementary, analogous, or triadic schemes)',
-        'enhance color vibrancy while maintaining natural appearance',
-        'create smooth color transitions with subtle gradient effects',
-        'optimize color balance to create visual interest and focal emphasis'
+        '应用色彩和谐原则（互补、类似或三色方案）',
+        '在保持自然外观的同时增强色彩活力',
+        '通过微妙的渐变效果创建平滑的色彩过渡',
+        '优化色彩平衡以创造视觉趣味和焦点强调'
     ],
     
     'replace_object': [
-        'ensure the replacement enhances the overall compositional balance',
-        'create natural visual flow and eye movement through the scene',
-        'optimize size and placement for golden ratio proportional relationships',
-        'enhance narrative coherence and emotional impact of the scene'
+        '确保替换物增强整体构图平衡',
+        '创建自然的视觉流和眼球运动穿过场景',
+        '优化尺寸和位置以实现黄金比例关系',
+        '增强场景的叙事连贯性和情感影响'
     ],
     
     'change_style': [
-        'apply sophisticated artistic interpretation with masterful technique',
-        'create visually striking style adaptation that enhances artistic appeal',
-        'maintain elegant balance between stylization and recognizability',
-        'develop rich visual texture and depth through style application'
+        '运用精湛技巧进行复杂的艺术诠释',
+        '创造增强艺术吸引力的视觉冲击风格适应',
+        '在风格化和可识别性之间保持优雅平衡',
+        '通过风格应用发展丰富的视觉纹理和深度'
     ],
 
     // === 👤 Character Editing Aesthetic Enhancement ===
     'change_expression': [
-        'create authentic emotional resonance and human connection',
-        'enhance natural facial attractiveness through subtle refinements',
-        'develop expressive depth that conveys compelling personality',
-        'optimize facial harmony and symmetry for maximum visual appeal'
+        '创造真实的情感共鸣和人际连接',
+        '通过微妙修饰增强自然面部吸引力',
+        '发展传达引人入胜个性的表现深度',
+        '优化面部和谐与对称性以获得最大视觉吸引力'
     ],
     
     'change_clothing': [
-        'apply fashion design principles for stylistic sophistication',
-        'enhance body silhouette and proportional attractiveness',
-        'create color coordination that complements skin tone and environment',
-        'develop texture richness and fabric authenticity for visual luxury'
+        '应用时尚设计原则以实现风格复杂性',
+        '增强身体轮廓和比例吸引力',
+        '创造与肤色和环境相辅相成的色彩协调',
+        '发展纹理丰富度和织物真实性以实现视觉奢华'
     ],
     
     'change_pose': [
-        'create dynamic energy and graceful movement flow',
-        'enhance body language communication and emotional expression',
-        'optimize proportional relationships for maximum visual appeal',
-        'develop compelling gesture language that enhances narrative impact'
+        '创造动态能量和优雅的运动流动',
+        '增强肢体语言沟通和情感表达',
+        '优化比例关系以获得最大视觉吸引力',
+        '发展增强叙事影响的引人注目的手势语言'
     ],
 
     // === 🏗️ Scene Editing Aesthetic Enhancement ===
     'change_background': [
-        'create atmospheric depth and environmental mood enhancement',
-        'develop rich contextual storytelling through environmental design',
-        'optimize compositional framing and negative space utilization',
-        'enhance emotional resonance through environmental psychology principles'
+        '创造大气深度和环境情绪增强',
+        '通过环境设计发展丰富的情境叙事',
+        '优化构图框架和负空间利用',
+        '通过环境心理学原则增强情感共鸣'
     ],
     
     'add_object': [
-        'enhance compositional interest and visual narrative richness',
-        'create natural focal point hierarchy and eye movement guidance',
-        'develop contextual storytelling through thoughtful object selection',
-        'optimize spatial relationships for maximum visual harmony'
+        '增强构图趣味和视觉叙事丰富性',
+        '创造自然的焦点层次和眼球运动引导',
+        '通过深思熟虑的物体选择发展情境叙事',
+        '优化空间关系以获得最大视觉和谐'
     ],
     
     'remove_object': [
-        'create cleaner, more focused compositional emphasis',
-        'enhance visual simplicity and elegant minimalism',
-        'optimize spatial flow and negative space relationships',
-        'develop improved visual hierarchy and focal point clarity'
+        '创造更清洁、更集中的构图强调',
+        '增强视觉简约性和优雅极简主义',
+        '优化空间流动和负空间关系',
+        '发展改进的视觉层次和焦点清晰度'
     ],
 
     // === 📐 Geometric Transformation Aesthetic Enhancement ===
     'resize_object': [
-        'optimize proportional relationships for golden ratio harmony',
-        'enhance visual weight distribution and compositional balance',
-        'create improved focal point emphasis through strategic sizing',
-        'develop better spatial rhythm and visual flow patterns'
+        '优化比例关系以实现黄金比例和谐',
+        '增强视觉重量分布和构图平衡',
+        '通过战略性尺寸创建改进的焦点强调',
+        '发展更好的空间节奏和视觉流动模式'
     ],
     
     'adjust_lighting': [
-        'create dramatic chiaroscuro effects for emotional depth',
-        'enhance three-dimensional form modeling and sculptural quality',
-        'develop atmospheric mood through sophisticated lighting design',
-        'optimize highlight and shadow relationships for maximum visual impact'
+        '创造戏剧性的明暗对比效果以产生情感深度',
+        '增强三维形式建模和雕塑品质',
+        '通过复杂的光照设计发展大气情绪',
+        '优化高光和阴影关系以获得最大视觉影响'
     ],
 
     // === 🌍 Global Editing Aesthetic Enhancement ===
     'global_color_grade': [
-        'create cinematic color palette with professional film-grade quality',
-        'develop rich tonal depth and sophisticated color relationships',
-        'enhance emotional impact through color psychology principles',
-        'optimize visual hierarchy through strategic color emphasis'
+        '创造具有专业电影质量的电影级调色板',
+        '发展丰富的色调深度和复杂的色彩关系',
+        '通过色彩心理学原则增强情感影响',
+        '通过战略性色彩强调优化视觉层次'
     ],
     
     'global_style_transfer': [
-        'create artistic masterpiece quality with sophisticated aesthetic vision',
-        'develop unique visual identity through creative style interpretation',
-        'enhance cultural and artistic significance through style application',
-        'optimize creative expression while maintaining compositional excellence'
+        '创造具有复杂美学愿景的艺术杰作质量',
+        '通过创造性风格诠释发展独特的视觉身份',
+        '通过风格应用增强文化和艺术意义',
+        '在保持构图卓越的同时优化创意表达'
     ],
     
     'enhance_quality': [
-        'achieve crystal-clear professional photography standards',
-        'enhance fine detail definition for maximum visual clarity',
-        'develop rich texture depth and tactile visual quality',
-        'optimize dynamic range for stunning visual impact'
+        '达到清晰的专业摄影标准',
+        '增强精细细节定义以获得最大视觉清晰度',
+        '发展丰富的纹理深度和触觉视觉质量',
+        '优化动态范围以产生令人惊叹的视觉影响'
     ],
 
     // === 📝 Text Editing Aesthetic Enhancement ===
     'text_add': [
-        'apply professional typography design principles for maximum readability',
-        'create elegant text integration that enhances overall composition',
-        'develop appropriate visual hierarchy through font size and weight relationships',
-        'optimize color contrast and spatial relationships for visual harmony'
+        '应用专业排版设计原则以获得最大可读性',
+        '创造优雅的文本集成以增强整体构图',
+        '通过字体大小和粗细关系发展适当的视觉层次',
+        '优化色彩对比和空间关系以实现视觉和谐'
     ],
     
     'text_remove': [
-        'create seamless visual flow without textual interruption',
-        'enhance compositional purity and visual elegance',
-        'optimize spatial relationships and negative space utilization',
-        'develop cleaner aesthetic focus on core visual elements'
+        '创造没有文本中断的无缝视觉流动',
+        '增强构图纯粹性和视觉优雅',
+        '优化空间关系和负空间利用',
+        '在核心视觉元素上发展更清洁的美学焦点'
     ],
     
     'text_edit': [
-        'enhance textual communication clarity and visual impact',
-        'create improved typographic sophistication and professional appearance',
-        'optimize text readability while maintaining aesthetic integration',
-        'develop consistent visual branding and stylistic coherence'
+        '增强文本沟通清晰度和视觉影响',
+        '创造改进的排版复杂性和专业外观',
+        '在保持美学集成的同时优化文本可读性',
+        '发展一致的视觉品牌和风格连贯性'
     ],
 
     // === 🔧 Professional Operations Aesthetic Enhancement ===
     'content_aware_fill': [
-        'create invisible, seamless reconstruction with natural organic flow',
-        'enhance overall compositional integrity and visual coherence',
-        'develop rich textural authenticity and surface quality',
-        'optimize spatial relationships for improved visual harmony'
+        '创造具有自然有机流动的不可见无缝重建',
+        '增强整体构图完整性和视觉连贯性',
+        '发展丰富的纹理真实性和表面质量',
+        '优化空间关系以改善视觉和谐'
     ],
     
     'perspective_transform': [
-        'create architectural elegance and geometric precision',
-        'enhance spatial clarity and dimensional accuracy',
-        'develop professional architectural photography quality',
-        'optimize viewing angle for maximum visual impact and clarity'
+        '创造建筑优雅性和几何精确性',
+        '增强空间清晰度和尺寸准确性',
+        '发展专业的建筑摄影质量',
+        '优化观看角度以获得最大视觉影响和清晰度'
+    ],
+    
+    'change_texture': [
+        '增强材质真实性和表面触觉质量',
+        '创造增加视觉趣味的丰富纹理变化',
+        '发展对光照条件的适当材质响应',
+        '优化纹理集成以实现整体构图和谐'
+    ],
+    
+    'enhance_skin_texture': [
+        '实现具有真实微纹理的自然皮肤外观',
+        '在保持个体特征的同时增强皮肤质量',
+        '发展现实的次表面散射和半透明效果',
+        '优化肤色和谐和自然美'
+    ],
+    
+    'blur_background': [
+        '创造具有美学质量的复杂散景效果',
+        '通过选择性焦点控制增强主体分离',
+        '发展具有平滑衰减的自然深度渐进',
+        '通过战略性散焦优化构图强调'
+    ],
+    
+    'character_expression': [
+        '创造具有人际连接的真实情感共鸣',
+        '在保持个体身份的同时增强面部表现力',
+        '发展传达叙事深度的微妙情感细节',
+        '在保持自然外观的同时优化表现力影响'
+    ],
+    
+    'character_hair': [
+        '创造具有真实物理行为的自然头发运动',
+        '在保持真实材质质量的同时增强头发纹理',
+        '发展补充角色的复杂头发造型',
+        '优化头发-光照交互以获得最大视觉吸引力'
+    ],
+    
+    'character_accessories': [
+        '通过深思熟虑的配饰选择增强角色身份',
+        '创造保持设计连贯性的自然集成',
+        '发展增强叙事背景的复杂造型',
+        '优化配饰位置以获得最大构图和谐'
+    ],
+    
+    'character_age': [
+        '实现具有自然特征的真实年龄表现',
+        '在保持个体身份的同时增强面部特征',
+        '发展保持可信度的真实衰老模式',
+        '优化适合年龄的造型和展示'
+    ],
+    
+    'detail_enhance': [
+        '实现具有专业质量的清晰细节定义',
+        '在保持自然外观的同时增强视觉清晰度',
+        '发展丰富的纹理深度和触觉质量',
+        '在保持艺术完整性的同时优化细节影响'
+    ],
+    
+    'realism_enhance': [
+        '实现具有真实材质属性的照片级真实感',
+        '在保持艺术意图的同时增强尺寸准确性',
+        '发展真实的表面交互和光照响应',
+        '在保持风格一致性的同时优化视觉真实性'
+    ],
+    
+    'camera_operation': [
+        '实现具有技术精度的专业摄影质量',
+        '通过复杂的相机技术增强视觉影响',
+        '发展提升视觉叙事的电影品质',
+        '在保持自然外观的同时优化光学效果'
+    ],
+    
+    'global_brightness_contrast': [
+        '实现具有全动态范围的专业色调平衡',
+        '通过复杂的对比度控制增强尺寸深度',
+        '创造引导眼球的自然亮度过渡',
+        '在保持细节完整性的同时优化视觉影响'
+    ],
+    
+    'global_hue_saturation': [
+        '发展具有情感共鸣的和谐色彩关系',
+        '在保持自然真实性的同时增强色彩活力',
+        '创造增强叙事的复杂调色板',
+        '在保持肤色准确性的同时优化色彩影响'
+    ],
+    
+    'global_sharpen_blur': [
+        '通过增强边缘定义实现最佳清晰度',
+        '创造引导视觉注意力的自然锐度渐变',
+        '在没有人造外观的情况下增强感知细节',
+        '为最大构图影响优化焦点关系'
+    ],
+    
+    'global_noise_reduction': [
+        '实现具有自然纹理保持的原始图像质量',
+        '在保持真实材质外观的同时增强清晰度',
+        '创造没有塑料外观的平滑色调过渡',
+        '在保持摄影特征的同时优化清洁度'
+    ],
+    
+    'global_enhance': [
+        '通过艺术愿景创造复杂的视觉增强',
+        '在保持真实特征的同时增强自然美',
+        '发展具有增强尺寸质量的丰富视觉深度',
+        '在保持摄影完整性的同时优化美学影响'
+    ],
+    
+    'global_filter': [
+        '通过艺术意图应用复杂过滤',
+        '在保持图像完整性的同时增强视觉风格',
+        '创造统一视觉元素的一致处理',
+        '为最大美学贡献优化滤镜效果'
+    ],
+    
+    'global_perspective': [
+        '实现具有建筑精确性的复杂空间关系',
+        '通过精细视点控制增强尺寸质量',
+        '创造引导观众体验的自然透视',
+        '在保持现实比例的同时优化空间和谐'
+    ],
+    
+    'colorize_image': [
+        '实现具有真实色彩复制的自然着色',
+        '通过复杂的色彩应用增强视觉吸引力',
+        '发展保持现实主义的和谐色彩关系',
+        '在保持原始亮度的同时优化色彩影响'
+    ],
+    
+    'relight_scene': [
+        '实现具有电影氛围的专业照明质量',
+        '通过精细光照建模增强三维形式',
+        '发展创造深度的自然阴影交互',
+        '在保持现实外观的同时优化光照影响'
+    ],
+    
+    'teleport_context': [
+        '实现具有自然环境集成的无缝上下文转换',
+        '通过深思熟虑的上下文选择增强叙事连贯性',
+        '发展保持现实主义的一致空间关系',
+        '在保持主体完整性的同时优化上下文影响'
+    ],
+    
+    'text_resize': [
+        '实现具有排版精度的复杂文本缩放',
+        '通过精细比例控制增强可读性',
+        '创造保持视觉层次的自然文本关系',
+        '为最大构图和谐优化文本尺寸'
+    ],
+    
+    'object_combine': [
+        '实现具有视觉和谐的复杂对象集成',
+        '通过深思熟虑的对象关系增强叙事深度',
+        '创造统一不同元素的自然视觉连接',
+        '在保持个体身份的同时优化构图平衡'
+    ],
+    
+    'zoom_focus': [
+        '创造具有电影质量的复杂焦点强调',
+        '通过战略性放大控制增强视觉影响',
+        '发展引导观众注意力的自然焦点过渡',
+        '为最大叙事贡献优化缩放效果'
+    ],
+    
+    'stylize_local': [
+        '通过创造性愿景实现复杂的艺术增强',
+        '通过精细风格化控制增强视觉趣味',
+        '创造保持主体识别的自然艺术演变',
+        '在保持基本特征的同时优化风格影响'
+    ],
+    
+    'custom': [
+        '通过艺术意图创造复杂的自定义增强',
+        '通过精细技术执行增强视觉质量',
+        '发展保持真实特征的自然结果',
+        '为最大构图贡献优化自定义效果'
+    ],
+    
+    'geometric_warp': [
+        '通过数学精度实现复杂的几何转换',
+        '通过精细扭曲控制增强视觉流动',
+        '创造保持结构完整性的自然形状演变',
+        '在保持基本关系的同时优化转换影响'
+    ],
+    
+    'lens_distortion': [
+        '通过专业镜头特性创造真实光学效果',
+        '通过复杂扭曲控制增强尺寸质量',
+        '发展模拟真实世界光学的自然透视',
+        '为最大艺术贡献优化镜头效果'
+    ],
+    
+    'seamless_removal': [
+        '通过完美重建实现不可见的物体消除',
+        '通过战略性元素移除增强构图清晰度',
+        '创造保持场景完整性的自然背景连续性',
+        '在保持环境真实性的同时优化视觉流动'
+    ],
+    
+    'smart_patch': [
+        '创造具有上下文感知的智能纹理合成',
+        '通过复杂模式匹配增强表面连续性',
+        '发展保持真实外观的自然材质过渡',
+        '为无缝视觉连贯性优化补丁集成'
+    ],
+    
+    'style_blending': [
+        '通过艺术愿景实现复杂的风格融合',
+        '通过和谐风格组合增强创意表达',
+        '创造保持构图完整性的自然风格过渡',
+        '在保持基本特征的同时优化风格影响'
+    ],
+    
+    'collage_integration': [
+        '通过艺术意图创造复杂的元素组装',
+        '通过深思熟虑的构图增强叙事深度',
+        '发展统一不同元素的自然视觉关系',
+        '在保持个体身份的同时优化拼贴和谐'
+    ],
+    
+    'texture_mixing': [
+        '实现具有触觉真实性的复杂材质集成',
+        '通过精细纹理组合增强表面质量',
+        '创造保持物理现实主义的自然材质过渡',
+        '在保持材质身份的同时优化纹理和谐'
+    ],
+    
+    'precision_cutout': [
+        '通过手术精度实现像素完美的提取',
+        '通过精细边缘控制增强主体定义',
+        '创造保持物体完整性的自然边界',
+        '为无缝集成能力优化剪切质量'
+    ],
+    
+    'alpha_composite': [
+        '通过自然混合创造复杂的透明度效果',
+        '通过精细图层交互增强尺寸深度',
+        '发展保持空间关系的自然透明度过渡',
+        '为最大视觉现实主义优化合成质量'
+    ],
+    
+    'mask_feathering': [
+        '通过有机柔软性实现复杂的边缘过渡',
+        '通过精细羽化控制增强集成质量',
+        '创造保持构图流动的自然边界混合',
+        '为无缝视觉连贯性优化边缘处理'
+    ],
+    
+    'depth_composite': [
+        '创造具有尺寸准确性的复杂空间关系',
+        '通过精细深度集成增强三维质量',
+        '发展引导观众感知的自然空间渐进',
+        '为最大构图影响优化深度关系'
+    ],
+    
+    'professional_product': [
+        '实现具有商业标准的目录质量展示',
+        '通过专业照明控制增强产品吸引力',
+        '创造最大化产品吸引力的复杂舞台布置',
+        '为零售就绪质量优化视觉展示'
     ],
     
     'default': []
@@ -1249,6 +1767,52 @@ export class ImageCache {
 
 // 全局图像缓存实例
 export const globalImageCache = new ImageCache();
+
+/**
+ * 全局图像尺寸优化器
+ * 管理图像尺寸调整和优化
+ */
+export const globalImageSizeOptimizer = {
+    /**
+     * 优化图像尺寸以适应显示区域
+     */
+    optimizeForDisplay(image, maxWidth, maxHeight) {
+        if (!image) return null;
+        
+        const ratio = Math.min(maxWidth / image.width, maxHeight / image.height);
+        if (ratio >= 1) return image; // 不需要缩小
+        
+        const newWidth = Math.floor(image.width * ratio);
+        const newHeight = Math.floor(image.height * ratio);
+        
+        console.log(`🔧 Optimizing image size: ${image.width}x${image.height} → ${newWidth}x${newHeight}`);
+        
+        return {
+            width: newWidth,
+            height: newHeight,
+            scale: ratio
+        };
+    },
+
+    /**
+     * 计算合适的缩放比例
+     */
+    calculateScale(originalWidth, originalHeight, targetWidth, targetHeight) {
+        return Math.min(targetWidth / originalWidth, targetHeight / originalHeight);
+    },
+
+    /**
+     * 保持宽高比的尺寸计算
+     */
+    maintainAspectRatio(originalWidth, originalHeight, targetWidth, targetHeight) {
+        const scale = this.calculateScale(originalWidth, originalHeight, targetWidth, targetHeight);
+        return {
+            width: Math.floor(originalWidth * scale),
+            height: Math.floor(originalHeight * scale),
+            scale
+        };
+    }
+};
 
 /**
  * 通知显示函数 - 增强版
@@ -1945,3 +2509,92 @@ export class SVGAnnotationCreator {
 export function createSVGAnnotationCreator() {
     return new SVGAnnotationCreator();
 }
+
+/**
+ * 全局内存管理器
+ * 管理模态弹窗和编辑器的内存使用
+ */
+export const globalMemoryManager = {
+    /**
+     * 检查内存使用情况
+     */
+    checkMemoryUsage() {
+        if (performance.memory) {
+            return {
+                used: performance.memory.usedJSHeapSize,
+                total: performance.memory.totalJSHeapSize,
+                limit: performance.memory.jsHeapSizeLimit,
+                usagePercent: (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100
+            };
+        }
+        return null;
+    },
+
+    /**
+     * 格式化字节数
+     */
+    formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    /**
+     * 获取内存报告
+     */
+    getMemoryReport() {
+        const memory = this.checkMemoryUsage();
+        if (!memory) {
+            return 'Memory API not available';
+        }
+        
+        return `
+Memory Usage Report:
+- Used: ${this.formatBytes(memory.used)}
+- Total: ${this.formatBytes(memory.total)}
+- Limit: ${this.formatBytes(memory.limit)}
+- Usage: ${memory.usagePercent.toFixed(1)}%
+        `.trim();
+    },
+
+    /**
+     * 执行内存清理
+     */
+    performCleanup() {
+        // 清理图片缓存
+        if (typeof globalImageCache !== 'undefined') {
+            globalImageCache.clear();
+        }
+        
+        // 建议垃圾回收（如果可用）
+        if (window.gc) {
+            window.gc();
+        }
+        
+        console.log('🧹 Memory cleanup performed');
+    },
+
+    /**
+     * 模态弹窗关闭时的清理
+     */
+    cleanupOnModalClose(modal) {
+        // 清理事件监听器
+        const listeners = modal.querySelectorAll('[data-managed-listener]');
+        listeners.forEach(el => {
+            el.removeAttribute('data-managed-listener');
+        });
+        
+        // 清理定时器
+        if (modal._managedTimers) {
+            modal._managedTimers.forEach(timer => clearTimeout(timer));
+            modal._managedTimers = [];
+        }
+        
+        // 执行通用清理
+        this.performCleanup();
+        
+        console.log('🧹 Modal cleanup completed');
+    }
+};

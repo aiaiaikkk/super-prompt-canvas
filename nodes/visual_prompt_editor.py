@@ -8,22 +8,60 @@ Double-click node to open unified editing interface: left side for graphic annot
 
 import json
 import base64
-import numpy as np
-import torch
+import time
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
+from PIL import Image as PILImage
+# from threading import Event  # 不再需要Event，Widget架构不需要异步等待
+
+# Optional dependencies
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None
 
 try:
     import comfy.model_management as model_management
     from nodes import MAX_RESOLUTION
+    from server import PromptServer
     COMFY_AVAILABLE = True
 except ImportError:
     COMFY_AVAILABLE = False
     MAX_RESOLUTION = 8192
 
+# 移除WebSocket相关的存储函数，Widget架构不需要
+
+# 添加HTTP路由处理前端数据
+try:
+    from aiohttp import web
+    from server import PromptServer
+    
+    # ✅ 移除WebSocket逻辑，使用Widget数据流架构
+    print("[Kontext] 使用Widget数据流架构，无需HTTP路由或WebSocket")
+            
+except ImportError:
+    print("[Kontext] 警告: aiohttp不可用，事件驱动功能将受限")
+
 class VisualPromptEditor:
     """Visual Prompt Editor Node - Unified annotation editing and prompt generation"""
+    
+    def __init__(self):
+        self.node_id = None
+    
+    @classmethod
+    def clean_nodes(cls):
+        """Widget架构无需存储清理"""
+        print(f"[Kontext] Widget架构，无需清理存储")
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -35,7 +73,8 @@ class VisualPromptEditor:
                 "annotation_data": ("STRING", {"tooltip": "JSON annotation data from frontend editor"}),
                 "canvas_width": ("INT", {"default": 800, "min": 200, "max": 2048, "step": 10, "tooltip": "Canvas width in pixels"}),
                 "canvas_height": ("INT", {"default": 600, "min": 200, "max": 2048, "step": 10, "tooltip": "Canvas height in pixels"}),
-            }
+            },
+            "hidden": {"unique_id": "UNIQUE_ID"}
         }
     
     RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING")
@@ -46,1035 +85,1658 @@ class VisualPromptEditor:
         "model_instruction"
     )
     FUNCTION = "visual_prompt_edit"
-    CATEGORY = "kontext_super_prompt/core"
-    DESCRIPTION = "🎨 Kontext Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
+    CATEGORY = "lrpg_super_prompt/core"
+    DESCRIPTION = "🎨 LRPG Super Prompt Visual Editor - Unified visual annotation editor with multimodal AI prompt generation capabilities"
     
-    def visual_prompt_edit(self, image: torch.Tensor = None, annotation_data: str = None,
-                          canvas_width: int = 800, canvas_height: int = 600):
-        """Unified visual prompt editing functionality"""
+    def visual_prompt_edit(self, image = None, annotation_data: str = None,
+                          canvas_width: int = 800, canvas_height: int = 600, unique_id=None):
+        """
+        LRPG Transform-First架构 - 事件驱动响应式处理
+        从annotation_data架构彻底升级为Transform-First + Event-Driven架构
+        """
         
         try:
-            # Process annotation data and canvas image
-            layers_data = []
-            include_annotation_numbers = True  # Default to including numbers
-            text_prompt = ""  # Initialize text_prompt from annotation data
-            # Initialize enhanced prompts with defaults - 🔴 支持多选格式
+            # ===== Widget架构初始化 =====
+            self.node_id = unique_id
+            print(f"[Kontext] 🚀 启动Widget数据流处理 (Node: {unique_id})")
+            print(f"[Kontext] 📊 输入图像尺寸: {image.shape if image is not None else 'None'}")
+            
+            print(f"[Kontext] 📝 annotation_data长度: {len(annotation_data) if annotation_data else 0} 字符")
+            
+            # ✅ Widget架构：直接使用annotation_data，无需WebSocket通信
+            print(f"[Kontext] 📊 Widget架构启动，直接读取annotation_data")
+            
+            # ✅ Widget架构：无需等待WebSocket，直接处理annotation_data
+            print(f"[Kontext] 📊 Widget架构：直接处理annotation_data参数")
+            frontend_data = None  # 不再使用WebSocket数据
+            self.clean_nodes()
+            
+            # ===== Transform-First 数据处理 =====
+            # 优先使用事件驱动的前端数据
+            
+            # 1. 初始化Transform数据容器
+            transform_data = {}
+            canvas_data = {}
+            user_edited_prompt = ""
             constraint_prompts = []
             decorative_prompts = []
-            user_edited_prompt = ""  # 🔴 初始化用户编辑的提示词变量
-            parsed_data = None  # 🔧 初始化parsed_data变量，确保作用域正确
-            prompt_template = "change_color"  # Default operation type
             
-            # 🎯 新增：画布图像数据
-            canvas_image_data = None
-            canvas_background_color = '#ffffff'
-            fabric_json_data = None
-            
+            # 2. 处理数据（优先级：annotation_data > 默认）
             if annotation_data and annotation_data.strip():
+                # Widget数据流：直接处理annotation_data
+                print(f"[Kontext] 📦 处理annotation_data，长度: {len(annotation_data)} 字符")
+                print(f"[Kontext] 🔍 annotation_data内容: {annotation_data[:200]}...")  # 显示前200字符
+                
                 try:
                     parsed_data = json.loads(annotation_data)
-                    print(f"🔍 Backend received annotation_data length: {len(annotation_data)} characters")
                     
-                    # Check if the data has an "annotations" key (new format)
-                    if isinstance(parsed_data, dict):
-                        # 🎯 检查是否包含完整画布图像数据 (v3.1格式)
-                        if "canvasImageDataURL" in parsed_data:
-                            canvas_image_data = parsed_data["canvasImageDataURL"]
-                            canvas_background_color = parsed_data.get("backgroundColor", "#ffffff")
-                            fabric_json_data = parsed_data.get("fabricJSON")
-                            print(f"🎨 Found complete canvas image data: background={canvas_background_color}, image size: {len(canvas_image_data) if canvas_image_data else 0} chars")
-                            
-                        if "annotations" in parsed_data:
-                            layers_data = parsed_data["annotations"]
-                            print(f"📊 Backend parsed {len(layers_data)} annotations")
-                            # 详细调试每个标注
-                            for i, layer in enumerate(layers_data):
-                                print(f"📍 Annotation {i+1}: type={layer.get('type')}, ID={layer.get('id')}")
-                                if layer.get('type') == 'brush':
-                                    print(f"🖌️ Brush data: points={len(layer.get('points', []))}, brushSize={layer.get('brushSize')}, brushFeather={layer.get('brushFeather')}")
-                        elif "layers_data" in parsed_data:  # Alternative key
-                            layers_data = parsed_data["layers_data"]
-                        else:
-                            layers_data = []
-                            print("⚠️ Backend: No annotations or layers_data field found in parsed data")
-                        
-                        # Extract include_annotation_numbers setting
-                        include_annotation_numbers = parsed_data.get("include_annotation_numbers", True)
-                        
-                        # Extract synced operation type and text from frontend
-                        synced_operation_type = parsed_data.get("operation_type")
-                        synced_target_description = parsed_data.get("target_description")
-                        
-                        # Extract constraint and decorative prompts - 🔴 支持多选格式
-                        constraint_prompts = parsed_data.get("constraint_prompts", []) or parsed_data.get("constraint_prompt", "")
-                        decorative_prompts = parsed_data.get("decorative_prompts", []) or parsed_data.get("decorative_prompt", "")
-                        print(f"🔒 Constraint prompts: {constraint_prompts}")
-                        print(f"🎨 Decorative prompts: {decorative_prompts}")
-                        
-                        # Extract selected annotations with individual operation types
-                        selected_annotations = parsed_data.get("selected_annotations", [])
-                        print(f"📝 Selected annotations: {len(selected_annotations)} items, with individual operation types")
-                        
-                        # Extract user-edited positive_prompt - 🔴 新增：读取用户修改后的提示词
-                        user_edited_prompt = parsed_data.get("positive_prompt", "")
-                        if user_edited_prompt and user_edited_prompt.strip():
-                            print(f"✅ Detected user-modified prompt: {user_edited_prompt[:50]}...")
-                        else:
-                            print("⚠️ No user-modified prompt detected, will use auto-generation")
-                        
-                        # Use synced values if available (frontend takes priority)
-                        if synced_operation_type and synced_operation_type != "custom":
-                            prompt_template = synced_operation_type
-                            print(f"🔄 Using synced operation type from frontend: {synced_operation_type}")
-                        
-                        if synced_target_description:
-                            text_prompt = synced_target_description
-                            print(f"🔄 Using synced text prompt from frontend: {synced_target_description}")
-                        
-                    elif isinstance(parsed_data, list):
-                        layers_data = parsed_data
+                    # Transform-First数据检测和处理
+                    if self._is_transform_first_data(parsed_data):
+                        print(f"[Kontext] ✅ 检测到Transform-First数据格式")
+                        transform_data, canvas_data = self._process_transform_first_data(parsed_data)
                     else:
-                        layers_data = []
-                            
-                except json.JSONDecodeError as e:
-                    print(f"Warning: JSON parsing failed: {e}")
-                    layers_data = []
-            
-            # Generate default selection (first 3 objects)
-            selected_ids = [layer.get("id", f"layer_{i}") 
-                          for i, layer in enumerate(layers_data[:3])]
-            
-            # 🔴 优先使用用户修改后的提示词，否则生成新的
-            if user_edited_prompt and user_edited_prompt.strip():
-                # 用户已经修改了提示词，直接使用
-                structured_prompt = user_edited_prompt.strip()
-                print(f"✅ Using user-modified prompt: {structured_prompt[:100]}...")
-            else:
-                # 用户没有修改，使用自动生成
-                enhanced_prompts = {
-                    'constraint_prompts': constraint_prompts,
-                    'decorative_prompts': decorative_prompts
-                }
+                        print(f"[Kontext] 🔄 旧格式数据，转换为Transform-First格式")
+                        transform_data, canvas_data = self._convert_legacy_to_transform(parsed_data)
                     
-                structured_prompt = self._generate_structured_prompt(
-                    layers_data, selected_ids, prompt_template, text_prompt, include_annotation_numbers, enhanced_prompts, selected_annotations
-                )
-                print(f"🤖 Using auto-generated prompt: {structured_prompt[:100]}...")
-            
-            # 🎯 Process image - 优先使用完整画布图像
-            if canvas_image_data:
-                # 使用Fabric.js导出的完整画布图像
-                print(f"✅ Using complete canvas image from Fabric.js (DataURL format)")
-                output_image = self._process_canvas_image_data(canvas_image_data, canvas_width, canvas_height)
-            elif image is None:
-                # 创建默认的空白画布（如果没有输入图像）
-                blank_image = torch.zeros((1, canvas_height, canvas_width, 3), dtype=torch.float32)
-                if layers_data and len(layers_data) > 0:
-                    output_image = self._render_annotations_on_image(blank_image, layers_data, include_annotation_numbers, parsed_data)
-                else:
-                    output_image = blank_image
+                    # 提取用户编辑的提示词（兼容新旧字段名）
+                    user_edited_prompt = parsed_data.get("user_prompt", 
+                                                        parsed_data.get("userEditedPrompt", ""))
+                    constraint_prompts = parsed_data.get("constraint_prompts",
+                                                        parsed_data.get("constraintPrompts", []))
+                    decorative_prompts = parsed_data.get("decorative_prompts",
+                                                        parsed_data.get("decorativePrompts", []))
+                    
+                except json.JSONDecodeError as e:
+                    print(f"[Kontext] ⚠️ 数据解析失败: {e}")
+                    # 使用默认Transform数据
+                    transform_data, canvas_data = self._create_default_transform_data(image, canvas_width, canvas_height)
             else:
-                # 有输入图像的情况
-                if layers_data and len(layers_data) > 0:
-                    output_image = self._render_annotations_on_image(image, layers_data, include_annotation_numbers, parsed_data)
-                else:
-                    output_image = image
+                print(f"[Kontext] 📝 无输入数据，使用默认Transform配置")
+                transform_data, canvas_data = self._create_default_transform_data(image, canvas_width, canvas_height)
             
-            # Create annotation data output
-            annotation_output = json.dumps({
-                "annotations": layers_data,
-                "operation_type": prompt_template,
-                "target_description": text_prompt,
-                "constraint_prompts": constraint_prompts,
-                "decorative_prompts": decorative_prompts,
-                "selected_annotations": selected_annotations,  # 🔴 新增：包含每个标注的独立操作类型
-                "multi_layer_operations": len(selected_annotations) > 1  # 🔴 新增：标识是否为多层独立操作
-            }, ensure_ascii=False, indent=2)
+            # 3. Transform-First图像处理和合成
+            print(f"[LRPG] 🎨 开始Transform-First图像合成")
+            print(f"[LRPG] 🔍 Transform数据详情: {transform_data}")
+            print(f"[LRPG] 🔍 Canvas数据详情: {canvas_data}")
+            print(f"[LRPG] 🔍 图像输入: {image is not None}, 尺寸: {image.shape if image is not None else 'None'}")
             
-            # 🔴 新增：生成给大模型的完整指令
-            model_instruction = self._generate_model_instruction(structured_prompt, constraint_prompts, decorative_prompts, selected_annotations)
+            result_image = self._apply_transform_first_processing(
+                image, transform_data, canvas_data, canvas_width, canvas_height
+            )
+            
+            # 4. 生成Transform-First提示词
+            # 提取operation_type和target_description
+            operation_type = parsed_data.get("operation_type", "custom") if 'parsed_data' in locals() else "custom"
+            target_description = parsed_data.get("target_description", "") if 'parsed_data' in locals() else ""
+            
+            structured_prompt = self._generate_transform_based_prompt(
+                transform_data, user_edited_prompt, constraint_prompts, decorative_prompts,
+                operation_type, target_description
+            )
+            
+            # 5. 构建输出数据
+            enhanced_prompts = self._build_enhanced_prompts(constraint_prompts, decorative_prompts)
+            
+            print(f"[LRPG] ✅ Transform-First处理完成")
+            print(f"[LRPG] 📊 输出图像尺寸: {result_image.shape}")
+            print(f"[LRPG] 📝 生成提示词长度: {len(structured_prompt)} 字符")
             
             return (
-                output_image,  # Image with annotations
-                structured_prompt,  # Structured prompt string
-                annotation_output,  # Annotation data JSON
-                model_instruction  # Complete instruction for the model
+                result_image,
+                structured_prompt,
+                enhanced_prompts,
+                json.dumps({
+                    "version": "transform_first_1.0",
+                    "transform_data": transform_data,
+                    "canvas_data": canvas_data,
+                    "processing_timestamp": time.time()
+                })
             )
             
         except Exception as e:
-            return self._create_fallback_output(image, str(e))
+            print(f"[LRPG] ❌ Transform-First处理失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # 错误情况下返回原图
+            fallback_prompt = "Transform-First processing failed, using original image"
+            return (
+                image if image is not None else torch.zeros((1, 512, 512, 3)),
+                fallback_prompt,
+                "[]", 
+                json.dumps({"error": str(e), "version": "transform_first_1.0"})
+            )
+
+    # ===== Transform-First 核心处理方法 =====
     
-    def _generate_structured_prompt(self, layers_data: List[Dict], 
-                                   selected_ids: List[str], 
-                                   template: str, text_prompt: str = "", 
-                                   include_annotation_numbers: bool = True,
-                                   enhanced_prompts: Dict = None,
-                                   selected_annotations: List[Dict] = None) -> str:
-        """Generate structured prompt string using the same templates as frontend"""
+    def _is_transform_first_data(self, data):
+        """检测是否为Transform-First数据格式"""
+        return (
+            isinstance(data, dict) and 
+            ("layer_transforms" in data or "transform_data" in data or 
+             "canvas_data" in data or "transform_version" in data)
+        )
+    
+    def _process_transform_first_data(self, data):
+        """处理LRPG统一格式数据 - 无转换"""
+        layer_transforms = data.get("layer_transforms", {})
         
-        # 1. Object (对象) - 明确指定要编辑的区域或对象
-        selected_objects = []
+        print(f"[LRPG] 📊 统一格式图层数: {len(layer_transforms)}")
         
-        for layer in layers_data:
-            if layer.get("id") in selected_ids:
-                layer_type = layer.get("type", "object")
-                color = layer.get("color", "#ff0000")
-                
-                # Color mapping for structured description
-                color_map = {
-                    '#ff0000': 'red',
-                    '#00ff00': 'green', 
-                    '#ffff00': 'yellow',
-                    '#0000ff': 'blue'
-                }
-                
-                # Shape mapping for structured description
-                shape_map = {
-                    'rectangle': 'rectangular',
-                    'circle': 'circular',
-                    'arrow': 'arrow-marked',
-                    'freehand': 'outlined'
-                }
-                
-                color_name = color_map.get(color, 'marked')
-                shape_name = shape_map.get(layer_type, 'marked')
-                number = layer.get("number", len(selected_objects) + 1)
-                
-                # Build structured object description
-                if include_annotation_numbers:
-                    object_desc = f"the {color_name} {shape_name} marked area (annotation {number})"
-                else:
-                    object_desc = f"the {color_name} {shape_name} marked area"
-                selected_objects.append(object_desc)
+        # ✅ 调试：打印实际接收的数据
+        for layer_id, layer_data in layer_transforms.items():
+            if layer_id != 'background':
+                print(f"[LRPG] 🔍 图层 {layer_id} 数据:")
+                print(f"  - centerX: {layer_data.get('centerX', 'NOT_FOUND')}")
+                print(f"  - centerY: {layer_data.get('centerY', 'NOT_FOUND')}")
+                print(f"  - scaleX: {layer_data.get('scaleX', 'NOT_FOUND')}")
+                print(f"  - angle: {layer_data.get('angle', 'NOT_FOUND')}")
+                print(f"  - type: {layer_data.get('type', 'NOT_FOUND')}")
+                # 🔧 检查points数据（多边形）
+                if layer_data.get('type') == 'polygon':
+                    points = layer_data.get('points', [])
+                    print(f"  - points: {'有' if points else '无'} ({len(points)} 个点)")
+                    if points:
+                        print(f"  - points示例: {points[:2]}{'...' if len(points) > 2 else ''}")
+                print(f"  - crop_path: {'有' if layer_data.get('crop_path') else '无'} ({len(layer_data.get('crop_path', []))} 个点)")
         
-        # Format objects list for structured prompt
-        if selected_objects:
-            if len(selected_objects) == 1:
-                objects_str = selected_objects[0]
-            elif len(selected_objects) == 2:
-                objects_str = f"{selected_objects[0]} and {selected_objects[1]}"
-            else:
-                objects_str = f"{', '.join(selected_objects[:-1])}, and {selected_objects[-1]}"
-        else:
-            objects_str = "the selected marked areas"
-        
-        # 2. Flux Kontext优化模板系统 - 与前端完全一致
-        operation_templates = {
-            # 局部编辑模板 (L01-L18) - 🔴 Flux Kontext优化
-            'change_color': lambda target: f"make {{object}} {target or 'red'}",  # 🔴 官方高频动词"make"
-            'change_style': lambda target: f"turn {{object}} into {target or 'cartoon'} style",  # 🔴 官方"turn into"
-            'replace_object': lambda target: f"replace {{object}} with {target or 'a different object'}",  # 🔴 官方"replace with"
-            'add_object': lambda target: f"add {target or 'a new object'} to {{object}}",  # 🔴 官方"add to"
-            'remove_object': lambda target: "remove the {object}",  # 🔴 官方"remove the"
-            'change_texture': lambda target: f"change {{object}} texture to {target or 'smooth'}",  # 🔴 官方"change to"
-            'change_pose': lambda target: f"make {{object}} {target or 'standing'} pose",  # 🔴 官方"make pose"
-            'change_expression': lambda target: f"give {{object}} {target or 'happy'} expression",  # 🔴 官方"give"
-            'change_clothing': lambda target: f"change {{object}} clothing to {target or 'casual clothes'}",
-            'change_background': lambda target: f"change the background to {target or 'natural landscape'}",
-            'enhance_quality': lambda target: f"enhance {{object}} quality",  # 🔴 官方简洁表达
-            'blur_background': lambda target: f"blur the background behind {{object}}",  # 🔴 官方模糊句式
-            'adjust_lighting': lambda target: f"adjust lighting on {{object}}",  # 🔴 官方光照调整
-            'resize_object': lambda target: f"make {{object}} {target or 'larger'} size",  # 🔴 官方尺寸调整
-            'enhance_skin_texture': lambda target: f"enhance {{object}} skin texture",  # 🔴 官方皮肤纹理
-            # 🔴 新增局部编辑模板 (L16-L18)
-            'character_expression': lambda target: f"make the person {target or 'smile'}",  # 🔴 新增角色表情
-            'character_hair': lambda target: f"give the person {target or 'blonde'} hair",  # 🔴 新增发型编辑
-            'character_accessories': lambda target: f"give the person {target or 'glasses'}",  # 🔴 新增配饰
-            
-            # 全局编辑模板 (G01-G12) - 🔴 Flux Kontext优化
-            'global_color_grade': lambda target: f"apply {target or 'cinematic'} color grading to entire image",
-            'global_style_transfer': lambda target: f"turn entire image into {target or 'vintage'} style",
-            'global_brightness_contrast': lambda target: f"adjust image brightness and contrast to {target or 'high'}",
-            'global_hue_saturation': lambda target: f"change image hue and saturation to {target or 'vibrant'}",
-            'global_sharpen_blur': lambda target: f"apply {target or 'strong'} sharpening to entire image",
-            'global_noise_reduction': lambda target: f"reduce noise in entire image",
-            'global_enhance': lambda target: f"enhance entire image quality",
-            'global_filter': lambda target: f"apply {target or 'sepia'} filter to entire image",
-            # 🔴 新增全局编辑模板 (G09-G12)
-            'character_age': lambda target: f"make the person look {target or 'older'}",  # 🔴 新增年龄编辑
-            'detail_enhance': lambda target: f"add more details to {target or 'the background'}",  # 🔴 新增细节增强
-            'realism_enhance': lambda target: f"make {target or 'the portrait'} more realistic",  # 🔴 新增真实感
-            'camera_operation': lambda target: f"zoom out and show {target or 'full body'}",  # 🔴 新增镜头操作
-            
-            # 文字编辑模板 (T01-T05) - 🔴 全新类型
-            'text_add': lambda target: f'add text saying "{target or "Hello World"}"',  # 🔴 新增文字添加
-            'text_remove': lambda target: "remove the text",  # 🔴 新增文字删除
-            'text_edit': lambda target: f'change the text to "{target or "Welcome"}"',  # 🔴 新增文字编辑
-            'text_resize': lambda target: f"make the text {target or 'bigger'} size",  # 🔴 新增文字大小
-            'object_combine': lambda target: f"combine {{object}} with {target or 'the background'}",  # 🔴 新增对象组合
-            
-            # 专业操作模板 (P01-P14) - 🔴 Flux Kontext优化
-            'geometric_warp': lambda target: f"apply {target or 'perspective'} geometric transformation to {{object}}",
-            'perspective_transform': lambda target: f"transform {{object}} perspective to {target or 'frontal'}",
-            'lens_distortion': lambda target: f"apply {target or 'barrel'} lens distortion to {{object}}",
-            'global_perspective': lambda target: f"correct perspective of entire image",
-            'content_aware_fill': lambda target: f"remove {{object}} and fill with surrounding content",
-            'seamless_removal': lambda target: f"seamlessly remove {{object}}",
-            'smart_patch': lambda target: f"patch {{object}} area with smart content",
-            'style_blending': lambda target: f"blend {{object}} with {target or 'oil painting'} style",
-            'collage_integration': lambda target: f"integrate {{object}} into {target or 'artistic'} composition",
-            'texture_mixing': lambda target: f"mix {{object}} texture with {target or 'metal'}",
-            'precision_cutout': lambda target: f"precisely cut out {{object}}",
-            'alpha_composite': lambda target: f"composite {{object}} onto {target or 'new background'}",
-            'mask_feathering': lambda target: f"apply soft feathering to {{object}} edges",
-            'depth_composite': lambda target: f"composite {{object}} with depth blending",
-            
-            'custom': lambda target: target or "Apply custom modification to the selected region"
+        # ✅ LRPG格式：直接使用，无转换
+        background = layer_transforms.get('background', {})
+        canvas_data = {
+            'width': background.get('width', 800),
+            'height': background.get('height', 600)
         }
         
-        # 🔴 新逻辑：处理多个标注的独立操作类型
-        if selected_annotations and len(selected_annotations) > 0:
-            # 多标注独立操作模式
-            prompt_parts = []
-            
-            for annotation in selected_annotations:
-                annotation_id = annotation.get('id')
-                operation_type = annotation.get('operationType', template)
-                individual_description = annotation.get('description', text_prompt)
-                
-                # 找到对应的图层数据
-                layer_data = next((layer for layer in layers_data if layer.get('id') == annotation_id), None)
-                if not layer_data:
-                    continue
-                
-                # 构建单个标注的对象描述
-                layer_type = layer_data.get("type", "object")
-                color = layer_data.get("color", "#ff0000")
-                number = layer_data.get("number", 1)
-                
-                # Color mapping
-                color_map = {
-                    '#ff0000': 'red',
-                    '#00ff00': 'green', 
-                    '#ffff00': 'yellow',
-                    '#0000ff': 'blue'
-                }
-                # Shape mapping
-                shape_map = {
-                    'rectangle': 'rectangular',
-                    'circle': 'circular',
-                    'arrow': 'arrow-marked',
-                    'freehand': 'outlined'
-                }
-                
-                color_name = color_map.get(color, 'marked')
-                shape_name = shape_map.get(layer_type, 'marked')
-                
-                # Build object description for this annotation
-                if include_annotation_numbers:
-                    object_desc = f"the {color_name} {shape_name} marked area (annotation {number})"
-                else:
-                    object_desc = f"the {color_name} {shape_name} marked area"
-                
-                # Get template function for this specific annotation
-                template_func = operation_templates.get(operation_type, operation_templates['custom'])
-                target_text = individual_description.strip() if individual_description.strip() else None
-                
-                # Generate prompt for this annotation
-                annotation_prompt = template_func(target_text)
-                annotation_prompt = annotation_prompt.replace('{object}', object_desc)
-                
-                prompt_parts.append(annotation_prompt)
-            
-            # Combine all annotation prompts
-            if len(prompt_parts) == 1:
-                structured_prompt = prompt_parts[0]
-            else:
-                structured_prompt = "; ".join(prompt_parts)
-        else:
-            # 原有逻辑：全局操作模式（向后兼容）
-            template_func = operation_templates.get(template, operation_templates['custom'])
-            target_text = text_prompt.strip() if text_prompt.strip() else None
-            structured_prompt = template_func(target_text)
-            structured_prompt = structured_prompt.replace('{object}', objects_str)
+        print(f"[LRPG] 🎨 Canvas尺寸: {canvas_data['width']}x{canvas_data['height']}")
+        print(f"[LRPG] ✅ LRPG统一格式处理完成")
         
-        # Add enhanced prompts if provided - 🔴 支持多选提示词
-        if enhanced_prompts:
-            # 支持单个字符串（向后兼容）和多选数组
-            constraint_prompts = enhanced_prompts.get('constraint_prompts', []) or enhanced_prompts.get('constraint_prompt', '')
-            decorative_prompts = enhanced_prompts.get('decorative_prompts', []) or enhanced_prompts.get('decorative_prompt', '')
-            
-            # 处理约束性提示词
-            if constraint_prompts:
-                if isinstance(constraint_prompts, list) and constraint_prompts:
-                    structured_prompt += f", {', '.join(constraint_prompts)}"
-                elif isinstance(constraint_prompts, str) and constraint_prompts.strip():
-                    structured_prompt += f", {constraint_prompts}"
-                    
-            # 处理修饰性提示词  
-            if decorative_prompts:
-                if isinstance(decorative_prompts, list) and decorative_prompts:
-                    structured_prompt += f", {', '.join(decorative_prompts)}"
-                elif isinstance(decorative_prompts, str) and decorative_prompts.strip():
-                    structured_prompt += f", {decorative_prompts}"
-        
-        return structured_prompt
+        return layer_transforms, canvas_data
     
-    def _render_annotations_on_image(self, image: torch.Tensor, layers_data: List[Dict], include_annotation_numbers: bool = True, annotation_data_json: Dict = None) -> torch.Tensor:
-        """Render annotations on image"""
+    def _convert_layer_to_kontext_format(self, layer_data):
+        """将单个图层从旧格式转换为Kontext格式"""
         try:
-            from PIL import Image, ImageDraw, ImageFont
+            # 提取旧格式数据
+            position = layer_data.get('position', {})
+            size = layer_data.get('size', {})
+            transform = layer_data.get('transform', {})
             
-            # Convert torch tensor to PIL Image first to get dimensions
-            if len(image.shape) == 4:
-                # Batch dimension exists, take first
-                img_array = image[0].cpu().numpy()
+            left = position.get('left', 0)
+            top = position.get('top', 0)
+            width = size.get('width', 100)
+            height = size.get('height', 100)
+            scaleX = transform.get('scaleX', 1)
+            scaleY = transform.get('scaleY', 1)
+            angle = transform.get('angle', 0)
+            
+            # ✅ 转换为Kontext中心点坐标系统
+            centerX = left + width / 2
+            centerY = top + height / 2
+            
+            kontext_layer = {
+                'centerX': centerX,
+                'centerY': centerY,
+                'scaleX': scaleX,
+                'scaleY': scaleY,
+                'angle': angle,
+                'width': width,
+                'height': height,
+                'flipX': layer_data.get('flipX', False),
+                'flipY': layer_data.get('flipY', False),
+                'type': layer_data.get('type', 'rect'),
+                'style': layer_data.get('style', {}),
+                'converted_from_legacy': True
+            }
+            
+            print(f"[LRPG] 🔄 旧格式转换:")
+            print(f"  - 位置: ({left}, {top}) + 尺寸: ({width}, {height})")
+            print(f"  - 转换为中心点: ({centerX:.1f}, {centerY:.1f})")
+            print(f"  - 变换: 缩放({scaleX:.3f}, {scaleY:.3f}), 旋转{angle:.1f}°")
+            
+            return kontext_layer
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 图层格式转换失败: {str(e)}")
+            return layer_data
+    
+    def _convert_legacy_to_transform(self, data):
+        """将旧的annotation数据转换为Transform-First格式"""
+        print(f"[LRPG] 🔄 转换旧格式annotation数据为Transform格式")
+        
+        transform_data = {}
+        canvas_data = {
+            "background_color": data.get("backgroundColor", "#ffffff"),
+            "version": "converted_from_legacy"
+        }
+        
+        # 尝试从annotation数据提取transform信息
+        annotations = data.get("annotations", [])
+        for i, annotation in enumerate(annotations):
+            if annotation.get("fabricObject"):
+                fabric_obj = annotation["fabricObject"]
+                transform_data[f"layer_{i}"] = {
+                    "centerX": fabric_obj.get("left", 0) + fabric_obj.get("width", 0) / 2,
+                    "centerY": fabric_obj.get("top", 0) + fabric_obj.get("height", 0) / 2,
+                    "scaleX": fabric_obj.get("scaleX", 1),
+                    "scaleY": fabric_obj.get("scaleY", 1),
+                    "angle": fabric_obj.get("angle", 0),
+                    "width": fabric_obj.get("width", 100),
+                    "height": fabric_obj.get("height", 100),
+                    "type": annotation.get("type", "unknown")
+                }
+        
+        print(f"[LRPG] ✅ 已转换 {len(transform_data)} 个图层为Transform格式")
+        return transform_data, canvas_data
+    
+    def _create_default_transform_data(self, image, canvas_width, canvas_height):
+        """创建默认的Transform数据"""
+        transform_data = {}
+        canvas_data = {
+            "width": canvas_width,
+            "height": canvas_height,
+            "background_color": "#ffffff",
+            "version": "default_transform_first"
+        }
+        
+        if image is not None:
+            # 为输入图像创建默认transform
+            img_height, img_width = image.shape[1], image.shape[2]
+            transform_data["background_image"] = {
+                "centerX": canvas_width / 2,
+                "centerY": canvas_height / 2,
+                "scaleX": 1.0,
+                "scaleY": 1.0,
+                "angle": 0,
+                "width": img_width,
+                "height": img_height,
+                "type": "background"
+            }
+        
+        return transform_data, canvas_data
+    
+    def _calculate_required_canvas_size(self, transform_data, current_width, current_height):
+        """🚀 lg_tools机制：计算容纳所有变换对象所需的画布尺寸"""
+        if not transform_data:
+            return None
+        
+        # 初始化边界
+        min_x = float('inf')
+        min_y = float('inf')
+        max_x = float('-inf')
+        max_y = float('-inf')
+        
+        # 计算所有图层的边界
+        for layer_id, layer_data in transform_data.items():
+            if layer_id == 'background':
+                continue
+            
+            # 🚀 lg_tools机制：使用centerX/centerY，然后转换为左上角坐标
+            center_x = int(layer_data.get('centerX', 0))
+            center_y = int(layer_data.get('centerY', 0))
+            
+            # 🚨 注意：这里使用前端传来的actualWidth/actualHeight是合理的
+            # 因为画布尺寸计算是在图像变换之前进行的，此时我们只能用前端预估的尺寸
+            # 真正的定位会在_composite_image_to_canvas中使用变换后的实际尺寸
+            actual_width = int(layer_data.get('actualWidth', layer_data.get('width', 100)))
+            actual_height = int(layer_data.get('actualHeight', layer_data.get('height', 100)))
+            
+            # 🔧 对于旋转的图像，需要估算旋转后的边界框尺寸
+            angle = layer_data.get('angle', 0)
+            if abs(angle) > 0.1:
+                # 粗略估算旋转后的边界框尺寸（取最大可能值）
+                import math
+                rad = math.radians(abs(angle))
+                cos_a = abs(math.cos(rad))
+                sin_a = abs(math.sin(rad))
+                
+                # 旋转后的边界框尺寸
+                rotated_width = int(actual_width * cos_a + actual_height * sin_a)
+                rotated_height = int(actual_width * sin_a + actual_height * cos_a)
+                
+                print(f"[LRPG] 🔄 图层{layer_id}旋转{angle:.1f}°: {actual_width}x{actual_height} -> {rotated_width}x{rotated_height}")
+                actual_width = rotated_width
+                actual_height = rotated_height
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            left = center_x - actual_width // 2
+            top = center_y - actual_height // 2
+            right = left + actual_width
+            bottom = top + actual_height
+            
+            # 更新边界
+            min_x = min(min_x, left)
+            min_y = min(min_y, top)
+            max_x = max(max_x, right)
+            max_y = max(max_y, bottom)
+        
+        # 如果没有有效对象，返回None
+        if min_x == float('inf'):
+            return None
+        
+        # 计算所需画布尺寸（确保非负）
+        required_width = max(current_width, max(0, max_x))
+        required_height = max(current_height, max(0, max_y))
+        
+        # 如果有负坐标，需要扩展画布
+        if min_x < 0:
+            required_width += abs(min_x)
+        if min_y < 0:
+            required_height += abs(min_y)
+        
+        print(f"[LRPG] 🎯 画布尺寸计算:")
+        print(f"  - 边界: ({min_x}, {min_y}) -> ({max_x}, {max_y})")
+        print(f"  - 当前画布: {current_width}x{current_height}")
+        print(f"  - 所需画布: {required_width}x{required_height}")
+        
+        return (required_width, required_height)
+    
+    def _apply_transform_first_processing(self, image, transform_data, canvas_data, canvas_width, canvas_height):
+        """🚀 Kontext Transform-First图像处理 - 分辨率独立HD还原算法"""
+        print(f"[LRPG] 🎯 启动Transform-First高清还原处理")
+        print(f"[LRPG] 📊 接收参数:")
+        print(f"  - 输入图像: {image is not None}, 形状: {image.shape if image is not None else 'None'}")
+        print(f"  - 变换数据: {type(transform_data)}, 图层数: {len(transform_data) if transform_data else 0}")
+        print(f"  - 画布数据: {canvas_data}")
+        print(f"  - 目标画布尺寸: {canvas_width} x {canvas_height}")
+        
+        if image is None:
+            print(f"[LRPG] ⚠️ 图像为空，创建默认HD画布")
+            return torch.ones((1, canvas_height, canvas_width, 3), dtype=torch.float32)
+        
+        if not transform_data:
+            print(f"[LRPG] ℹ️ 无变换数据，返回原图")
+            return image
+        
+        # ✅ Kontext核心：HD还原算法预处理
+        hd_scale = self._calculate_hd_scale(transform_data, canvas_data, image.shape)
+        scaled_transform_data = self._scale_hd_transforms(transform_data, hd_scale)
+        
+        print(f"[LRPG] 🔬 HD还原分析:")
+        print(f"  - HD缩放比例: {hd_scale:.3f}")
+        print(f"  - 原始变换数: {len(transform_data)}")
+        print(f"  - HD变换数: {len(scaled_transform_data)}")
+        
+        print(f"[LRPG] 🎨 开始Transform-First变换处理")
+        
+        # 确保图像格式正确
+        if len(image.shape) == 3:
+            image = image.unsqueeze(0)
+        if image.shape[-1] != 3 and image.shape[1] == 3:
+            image = image.permute(0, 2, 3, 1)
+        
+        try:
+            import cv2
+            import numpy as np
+            from PIL import Image as PILImage, ImageDraw
+            
+            # 处理批量图像 - 支持多图像输入
+            batch_size = image.shape[0]
+            print(f"[LRPG] 📦 检测到批量图像: {batch_size} 张")
+            
+            # 获取图层列表（排除background）
+            layer_ids = [layer_id for layer_id in scaled_transform_data.keys() if layer_id != 'background']
+            print(f"[LRPG] 📊 图层数量: {len(layer_ids)}, 图像数量: {batch_size}")
+            print(f"[LRPG] 📋 图层列表: {layer_ids}")
+            
+            processed_images = []
+            
+            # 使用实际画布尺寸（从canvas_data获取）
+            actual_canvas_width = canvas_data.get('width', canvas_width)
+            actual_canvas_height = canvas_data.get('height', canvas_height)
+            
+            # 🚀 lg_tools机制：保持原始画布尺寸不变（禁用自动扩展）
+            # required_canvas_size = self._calculate_required_canvas_size(scaled_transform_data, actual_canvas_width, actual_canvas_height)
+            # if required_canvas_size:
+            #     expanded_width, expanded_height = required_canvas_size
+            #     if expanded_width > actual_canvas_width or expanded_height > actual_canvas_height:
+            #         print(f"[LRPG] 🎯 自动扩展画布尺寸: {actual_canvas_width}x{actual_canvas_height} -> {expanded_width}x{expanded_height}")
+            #         actual_canvas_width = expanded_width
+            #         actual_canvas_height = expanded_height
+            print(f"[LRPG] 🎯 lg_tools机制：保持原始画布尺寸 {actual_canvas_width}x{actual_canvas_height}")
+            
+            # 为每张图像单独处理
+            for batch_idx in range(batch_size):
+                print(f"[LRPG] 🔄 处理第 {batch_idx + 1}/{batch_size} 张图像")
+                
+                # 转换当前图像为PIL图像进行处理
+                img_array = image[batch_idx].cpu().numpy()
+                if img_array.max() <= 1.0:
+                    img_array = (img_array * 255).astype(np.uint8)
+                else:
+                    img_array = img_array.astype(np.uint8)
+                
+                # 创建画布
+                canvas = PILImage.fromarray(img_array)
+                draw = ImageDraw.Draw(canvas)
+                
+                print(f"[LRPG] 🖼️ 第{batch_idx + 1}张图像尺寸: {canvas.size}")
+                print(f"[LRPG] 🎨 目标画布尺寸: {actual_canvas_width}x{actual_canvas_height}")
+                
+                # 🚀 新架构：多图像合成处理
+                print(f"[LRPG] 🎨 开始多图像合成处理 - 输入图像{batch_idx + 1}")
+                
+                # 检查是否需要合成模式
+                has_multiple_sources = any(
+                    layer_data.get('source') in ('upload', 'cropped')
+                    for layer_data in scaled_transform_data.values() 
+                    if isinstance(layer_data, dict) and 'source' in layer_data
+                )
+                
+                # 🎯 检查input图像是否被显著变换
+                has_transformed_input = False
+                for layer_id, layer_data in scaled_transform_data.items():
+                    if isinstance(layer_data, dict) and layer_data.get('source') == 'input':
+                        # 检查是否偏离了默认的居中满屏状态
+                        centerX = layer_data.get('centerX', actual_canvas_width/2)
+                        centerY = layer_data.get('centerY', actual_canvas_height/2)
+                        scaleX = layer_data.get('scaleX', 1.0)
+                        scaleY = layer_data.get('scaleY', 1.0)
+                        
+                        # 计算预期的居中位置
+                        expected_centerX = actual_canvas_width / 2
+                        expected_centerY = actual_canvas_height / 2
+                        
+                        # 检查位置偏移
+                        position_offset = abs(centerX - expected_centerX) + abs(centerY - expected_centerY)
+                        
+                        # 检查缩放变化（不是接近1.0的满屏缩放）
+                        scale_change = abs(1.0 - scaleX) + abs(1.0 - scaleY)
+                        
+                        if position_offset > 50 or scale_change > 0.3:  # 显著变换阈值
+                            has_transformed_input = True
+                            print(f"[LRPG] 🎯 检测到input图像变换: 位置偏移={position_offset:.1f}, 缩放变化={scale_change:.2f}")
+                            break
+                
+                needs_composite_canvas = has_multiple_sources or has_transformed_input
+                
+                if needs_composite_canvas:
+                    # 合成模式：创建空白画布（多图像或变换后的单图像）
+                    canvas = self._create_composite_canvas(actual_canvas_width, actual_canvas_height)
+                    if has_multiple_sources:
+                        print(f"[LRPG] 🎨 创建合成画布（多图像模式）: {canvas.size}")
+                    else:
+                        print(f"[LRPG] 🎨 创建合成画布（单图像变换模式）: {canvas.size}")
+                else:
+                    # 单图像原始模式：使用输入图像作为基础
+                    canvas = PILImage.fromarray(img_array)
+                    print(f"[LRPG] 📷 使用输入图像作为基础（未变换）: {canvas.size}")
+                
+                # 处理所有图层
+                for layer_id in layer_ids:
+                    layer_data = scaled_transform_data.get(layer_id)
+                    if layer_data:
+                        print(f"[LRPG] 🔄 处理图层: {layer_id}")
+                        canvas = self._process_image_layer(canvas, layer_data, layer_id, 
+                                                         image[batch_idx] if layer_data.get('source') == 'input' else None,
+                                                         actual_canvas_width, actual_canvas_height)
+                    else:
+                        print(f"[LRPG] ⚠️ 图层数据缺失: {layer_id}")
+                
+                # 转换当前处理的图像回tensor并添加到批次中
+                # 对于裁切图像，保持透明背景
+                if canvas.mode == 'RGBA':
+                    # 正确处理RGBA到RGB的转换，保持透明度信息
+                    rgb_array = np.array(canvas)
+                    alpha = rgb_array[:, :, 3] / 255.0  # Alpha通道
+                    
+                    # 创建RGB数组
+                    result_array = np.zeros((rgb_array.shape[0], rgb_array.shape[1], 3), dtype=np.float32)
+                    
+                    # 对于有alpha值的区域，保持原始RGB值；对于完全透明的区域设为0
+                    for c in range(3):
+                        # 只在alpha > 0的地方保留颜色，完全透明(alpha=0)的地方设为0
+                        result_array[:, :, c] = np.where(alpha > 0, rgb_array[:, :, c] / 255.0, 0)
+                    
+                    print(f"[LRPG] 🔄 RGBA图像已转换，保持透明度信息")
+                else:
+                    result_array = np.array(canvas).astype(np.float32) / 255.0
+                
+                processed_images.append(result_array)
+                
+                print(f"[LRPG] ✅ 第{batch_idx + 1}张图像处理完成")
+            
+            # 将所有处理后的图像合并为批次tensor
+            if processed_images:
+                batch_tensor = torch.from_numpy(np.stack(processed_images, axis=0))
+                print(f"[LRPG] ✅ Transform-First批量处理完成，输出 {len(processed_images)} 张图像")
+                return batch_tensor
             else:
-                img_array = image.cpu().numpy()
+                print(f"[LRPG] ⚠️ 没有处理任何图像")
+                return image
+                
+        except Exception as e:
+            print(f"[LRPG] ❌ Transform-First处理失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return image
+    
+    def _create_composite_canvas(self, width, height):
+        """创建空白合成画布"""
+        from PIL import Image as PILImage
+        return PILImage.new('RGB', (width, height), (255, 255, 255))
+    
+    def _process_image_layer(self, canvas, layer_data, layer_id, input_tensor, canvas_width, canvas_height):
+        """处理单个图像图层"""
+        try:
+            import base64
+            import io
+            import numpy as np
+            from PIL import Image as PILImage
             
-            # Ensure value range is [0, 1]
+            source = layer_data.get('source', 'input')
+            print(f"[LRPG] 📷 图层{layer_id}源类型: {source}")
+            # 🔍 调试：显示原始层数据
+            debug_fabricId = layer_data.get('_debug_fabricId', 'none')
+            debug_name = layer_data.get('_debug_name', 'none')
+            print(f"[LRPG] 🔍 图层{layer_id}调试信息: fabricId={debug_fabricId}, name={debug_name}")
+            # 🔍 CRITICAL调试：显示完整layer_data结构
+            print(f"[LRPG] 🚨 CRITICAL: layer_data完整结构: {layer_data}")
+            print(f"[LRPG] 🚨 CRITICAL: layer_data keys: {list(layer_data.keys())}")
+            if 'image_data' in layer_data:
+                image_data_len = len(str(layer_data['image_data'])) if layer_data['image_data'] else 0
+                print(f"[LRPG] 🚨 CRITICAL: image_data存在且长度: {image_data_len}")
+            else:
+                print(f"[LRPG] 🚨 CRITICAL: image_data字段缺失")
+            
+            if source == 'input':
+                # 输入图像：使用传入的tensor数据
+                if input_tensor is not None:
+                    img_array = input_tensor.cpu().numpy()
+                    if img_array.max() <= 1.0:
+                        img_array = (img_array * 255).astype(np.uint8)
+                    else:
+                        img_array = img_array.astype(np.uint8)
+                    source_image = PILImage.fromarray(img_array)
+                    print(f"[LRPG] ✅ 加载输入图像: {source_image.size}")
+                else:
+                    print(f"[LRPG] ⚠️ 输入图像tensor为空，跳过此图层")
+                    return canvas  # 正确：继续处理其他图层
+                    
+            elif source == 'upload':
+                # 上传图像：解码base64数据
+                image_data = layer_data.get('image_data')
+                if not image_data:
+                    print(f"[LRPG] ⚠️ 上传图像数据为空，跳过")
+                    return canvas
+                    
+            elif source == 'cropped':
+                # 裁切图像：解码base64数据
+                image_data = layer_data.get('image_data')
+                if not image_data:
+                    print(f"[LRPG] ⚠️ 裁切图像数据为空，跳过")
+                    return canvas
+                    
+                try:
+                    # 解码base64图像
+                    if image_data.startswith('data:image/'):
+                        # 完整的data URL
+                        header, encoded = image_data.split(',', 1)
+                        image_bytes = base64.b64decode(encoded)
+                    else:
+                        # 纯base64数据
+                        image_bytes = base64.b64decode(image_data)
+                    
+                    source_image = PILImage.open(io.BytesIO(image_bytes)).convert('RGBA')
+                    print(f"[LRPG] ✅ 解码裁切图像: {source_image.size}，保持RGBA格式")
+                    
+                except Exception as e:
+                    print(f"[LRPG] ❌ 解码裁切图像失败: {str(e)}")
+                    return canvas
+                    
+            elif source == 'upload':
+                # 上传图像：解码base64数据
+                image_data = layer_data.get('image_data')
+                if not image_data:
+                    print(f"[LRPG] ⚠️ 上传图像数据为空，跳过")
+                    return canvas
+                    
+                try:
+                    # 解码base64图像
+                    if image_data.startswith('data:image/'):
+                        # 完整的data URL
+                        header, encoded = image_data.split(',', 1)
+                        image_bytes = base64.b64decode(encoded)
+                    else:
+                        # 纯base64数据
+                        image_bytes = base64.b64decode(image_data)
+                    
+                    source_image = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
+                    print(f"[LRPG] ✅ 解码上传图像: {source_image.size}")
+                    
+                except Exception as e:
+                    print(f"[LRPG] ❌ 解码上传图像失败: {str(e)}")
+                    return canvas
+                    
+            elif source == 'annotation':
+                # 标注处理：绘制几何形状
+                print(f"[LRPG] 🎯 处理标注: {layer_data.get('type', 'unknown')}")
+                canvas = self._draw_annotation_on_canvas(canvas, layer_data, canvas_width, canvas_height)
+                return canvas
+                
+            else:
+                print(f"[LRPG] ❓ 未知图像源类型: {source}")
+                return canvas
+            
+            # 应用变换并合成到画布
+            transformed_image = self._apply_image_transform(source_image, layer_data)
+            canvas = self._composite_image_to_canvas(canvas, transformed_image, layer_data)
+            
+            return canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 处理图层{layer_id}失败: {str(e)}")
+            return canvas
+    
+    def _draw_annotation_on_canvas(self, canvas, layer_data, canvas_width, canvas_height):
+        """在画布上绘制标注"""
+        try:
+            from PIL import Image as PILImage, ImageDraw
+            
+            # 获取标注参数
+            annotation_type = layer_data.get('type', 'rect')
+            centerX = layer_data.get('centerX', 0)
+            centerY = layer_data.get('centerY', 0)
+            width = layer_data.get('width', 100)
+            height = layer_data.get('height', 100)
+            
+            # 计算左上角坐标
+            left = centerX - width / 2
+            top = centerY - height / 2
+            right = centerX + width / 2
+            bottom = centerY + height / 2
+            
+            print(f"[LRPG] 🔲 绘制{annotation_type}标注: 中心({centerX}, {centerY}), 尺寸({width}, {height})")
+            print(f"[LRPG] 📍 标注坐标: ({left}, {top}) -> ({right}, {bottom})")
+            
+            # 🔧 从前端数据中读取颜色和透明度信息
+            # 获取颜色信息 (支持 fill 和 stroke 属性)
+            color_hex = layer_data.get('fill') or layer_data.get('stroke') or '#ff0000'
+            if color_hex.startswith('#'):
+                color_hex = color_hex[1:]  # 去掉#号
+            
+            # 将十六进制颜色转换为RGB
+            try:
+                r = int(color_hex[0:2], 16)
+                g = int(color_hex[2:4], 16) 
+                b = int(color_hex[4:6], 16)
+            except (ValueError, IndexError):
+                r, g, b = 255, 0, 0  # 默认红色
+            
+            # 🔧 获取透明度信息（优化后的多路径支持）
+            # 优先级：style.opacity > 直接属性 > 默认值
+            opacity = None
+            
+            # 方法1：从style对象获取（主要路径）
+            if 'style' in layer_data and layer_data['style'] and 'opacity' in layer_data['style']:
+                opacity = layer_data['style'].get('opacity')
+                print(f"[LRPG] 🔍 从style.opacity获取: {opacity}")
+            
+            # 方法2：直接从layer_data获取（备用路径）
+            elif 'opacity' in layer_data:
+                opacity = layer_data.get('opacity')
+                print(f"[LRPG] 🔍 从layer_data.opacity获取: {opacity}")
+            
+            # 方法3：尝试从其他可能的路径获取
+            elif 'fill_opacity' in layer_data:
+                opacity = layer_data.get('fill_opacity')
+                print(f"[LRPG] 🔍 从fill_opacity获取: {opacity}")
+                
+            # 默认值
+            if opacity is None:
+                opacity = 0.5  # 默认50%透明度
+                print(f"[LRPG] 🔍 使用默认opacity: {opacity}")
+            
+            # 确保opacity在正确范围内
+            if opacity > 1:
+                opacity = opacity / 100.0  # 如果是百分比形式，转换为小数
+            
+            alpha = int(opacity * 255)
+            
+            # 🔧 调试：打印style内容确认修复效果
+            if 'style' in layer_data:
+                print(f"[LRPG] 🔍 style内容: {layer_data.get('style', {})}")
+            
+            print(f"[LRPG] 🎨 标注样式: 颜色=#{color_hex}, 透明度={opacity:.2f} (alpha={alpha})")
+            
+            # 🔧 使用透明度混合绘制方法
+            if opacity < 1.0:  # 需要透明度
+                # 创建一个RGBA透明图层用于绘制标注
+                annotation_layer = PILImage.new('RGBA', canvas.size, (0, 0, 0, 0))
+                draw_layer = ImageDraw.Draw(annotation_layer)
+                
+                # 设置绘制样式（RGBA颜色）
+                outline_color = (r, g, b, 255)  # 边框完全不透明
+                fill_color = (r, g, b, alpha)   # 填充使用设置的透明度
+                
+                if annotation_type == 'rect':
+                    # 在透明图层上绘制矩形
+                    draw_layer.rectangle([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 透明矩形标注已绘制到图层")
+                    
+                elif annotation_type == 'circle':
+                    # 在透明图层上绘制圆形/椭圆
+                    draw_layer.ellipse([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 透明圆形标注已绘制到图层")
+                    
+                elif annotation_type == 'polygon':
+                    # 绘制多边形
+                    points = layer_data.get('points', [])
+                    if points and len(points) >= 3:
+                        # 将points转换为PIL格式的坐标列表 [(x1,y1), (x2,y2), ...]
+                        polygon_coords = []
+                        for point in points:
+                            if isinstance(point, dict) and 'x' in point and 'y' in point:
+                                polygon_coords.extend([point['x'], point['y']])
+                            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                                polygon_coords.extend([point[0], point[1]])
+                        
+                        if len(polygon_coords) >= 6:  # 至少3个点
+                            draw_layer.polygon(polygon_coords, outline=outline_color, fill=fill_color)
+                            print(f"[LRPG] ✅ 透明多边形标注已绘制到图层: {len(points)} 个点")
+                        else:
+                            print(f"[LRPG] ⚠️ 多边形坐标数据不足: {polygon_coords}")
+                    else:
+                        print(f"[LRPG] ⚠️ 多边形缺少points数据: {points}")
+                        
+                elif annotation_type == 'text' or annotation_type == 'i-text':
+                    # 🎯 新增：文字标注绘制（透明版）
+                    text_content = layer_data.get('text', 'Text')
+                    font_size = layer_data.get('fontSize', 20)
+                    
+                    try:
+                        from PIL import ImageFont
+                        import os
+                        
+                        # 中文字体回退列表
+                        chinese_fonts = [
+                            "C:/Windows/Fonts/msyh.ttf",      # 微软雅黑
+                            "C:/Windows/Fonts/simsun.ttc",    # 宋体
+                            "C:/Windows/Fonts/simhei.ttf",    # 黑体
+                            "C:/Windows/Fonts/simkai.ttf",    # 楷体
+                            "msyh.ttf",                       # 系统路径微软雅黑
+                            "simsun.ttc",                     # 系统路径宋体
+                            "simhei.ttf"                      # 系统路径黑体
+                        ]
+                        
+                        font = None
+                        for font_path in chinese_fonts:
+                            try:
+                                if os.path.exists(font_path) or not font_path.startswith("C:/"):
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"[LRPG] ✅ 成功加载中文字体: {font_path}")
+                                    break
+                            except Exception as e:
+                                print(f"[LRPG] ⚠️ 字体加载失败 {font_path}: {str(e)}")
+                                continue
+                        
+                        if font is None:
+                            font = ImageFont.load_default()
+                            print(f"[LRPG] ⚠️ 使用默认字体，可能不支持中文")
+                        
+                        # 计算文字位置 (centerX, centerY 为中心点)
+                        text_x = int(centerX - width / 2)
+                        text_y = int(centerY - height / 2)
+                        
+                        # 在透明图层上绘制文字
+                        draw_layer.text((text_x, text_y), text_content, font=font, fill=fill_color)
+                        print(f"[LRPG] ✅ 透明文字标注已绘制: '{text_content}'")
+                        
+                    except Exception as e:
+                        print(f"[LRPG] ❌ 文字标注绘制失败: {str(e)}")
+                        # 回退：使用基本绘制
+                        draw_layer.text((int(centerX), int(centerY)), text_content, fill=fill_color)
+                        
+                else:
+                    print(f"[LRPG] ⚠️ 未支持的标注类型: {annotation_type}")
+                
+                # 🎨 将透明图层混合到主画布上
+                if canvas.mode != 'RGBA':
+                    canvas = canvas.convert('RGBA')
+                canvas = PILImage.alpha_composite(canvas, annotation_layer)
+                # 转换回RGB（如果需要）
+                if canvas.mode == 'RGBA':
+                    # 创建白色背景并合成
+                    background = PILImage.new('RGB', canvas.size, (255, 255, 255))
+                    background.paste(canvas, mask=canvas.split()[-1])  # 使用alpha通道作为mask
+                    canvas = background
+                    
+                print(f"[LRPG] ✅ 透明标注已混合到主画布")
+                
+            else:  # 完全不透明，使用原来的方法
+                draw = ImageDraw.Draw(canvas)
+                # 设置绘制样式（RGB颜色）
+                outline_color = (r, g, b)
+                fill_color = (r, g, b)
+                
+                if annotation_type == 'rect':
+                    # 绘制矩形
+                    draw.rectangle([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 不透明矩形标注已绘制")
+                    
+                elif annotation_type == 'circle':
+                    # 绘制圆形/椭圆
+                    draw.ellipse([left, top, right, bottom], outline=outline_color, fill=fill_color, width=2)
+                    print(f"[LRPG] ✅ 不透明圆形标注已绘制")
+                    
+                elif annotation_type == 'polygon':
+                    # 绘制多边形
+                    points = layer_data.get('points', [])
+                    if points and len(points) >= 3:
+                        # 将points转换为PIL格式的坐标列表 [(x1,y1), (x2,y2), ...]
+                        polygon_coords = []
+                        for point in points:
+                            if isinstance(point, dict) and 'x' in point and 'y' in point:
+                                polygon_coords.extend([point['x'], point['y']])
+                            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                                polygon_coords.extend([point[0], point[1]])
+                        
+                        if len(polygon_coords) >= 6:  # 至少3个点
+                            draw.polygon(polygon_coords, outline=outline_color, fill=fill_color)
+                            print(f"[LRPG] ✅ 不透明多边形标注已绘制: {len(points)} 个点")
+                        else:
+                            print(f"[LRPG] ⚠️ 多边形坐标数据不足: {polygon_coords}")
+                    else:
+                        print(f"[LRPG] ⚠️ 多边形缺少points数据: {points}")
+                        
+                elif annotation_type == 'text' or annotation_type == 'i-text':
+                    # 🎯 新增：文字标注绘制（不透明版）
+                    text_content = layer_data.get('text', 'Text')
+                    font_size = layer_data.get('fontSize', 20)
+                    
+                    try:
+                        from PIL import ImageFont
+                        import os
+                        
+                        # 中文字体回退列表
+                        chinese_fonts = [
+                            "C:/Windows/Fonts/msyh.ttf",      # 微软雅黑
+                            "C:/Windows/Fonts/simsun.ttc",    # 宋体
+                            "C:/Windows/Fonts/simhei.ttf",    # 黑体
+                            "C:/Windows/Fonts/simkai.ttf",    # 楷体
+                            "msyh.ttf",                       # 系统路径微软雅黑
+                            "simsun.ttc",                     # 系统路径宋体
+                            "simhei.ttf"                      # 系统路径黑体
+                        ]
+                        
+                        font = None
+                        for font_path in chinese_fonts:
+                            try:
+                                if os.path.exists(font_path) or not font_path.startswith("C:/"):
+                                    font = ImageFont.truetype(font_path, font_size)
+                                    print(f"[LRPG] ✅ 成功加载中文字体: {font_path}")
+                                    break
+                            except Exception as e:
+                                print(f"[LRPG] ⚠️ 字体加载失败 {font_path}: {str(e)}")
+                                continue
+                        
+                        if font is None:
+                            font = ImageFont.load_default()
+                            print(f"[LRPG] ⚠️ 使用默认字体，可能不支持中文")
+                        
+                        # 计算文字位置 (centerX, centerY 为中心点)
+                        text_x = int(centerX - width / 2)
+                        text_y = int(centerY - height / 2)
+                        
+                        # 绘制文字
+                        draw.text((text_x, text_y), text_content, font=font, fill=fill_color)
+                        print(f"[LRPG] ✅ 不透明文字标注已绘制: '{text_content}'")
+                        
+                    except Exception as e:
+                        print(f"[LRPG] ❌ 文字标注绘制失败: {str(e)}")
+                        # 回退：使用基本绘制
+                        draw.text((int(centerX), int(centerY)), text_content, fill=fill_color)
+                        
+                else:
+                    print(f"[LRPG] ⚠️ 未支持的标注类型: {annotation_type}")
+            
+            return canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 绘制标注失败: {str(e)}")
+            return canvas
+    
+    def _apply_image_transform(self, image, layer_data):
+        """对图像应用变换"""
+        try:
+            from PIL import Image as PILImage
+            # 获取变换参数
+            scaleX = layer_data.get('scaleX', 1)
+            scaleY = layer_data.get('scaleY', 1)
+            angle = layer_data.get('angle', 0)
+            flipX = layer_data.get('flipX', False)
+            flipY = layer_data.get('flipY', False)
+            
+            # 应用缩放
+            if scaleX != 1 or scaleY != 1:
+                new_width = int(image.width * scaleX)
+                new_height = int(image.height * scaleY)
+                image = image.resize((new_width, new_height), PILImage.LANCZOS)
+                print(f"[LRPG] 📏 图像缩放: {scaleX}x{scaleY} -> {image.size}")
+            
+            # 应用旋转
+            if angle != 0:
+                image = image.rotate(-angle, expand=True, fillcolor=(255, 255, 255))
+                print(f"[LRPG] 🔄 图像旋转: {angle}度")
+            
+            # 应用翻转
+            if flipX:
+                image = image.transpose(PILImage.FLIP_LEFT_RIGHT)
+                print(f"[LRPG] ↔️ 水平翻转")
+            if flipY:
+                image = image.transpose(PILImage.FLIP_TOP_BOTTOM)
+                print(f"[LRPG] ↕️ 垂直翻转")
+            
+            return image
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 图像变换失败: {str(e)}")
+            return image
+    
+    def _composite_image_to_canvas(self, canvas, image, layer_data):
+        """将变换后的图像合成到画布上"""
+        try:
+            from PIL import Image as PILImage
+            # 🚀 lg_tools机制：使用centerX/centerY，然后转换为左上角坐标
+            center_x = int(layer_data.get('centerX', 0))
+            center_y = int(layer_data.get('centerY', 0))
+            
+            # 🚀 lg_tools机制：使用前端传来的预期尺寸进行定位
+            # getCenterPoint()是基于前端显示尺寸计算的，后端应该使用相同基准
+            actual_width = int(layer_data.get('actualWidth', image.width))
+            actual_height = int(layer_data.get('actualHeight', image.height))
+            
+            # 🔍 调试：对比前端预期尺寸与实际图像尺寸
+            if actual_width != image.width or actual_height != image.height:
+                print(f"[LRPG] 🔧 尺寸差异检测: 前端预期{actual_width}x{actual_height} vs 实际{image.width}x{image.height}")
+                print(f"[LRPG] 🎯 使用前端预期尺寸保证lg_tools坐标一致性")
+            
+            # 记录前端传来的尺寸用于调试
+            frontend_width = int(layer_data.get('actualWidth', 0))
+            frontend_height = int(layer_data.get('actualHeight', 0))
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            left = center_x - actual_width // 2
+            top = center_y - actual_height // 2
+            
+            print(f"[LRPG] 🚀 lg_tools精准机制: centerX={center_x}, centerY={center_y}")
+            print(f"[LRPG] 📏 前端传来尺寸: {frontend_width}x{frontend_height}")
+            print(f"[LRPG] 🚀 变换后实际尺寸: {actual_width}x{actual_height}")
+            print(f"[LRPG] 🚀 计算左上角: ({left}, {top}) = center - size/2")
+            
+            # 创建带透明度的图像用于合成
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
+            
+            # 粘贴到画布
+            if canvas.mode != 'RGBA':
+                canvas = canvas.convert('RGBA')
+            
+            canvas.paste(image, (left, top), image)
+            
+            # 保持RGBA格式以支持透明度
+            # 注释掉RGB转换，保持透明度支持
+            
+            print(f"[LRPG] ✅ 图像已合成到画布")
+            return canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 图像合成失败: {str(e)}")
+            return canvas
+            
+    def _apply_single_layer_transform(self, canvas, layer_data, draw, actual_canvas_width, actual_canvas_height):
+        """对单个图层应用变换"""
+        try:
+            if not layer_data:
+                return canvas
+                
+            # 🚀 lg_tools机制：使用centerX/centerY和center-size/2转换
+            layer_type = layer_data.get('type', 'image')
+            centerX = layer_data.get('centerX', 0)
+            centerY = layer_data.get('centerY', 0)
+            actualWidth = layer_data.get('actualWidth', 0)
+            actualHeight = layer_data.get('actualHeight', 0)
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            leftX = centerX - actualWidth // 2
+            topY = centerY - actualHeight // 2
+            
+            print(f"[LRPG] 🚀 lg_tools变换: centerX={centerX}, centerY={centerY}")
+            print(f"[LRPG] 🚀 尺寸: {actualWidth}x{actualHeight}")
+            print(f"[LRPG] 🚀 左上角: ({leftX}, {topY})")
+            
+            scaleX = layer_data.get('scaleX', 1)
+            scaleY = layer_data.get('scaleY', 1)
+            angle = layer_data.get('angle', 0)
+            width = layer_data.get('width', 100)
+            height = layer_data.get('height', 100)
+            flipX = layer_data.get('flipX', False)
+            flipY = layer_data.get('flipY', False)
+            crop_path = layer_data.get('crop_path', [])
+            
+            print(f"[LRPG] 📍 LRPG变换参数:")
+            print(f"  - 🎯 左上角坐标: ({leftX:.1f}, {topY:.1f})")
+            print(f"  - 📐 实际尺寸: {actualWidth:.1f}x{actualHeight:.1f}")
+            print(f"  - 🔍 缩放: {scaleX:.3f} x {scaleY:.3f}")
+            print(f"  - 🔄 旋转: {angle:.1f}°")
+            print(f"  - ↕️ 翻转: X={flipX}, Y={flipY}")
+            print(f"  - ✂️ 裁切: {len(crop_path)} 个点")
+            
+            # 🎯 坐标系统一：只对标注图层应用定位变换，输入图像直接处理
+            if layer_type != 'image':
+                return self._apply_lrpg_transform_to_image(
+                    canvas, leftX, topY, scaleX, scaleY, angle, 
+                    flipX, flipY, crop_path
+                )
+            
+            if layer_type == 'image':
+                # 🚀 LRPG架构：输入图像直接变换，无需重新定位
+                print(f"[LRPG] 🖼️ 处理输入图像变换")
+                
+                # 检查是否需要应用变换
+                needs_transform = (abs(angle) > 0.1 or abs(scaleX - 1) > 0.01 or 
+                                 abs(scaleY - 1) > 0.01 or flipX or flipY)
+                
+                if needs_transform:
+                    print(f"[LRPG] 🔧 在固定画布{actual_canvas_width}x{actual_canvas_height}上应用图像变换:")
+                    print(f"  - 缩放: ({scaleX:.3f}, {scaleY:.3f})")  
+                    print(f"  - 旋转: {angle:.1f}°")
+                    print(f"  - 翻转: X={flipX}, Y={flipY}")
+                    
+                    # ✅ 保持画布尺寸，在画布上应用变换
+                    # 1. 先对图像应用变换
+                    work_image = canvas.copy()
+                    
+                    if abs(scaleX - 1) > 0.01 or abs(scaleY - 1) > 0.01:
+                        new_width = int(canvas.size[0] * scaleX)
+                        new_height = int(canvas.size[1] * scaleY)
+                        work_image = work_image.resize((new_width, new_height), PILImage.Resampling.LANCZOS)
+                        print(f"[LRPG] 📏 图像缩放至: {new_width}x{new_height}")
+                        
+                    if flipX:
+                        work_image = work_image.transpose(PILImage.Transpose.FLIP_LEFT_RIGHT)
+                        print(f"[LRPG] ↔️ 图像X轴翻转")
+                    if flipY:
+                        work_image = work_image.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM) 
+                        print(f"[LRPG] ↕️ 图像Y轴翻转")
+                        
+                    if abs(angle) > 0.1:
+                        work_image = work_image.rotate(-angle, expand=True, fillcolor=(255, 255, 255))
+                        print(f"[LRPG] 🔄 图像旋转: {angle}°")
+                    
+                    # 2. 创建固定尺寸画布并按前端位置放置变换后的图像
+                    final_canvas = PILImage.new('RGB', (actual_canvas_width, actual_canvas_height), (255, 255, 255))
+                    
+                    # ✅ LRPG统一坐标系：模仿lg_tools，中心点转左上角（PIL标准）
+                    work_width, work_height = work_image.size
+                    paste_x = int(centerX - work_width / 2)
+                    paste_y = int(centerY - work_height / 2)
+                    
+                    print(f"[LRPG] 📍 统一坐标转换: 中心点({centerX}, {centerY}) -> 左上角({paste_x}, {paste_y})")
+                    
+                    # 确保图像不完全超出画布范围
+                    paste_x = max(-work_width//2, min(paste_x, actual_canvas_width - work_width//2))
+                    paste_y = max(-work_height//2, min(paste_y, actual_canvas_height - work_height//2))
+                    
+                    print(f"[LRPG] 🎯 边界修正后粘贴位置: ({paste_x}, {paste_y})")
+                    
+                    final_canvas.paste(work_image, (paste_x, paste_y))
+                    canvas = final_canvas
+                    
+                    print(f"[LRPG] ✅ 图像变换完成，变换后图像{work_width}x{work_height}已放置在{actual_canvas_width}x{actual_canvas_height}画布的({paste_x}, {paste_y})位置")
+                else:
+                    print(f"[LRPG] ℹ️ 输入图像无需变换，保持画布尺寸{actual_canvas_width}x{actual_canvas_height}")
+                
+                # ✂️ 处理输入图像的裁切路径
+                if len(crop_path) >= 3:
+                    print(f"[LRPG] ✂️ 对输入图像应用裁切，路径点数: {len(crop_path)}")
+                    canvas = self._apply_lrpg_crop(canvas, crop_path)
+                    print(f"[LRPG] ✅ 输入图像裁切完成")
+                else:
+                    if len(crop_path) == 0:
+                        print(f"[LRPG] ✅ 输入图像无需裁切 - 接收到已处理图像或无裁切操作")
+                    else:
+                        print(f"[LRPG] ⚠️ 裁切路径点数不足({len(crop_path)}个)，跳过裁切")
+            
+            return canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 单图层变换失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return canvas
+    
+    def _apply_crop_to_pil(self, pil_image, crop_transforms):
+        """对PIL图像应用裁切变换"""
+        try:
+            from PIL import Image, ImageDraw
+            import numpy as np
+            
+            for crop_transform in crop_transforms:
+                if crop_transform.get('type') == 'crop_mask':
+                    crop_path = crop_transform.get('crop_path', [])
+                    if len(crop_path) < 3:
+                        continue
+                    
+                    # 创建蒙版
+                    mask = Image.new('L', pil_image.size, 0)
+                    draw = ImageDraw.Draw(mask)
+                    
+                    # 转换路径点
+                    polygon_points = [(int(point['x']), int(point['y'])) for point in crop_path]
+                    draw.polygon(polygon_points, fill=255)
+                    
+                    # 应用蒙版 - 保持透明背景
+                    result = Image.new('RGBA', pil_image.size, (0, 0, 0, 0))
+                    result.paste(pil_image, mask=mask)
+                    pil_image = result  # 保持RGBA格式以维持透明度
+                    
+            return pil_image
+        except Exception as e:
+            print(f"[LRPG] ❌ PIL裁切失败: {str(e)}")
+            return pil_image
+    
+    def _apply_crop_transform(self, image, crop_transform):
+        """应用Transform-First裁切变换到图像"""
+        try:
+            import cv2
+            import numpy as np
+            from PIL import Image, ImageDraw
+            
+            # 获取裁切路径点
+            crop_path = crop_transform.get('crop_path', [])
+            if len(crop_path) < 3:
+                print(f"[LRPG] ⚠️ 裁切路径点数不足，跳过裁切")
+                return image
+            
+            # 将tensor转换为numpy数组
+            if len(image.shape) == 4:
+                img_array = image[0].numpy()  # 取第一个batch
+            else:
+                img_array = image.numpy()
+                
+            # 确保值在0-255范围内
             if img_array.max() <= 1.0:
                 img_array = (img_array * 255).astype(np.uint8)
             else:
                 img_array = img_array.astype(np.uint8)
-                
-            # Convert to PIL Image
-            if len(img_array.shape) == 3:
-                pil_image = Image.fromarray(img_array, 'RGB')
-            else:
-                pil_image = Image.fromarray(img_array, 'L')
-                pil_image = pil_image.convert('RGB')
             
-            # Get image dimensions
-            img_width, img_height = pil_image.size
+            height, width = img_array.shape[:2]
             
-            # Helper function to draw annotation numbers
-            def draw_annotation_number(draw, position, number, color_rgba, scale_x=1.0, scale_y=1.0):
-                """Draw annotation number label at specified position - simplified style without circles"""
-                if not include_annotation_numbers:
-                    return
-                    
-                try:
-                    # Calculate font size based on image size - larger for better visibility
-                    font_size = max(24, int(min(img_width, img_height) * 0.04))
-                    
-                    # Try to use a nice font, fallback to default
-                    try:
-                        font = ImageFont.truetype("arial.ttf", font_size)
-                    except:
-                        try:
-                            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-                        except:
-                            try:
-                                font = ImageFont.load_default()
-                                # Scale up the default font size if possible
-                                if hasattr(font, 'font_size'):
-                                    font.font_size = font_size
-                            except:
-                                font = None
-                    
-                    # Position for number label - already calculated as outside position
-                    x = int(position['x'] * scale_x)
-                    y = int(position['y'] * scale_y)
-                    
-                    # Text styling
-                    text = str(number)
-                    
-                    # Draw text with black outline for high contrast
-                    outline_width = 2
-                    text_color = (255, 255, 255, 255)  # White text
-                    outline_color = (0, 0, 0, 255)     # Black outline
-                    
-                    # Draw text outline (multiple passes for better effect)
-                    for dx in range(-outline_width, outline_width + 1):
-                        for dy in range(-outline_width, outline_width + 1):
-                            if dx != 0 or dy != 0:  # Don't draw at center position
-                                if font:
-                                    draw.text((x + dx, y + dy), text, fill=outline_color, font=font)
-                                else:
-                                    draw.text((x + dx, y + dy), text, fill=outline_color)
-                    
-                    # Draw main text
-                    if font:
-                        draw.text((x, y), text, fill=text_color, font=font)
-                    else:
-                        draw.text((x, y), text, fill=text_color)
-                    
-                except Exception as e:
-                    print(f"Warning: Failed to draw annotation number {number}: {e}")
+            # 创建蒙版
+            mask = Image.new('L', (width, height), 0)
+            draw = ImageDraw.Draw(mask)
             
-            # Create drawing object
-            draw = ImageDraw.Draw(pil_image, 'RGBA')
+            # 将裁切路径转换为PIL坐标
+            polygon_points = [(int(point['x']), int(point['y'])) for point in crop_path]
             
-            # Color mapping (base RGB values, alpha will be calculated per annotation) - 标准纯色
-            color_map = {
-                '#ff0000': (255, 0, 0),      # Standard Red
-                '#00ff00': (0, 255, 0),      # Standard Green  
-                '#ffff00': (255, 255, 0),    # Standard Yellow
-                '#0000ff': (0, 0, 255)       # Standard Blue
-            }
+            # 绘制裁切区域（白色为保留区域）
+            draw.polygon(polygon_points, fill=255)
             
-            # 前端SVG现在使用图像实际尺寸作为viewBox，所以坐标转换比例是1:1
-            print(f"🖼️ Backend image rendering - Image size: {img_width}x{img_height}")
+            # 将蒙版转换为numpy数组
+            mask_array = np.array(mask)
             
-            # 定义填充样式应用函数
-            def apply_fill_style(draw, coords, color_rgb, fill_mode, shape_type, opacity=50):
-                """根据填充模式和不透明度绘制形状"""
-                # 计算不透明度值 (0-255)
-                fill_alpha = int(opacity * 255 / 100)
-                stroke_alpha = min(int((opacity + 30) * 255 / 100), 255)  # 边框稍微更不透明一些
-                
-                if fill_mode == 'outline':
-                    # 空心样式 - 只绘制边框
-                    outline_color = (color_rgb[0], color_rgb[1], color_rgb[2], stroke_alpha)
-                    if shape_type == 'rectangle':
-                        x1, y1, x2, y2 = coords
-                        draw.rectangle([x1, y1, x2, y2], outline=outline_color, width=3)
-                    elif shape_type == 'ellipse':
-                        x1, y1, x2, y2 = coords  
-                        draw.ellipse([x1, y1, x2, y2], outline=outline_color, width=3)
-                    elif shape_type == 'polygon':
-                        draw.polygon(coords, outline=outline_color, width=3)
-                else:
-                    # 实心样式 - 填充 (默认)
-                    fill_color = (color_rgb[0], color_rgb[1], color_rgb[2], fill_alpha)
-                    if shape_type == 'rectangle':
-                        x1, y1, x2, y2 = coords
-                        draw.rectangle([x1, y1, x2, y2], fill=fill_color)
-                    elif shape_type == 'ellipse':
-                        x1, y1, x2, y2 = coords
-                        draw.ellipse([x1, y1, x2, y2], fill=fill_color)
-                    elif shape_type == 'polygon':
-                        draw.polygon(coords, fill=fill_color)
+            # 应用蒙版到图像
+            if len(img_array.shape) == 3:  # RGB图像
+                # 将蒙版应用到每个通道
+                for i in range(3):
+                    img_array[:, :, i] = np.where(mask_array > 0, img_array[:, :, i], 0)
             
-            # 检查是否所有标注都使用相同的坐标基准
-            # 如果坐标值都在图像尺寸范围内，则直接使用；否则进行比例转换
-            def get_coordinate_scale_from_frontend(annotation_data_json, img_width, img_height):
-                """从前端数据获取准确的坐标缩放比例"""
-                try:
-                    # 尝试从前端数据获取缩放信息
-                    if annotation_data_json and 'image_scale_info' in annotation_data_json:
-                        scale_info = annotation_data_json['image_scale_info']
-                        if scale_info and 'scale_x' in scale_info and 'scale_y' in scale_info:
-                            scale_x = float(scale_info['scale_x'])
-                            scale_y = float(scale_info['scale_y'])
-                            
-                            # 🔧 关键修复：获取画布偏移信息，用于坐标转换
-                            canvas_offset_x = scale_info.get('canvas_offset_x', 0)
-                            canvas_offset_y = scale_info.get('canvas_offset_y', 0)
-                            
-                            print(f"✅ [SCALE] 使用前端精确缩放信息: scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
-                            print(f"📊 [SCALE] 显示尺寸: {scale_info.get('display_width', 'N/A')}x{scale_info.get('display_height', 'N/A')}")
-                            print(f"📊 [SCALE] 原始尺寸: {scale_info.get('natural_width', 'N/A')}x{scale_info.get('natural_height', 'N/A')}")
-                            print(f"📍 [SCALE] 画布偏移: ({canvas_offset_x}, {canvas_offset_y})")
-                            
-                            # 返回缩放因子和偏移信息
-                            return scale_x, scale_y, canvas_offset_x, canvas_offset_y
-                except Exception as e:
-                    print(f"⚠️ [SCALE] 获取前端缩放信息失败: {e}")
-                
-                # 回退到原有的检测逻辑（但这通常不准确）
-                print("⚠️ [SCALE] 前端缩放信息不可用，使用回退检测逻辑")
-                max_x = max_y = 0
-                coord_count = 0
-                
-                for layer in layers_data:
-                    if 'start' in layer and 'end' in layer:
-                        start, end = layer['start'], layer['end']
-                        if isinstance(start, dict) and isinstance(end, dict):
-                            max_x = max(max_x, abs(start.get('x', 0)), abs(end.get('x', 0)))
-                            max_y = max(max_y, abs(start.get('y', 0)), abs(end.get('y', 0)))
-                            coord_count += 1
-                    elif 'geometry' in layer and 'coordinates' in layer['geometry']:
-                        coords = layer['geometry']['coordinates']
-                        if isinstance(coords, list) and len(coords) >= 4:
-                            max_x = max(max_x, abs(coords[0]), abs(coords[2]))
-                            max_y = max(max_y, abs(coords[1]), abs(coords[3]))
-                            coord_count += 1
-                            
-                if coord_count == 0:
-                    return 1.0, 1.0, 0, 0
-                    
-                scale_x = img_width / max_x if max_x > img_width * 1.5 else 1.0
-                scale_y = img_height / max_y if max_y > img_height * 1.5 else 1.0
-                
-                print(f"🔍 [SCALE] 回退检测结果 - Max coords: ({max_x}, {max_y}), Scale ratio: ({scale_x:.3f}, {scale_y:.3f})")
-                return scale_x, scale_y, 0, 0  # 回退时无偏移信息
+            # 转换回tensor
+            result_tensor = torch.from_numpy(img_array.astype(np.float32) / 255.0)
             
-            # 获取坐标缩放比例和偏移信息（优先使用前端精确信息）
-            scale_result = get_coordinate_scale_from_frontend(annotation_data_json, img_width, img_height)
-            if len(scale_result) == 4:
-                scale_x, scale_y, canvas_offset_x, canvas_offset_y = scale_result
-            else:
-                scale_x, scale_y = scale_result
-                canvas_offset_x, canvas_offset_y = 0, 0
+            # 确保维度正确
+            if len(result_tensor.shape) == 3:
+                result_tensor = result_tensor.unsqueeze(0)
             
-            # Render each annotation
-            rendered_count = 0
-            for i, layer in enumerate(layers_data):
-                color_hex = layer.get('color', '#ff0000')
-                color_rgb = color_map.get(color_hex, (255, 0, 0))  # 获取RGB值
-                layer_type = layer.get('type', 'rectangle')
-                opacity = layer.get('opacity', 50)  # 获取不透明度，默认50%
-                
-                # 🔍 调试：输出每个标注的不透明度信息
-                print(f"🎨 Annotation {i+1} render info: type={layer_type}, color={color_hex}, opacity={opacity}%")
-                
-                # Check if coordinates exist and are valid
-                # Support multiple coordinate formats: 1) start/end, 2) geometry.coordinates
-                has_coordinates = False
-                start_point = None
-                end_point = None
-                fill_mode = layer.get('fillMode', 'filled')  # 获取填充模式
-                
-                print(f"🔍 Annotation {i+1} coordinate check: type={layer_type}, contains keys={list(layer.keys())}")
-                
-                if layer_type in ['rectangle', 'circle', 'arrow']:
-                    # Format 1: Direct start/end coordinates
-                    if 'start' in layer and 'end' in layer:
-                        start = layer['start'] 
-                        end = layer['end']
-                        if isinstance(start, dict) and isinstance(end, dict):
-                            if all(key in start for key in ['x', 'y']) and all(key in end for key in ['x', 'y']):
-                                has_coordinates = True
-                                start_point = start
-                                end_point = end
-                        
-                    # Format 2: Geometry coordinates [x1, y1, x2, y2]
-                    elif 'geometry' in layer and 'coordinates' in layer['geometry']:
-                        coords = layer['geometry']['coordinates']
-                        if isinstance(coords, list) and len(coords) >= 4:
-                            x1, y1, x2, y2 = coords[:4]
-                            start_point = {'x': x1, 'y': y1}
-                            end_point = {'x': x2, 'y': y2}
-                            has_coordinates = True
-                        
-                elif layer_type == 'freehand' or layer_type == 'polygon':
-                    if 'points' in layer and isinstance(layer['points'], list):
-                        points = layer['points']
-                        if len(points) >= 3 and all(isinstance(p, dict) and 'x' in p and 'y' in p for p in points):
-                            has_coordinates = True
-                            
-                elif layer_type == 'brush':
-                    # 画笔标注的坐标检查
-                    if 'points' in layer and isinstance(layer['points'], list):
-                        brush_points = layer['points']
-                        print(f"🖌️ 画笔标注{i+1}: 找到points字段，长度={len(brush_points)}")
-                        if len(brush_points) >= 1 and all(isinstance(p, dict) and 'x' in p and 'y' in p for p in brush_points):
-                            has_coordinates = True
-                            print(f"🖌️ 画笔标注{i+1}: 坐标验证通过")
-                        else:
-                            print(f"🖌️ 画笔标注{i+1}: 坐标验证失败")
-                
-                if not has_coordinates:
-                    print(f"⚠️ 标注{i+1}: 没有有效坐标，跳过渲染")
-                    continue
-                
-                if layer_type == 'rectangle' and start_point and end_point:
-                    # Rectangle annotation
-                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
-                    # display坐标 ÷ scale = original坐标
-                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
-                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
-                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
-                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
-                    
-                    # Ensure correct coordinate order
-                    x1, x2 = min(x1, x2), max(x1, x2)
-                    y1, y2 = min(y1, y2), max(y1, y2)
-                    
-                    print(f"🔴 Rectangle annotation {i}: original coords({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → image coords({x1},{y1})-({x2},{y2}), fill mode: {fill_mode}, opacity: {opacity}%")
-                    print(f"🔴 Before rectangle drawing: draw object={id(draw)}, image object={id(pil_image)}, image mode={pil_image.mode}")
-                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'rectangle', opacity)
-                    print(f"🔴 After rectangle drawing: Rectangle drawing completed")
-                    
-                    # Draw annotation number at top-left corner outside the annotation
-                    annotation_number = layer.get('number', i + 1)
-                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    # Calculate position outside the rectangle (top-left corner with small offset)
-                    number_position = {
-                        'x': min(start_point['x'], end_point['x']) - 8,
-                        'y': min(start_point['y'], end_point['y']) - 8
-                    }
-                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
-                    
-                    rendered_count += 1
-                    
-                elif layer_type == 'circle' and start_point and end_point:
-                    # Ellipse annotation
-                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
-                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
-                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
-                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
-                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
-                    
-                    # Ensure correct coordinate order
-                    x1, x2 = min(x1, x2), max(x1, x2)
-                    y1, y2 = min(y1, y2), max(y1, y2)
-                    
-                    print(f"🟡 椭圆标注 {i}: 原始坐标({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → 图像坐标({x1},{y1})-({x2},{y2}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
-                    apply_fill_style(draw, (x1, y1, x2, y2), color_rgb, fill_mode, 'ellipse', opacity)
-                    
-                    # Draw annotation number at top-left corner outside the annotation
-                    annotation_number = layer.get('number', i + 1)
-                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    # Calculate position outside the ellipse (top-left corner with small offset)
-                    number_position = {
-                        'x': min(start_point['x'], end_point['x']) - 8,
-                        'y': min(start_point['y'], end_point['y']) - 8
-                    }
-                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
-                    
-                    rendered_count += 1
-                    
-                elif layer_type == 'freehand' and 'points' in layer:
-                    # Polygon annotation
-                    points = layer['points']
-                    
-                    if len(points) >= 3:
-                        polygon_points = []
-                        for point in points:
-                            # 🔧 关键修复：先减去画布偏移，再应用缩放
-                            x = int((point['x'] - canvas_offset_x) * scale_x)
-                            y = int((point['y'] - canvas_offset_y) * scale_y)
-                            polygon_points.append((x, y))
-                        
-                        print(f"🔗 多边形标注 {i}: {len(points)}个点, 缩放比例({scale_x:.3f}, {scale_y:.3f}), 填充模式: {fill_mode}, 不透明度: {opacity}%")
-                        apply_fill_style(draw, polygon_points, color_rgb, fill_mode, 'polygon', opacity)
-                        
-                        # Draw annotation number outside the polygon (offset from first point)
-                        annotation_number = layer.get('number', i + 1)
-                        first_point = points[0]
-                        color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                        # Calculate position outside the polygon (small offset from first point)
-                        number_position = {
-                            'x': first_point['x'] - 8,
-                            'y': first_point['y'] - 8
-                        }
-                        draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
-                        
-                        rendered_count += 1
-                        
-                elif layer_type == 'arrow' and start_point and end_point:
-                    # Arrow annotation
-                    # 🔧 关键修复：前端坐标基于显示尺寸，转换到原始图像坐标系
-                    x1 = int((start_point['x'] - canvas_offset_x) / scale_x)
-                    y1 = int((start_point['y'] - canvas_offset_y) / scale_y)
-                    x2 = int((end_point['x'] - canvas_offset_x) / scale_x)
-                    y2 = int((end_point['y'] - canvas_offset_y) / scale_y)
-                    
-                    # Draw arrow line with opacity
-                    arrow_alpha = int(opacity * 255 / 100)
-                    line_color = (*color_rgb, arrow_alpha)
-                    draw.line([x1, y1, x2, y2], fill=line_color, width=6)
-                    
-                    # Calculate arrow head
-                    import math
-                    
-                    # Arrow length and angle
-                    arrow_length = 20
-                    arrow_angle = math.pi / 6  # 30 degrees
-                    
-                    # Calculate line angle
-                    dx = x2 - x1
-                    dy = y2 - y1
-                    line_angle = math.atan2(dy, dx)
-                    
-                    # Calculate arrow two vertices
-                    arrow_x1 = x2 - arrow_length * math.cos(line_angle - arrow_angle)
-                    arrow_y1 = y2 - arrow_length * math.sin(line_angle - arrow_angle)
-                    arrow_x2 = x2 - arrow_length * math.cos(line_angle + arrow_angle)
-                    arrow_y2 = y2 - arrow_length * math.sin(line_angle + arrow_angle)
-                    
-                    # Draw arrow head (triangle)
-                    arrow_points = [(x2, y2), (int(arrow_x1), int(arrow_y1)), (int(arrow_x2), int(arrow_y2))]
-                    draw.polygon(arrow_points, fill=line_color)
-                    
-                    print(f"➡️ Arrow annotation {i}: original coords({start_point['x']:.1f},{start_point['y']:.1f})-({end_point['x']:.1f},{end_point['y']:.1f}) → image coords({x1},{y1})-({x2},{y2})")
-                    
-                    # Draw annotation number outside the arrow (offset from start point)
-                    annotation_number = layer.get('number', i + 1)
-                    color_rgba = (*color_rgb, 255)  # 转换为RGBA格式给编号使用
-                    # Calculate position outside the arrow (small offset from start point)
-                    number_position = {
-                        'x': start_point['x'] - 8,
-                        'y': start_point['y'] - 8
-                    }
-                    draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
-                    
-                    rendered_count += 1
-                    
-                elif layer_type == 'brush' and 'points' in layer:
-                    # Brush annotation with path data
-                    points = layer.get('points', [])
-                    path_data = layer.get('pathData', '')
-                    
-                    print(f"🖌️ 画笔标注 {i}: 开始处理，points类型={type(points)}, 长度={len(points) if points else 0}")
-                    
-                    if not points or len(points) == 0:
-                        print(f"⚠️ 画笔标注 {i}: 没有路径点，跳过渲染")
-                        continue
-                    
-                    # 检查points的第一个元素结构
-                    if len(points) > 0:
-                        print(f"🖌️ 画笔标注 {i}: 第一个点结构={points[0]}")
-                    
-                    # 验证所有点都有x,y坐标
-                    valid_points = [p for p in points if isinstance(p, dict) and 'x' in p and 'y' in p]
-                    print(f"🖌️ 画笔标注 {i}: 有效点数量={len(valid_points)}/{len(points)}")
-                    
-                    if len(valid_points) == 0:
-                        print(f"⚠️ 画笔标注 {i}: 没有有效的坐标点，跳过渲染")
-                        continue
-                    
-                    points = valid_points  # 使用验证过的点
-                    
-                    # 获取画笔参数
-                    brush_size = layer.get('brushSize', 20)
-                    brush_feather = layer.get('brushFeather', 5)
-                    
-                    # 绘制画笔路径
-                    if brush_feather > 0:
-                        # 带羽化的画笔路径
-                        from PIL import ImageFilter
-                        
-                        # 创建临时图像用于绘制路径
-                        temp_img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
-                        temp_draw = ImageDraw.Draw(temp_img)
-                        
-                        # 转换路径点并绘制
-                        scaled_points = []
-                        for point in points:
-                            # 🔧 关键修复：先减去画布偏移，再应用缩放
-                            scaled_x = int((point['x'] - canvas_offset_x) * scale_x)
-                            scaled_y = int((point['y'] - canvas_offset_y) * scale_y)
-                            scaled_points.append((scaled_x, scaled_y))
-                        
-                        if len(scaled_points) >= 2:
-                            # 绘制路径
-                            stroke_width = int(brush_size * max(scale_x, scale_y))
-                            stroke_alpha = int(opacity * 255 / 100)
-                            stroke_color = (*color_rgb, stroke_alpha)
-                            
-                            print(f"🖌️ Brush rendering {i}: feathered path, width={stroke_width}, alpha={stroke_alpha}, color={stroke_color}")
-                            
-                            # 绘制线段连接各点
-                            for j in range(len(scaled_points) - 1):
-                                temp_draw.line([scaled_points[j], scaled_points[j + 1]], 
-                                             fill=stroke_color, width=stroke_width)
-                            
-                            # 在每个点绘制圆形以形成连续路径
-                            radius = stroke_width // 2
-                            for point in scaled_points:
-                                temp_draw.ellipse([
-                                    point[0] - radius, point[1] - radius,
-                                    point[0] + radius, point[1] + radius
-                                ], fill=stroke_color)
-                            
-                            print(f"🖌️ Brush rendering {i}: feathering drawing completed, preparing composition")
-                        
-                        # 应用羽化效果
-                        feather_pixels = int(brush_feather * max(scale_x, scale_y))
-                        if feather_pixels > 0:
-                            temp_img = temp_img.filter(ImageFilter.GaussianBlur(feather_pixels))
-                        
-                        # 将羽化后的图像合成到主图像
-                        print(f"🖌️ 画笔合成: 主图像尺寸={pil_image.size}, 临时图像尺寸={temp_img.size}")
-                        # 保持RGBA模式以便后续标注绘制
-                        pil_image = Image.alpha_composite(pil_image.convert('RGBA'), temp_img)
-                        # 重要：更新draw对象到新的合成图像
-                        draw = ImageDraw.Draw(pil_image, 'RGBA')
-                        print(f"🖌️ 画笔合成完成: {i}，新draw对象={id(draw)}, 新图像对象={id(pil_image)}, 图像模式={pil_image.mode}")
-                    else:
-                        # 无羽化的实心路径
-                        scaled_points = []
-                        for point in points:
-                            # 🔧 关键修复：先减去画布偏移，再应用缩放
-                            scaled_x = int((point['x'] - canvas_offset_x) * scale_x)
-                            scaled_y = int((point['y'] - canvas_offset_y) * scale_y)
-                            scaled_points.append((scaled_x, scaled_y))
-                        
-                        if len(scaled_points) >= 2:
-                            stroke_width = int(brush_size * max(scale_x, scale_y))
-                            stroke_alpha = int(opacity * 255 / 100)
-                            stroke_color = (*color_rgb, stroke_alpha)
-                            
-                            # 绘制路径
-                            for j in range(len(scaled_points) - 1):
-                                draw.line([scaled_points[j], scaled_points[j + 1]], 
-                                         fill=stroke_color, width=stroke_width)
-                            
-                            # 在每个点绘制圆形以形成连续路径
-                            radius = stroke_width // 2
-                            for point in scaled_points:
-                                draw.ellipse([
-                                    point[0] - radius, point[1] - radius,
-                                    point[0] + radius, point[1] + radius
-                                ], fill=stroke_color)
-                    
-                    print(f"🖌️ 画笔路径 {i}: {len(points)}个点, 大小={brush_size}, 羽化={brush_feather}, 不透明度={opacity}%")
-                    
-                    # Draw annotation number outside the brush path (offset from first point)
-                    if points:
-                        annotation_number = layer.get('number', i + 1)
-                        color_rgba = (*color_rgb, 255)
-                        first_point = points[0]
-                        # Calculate position outside the brush path (small offset from first point)
-                        number_position = {
-                            'x': first_point['x'] - 8,
-                            'y': first_point['y'] - 8
-                        }
-                        draw_annotation_number(draw, number_position, annotation_number, color_rgba, scale_x, scale_y)
-                    
-                    rendered_count += 1
-            
-            numbers_status = "with numbers" if include_annotation_numbers else "without numbers"
-            print(f"✅ Backend annotation rendering completed: Total {len(layers_data)} annotations, successfully rendered {rendered_count} ({numbers_status})")
-            
-            # 如果图像在RGBA模式，转换为RGB模式
-            if pil_image.mode == 'RGBA':
-                print(f"🔄 Converting final image from RGBA to RGB mode")
-                pil_image = pil_image.convert('RGB')
-            
-            # Convert back to torch tensor
-            output_array = np.array(pil_image)
-            output_tensor = torch.from_numpy(output_array).float() / 255.0
-            
-            # Ensure correct dimensions
-            if len(image.shape) == 4:
-                output_tensor = output_tensor.unsqueeze(0)
-            
-            return output_tensor
+            print(f"[LRPG] ✂️ 裁切变换完成，处理了 {len(polygon_points)} 个路径点")
+            return result_tensor
             
         except Exception as e:
-            print(f"Warning: Failed to render annotations on image: {e}")
-            return image  # Return original image if rendering fails
+            print(f"[LRPG] ❌ 裁切变换失败: {str(e)}")
+            return image  # 失败时返回原图
     
-    def _generate_model_instruction(self, structured_prompt: str, constraint_prompts: List[str], decorative_prompts: List[str], selected_annotations: List[Dict]) -> str:
-        """
-        生成给大模型的完整指令
-        包含基础提示词、约束性提示词、修饰性提示词和元数据信息
-        """
-        instruction_parts = []
+    def _generate_transform_based_prompt(self, transform_data, user_prompt, constraint_prompts, decorative_prompts, 
+                                       operation_type="custom", target_description=""):
+        """基于Transform数据生成提示词"""
+        if user_prompt and user_prompt.strip():
+            print(f"[LRPG] ✅ 使用用户编辑的提示词")
+            return user_prompt.strip()
         
-        # 1. 基础操作指令
-        instruction_parts.append(f"OPERATION: {structured_prompt}")
+        # 基于operation_type生成结构化提示词
+        print(f"[LRPG] 🤖 自动生成提示词 - 操作类型: {operation_type}")
         
-        # 2. 约束性提示词（质量和技术要求）
+        # 操作类型模板
+        operation_templates = {
+            'add_object': lambda desc: f"add {desc or 'a new object'} to the image",
+            'change_color': lambda desc: f"make the selected area {desc or 'red'}",
+            'change_style': lambda desc: f"turn the selected area into {desc or 'cartoon'} style",
+            'replace_object': lambda desc: f"replace the selected area with {desc or 'a different object'}",
+            'remove_object': lambda desc: "remove the selected area",
+            'enhance_quality': lambda desc: "enhance the image quality",
+            'custom': lambda desc: desc or "apply modifications to the image"
+        }
+        
+        # 生成基础提示词
+        template_func = operation_templates.get(operation_type, operation_templates['custom'])
+        base_prompt = template_func(target_description)
+        
+        prompt_parts = [base_prompt]
+        
+        # 如果有transform数据，添加变换信息
+        if transform_data:
+            layer_count = len(transform_data)
+            print(f"[LRPG] 📊 应用了 {layer_count} 个图层变换")
+        
+        # 添加约束提示词
         if constraint_prompts:
-            constraints_text = ", ".join(constraint_prompts)
-            instruction_parts.append(f"CONSTRAINTS: {constraints_text}")
+            prompt_parts.extend(constraint_prompts)
         
-        # 3. 修饰性提示词（风格和视觉效果）
+        # 添加装饰提示词  
         if decorative_prompts:
-            decoratives_text = ", ".join(decorative_prompts)
-            instruction_parts.append(f"STYLE: {decoratives_text}")
+            prompt_parts.extend(decorative_prompts)
         
-        # 4. 元数据信息
-        metadata = []
-        if selected_annotations:
-            metadata.append(f"annotations_count: {len(selected_annotations)}")
-            
-            # 统计操作类型
-            operation_types = {}
-            for ann in selected_annotations:
-                op_type = ann.get('operationType', 'unknown')
-                operation_types[op_type] = operation_types.get(op_type, 0) + 1
-            
-            if operation_types:
-                op_summary = ", ".join([f"{op}({count})" for op, count in operation_types.items()])
-                metadata.append(f"operations: {op_summary}")
+        final_prompt = ", ".join(prompt_parts)
+        print(f"[LRPG] 🤖 自动生成Transform提示词: {final_prompt[:100]}...")
         
-        if metadata:
-            instruction_parts.append(f"METADATA: {'; '.join(metadata)}")
-        
-        # 组合完整指令
-        complete_instruction = " | ".join(instruction_parts)
-        
-        return complete_instruction
+        return final_prompt
     
-    def _process_canvas_image_data(self, canvas_data_url: str, target_width: int = None, target_height: int = None) -> torch.Tensor:
-        """
-        处理来自Fabric.js的完整画布图像数据
-        使用官方toDataURL()导出的DataURL格式图像
-        """
+    def _build_enhanced_prompts(self, constraint_prompts, decorative_prompts):
+        """构建增强提示词JSON"""
+        enhanced_data = {
+            "constraint_prompts": constraint_prompts,
+            "decorative_prompts": decorative_prompts,
+            "version": "transform_first_1.0"
+        }
+        return json.dumps(enhanced_data)
+    
+    # ===== Kontext分辨率独立HD还原算法核心方法 =====
+    
+    def _calculate_hd_scale(self, transform_data, canvas_data, image_shape):
+        """计算HD还原缩放比例 - Kontext分辨率独立算法"""
         try:
-            # 解析DataURL格式 (data:image/png;base64,<base64_data>)
-            if not canvas_data_url.startswith('data:image/'):
-                raise ValueError("Invalid DataURL format")
+            # 获取画布实际尺寸
+            canvas_width = canvas_data.get('width', 800)
+            canvas_height = canvas_data.get('height', 600)
             
-            # 提取base64数据
-            header, base64_data = canvas_data_url.split(',', 1)
-            image_format = header.split(';')[0].split('/')[1]  # 获取图像格式 (png, jpeg等)
+            # 获取图像实际分辨率
+            if len(image_shape) >= 3:
+                img_height, img_width = image_shape[1], image_shape[2]
+            else:
+                img_height, img_width = image_shape[0], image_shape[1]
             
-            # 解码base64数据
-            image_bytes = base64.b64decode(base64_data)
+            # 找到主要的图像图层来计算缩放比例
+            image_layer = None
+            for layer_id, layer_data in transform_data.items():
+                if layer_data.get('type') == 'image':
+                    image_layer = layer_data
+                    break
             
-            # 使用PIL加载图像
-            from PIL import Image as PILImage
-            import io
+            if not image_layer:
+                print(f"[LRPG] ⚠️ 未找到图像图层，使用默认缩放比例1.0")
+                return 1.0
             
-            pil_image = PILImage.open(io.BytesIO(image_bytes))
+            # ✅ Kontext算法修复：使用画布尺寸而不是个别图层尺寸计算缩放比例
+            # 对于裁切图像，应该基于整个画布的缩放比例，而不是裁切部分的尺寸
             
-            # 确保图像是RGB模式
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
+            # 检查是否存在图像显示优化信息
+            display_scale_info = image_layer.get('display_scale', {})
+            if display_scale_info.get('optimized', False):
+                # 根据显示缩放计算实际前端显示尺寸
+                display_scale_x = display_scale_info.get('scaleX', 1)
+                display_scale_y = display_scale_info.get('scaleY', 1)
+                # 前端显示尺寸 = 画布尺寸 * 显示缩放
+                actual_frontend_width = canvas_width * display_scale_x
+                actual_frontend_height = canvas_height * display_scale_y
+                print(f"[LRPG] 🔧 使用图像优化显示尺寸: {canvas_width}x{canvas_height} * {display_scale_x:.3f} = {actual_frontend_width:.1f}x{actual_frontend_height:.1f}")
+            else:
+                # 如果没有优化信息，使用画布尺寸作为前端显示尺寸
+                actual_frontend_width = canvas_width
+                actual_frontend_height = canvas_height
+                print(f"[LRPG] 🔧 使用画布尺寸作为前端尺寸: {actual_frontend_width}x{actual_frontend_height}")
             
-            # 获取图像尺寸
-            original_width, original_height = pil_image.size
-            print(f"🎨 Canvas image loaded: {original_width}x{original_height}, format: {image_format}")
+            # 计算HD还原比例
+            scale_x = img_width / actual_frontend_width if actual_frontend_width > 0 else 1.0
+            scale_y = img_height / actual_frontend_height if actual_frontend_height > 0 else 1.0
             
-            # 如果指定了目标尺寸，进行缩放 (已禁用)
-            # if target_width and target_height:
-            #     if original_width != target_width or original_height != target_height:
-            #         pil_image = pil_image.resize((target_width, target_height), PILImage.Resampling.LANCZOS)
-            #         print(f"🔄 Canvas image resized to: {target_width}x{target_height}")
+            # 使用最小的缩放比例保持宽高比
+            hd_scale = min(scale_x, scale_y)
             
-            # 转换为numpy数组
-            img_array = np.array(pil_image)
+            print(f"[LRPG] 🔬 HD缩放比例计算:")
+            print(f"  - 原图尺寸: {img_width} x {img_height}")
+            print(f"  - 前端尺寸: {actual_frontend_width:.1f} x {actual_frontend_height:.1f}")
+            print(f"  - 缩放比例: X={scale_x:.3f}, Y={scale_y:.3f}")
+            print(f"  - 最终HD比例: {hd_scale:.3f}")
             
-            # 转换为torch tensor [0, 1]范围
-            img_tensor = torch.from_numpy(img_array).float() / 255.0
-            
-            # 添加batch维度 [1, H, W, C]
-            if len(img_tensor.shape) == 3:
-                img_tensor = img_tensor.unsqueeze(0)
-            
-            print(f"✅ Canvas image processed successfully: {img_tensor.shape}")
-            return img_tensor
+            return max(hd_scale, 0.1)  # 确保比例不会过小
             
         except Exception as e:
-            print(f"❌ Failed to process canvas image data: {e}")
-            # 降级到空白画布
-            fallback_width = target_width or 800
-            fallback_height = target_height or 600
-            return torch.ones((1, fallback_height, fallback_width, 3), dtype=torch.float32)
+            print(f"[LRPG] ❌ HD缩放比例计算失败: {str(e)}")
+            return 1.0
     
-    def _create_fallback_output(self, image: torch.Tensor, error_msg: str):
-        """Create fallback output"""
-        fallback_structured_prompt = "Edit the selected areas according to requirements"
+    def _scale_hd_transforms(self, transform_data, scale):
+        """将前端显示变换映射到高分辨率变换 - Kontext分辨率独立算法"""
+        try:
+            hd_transform_data = {}
+            
+            for layer_id, layer_data in transform_data.items():
+                if layer_data.get('type') == 'image':
+                    # ✅ Kontext算法：图像图层的HD变换映射
+                    hd_transform_data[layer_id] = {
+                        # 🚀 lg_tools机制：使用中心坐标系，直接缩放centerX/centerY
+                        'centerX': layer_data.get('centerX', 0) * scale,    # 中心X按比例映射
+                        'centerY': layer_data.get('centerY', 0) * scale,    # 中心Y按比例映射
+                        'actualWidth': layer_data.get('actualWidth', 0) * scale,   # 实际宽度映射
+                        'actualHeight': layer_data.get('actualHeight', 0) * scale, # 实际高度映射
+                        'scaleX': layer_data.get('scaleX', 1) * scale,       # 缩放叠加
+                        'scaleY': layer_data.get('scaleY', 1) * scale,       # 缩放叠加
+                        'angle': layer_data.get('angle', 0),                # 角度保持不变
+                        'width': layer_data.get('width', 100),              # 原始尺寸不变
+                        'height': layer_data.get('height', 100),            # 原始尺寸不变
+                        'flipX': layer_data.get('flipX', False),            # 翻转不变
+                        'flipY': layer_data.get('flipY', False),            # 翻转不变
+                        'type': layer_data.get('type'),
+                        'hd_scale_applied': scale,
+                        # 🚀 CRITICAL: 保留图像源信息和数据
+                        'source': layer_data.get('source'),
+                        'image_data': layer_data.get('image_data'),
+                        '_debug_fabricId': layer_data.get('_debug_fabricId'),
+                        '_debug_name': layer_data.get('_debug_name'),
+                        'crop_path': layer_data.get('crop_path', [])
+                    }
+                else:
+                    # 标注图层的HD变换映射
+                    hd_layer_data = {
+                        # 🎯 坐标系统一：使用新的左上角坐标系
+                        'leftX': layer_data.get('leftX', 0) * scale,
+                        'topY': layer_data.get('topY', 0) * scale,
+                        'actualWidth': layer_data.get('actualWidth', 0) * scale,
+                        'actualHeight': layer_data.get('actualHeight', 0) * scale,
+                        # 🔄 兼容性：保留centerX/centerY
+                        'centerX': layer_data.get('leftX', 0) * scale,
+                        'centerY': layer_data.get('topY', 0) * scale,
+                        'scaleX': layer_data.get('scaleX', 1),              # 标注缩放保持不变
+                        'scaleY': layer_data.get('scaleY', 1),
+                        'angle': layer_data.get('angle', 0),
+                        'width': layer_data.get('width', 100) * scale,      # 标注尺寸按比例映射
+                        'height': layer_data.get('height', 100) * scale,
+                        'flipX': layer_data.get('flipX', False),
+                        'flipY': layer_data.get('flipY', False),
+                        'type': layer_data.get('type'),
+                        'style': layer_data.get('style', {}),
+                        'hd_scale_applied': scale,
+                        # 🚀 CRITICAL: 保留标注源信息
+                        'source': layer_data.get('source'),
+                        '_debug_fabricId': layer_data.get('_debug_fabricId'),
+                        '_debug_name': layer_data.get('_debug_name')
+                    }
+                    
+                    # 🔧 针对不同类型标注添加特殊属性
+                    annotation_type = layer_data.get('type')
+                    if annotation_type == 'polygon':
+                        # 为多边形添加points数据，并缩放坐标
+                        original_points = layer_data.get('points', [])
+                        if original_points:
+                            hd_layer_data['points'] = [
+                                {'x': point.get('x', 0) * scale, 'y': point.get('y', 0) * scale}
+                                for point in original_points
+                            ]
+                            print(f"[LRPG] 🎯 HD缩放多边形points: {len(original_points)} 个点，缩放比例: {scale}")
+                        else:
+                            hd_layer_data['points'] = []
+                            print(f"[LRPG] ⚠️ 多边形没有points数据")
+                    elif annotation_type == 'path':
+                        # 为路径添加path数据
+                        hd_layer_data['path'] = layer_data.get('path', [])
+                    elif annotation_type == 'text' or annotation_type == 'i-text':
+                        # 🎯 新增：为文字标注添加文字相关数据
+                        hd_layer_data['text'] = layer_data.get('text', 'Text')
+                        hd_layer_data['fontSize'] = layer_data.get('fontSize', 20) * scale  # 🔧 字体大小按HD比例缩放
+                        hd_layer_data['fontFamily'] = layer_data.get('fontFamily', 'Arial')
+                        hd_layer_data['fontWeight'] = layer_data.get('fontWeight', 'normal')
+                        hd_layer_data['textAlign'] = layer_data.get('textAlign', 'left')
+                        print(f"[LRPG] 🎯 HD缩放文字标注: 原始字体大小{layer_data.get('fontSize', 20)} -> HD字体大小{hd_layer_data['fontSize']}")
+                    
+                    hd_transform_data[layer_id] = hd_layer_data
+                
+                print(f"[LRPG] 🔄 HD映射图层 {layer_id}:")
+                print(f"  - 原始中心: ({layer_data.get('centerX', 0):.1f}, {layer_data.get('centerY', 0):.1f})")
+                print(f"  - HD中心: ({hd_transform_data[layer_id]['centerX']:.1f}, {hd_transform_data[layer_id]['centerY']:.1f})")
+            
+            return hd_transform_data
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ HD变换映射失败: {str(e)}")
+            return transform_data
+    
+    def _apply_affine_transform_on_canvas(self, canvas, centerX, centerY, scaleX, scaleY, angle, flipX, flipY, canvas_width, canvas_height):
+        """✅ Kontext核心：仿射变换矩阵在固定画布内数学重建"""
+        try:
+            from PIL import Image, ImageDraw
+            import numpy as np
+            import math
+            
+            print(f"[LRPG] 🔧 应用仿射变换:")
+            print(f"  - 中心: ({centerX:.1f}, {centerY:.1f})")
+            print(f"  - 缩放: ({scaleX:.3f}, {scaleY:.3f})")
+            print(f"  - 旋转: {angle:.1f}°")
+            print(f"  - 翻转: X={flipX}, Y={flipY}")
+            
+            # ✅ LRPG架构：在固定画布尺寸内应用变换
+            if abs(angle) > 0.1:
+                # 使用仿射变换在画布中心进行旋转
+                # 计算旋转中心点（基于用户在前端的操作）
+                rotation_center_x = centerX
+                rotation_center_y = centerY
+                
+                # 如果旋转中心超出画布范围，调整到画布内
+                rotation_center_x = max(0, min(canvas_width, rotation_center_x))
+                rotation_center_y = max(0, min(canvas_height, rotation_center_y))
+                
+                print(f"[LRPG] 🔄 以点({rotation_center_x:.1f}, {rotation_center_y:.1f})为中心旋转{angle:.1f}°")
+                
+                # ✅ 关键：保持画布尺寸，只在内部旋转
+                rotated_canvas = canvas.rotate(
+                    angle, 
+                    center=(rotation_center_x, rotation_center_y), 
+                    fillcolor='white',
+                    expand=False  # ✅ 关键：不扩展画布，保持固定尺寸
+                )
+                
+                # 确保画布尺寸完全一致
+                if rotated_canvas.size != (canvas_width, canvas_height):
+                    print(f"[LRPG] ⚠️ 画布尺寸不一致，调整: {rotated_canvas.size} -> ({canvas_width}, {canvas_height})")
+                    # 如果尺寸不一致，裁剪或填充到目标尺寸
+                    temp_canvas = Image.new('RGB', (canvas_width, canvas_height), 'white')
+                    
+                    # 计算居中粘贴的位置
+                    paste_x = (canvas_width - rotated_canvas.size[0]) // 2
+                    paste_y = (canvas_height - rotated_canvas.size[1]) // 2
+                    temp_canvas.paste(rotated_canvas, (paste_x, paste_y))
+                    rotated_canvas = temp_canvas
+                
+                canvas = rotated_canvas
+                print(f"[LRPG] ✅ 旋转完成，保持画布尺寸: {canvas.size}")
+            
+            # 处理翻转变换
+            if flipX or flipY:
+                if flipX and not flipY:
+                    canvas = canvas.transpose(Image.FLIP_LEFT_RIGHT)
+                    print(f"[LRPG] ↔️ 应用X轴翻转")
+                elif flipY and not flipX:
+                    canvas = canvas.transpose(Image.FLIP_TOP_BOTTOM)
+                    print(f"[LRPG] ↕️ 应用Y轴翻转")
+                elif flipX and flipY:
+                    canvas = canvas.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM)
+                    print(f"[LRPG] ↔️↕️ 应用双轴翻转")
+            
+            # ✅ 最终验证：确保画布尺寸完全正确
+            final_size = canvas.size
+            if final_size != (canvas_width, canvas_height):
+                print(f"[LRPG] 🔧 最终尺寸调整: {final_size} -> ({canvas_width}, {canvas_height})")
+                canvas = canvas.resize((canvas_width, canvas_height), Image.LANCZOS)
+            
+            print(f"[LRPG] ✅ 仿射变换完成，最终画布尺寸: {canvas.size}")
+            return canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ 仿射变换失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return canvas
+
+    # ===== 废弃旧方法的存根，保持兼容性 =====
+    
+    def _render_annotations_on_image(self, image, layers_data, include_annotation_numbers=True, annotation_data_json=None):
+        """
+        废弃方法 - Transform-First架构不再使用annotation渲染
+        保留存根确保兼容性
+        """
+        print("[LRPG] ⚠️ 调用了废弃的_render_annotations_on_image方法，已重定向到Transform-First处理")
+        return self._apply_transform_first_processing(image, {}, {}, 800, 600)
+    
+    def _apply_lrpg_transform_to_image(self, original_canvas, left_x, top_y, scale_x, scale_y, angle, flip_x, flip_y, crop_path):
+        """🎯 坐标系统一：LRPG变换处理 - 使用左上角坐标系"""
+        try:
+            print(f"[LRPG] 🎨 应用LRPG变换:")
+            print(f"  - 🎯 左上角坐标: ({left_x:.1f}, {top_y:.1f})")
+            print(f"  - 🔍 缩放: ({scale_x:.3f}, {scale_y:.3f})")
+            print(f"  - 🔄 旋转: {angle:.1f}°")
+            print(f"  - ↕️ 翻转: X={flip_x}, Y={flip_y}")
+            print(f"  - ✂️ 裁切点数: {len(crop_path)}")
+            
+            # 获取原始画布尺寸
+            canvas_width, canvas_height = original_canvas.size
+            print(f"[LRPG] 📐 画布尺寸: {canvas_width}x{canvas_height}")
+            
+            # 创建工作图像副本
+            work_image = original_canvas.copy()
+            
+            # 1. 应用缩放变换
+            if abs(scale_x - 1) > 0.01 or abs(scale_y - 1) > 0.01:
+                print(f"[LRPG] 🔍 应用缩放变换")
+                new_width = int(canvas_width * scale_x)
+                new_height = int(canvas_height * scale_y) 
+                work_image = work_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # 2. 应用翻转变换
+            if flip_x:
+                work_image = work_image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                print(f"[LRPG] ↔️ 应用X轴翻转")
+            if flip_y:
+                work_image = work_image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                print(f"[LRPG] ↕️ 应用Y轴翻转")
+            
+            # 3. 应用旋转变换
+            if abs(angle) > 0.1:
+                work_image = work_image.rotate(-angle, expand=True, fillcolor=(255, 255, 255))
+                print(f"[LRPG] 🔄 应用旋转变换: {angle}°")
+            
+            # 4. 创建最终画布并定位图像
+            final_canvas = Image.new('RGB', (canvas_width, canvas_height), (255, 255, 255))
+            
+            # 🎯 坐标系统一：直接使用左上角坐标
+            img_width, img_height = work_image.size
+            
+            # 直接使用传入的左上角坐标
+            paste_x = int(left_x)
+            paste_y = int(top_y)
+            
+            print(f"[LRPG] 🎯 统一坐标系定位: 变换后尺寸 {img_width}x{img_height}, 左上角位置 ({paste_x}, {paste_y})")
+            
+            # 确保粘贴位置在画布范围内
+            paste_x = max(0, min(paste_x, canvas_width))
+            paste_y = max(0, min(paste_y, canvas_height))
+            
+            # 计算实际可粘贴的区域
+            max_width = min(img_width, canvas_width - paste_x)
+            max_height = min(img_height, canvas_height - paste_y)
+            
+            if max_width > 0 and max_height > 0:
+                # 裁剪工作图像到可粘贴区域
+                crop_box = (0, 0, max_width, max_height)
+                cropped_image = work_image.crop(crop_box)
+                final_canvas.paste(cropped_image, (paste_x, paste_y))
+                print(f"[LRPG] ✅ 图像已定位到画布: 实际粘贴区域 {max_width}x{max_height}")
+            else:
+                print(f"[LRPG] ⚠️ 图像完全超出画布范围，使用原始图像")
+                return original_canvas
+            
+            # 5. LRPG格式裁切处理
+            if len(crop_path) >= 3:
+                print(f"[LRPG] ✂️ 应用LRPG格式裁切")
+                final_canvas = self._apply_lrpg_crop(final_canvas, crop_path)
+            
+            print(f"[LRPG] ✅ LRPG变换完成")
+            return final_canvas
+            
+        except Exception as e:
+            print(f"[LRPG] ❌ LRPG变换失败: {str(e)}")
+            return original_canvas
+
+    def _apply_lrpg_crop(self, pil_image, crop_path):
+        """应用LRPG格式裁切"""
+        try:
+            from PIL import Image, ImageDraw
+            
+            # 创建蒙版
+            mask = Image.new('L', pil_image.size, 0)
+            draw = ImageDraw.Draw(mask)
+            
+            # 转换裁切路径点
+            polygon_points = [(int(point.get('x', 0)), int(point.get('y', 0))) for point in crop_path]
+            draw.polygon(polygon_points, fill=255)
+            
+            # 应用蒙版 - 保持透明背景
+            result = Image.new('RGBA', pil_image.size, (0, 0, 0, 0))
+            result.paste(pil_image, mask=mask)
+            # 不转换为RGB，保持RGBA格式以维持透明度
+            
+            print(f"[LRPG] OK: LRPG裁切完成，使用 {len(polygon_points)} 个点")
+            return result
+            
+        except Exception as e:
+            print(f"[LRPG] ERROR: LRPG裁切失败: {str(e)}")
+            return pil_image
+
+    def _create_fallback_output(self, image = None, error_msg: str = ""):
+        """LRPG Transform-First架构的错误回退处理"""
+        print(f"[LRPG] Transform-First错误回退: {error_msg}")
         
-        # Create fallback annotation data
-        fallback_annotation_data = json.dumps({
-            "annotations": [],
-            "operation_type": "fallback",
-            "target_description": "fallback output",
-            "constraint_prompts": [],
-            "decorative_prompts": []
-        }, ensure_ascii=False, indent=2)
-        
-        # Create fallback model instruction
-        fallback_model_instruction = f"Fallback instruction: {fallback_structured_prompt}. Error: {error_msg}"
-        
-        # Handle case when image is None
-        if image is None:
-            # 创建默认的空白画布
-            fallback_image = torch.zeros((1, canvas_height, canvas_width, 3), dtype=torch.float32)
+        # 创建最小输出
+        if TORCH_AVAILABLE and torch is not None:
+            fallback_image = image if image is not None else torch.zeros((1, 800, 600, 3), dtype=torch.float32)
         else:
-            fallback_image = image
+            # 如果没有torch，创建一个简单的占位符
+            fallback_image = image if image is not None else None
+        fallback_prompt = "Transform-First处理出现错误"
+        fallback_transform_data = json.dumps({"status": "error", "message": error_msg})
+        fallback_instruction = "请检查输入数据格式"
         
-        return (
-            fallback_image,  # Image
-            fallback_structured_prompt,  # Structured prompt
-            fallback_annotation_data,  # Annotation data
-            fallback_model_instruction  # Model instruction
-        )
+        return (fallback_image, fallback_prompt, fallback_transform_data, fallback_instruction)
+    
+    def __del__(self):
+        """Widget架构无需析构清理"""
+        pass
 
-# Node registration
-NODE_CLASS_MAPPINGS = {
-    "VisualPromptEditor": VisualPromptEditor,
-}
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "VisualPromptEditor": "🎨 Visual Prompt Editor",
-}
+# Node registration - only if dependencies are available
+if TORCH_AVAILABLE and NUMPY_AVAILABLE and COMFY_AVAILABLE:
+    NODE_CLASS_MAPPINGS = {
+        "VisualPromptEditor": VisualPromptEditor,
+    }
+    
+    NODE_DISPLAY_NAME_MAPPINGS = {
+        "VisualPromptEditor": "Visual Prompt Editor",
+    }
+    
+    print("[OK] VisualPromptEditor node registered successfully")
+else:
+    NODE_CLASS_MAPPINGS = {}
+    NODE_DISPLAY_NAME_MAPPINGS = {}
+    
+    print("[WARN] VisualPromptEditor node skipped due to missing dependencies:")
+    if not TORCH_AVAILABLE:
+        print("  - Missing: torch")
+    if not NUMPY_AVAILABLE:
+        print("  - Missing: numpy")
+    if not COMFY_AVAILABLE:
+        print("  - Missing: ComfyUI dependencies")

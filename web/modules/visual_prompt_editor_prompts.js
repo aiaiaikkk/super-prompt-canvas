@@ -242,7 +242,8 @@ function generateDescription(modal, getObjectInfoFunction) {
     } else {
         // 有选择图层的情况（原逻辑）
         const individualOperationsInfo = selectedAnnotationIds.map(id => {
-            const annotation = modal.annotations.find(ann => ann.id === id);
+            // Transform-First架构：移除废弃的annotation查找
+            const annotation = null;
             return annotation ? {
                 id: annotation.id,
                 hasIndividualOperation: annotation.operationType && annotation.operationType.trim() !== '',
@@ -351,14 +352,8 @@ function getSelectedAnnotationIds(modal) {
     
     // 备用方案3：如果复选框也没有选中，则获取所有有修改设置的标注
     if (fromCheckboxes.length === 0) {
-        const annotationsWithOperations = modal.annotations?.filter(ann => {
-            const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
-            const hasDescription = ann.description && ann.description.trim() !== '';
-            const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
-            const hasDecoratives = ann.decorativePrompts && ann.decorativePrompts.length > 0;
-            
-            return hasOperationType || hasDescription || hasConstraints || hasDecoratives;
-        }).map(ann => ann.id) || [];
+        // Transform-First架构：返回空数组，因为标注功能已改用Fabric对象
+        const annotationsWithOperations = [];
         return annotationsWithOperations;
     }
     
@@ -382,7 +377,7 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
     
     // 🧠 使用智能推理系统分析用户意图
     const selectedAnnotations = selectedAnnotationIds.map(id => 
-        modal.annotations.find(ann => ann.id === id)
+        null // Transform-First架构：移除annotation查找
     ).filter(ann => ann);
     
     const intelligentAnalysis = intelligentReasoning.analyzeUserIntent(
@@ -396,7 +391,8 @@ function generateMultiLayerPrompt(selectedAnnotationIds, modal) {
     
     // 为每个选中的标注生成独立的描述
     const layerDescriptions = selectedAnnotationIds.map(annotationId => {
-        const annotation = modal.annotations.find(ann => ann.id === annotationId);
+        // Transform-First架构：移除废弃的annotation查找
+        const annotation = null;
         if (!annotation) return null;
         
         // 优先使用globalOperation，忽略annotation中可能的旧值
@@ -507,7 +503,8 @@ function generateMultiSelectPrompt(selectedAnnotationIds, operation, inputText, 
     
     // 多选情况，生成组合描述
     const annotationDescriptions = selectedAnnotationIds.map(id => {
-        const annotation = modal.annotations.find(ann => ann.id === id);
+        // Transform-First架构：移除废弃的annotation查找
+        const annotation = null;
         if (annotation) {
             return generateAnnotationDescription(annotation, includeNumbers);
         }
@@ -648,7 +645,8 @@ function generateMultimodalPrompt(selectedObject, operation, inputText, modal, g
     
     if (selectedObject.startsWith('annotation_')) {
         const index = parseInt(selectedObject.split('_')[1]);
-        const annotation = modal.annotations[index];
+        // Transform-First架构：移除废弃的annotation访问
+        const annotation = null;
         
         if (annotation) {
             // 构建具体的区域描述
@@ -872,14 +870,8 @@ export function exportPromptData(modal) {
     // 🔴 优化：获取所有已编辑的标注（有操作类型设置的）+ 当前选中的标注
     let selectedAnnotationIds = getSelectedAnnotationIds(modal);
     
-    const annotationsWithOperations = modal.annotations?.filter(ann => {
-        const hasOperationType = ann.operationType && ann.operationType.trim() !== '';
-        const hasDescription = ann.description && ann.description.trim() !== '';
-        const hasConstraints = ann.constraintPrompts && ann.constraintPrompts.length > 0;
-        const hasDecoratives = ann.decorativePrompts && ann.decorativePrompts.length > 0;
-        
-        return hasOperationType || hasDescription || hasConstraints || hasDecoratives;
-    }).map(ann => ann.id) || [];
+    // Transform-First架构：移除废弃的annotations操作检测
+    const annotationsWithOperations = [];
     
     // 合并两个列表，去重
     const allRelevantIds = [...new Set([...selectedAnnotationIds, ...annotationsWithOperations])];
@@ -888,7 +880,8 @@ export function exportPromptData(modal) {
     selectedAnnotationIds = allRelevantIds;
     
     const selectedAnnotations = selectedAnnotationIds.map(id => {
-        const annotation = modal.annotations.find(ann => ann.id === id);
+        // Transform-First架构：移除废弃的annotation查找
+        const annotation = null;
         if (annotation) {
         }
         return annotation ? {
@@ -909,8 +902,8 @@ export function exportPromptData(modal) {
     const targetInput = modal.querySelector('#target-input');
     const templateCategory = modal.querySelector('#template-category');
     
-    // Layer connection data removed - using Fabric.js objects only
-    const fabricObjectsData = modal.annotations || [];
+    // Transform-First架构：移除废弃的annotations引用
+    const fabricObjectsData = [];
     
     
     // 🔧 关键修复：获取图像显示缩放信息，确保前后端坐标系统一致
@@ -926,7 +919,7 @@ export function exportPromptData(modal) {
         constraint_prompts: selectedConstraints,  // 🔴 改为数组
         decorative_prompts: selectedDecoratives,  // 🔴 改为数组
         include_annotation_numbers: includeNumbersCheckbox ? includeNumbersCheckbox.checked : false,
-        annotations: modal.annotations || [],
+        // Transform-First架构：移除废弃的annotations字段
         // 🔧 关键修复：添加connectedLayers字段，防止连接图层数据丢失
         fabricObjects: fabricObjectsData,
         // 🔧 新增：图像缩放信息，确保后端使用正确的坐标转换
@@ -1221,8 +1214,9 @@ function getSelectedPrompts(modal, type) {
     // 如果还是找不到容器，尝试从标注数据中获取已保存的提示词
     if (checkboxes.length === 0) {
         // 从fabricManager的annotation数据中获取已选择的提示词
-        if (window.fabricManager && window.fabricManager.modal && window.fabricManager.modal.annotations) {
-            const annotations = window.fabricManager.modal.annotations;
+        // Transform-First架构：移除废弃的annotations检查
+        if (false) {
+            const annotations = [];
             
             let allPrompts = [];
             annotations.forEach((annotation) => {
