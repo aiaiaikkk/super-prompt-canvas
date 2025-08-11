@@ -639,13 +639,17 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
             const canvasWidth = fabricManager.fabricCanvas.getWidth();
             const canvasHeight = fabricManager.fabricCanvas.getHeight();
             
-            // 计算图像在画布中心的位置（考虑显示缩放）
-            const displayImageWidth = imageWidth * displaySize.scale;
-            const displayImageHeight = imageHeight * displaySize.scale;
-            const centerLeft = (canvasWidth - displayImageWidth) / 2;
-            const centerTop = (canvasHeight - displayImageHeight) / 2;
+            // 🚀 lg_tools机制：图像对象保持原始尺寸，居中显示
+            const centerLeft = (canvasWidth - imageWidth) / 2;
+            const centerTop = (canvasHeight - imageHeight) / 2;
             
-            console.log(`📍 图像中心定位: 画布${canvasWidth}x${canvasHeight}, 显示图像${displayImageWidth}x${displayImageHeight}, 中心位置(${centerLeft}, ${centerTop})`);
+            console.log(`📍 [DEBUG] lg_tools图像设置:`);
+            console.log(`  画布尺寸: ${canvasWidth}x${canvasHeight}`);
+            console.log(`  图像原始尺寸: ${imageWidth}x${imageHeight}`);
+            console.log(`  显示尺寸: ${displaySize.displayWidth}x${displaySize.displayHeight}`);
+            console.log(`  显示缩放: ${displaySize.scale}`);
+            console.log(`  图像定位: left=${centerLeft}, top=${centerTop}`);
+            console.log(`  准备设置: scaleX=1.0, scaleY=1.0 (lg_tools机制)`);
             
             fabricImage.set({
                 left: centerLeft,
@@ -656,8 +660,8 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
                 originalHeight: imageHeight,
                 displayScale: displaySize.scale,
                 needsScaling: displaySize.needsScaling,
-                scaleX: displaySize.scale,  // 仅用于显示优化，保持原始分辨率
-                scaleY: displaySize.scale,  // 仅用于显示优化，保持原始分辨率
+                scaleX: 1.0,  // 🚀 lg_tools: 图像对象保持原始尺寸
+                scaleY: 1.0,  // 🚀 lg_tools: 图像对象保持原始尺寸
                 selectable: true,
                 hasControls: true,
                 hasBorders: true,
@@ -666,19 +670,49 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
                 name: 'Input Image'
             });
             
+            // 🚨 立即检查lg_tools设置是否生效
+            console.log(`🔍 [DEBUG] lg_tools设置后立即检查:`);
+            console.log(`  fabricImage.scaleX: ${fabricImage.scaleX}`);
+            console.log(`  fabricImage.scaleY: ${fabricImage.scaleY}`);
+            console.log(`  fabricImage.width: ${fabricImage.width}`);
+            console.log(`  fabricImage.height: ${fabricImage.height}`);
+            console.log(`  fabricImage.getScaledWidth(): ${fabricImage.getScaledWidth()}`);
+            console.log(`  fabricImage.getScaledHeight(): ${fabricImage.getScaledHeight()}`);
+            
+            // 🚀 lg_tools机制：通过CSS容器缩放实现视觉缩放
             if (displaySize.needsScaling) {
-                console.log(`📏 大图像显示优化: 原始分辨率${imageWidth}×${imageHeight}保持不变，显示缩放至${displaySize.displayWidth}×${displaySize.displayHeight} (${Math.round(displaySize.scale * 100)}%)`);
+                fabricManager.canvasViewScale = displaySize.scale;
+                fabricManager.applyCanvasViewScale();
+                console.log(`📏 lg_tools缩放: 原始分辨率${imageWidth}×${imageHeight}保持不变，容器缩放至${Math.round(displaySize.scale * 100)}%`);
             } else {
+                fabricManager.canvasViewScale = 1.0;
+                fabricManager.applyCanvasViewScale();
                 console.log(`✅ 小图像无需缩放: ${imageWidth}×${imageHeight}`);
             }
 
             fabricManager.fabricCanvas.add(fabricImage);
             
+            // 🚨 检查添加到画布后的状态
+            console.log(`🔍 [DEBUG] 添加到画布后检查:`);
+            console.log(`  fabricImage.scaleX: ${fabricImage.scaleX}`);
+            console.log(`  fabricImage.scaleY: ${fabricImage.scaleY}`);
+            
             // 渲染画布
             fabricManager.fabricCanvas.renderAll();
+            
+            // 🚨 检查渲染后的状态
+            console.log(`🔍 [DEBUG] 渲染后检查:`);
+            console.log(`  fabricImage.scaleX: ${fabricImage.scaleX}`);
+            console.log(`  fabricImage.scaleY: ${fabricImage.scaleY}`);
 
             // 延迟设置选中状态和更新坐标，确保完全渲染完成
             requestAnimationFrame(() => {
+                // 🚨 检查requestAnimationFrame内的状态
+                console.log(`🔍 [DEBUG] requestAnimationFrame内检查:`);
+                console.log(`  fabricImage.scaleX: ${fabricImage.scaleX}`);
+                console.log(`  fabricImage.scaleY: ${fabricImage.scaleY}`);
+                console.log(`  fabricImage.getCenterPoint(): ${JSON.stringify(fabricImage.getCenterPoint())}`);
+                
                 // 强制更新对象坐标和控制点
                 fabricImage.setCoords();
                 
@@ -689,6 +723,12 @@ async function loadInputImageAsLayer(fabricManager, imageData) {
                 
                 // 最终渲染
                 fabricManager.fabricCanvas.renderAll();
+                
+                // 🚨 最终状态检查
+                console.log(`🔍 [DEBUG] 最终状态检查:`);
+                console.log(`  fabricImage.scaleX: ${fabricImage.scaleX}`);
+                console.log(`  fabricImage.scaleY: ${fabricImage.scaleY}`);
+                console.log(`  fabricImage.getCenterPoint(): ${JSON.stringify(fabricImage.getCenterPoint())}`);
                 
                 console.log(`✅ Image loaded successfully: ${imageWidth}x${imageHeight}, cache: ${globalImageCache.cache.has(imageUrl) ? 'HIT' : 'MISS'}`);
             });

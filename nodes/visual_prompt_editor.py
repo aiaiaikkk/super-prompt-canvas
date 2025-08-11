@@ -353,6 +353,82 @@ class VisualPromptEditor:
         
         return transform_data, canvas_data
     
+    def _calculate_required_canvas_size(self, transform_data, current_width, current_height):
+        """🚀 lg_tools机制：计算容纳所有变换对象所需的画布尺寸"""
+        if not transform_data:
+            return None
+        
+        # 初始化边界
+        min_x = float('inf')
+        min_y = float('inf')
+        max_x = float('-inf')
+        max_y = float('-inf')
+        
+        # 计算所有图层的边界
+        for layer_id, layer_data in transform_data.items():
+            if layer_id == 'background':
+                continue
+            
+            # 🚀 lg_tools机制：使用centerX/centerY，然后转换为左上角坐标
+            center_x = int(layer_data.get('centerX', 0))
+            center_y = int(layer_data.get('centerY', 0))
+            
+            # 🚨 注意：这里使用前端传来的actualWidth/actualHeight是合理的
+            # 因为画布尺寸计算是在图像变换之前进行的，此时我们只能用前端预估的尺寸
+            # 真正的定位会在_composite_image_to_canvas中使用变换后的实际尺寸
+            actual_width = int(layer_data.get('actualWidth', layer_data.get('width', 100)))
+            actual_height = int(layer_data.get('actualHeight', layer_data.get('height', 100)))
+            
+            # 🔧 对于旋转的图像，需要估算旋转后的边界框尺寸
+            angle = layer_data.get('angle', 0)
+            if abs(angle) > 0.1:
+                # 粗略估算旋转后的边界框尺寸（取最大可能值）
+                import math
+                rad = math.radians(abs(angle))
+                cos_a = abs(math.cos(rad))
+                sin_a = abs(math.sin(rad))
+                
+                # 旋转后的边界框尺寸
+                rotated_width = int(actual_width * cos_a + actual_height * sin_a)
+                rotated_height = int(actual_width * sin_a + actual_height * cos_a)
+                
+                print(f"[LRPG] 🔄 图层{layer_id}旋转{angle:.1f}°: {actual_width}x{actual_height} -> {rotated_width}x{rotated_height}")
+                actual_width = rotated_width
+                actual_height = rotated_height
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            left = center_x - actual_width // 2
+            top = center_y - actual_height // 2
+            right = left + actual_width
+            bottom = top + actual_height
+            
+            # 更新边界
+            min_x = min(min_x, left)
+            min_y = min(min_y, top)
+            max_x = max(max_x, right)
+            max_y = max(max_y, bottom)
+        
+        # 如果没有有效对象，返回None
+        if min_x == float('inf'):
+            return None
+        
+        # 计算所需画布尺寸（确保非负）
+        required_width = max(current_width, max(0, max_x))
+        required_height = max(current_height, max(0, max_y))
+        
+        # 如果有负坐标，需要扩展画布
+        if min_x < 0:
+            required_width += abs(min_x)
+        if min_y < 0:
+            required_height += abs(min_y)
+        
+        print(f"[LRPG] 🎯 画布尺寸计算:")
+        print(f"  - 边界: ({min_x}, {min_y}) -> ({max_x}, {max_y})")
+        print(f"  - 当前画布: {current_width}x{current_height}")
+        print(f"  - 所需画布: {required_width}x{required_height}")
+        
+        return (required_width, required_height)
+    
     def _apply_transform_first_processing(self, image, transform_data, canvas_data, canvas_width, canvas_height):
         """🚀 Kontext Transform-First图像处理 - 分辨率独立HD还原算法"""
         print(f"[LRPG] 🎯 启动Transform-First高清还原处理")
@@ -407,6 +483,16 @@ class VisualPromptEditor:
             actual_canvas_width = canvas_data.get('width', canvas_width)
             actual_canvas_height = canvas_data.get('height', canvas_height)
             
+            # 🚀 lg_tools机制：保持原始画布尺寸不变（禁用自动扩展）
+            # required_canvas_size = self._calculate_required_canvas_size(scaled_transform_data, actual_canvas_width, actual_canvas_height)
+            # if required_canvas_size:
+            #     expanded_width, expanded_height = required_canvas_size
+            #     if expanded_width > actual_canvas_width or expanded_height > actual_canvas_height:
+            #         print(f"[LRPG] 🎯 自动扩展画布尺寸: {actual_canvas_width}x{actual_canvas_height} -> {expanded_width}x{expanded_height}")
+            #         actual_canvas_width = expanded_width
+            #         actual_canvas_height = expanded_height
+            print(f"[LRPG] 🎯 lg_tools机制：保持原始画布尺寸 {actual_canvas_width}x{actual_canvas_height}")
+            
             # 为每张图像单独处理
             for batch_idx in range(batch_size):
                 print(f"[LRPG] 🔄 处理第 {batch_idx + 1}/{batch_size} 张图像")
@@ -430,7 +516,7 @@ class VisualPromptEditor:
                 
                 # 检查是否需要合成模式
                 has_multiple_sources = any(
-                    layer_data.get('source') == 'upload' 
+                    layer_data.get('source') in ('upload', 'cropped')
                     for layer_data in scaled_transform_data.values() 
                     if isinstance(layer_data, dict) and 'source' in layer_data
                 )
@@ -486,7 +572,24 @@ class VisualPromptEditor:
                         print(f"[LRPG] ⚠️ 图层数据缺失: {layer_id}")
                 
                 # 转换当前处理的图像回tensor并添加到批次中
-                result_array = np.array(canvas).astype(np.float32) / 255.0
+                # 对于裁切图像，保持透明背景
+                if canvas.mode == 'RGBA':
+                    # 正确处理RGBA到RGB的转换，保持透明度信息
+                    rgb_array = np.array(canvas)
+                    alpha = rgb_array[:, :, 3] / 255.0  # Alpha通道
+                    
+                    # 创建RGB数组
+                    result_array = np.zeros((rgb_array.shape[0], rgb_array.shape[1], 3), dtype=np.float32)
+                    
+                    # 对于有alpha值的区域，保持原始RGB值；对于完全透明的区域设为0
+                    for c in range(3):
+                        # 只在alpha > 0的地方保留颜色，完全透明(alpha=0)的地方设为0
+                        result_array[:, :, c] = np.where(alpha > 0, rgb_array[:, :, c] / 255.0, 0)
+                    
+                    print(f"[LRPG] 🔄 RGBA图像已转换，保持透明度信息")
+                else:
+                    result_array = np.array(canvas).astype(np.float32) / 255.0
+                
                 processed_images.append(result_array)
                 
                 print(f"[LRPG] ✅ 第{batch_idx + 1}张图像处理完成")
@@ -547,6 +650,37 @@ class VisualPromptEditor:
                 else:
                     print(f"[LRPG] ⚠️ 输入图像tensor为空，跳过此图层")
                     return canvas  # 正确：继续处理其他图层
+                    
+            elif source == 'upload':
+                # 上传图像：解码base64数据
+                image_data = layer_data.get('image_data')
+                if not image_data:
+                    print(f"[LRPG] ⚠️ 上传图像数据为空，跳过")
+                    return canvas
+                    
+            elif source == 'cropped':
+                # 裁切图像：解码base64数据
+                image_data = layer_data.get('image_data')
+                if not image_data:
+                    print(f"[LRPG] ⚠️ 裁切图像数据为空，跳过")
+                    return canvas
+                    
+                try:
+                    # 解码base64图像
+                    if image_data.startswith('data:image/'):
+                        # 完整的data URL
+                        header, encoded = image_data.split(',', 1)
+                        image_bytes = base64.b64decode(encoded)
+                    else:
+                        # 纯base64数据
+                        image_bytes = base64.b64decode(image_data)
+                    
+                    source_image = PILImage.open(io.BytesIO(image_bytes)).convert('RGBA')
+                    print(f"[LRPG] ✅ 解码裁切图像: {source_image.size}，保持RGBA格式")
+                    
+                except Exception as e:
+                    print(f"[LRPG] ❌ 解码裁切图像失败: {str(e)}")
+                    return canvas
                     
             elif source == 'upload':
                 # 上传图像：解码base64数据
@@ -901,14 +1035,32 @@ class VisualPromptEditor:
         """将变换后的图像合成到画布上"""
         try:
             from PIL import Image as PILImage
-            # 计算粘贴位置（从中心点坐标转换为左上角坐标）
-            centerX = layer_data.get('centerX', 0)
-            centerY = layer_data.get('centerY', 0)
+            # 🚀 lg_tools机制：使用centerX/centerY，然后转换为左上角坐标
+            center_x = int(layer_data.get('centerX', 0))
+            center_y = int(layer_data.get('centerY', 0))
             
-            left = int(centerX - image.width / 2)
-            top = int(centerY - image.height / 2)
+            # 🚀 lg_tools机制：使用前端传来的预期尺寸进行定位
+            # getCenterPoint()是基于前端显示尺寸计算的，后端应该使用相同基准
+            actual_width = int(layer_data.get('actualWidth', image.width))
+            actual_height = int(layer_data.get('actualHeight', image.height))
             
-            print(f"[LRPG] 📍 图像定位: 中心({centerX}, {centerY}) -> 左上角({left}, {top})")
+            # 🔍 调试：对比前端预期尺寸与实际图像尺寸
+            if actual_width != image.width or actual_height != image.height:
+                print(f"[LRPG] 🔧 尺寸差异检测: 前端预期{actual_width}x{actual_height} vs 实际{image.width}x{image.height}")
+                print(f"[LRPG] 🎯 使用前端预期尺寸保证lg_tools坐标一致性")
+            
+            # 记录前端传来的尺寸用于调试
+            frontend_width = int(layer_data.get('actualWidth', 0))
+            frontend_height = int(layer_data.get('actualHeight', 0))
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            left = center_x - actual_width // 2
+            top = center_y - actual_height // 2
+            
+            print(f"[LRPG] 🚀 lg_tools精准机制: centerX={center_x}, centerY={center_y}")
+            print(f"[LRPG] 📏 前端传来尺寸: {frontend_width}x{frontend_height}")
+            print(f"[LRPG] 🚀 变换后实际尺寸: {actual_width}x{actual_height}")
+            print(f"[LRPG] 🚀 计算左上角: ({left}, {top}) = center - size/2")
             
             # 创建带透明度的图像用于合成
             if image.mode != 'RGBA':
@@ -920,9 +1072,8 @@ class VisualPromptEditor:
             
             canvas.paste(image, (left, top), image)
             
-            # 转换回RGB
-            if canvas.mode == 'RGBA':
-                canvas = canvas.convert('RGB')
+            # 保持RGBA格式以支持透明度
+            # 注释掉RGB转换，保持透明度支持
             
             print(f"[LRPG] ✅ 图像已合成到画布")
             return canvas
@@ -937,10 +1088,21 @@ class VisualPromptEditor:
             if not layer_data:
                 return canvas
                 
-            # ✅ LRPG统一格式：直接提取参数
+            # 🚀 lg_tools机制：使用centerX/centerY和center-size/2转换
             layer_type = layer_data.get('type', 'image')
             centerX = layer_data.get('centerX', 0)
             centerY = layer_data.get('centerY', 0)
+            actualWidth = layer_data.get('actualWidth', 0)
+            actualHeight = layer_data.get('actualHeight', 0)
+            
+            # lg_tools核心算法：center - size/2 = 左上角坐标
+            leftX = centerX - actualWidth // 2
+            topY = centerY - actualHeight // 2
+            
+            print(f"[LRPG] 🚀 lg_tools变换: centerX={centerX}, centerY={centerY}")
+            print(f"[LRPG] 🚀 尺寸: {actualWidth}x{actualHeight}")
+            print(f"[LRPG] 🚀 左上角: ({leftX}, {topY})")
+            
             scaleX = layer_data.get('scaleX', 1)
             scaleY = layer_data.get('scaleY', 1)
             angle = layer_data.get('angle', 0)
@@ -951,16 +1113,17 @@ class VisualPromptEditor:
             crop_path = layer_data.get('crop_path', [])
             
             print(f"[LRPG] 📍 LRPG变换参数:")
-            print(f"  - 中心点: ({centerX:.1f}, {centerY:.1f})")
-            print(f"  - 缩放: {scaleX:.3f} x {scaleY:.3f}")
-            print(f"  - 旋转: {angle:.1f}°")
-            print(f"  - 翻转: X={flipX}, Y={flipY}")
-            print(f"  - 裁切: {len(crop_path)} 个点")
+            print(f"  - 🎯 左上角坐标: ({leftX:.1f}, {topY:.1f})")
+            print(f"  - 📐 实际尺寸: {actualWidth:.1f}x{actualHeight:.1f}")
+            print(f"  - 🔍 缩放: {scaleX:.3f} x {scaleY:.3f}")
+            print(f"  - 🔄 旋转: {angle:.1f}°")
+            print(f"  - ↕️ 翻转: X={flipX}, Y={flipY}")
+            print(f"  - ✂️ 裁切: {len(crop_path)} 个点")
             
-            # ✅ LRPG架构：只对标注图层应用定位变换，输入图像直接处理
+            # 🎯 坐标系统一：只对标注图层应用定位变换，输入图像直接处理
             if layer_type != 'image':
                 return self._apply_lrpg_transform_to_image(
-                    canvas, centerX, centerY, scaleX, scaleY, angle, 
+                    canvas, leftX, topY, scaleX, scaleY, angle, 
                     flipX, flipY, crop_path
                 )
             
@@ -1061,10 +1224,10 @@ class VisualPromptEditor:
                     polygon_points = [(int(point['x']), int(point['y'])) for point in crop_path]
                     draw.polygon(polygon_points, fill=255)
                     
-                    # 应用蒙版
+                    # 应用蒙版 - 保持透明背景
                     result = Image.new('RGBA', pil_image.size, (0, 0, 0, 0))
                     result.paste(pil_image, mask=mask)
-                    pil_image = result.convert('RGB')
+                    pil_image = result  # 保持RGBA格式以维持透明度
                     
             return pil_image
         except Exception as e:
@@ -1211,19 +1374,24 @@ class VisualPromptEditor:
                 print(f"[LRPG] ⚠️ 未找到图像图层，使用默认缩放比例1.0")
                 return 1.0
             
-            # ✅ Kontext算法：计算前端显示vs高清原图的比例
-            frontend_width = image_layer.get('width', img_width)
-            frontend_height = image_layer.get('height', img_height)
+            # ✅ Kontext算法修复：使用画布尺寸而不是个别图层尺寸计算缩放比例
+            # 对于裁切图像，应该基于整个画布的缩放比例，而不是裁切部分的尺寸
             
-            # 处理显示缩放的影响
+            # 检查是否存在图像显示优化信息
             display_scale_info = image_layer.get('display_scale', {})
             if display_scale_info.get('optimized', False):
-                frontend_scale = display_scale_info.get('scaleX', 1)
-                actual_frontend_width = frontend_width * frontend_scale
-                actual_frontend_height = frontend_height * frontend_scale
+                # 根据显示缩放计算实际前端显示尺寸
+                display_scale_x = display_scale_info.get('scaleX', 1)
+                display_scale_y = display_scale_info.get('scaleY', 1)
+                # 前端显示尺寸 = 画布尺寸 * 显示缩放
+                actual_frontend_width = canvas_width * display_scale_x
+                actual_frontend_height = canvas_height * display_scale_y
+                print(f"[LRPG] 🔧 使用图像优化显示尺寸: {canvas_width}x{canvas_height} * {display_scale_x:.3f} = {actual_frontend_width:.1f}x{actual_frontend_height:.1f}")
             else:
-                actual_frontend_width = frontend_width
-                actual_frontend_height = frontend_height
+                # 如果没有优化信息，使用画布尺寸作为前端显示尺寸
+                actual_frontend_width = canvas_width
+                actual_frontend_height = canvas_height
+                print(f"[LRPG] 🔧 使用画布尺寸作为前端尺寸: {actual_frontend_width}x{actual_frontend_height}")
             
             # 计算HD还原比例
             scale_x = img_width / actual_frontend_width if actual_frontend_width > 0 else 1.0
@@ -1253,8 +1421,11 @@ class VisualPromptEditor:
                 if layer_data.get('type') == 'image':
                     # ✅ Kontext算法：图像图层的HD变换映射
                     hd_transform_data[layer_id] = {
-                        'centerX': layer_data.get('centerX', 0) * scale,     # 中心点X按比例映射
-                        'centerY': layer_data.get('centerY', 0) * scale,     # 中心点Y按比例映射
+                        # 🚀 lg_tools机制：使用中心坐标系，直接缩放centerX/centerY
+                        'centerX': layer_data.get('centerX', 0) * scale,    # 中心X按比例映射
+                        'centerY': layer_data.get('centerY', 0) * scale,    # 中心Y按比例映射
+                        'actualWidth': layer_data.get('actualWidth', 0) * scale,   # 实际宽度映射
+                        'actualHeight': layer_data.get('actualHeight', 0) * scale, # 实际高度映射
                         'scaleX': layer_data.get('scaleX', 1) * scale,       # 缩放叠加
                         'scaleY': layer_data.get('scaleY', 1) * scale,       # 缩放叠加
                         'angle': layer_data.get('angle', 0),                # 角度保持不变
@@ -1274,8 +1445,14 @@ class VisualPromptEditor:
                 else:
                     # 标注图层的HD变换映射
                     hd_layer_data = {
-                        'centerX': layer_data.get('centerX', 0) * scale,
-                        'centerY': layer_data.get('centerY', 0) * scale,
+                        # 🎯 坐标系统一：使用新的左上角坐标系
+                        'leftX': layer_data.get('leftX', 0) * scale,
+                        'topY': layer_data.get('topY', 0) * scale,
+                        'actualWidth': layer_data.get('actualWidth', 0) * scale,
+                        'actualHeight': layer_data.get('actualHeight', 0) * scale,
+                        # 🔄 兼容性：保留centerX/centerY
+                        'centerX': layer_data.get('leftX', 0) * scale,
+                        'centerY': layer_data.get('topY', 0) * scale,
                         'scaleX': layer_data.get('scaleX', 1),              # 标注缩放保持不变
                         'scaleY': layer_data.get('scaleY', 1),
                         'angle': layer_data.get('angle', 0),
@@ -1416,15 +1593,15 @@ class VisualPromptEditor:
         print("[LRPG] ⚠️ 调用了废弃的_render_annotations_on_image方法，已重定向到Transform-First处理")
         return self._apply_transform_first_processing(image, {}, {}, 800, 600)
     
-    def _apply_lrpg_transform_to_image(self, original_canvas, center_x, center_y, scale_x, scale_y, angle, flip_x, flip_y, crop_path):
-        """LRPG统一格式变换处理 - 正确处理图像在画布上的定位"""
+    def _apply_lrpg_transform_to_image(self, original_canvas, left_x, top_y, scale_x, scale_y, angle, flip_x, flip_y, crop_path):
+        """🎯 坐标系统一：LRPG变换处理 - 使用左上角坐标系"""
         try:
             print(f"[LRPG] 🎨 应用LRPG变换:")
-            print(f"  - 中心点: ({center_x:.1f}, {center_y:.1f})")
-            print(f"  - 缩放: ({scale_x:.3f}, {scale_y:.3f})")
-            print(f"  - 旋转: {angle:.1f}°")
-            print(f"  - 翻转: X={flip_x}, Y={flip_y}")
-            print(f"  - 裁切点数: {len(crop_path)}")
+            print(f"  - 🎯 左上角坐标: ({left_x:.1f}, {top_y:.1f})")
+            print(f"  - 🔍 缩放: ({scale_x:.3f}, {scale_y:.3f})")
+            print(f"  - 🔄 旋转: {angle:.1f}°")
+            print(f"  - ↕️ 翻转: X={flip_x}, Y={flip_y}")
+            print(f"  - ✂️ 裁切点数: {len(crop_path)}")
             
             # 获取原始画布尺寸
             canvas_width, canvas_height = original_canvas.size
@@ -1456,14 +1633,14 @@ class VisualPromptEditor:
             # 4. 创建最终画布并定位图像
             final_canvas = Image.new('RGB', (canvas_width, canvas_height), (255, 255, 255))
             
-            # 计算图像在画布上的位置
+            # 🎯 坐标系统一：直接使用左上角坐标
             img_width, img_height = work_image.size
             
-            # 从中心点计算左上角位置
-            paste_x = int(center_x - img_width / 2)
-            paste_y = int(center_y - img_height / 2)
+            # 直接使用传入的左上角坐标
+            paste_x = int(left_x)
+            paste_y = int(top_y)
             
-            print(f"[LRPG] 📍 图像定位: 变换后尺寸 {img_width}x{img_height}, 粘贴位置 ({paste_x}, {paste_y})")
+            print(f"[LRPG] 🎯 统一坐标系定位: 变换后尺寸 {img_width}x{img_height}, 左上角位置 ({paste_x}, {paste_y})")
             
             # 确保粘贴位置在画布范围内
             paste_x = max(0, min(paste_x, canvas_width))
@@ -1508,10 +1685,10 @@ class VisualPromptEditor:
             polygon_points = [(int(point.get('x', 0)), int(point.get('y', 0))) for point in crop_path]
             draw.polygon(polygon_points, fill=255)
             
-            # 应用蒙版
+            # 应用蒙版 - 保持透明背景
             result = Image.new('RGBA', pil_image.size, (0, 0, 0, 0))
             result.paste(pil_image, mask=mask)
-            result = result.convert('RGB')
+            # 不转换为RGB，保持RGBA格式以维持透明度
             
             print(f"[LRPG] OK: LRPG裁切完成，使用 {len(polygon_points)} 个点")
             return result

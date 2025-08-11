@@ -1881,177 +1881,122 @@ export class FabricNativeManager {
         try {
             console.log('[Crop-TransformFirst] 🎨 开始应用图像裁切预览...');
             
-            // 保存原始图像源（如果还没保存）
-            if (!imageObject._originalSrc) {
-                imageObject._originalSrc = imageObject.getSrc();
-            }
-            
-            // 计算裁切区域的边界框（相对于画布坐标）
+            // 计算裁切区域边界
             const cropBounds = this.calculateCropBounds(cropTransform.crop_path);
+            console.log('[Crop-TransformFirst] 📐 裁切区域:', cropBounds);
             
-            // 使用Fabric.js原生API进行坐标转换
-            const imageMatrix = imageObject.calcTransformMatrix();
-            const invertedMatrix = fabric.util.invertTransform(imageMatrix);
-            
-            // 转换裁切边界到图像本地坐标系
-            const topLeft = fabric.util.transformPoint({x: cropBounds.left, y: cropBounds.top}, invertedMatrix);
-            const bottomRight = fabric.util.transformPoint({
-                x: cropBounds.left + cropBounds.width, 
-                y: cropBounds.top + cropBounds.height
-            }, invertedMatrix);
-            
-            const imgCropBounds = {
-                left: topLeft.x,
-                top: topLeft.y,
-                width: bottomRight.x - topLeft.x,
-                height: bottomRight.y - topLeft.y
-            };
-            
-            console.log('[Crop-TransformFirst] 📐 裁切边界计算:', {
-                canvasCropBounds: cropBounds,
-                imageCropBounds: imgCropBounds,
-                imageObject: {
-                    left: imageObject.left,
-                    top: imageObject.top,
-                    scale: imageObject.scaleX
-                }
-            });
-            
-            // 创建临时画布，尺寸为裁切区域的大小
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            // 设置画布尺寸为裁切区域大小
-            tempCanvas.width = Math.max(1, Math.round(imgCropBounds.width));
-            tempCanvas.height = Math.max(1, Math.round(imgCropBounds.height));
-            
-            // 获取图像元素
+            // 🔧 获取图像元素
             const imgElement = imageObject.getElement();
-            if (!imgElement || !imgElement.complete) {
-                console.warn('[Crop-TransformFirst] ⚠️ 图像未加载完成，跳过裁切预览');
+            if (!imgElement) {
+                console.error('[Crop-TransformFirst] ❌ 图像元素不存在');
                 return;
             }
             
-            // 创建裁切路径（转换为图像坐标系，并相对于裁切区域）
-            tempCtx.beginPath();
-            cropTransform.crop_path.forEach((point, index) => {
-                const imgX = (point.x - imageObject.left) / imageObject.scaleX - imgCropBounds.left;
-                const imgY = (point.y - imageObject.top) / imageObject.scaleY - imgCropBounds.top;
-                
+            // 🚀 修复坐标转换问题
+            console.log('[Crop-TransformFirst] 🔄 重新计算坐标转换...');
+            
+            // 1. 获取图像的实际显示尺寸和原始尺寸
+            const displayWidth = imageObject.width * imageObject.scaleX;
+            const displayHeight = imageObject.height * imageObject.scaleY;
+            const originalWidth = imgElement.naturalWidth;
+            const originalHeight = imgElement.naturalHeight;
+            
+            // 2. 计算缩放比例（原始到显示）
+            const scaleToDisplay = displayWidth / originalWidth;
+            
+            // 3. 计算图像在画布上的实际位置
+            // 注意：imageObject.left/top 已经是图像左上角位置（因为originX/Y = 'left/top'）
+            const fabricImgLeft = imageObject.left;
+            const fabricImgTop = imageObject.top;
+            
+            // 4. 计算裁切区域相对于图像左上角的偏移
+            const cropOffsetX = cropBounds.left - fabricImgLeft;
+            const cropOffsetY = cropBounds.top - fabricImgTop;
+            
+            // 5. 验证裁切区域是否在图像范围内
+            if (cropOffsetX < 0 || cropOffsetY < 0 || 
+                cropOffsetX + cropBounds.width > displayWidth || 
+                cropOffsetY + cropBounds.height > displayHeight) {
+                console.warn('[Crop-TransformFirst] ⚠️ 裁切区域超出图像范围，将自动调整');
+            }
+            
+            // 6. 计算在原始图像上的源坐标（确保不为负数）
+            const sourceX = Math.max(0, cropOffsetX / scaleToDisplay);
+            const sourceY = Math.max(0, cropOffsetY / scaleToDisplay);
+            const sourceWidth = Math.min(cropBounds.width / scaleToDisplay, originalWidth - sourceX);
+            const sourceHeight = Math.min(cropBounds.height / scaleToDisplay, originalHeight - sourceY);
+            
+            console.log('[Crop-TransformFirst] 🔍 修复后的坐标计算:', {
+                原始图像尺寸: `${originalWidth}x${originalHeight}`,
+                显示图像尺寸: `${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}`,
+                缩放比例: scaleToDisplay.toFixed(3),
+                图像画布位置: `${fabricImgLeft.toFixed(1)}, ${fabricImgTop.toFixed(1)}`,
+                裁切区域: `${cropBounds.left.toFixed(1)}, ${cropBounds.top.toFixed(1)}, ${cropBounds.width.toFixed(1)}x${cropBounds.height.toFixed(1)}`,
+                裁切相对偏移: `${cropOffsetX.toFixed(1)}, ${cropOffsetY.toFixed(1)}`,
+                源区域: `${sourceX.toFixed(1)}, ${sourceY.toFixed(1)}, ${sourceWidth.toFixed(1)}x${sourceHeight.toFixed(1)}`
+            });
+            
+            // 7. 创建目标画布
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = Math.round(cropBounds.width);
+            canvas.height = Math.round(cropBounds.height);
+            
+            // 8. 设置多边形裁切路径（先转换到相对于裁切区域的坐标）
+            ctx.beginPath();
+            const normalizedPath = cropTransform.crop_path.map(point => ({
+                x: point.x - cropBounds.left,
+                y: point.y - cropBounds.top
+            }));
+            
+            normalizedPath.forEach((point, index) => {
                 if (index === 0) {
-                    tempCtx.moveTo(imgX, imgY);
+                    ctx.moveTo(point.x, point.y);
                 } else {
-                    tempCtx.lineTo(imgX, imgY);
+                    ctx.lineTo(point.x, point.y);
                 }
             });
-            tempCtx.closePath();
-            tempCtx.clip(); // 使用clip而不是填充
+            ctx.closePath();
+            ctx.clip();
             
-            // 绘制图像的裁切部分
-            tempCtx.drawImage(
+            // 9. 使用正确的坐标从原始图像提取区域
+            ctx.drawImage(
                 imgElement,
-                imgCropBounds.left, imgCropBounds.top, imgCropBounds.width, imgCropBounds.height, // 源区域
-                0, 0, tempCanvas.width, tempCanvas.height // 目标区域
+                sourceX, sourceY, sourceWidth, sourceHeight,    // 从原始图像提取
+                0, 0, canvas.width, canvas.height               // 绘制到目标画布
             );
             
-            // 将裁切后的图像设置回对象
-            const croppedDataURL = tempCanvas.toDataURL();
+            console.log('[Crop-TransformFirst] ✅ 坐标修复完成，裁切成功');
             
-            // 创建新的图像对象完全替换原图
+            // 使用裁切后的图像创建新的Fabric图像对象
+            const croppedDataURL = canvas.toDataURL(); // 保存裁切后的图像数据
             fabric.Image.fromURL(croppedDataURL, (croppedImg) => {
-                console.log('[Crop-TransformFirst] 📏 裁切后图像尺寸:', {
-                    originalImage: `${imageObject.width}x${imageObject.height}`,
-                    croppedImage: `${croppedImg.width}x${croppedImg.height}`,
-                    croppedCanvas: `${tempCanvas.width}x${tempCanvas.height}`
-                });
-                
-                // 新图像应该放置在裁切区域的左上角位置
-                const newLeft = cropBounds.left;
-                const newTop = cropBounds.top;
-                
-                // 计算新的缩放比例，使裁切后的图像显示大小与裁切区域一致
-                const newScaleX = cropBounds.width / croppedImg.width;
-                const newScaleY = cropBounds.height / croppedImg.height;
-                
-                // 设置新图像属性 - 精确匹配裁切区域的显示效果
-                croppedImg.set({
-                    left: newLeft,
-                    top: newTop,
-                    scaleX: newScaleX,
-                    scaleY: newScaleY,
-                    angle: imageObject.angle,
-                    fabricId: imageObject.fabricId, // 保持相同的 fabricId
-                    name: imageObject.name || 'Input Image',
-                    selectable: true,    // ✅ 可选择
-                    evented: true,       // ✅ 可交互
-                    hasControls: true,   // ✅ 有控制点
-                    hasBorders: true,    // ✅ 有边框
-                    moveCursor: 'move',  // ✅ 移动光标
-                    // 继承其他重要属性
-                    opacity: imageObject.opacity || 1,
-                    visible: true,
-                    excludeFromExport: false
-                });
-                
-                console.log('[Crop-TransformFirst] 📐 新图像定位:', {
-                    originalPosition: `(${imageObject.left}, ${imageObject.top})`,
-                    originalSize: `${imageObject.width}x${imageObject.height}`,
-                    originalScale: `${imageObject.scaleX}x${imageObject.scaleY}`,
-                    cropBounds: `(${cropBounds.left}, ${cropBounds.top}) ${cropBounds.width}x${cropBounds.height}`,
-                    newPosition: `(${newLeft}, ${newTop})`,
-                    newImageSize: `${croppedImg.width}x${croppedImg.height}`,
-                    newScale: `${newScaleX.toFixed(3)}x${newScaleY.toFixed(3)}`
-                });
-                
-                // ✂️ 清除Transform状态 - 裁切已在前端应用，避免后端重复处理
-                // 创建新的transformFirstData但移除crop transforms，因为裁切已经应用了
-                if (imageObject.transformFirstData) {
-                    // 复制原始transform数据但过滤掉已应用的crop transforms
-                    const filteredTransforms = imageObject.transformFirstData.transforms ? 
-                        imageObject.transformFirstData.transforms.filter(t => t.type !== 'crop_mask') : [];
-                    
-                    croppedImg.transformFirstData = {
-                        ...imageObject.transformFirstData,
-                        transforms: filteredTransforms
-                    };
-                    croppedImg.hasTransformFirstChanges = filteredTransforms.length > 0;
-                    console.log('[Crop-TransformFirst] ✅ 裁切已应用，移除crop transforms避免重复处理，保留其他变换');
-                    console.log(`[Crop-TransformFirst] 📊 剩余变换: ${filteredTransforms.length} 个`);
-                } else {
-                    // 没有transform数据，创建空的
-                    croppedImg.transformFirstData = { transforms: [] };
-                    croppedImg.hasTransformFirstChanges = false;
-                    console.log('[Crop-TransformFirst] ✅ 创建新的空transform数据');
+                if (!croppedImg) {
+                    console.error('[Crop-TransformFirst] ❌ 无法创建裁切图像');
+                    return;
                 }
                 
-                // ✂️ 完全移除原图像对象
+                // 设置新图像的位置和属性
+                croppedImg.set({
+                    left: cropBounds.left,
+                    top: cropBounds.top,
+                    fabricId: `cropped_${imageObject.fabricId}_${Date.now()}`,
+                    name: `Cropped ${imageObject.name}`,
+                    selectable: true,
+                    evented: true,
+                    // 🔧 保存裁切后的图像数据供后端使用
+                    croppedImageData: croppedDataURL,
+                    originalBase64: croppedDataURL,  // 数据管理器会查找这个属性
+                    imageSource: 'cropped'           // 标记为裁切图像源
+                });
+                
+                // 删除原图像，添加新的裁切图像
                 this.fabricCanvas.remove(imageObject);
-                
-                // 添加新的裁切后图像
                 this.fabricCanvas.add(croppedImg);
-                
-                // 自动选中新创建的图像，方便用户进行后续操作
                 this.fabricCanvas.setActiveObject(croppedImg);
                 
-                // 确保对象坐标正确
-                croppedImg.setCoords();
-                
-                // 保存状态到撤销历史，方便用户撤销裁切操作
-                this.saveState();
-                
                 this.fabricCanvas.renderAll();
-                
-                console.log('[Crop-TransformFirst] ✅ 原图已被裁切后的新图像完全替换');
-                console.log(`[Crop-TransformFirst] 📊 新图像属性: 可选择=${croppedImg.selectable}, 可交互=${croppedImg.evented}`);
-                
-                // 触发自动保存，确保数据同步
-                this._scheduleAutoSave();
-                
-                // 立即触发数据管理器更新，确保"已处理图像"状态传递给后端
-                if (this.dataManager) {
-                    console.log('[Crop-TransformFirst] 📤 立即同步已处理图像状态到后端');
-                    this.dataManager.saveFabricCanvasDataAsync(this.fabricCanvas);
-                }
+                console.log('[Crop-TransformFirst] ✅ 裁切图像创建完成');
             });
             
         } catch (error) {
@@ -2084,6 +2029,7 @@ export class FabricNativeManager {
             height: bottom - top
         };
     }
+
     
     /**
      * 调度Transform-First数据更新
@@ -3527,28 +3473,29 @@ export class FabricNativeManager {
                     const canvasWidth = this.fabricCanvas.getWidth();
                     const canvasHeight = this.fabricCanvas.getHeight();
                     
-                    // 如果图像需要缩放，使用计算后的显示尺寸
+                    // 🚀 lg_tools机制：不对Fabric对象应用缩放，保持原始尺寸
                     if (displaySize.needsScaling) {
+                        console.log(`🚀 [lg_tools] 检测到需要缩放的大图像: ${originalWidth}×${originalHeight}`);
+                        console.log(`🚀 [lg_tools] 应用CSS容器缩放而非Fabric对象缩放`);
+                        console.log(`🚀 [lg_tools] Fabric对象保持原始尺寸: scaleX=1.0, scaleY=1.0`);
+                        
                         fabricImage.set({
-                            scaleX: displaySize.scale,
-                            scaleY: displaySize.scale,
-                            left: (canvasWidth - displaySize.displayWidth) / 2,
-                            top: (canvasHeight - displaySize.displayHeight) / 2
+                            scaleX: 1.0,  // 🚀 lg_tools: 保持原始尺寸
+                            scaleY: 1.0,  // 🚀 lg_tools: 保持原始尺寸
+                            left: (canvasWidth - originalWidth) / 2,   // 🚀 lg_tools: 基于原始尺寸居中
+                            top: (canvasHeight - originalHeight) / 2   // 🚀 lg_tools: 基于原始尺寸居中
                         });
                         
-                        console.log(`📏 上传图像已自动缩放: ${originalWidth}×${originalHeight} → ${displaySize.displayWidth}×${displaySize.displayHeight} (${Math.round(displaySize.scale * 100)}%)`);
+                        console.log(`📏 [lg_tools] 图像已居中: ${originalWidth}×${originalHeight} (Fabric保持1.0倍缩放，CSS容器缩放${Math.round(displaySize.scale * 100)}%)`);
                     } else {
-                        // 不需要缩放，使用原始尺寸
-                        const maxScale = 0.8; // 最大占画布80%
-                        const scaleX = Math.min(maxScale, canvasWidth / originalWidth);
-                        const scaleY = Math.min(maxScale, canvasHeight / originalHeight);
-                        const scale = Math.min(scaleX, scaleY);
+                        console.log(`✅ [lg_tools] 小图像无需缩放: ${originalWidth}×${originalHeight}`);
+                        console.log(`✅ [lg_tools] Fabric对象保持原始尺寸: scaleX=1.0, scaleY=1.0`);
 
                         fabricImage.set({
-                            scaleX: scale,
-                            scaleY: scale,
-                            left: (canvasWidth - originalWidth * scale) / 2,
-                            top: (canvasHeight - originalHeight * scale) / 2
+                            scaleX: 1.0,  // 🚀 lg_tools: 小图像也保持原始尺寸
+                            scaleY: 1.0,  // 🚀 lg_tools: 小图像也保持原始尺寸
+                            left: (canvasWidth - originalWidth) / 2,   // 🚀 lg_tools: 基于原始尺寸居中
+                            top: (canvasHeight - originalHeight) / 2   // 🚀 lg_tools: 基于原始尺寸居中
                         });
                     }
                 }

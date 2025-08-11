@@ -181,9 +181,18 @@ export class DataManager {
             promptData.fabricJSON.objects.forEach((obj, index) => {
                 const layerId = obj.fabricId || `fabric_${index}`;
                 if (!transformData.layer_transforms[layerId]) {
-                    // ✅ LRPG正确格式：使用中心点坐标系统
-                    const centerX = (obj.left || 0) + (obj.width || 0) / 2;
-                    const centerY = (obj.top || 0) + (obj.height || 0) / 2;
+                    // 🎯 坐标系统一：计算左上角坐标
+                    const scaledWidth = (obj.width || 0) * (obj.scaleX || 1);
+                    const scaledHeight = (obj.height || 0) * (obj.scaleY || 1);
+                    
+                    let leftX, topY;
+                    if (obj.originX === 'center' && obj.originY === 'center') {
+                        leftX = (obj.left || 0) - scaledWidth / 2;
+                        topY = (obj.top || 0) - scaledHeight / 2;
+                    } else {
+                        leftX = obj.left || 0;
+                        topY = obj.top || 0;
+                    }
                     
                     // ✅ 处理显示缩放：获取对象的显示缩放信息
                     const displayScaleX = obj.displayScale || 1;
@@ -193,8 +202,10 @@ export class DataManager {
                     
                     transformData.layer_transforms[layerId] = {
                         // ✅ LRPG核心：中心点坐标系统
-                        centerX: centerX,
-                        centerY: centerY,
+                        leftX: leftX,
+                        topY: topY,
+                        actualWidth: scaledWidth,
+                        actualHeight: scaledHeight,
                         
                         // ✅ LRPG核心：完整变换参数
                         scaleX: actualScaleX,
@@ -2738,6 +2749,56 @@ export function saveEditingDataToBackend(modal, nodeInstance) {
             timestamp: editingData.timestamp
         };
         
+        // 🚀 lg_tools机制：从活跃Fabric对象获取精确坐标
+        console.log('[LRPG] 🔧 lg_tools坐标修正：从活跃对象获取精确坐标');
+        if (modal && modal.fabricCanvas) {
+            const activeObjects = modal.fabricCanvas.getObjects().filter(obj => !obj.isLockIndicator && !obj.skipInLayerList);
+            console.log(`[LRPG] 🔍 找到 ${activeObjects.length} 个活跃Fabric对象`);
+            
+            // 使用活跃对象的getCenterPoint()修正fabricJSON中的坐标
+            if (promptData.fabricJSON && promptData.fabricJSON.objects) {
+                promptData.fabricJSON.objects.forEach((jsonObj, index) => {
+                    // 找到对应的活跃Fabric对象
+                    const activeObj = activeObjects.find(obj => 
+                        obj.fabricId === jsonObj.fabricId || 
+                        (obj.name === jsonObj.name && obj.type === jsonObj.type)
+                    );
+                    
+                    if (activeObj && activeObj.getCenterPoint && typeof activeObj.getCenterPoint === 'function') {
+                        const centerPoint = activeObj.getCenterPoint();
+                        console.log(`[LRPG] 🚀 lg_tools精确坐标 ${jsonObj.fabricId}: getCenterPoint(${centerPoint.x.toFixed(1)}, ${centerPoint.y.toFixed(1)})`);
+                        
+                        // 🚨 关键调试：检查活跃对象的缩放值
+                        console.log(`[LRPG] 🔍 活跃对象${jsonObj.fabricId}的缩放状态:`);
+                        console.log(`  activeObj.scaleX: ${activeObj.scaleX}`);
+                        console.log(`  activeObj.scaleY: ${activeObj.scaleY}`);
+                        console.log(`  activeObj.width: ${activeObj.width}`);
+                        console.log(`  activeObj.height: ${activeObj.height}`);
+                        console.log(`  activeObj.getScaledWidth(): ${activeObj.getScaledWidth()}`);
+                        console.log(`  activeObj.getScaledHeight(): ${activeObj.getScaledHeight()}`);
+                        console.log(`  activeObj.displayScale: ${activeObj.displayScale}`);
+                        
+                        // 🎯 使用lg_tools精确坐标覆盖JSON中的坐标
+                        jsonObj.lgtools_centerX = centerPoint.x;
+                        jsonObj.lgtools_centerY = centerPoint.y;
+                        
+                        // 🚨 同时记录活跃对象的实际缩放值
+                        jsonObj.lgtools_scaleX = activeObj.scaleX;
+                        jsonObj.lgtools_scaleY = activeObj.scaleY;
+                        jsonObj.lgtools_actualWidth = activeObj.getScaledWidth();
+                        jsonObj.lgtools_actualHeight = activeObj.getScaledHeight();
+                        
+                        console.log(`[LRPG] ✅ 对象${jsonObj.fabricId}使用lg_tools精确坐标: (${centerPoint.x}, ${centerPoint.y})`);
+                        console.log(`[LRPG] 📊 对象${jsonObj.fabricId}的lg_tools缩放信息: scaleX=${activeObj.scaleX}, scaleY=${activeObj.scaleY}`);
+                    } else {
+                        console.log(`[LRPG] ⚠️ 对象${jsonObj.fabricId}未找到对应的活跃Fabric对象`);
+                    }
+                });
+            }
+        } else {
+            console.log('[LRPG] ⚠️ 无法获取fabricCanvas，使用JSON坐标');
+        }
+        
         // 🎯 直接进行Transform-First数据转换
         console.log('[Kontext] 🔍 Debug: convertToTransformFirstData函数存在?', typeof convertToTransformFirstData);
         const transformData = convertToTransformFirstData(promptData);
@@ -3166,6 +3227,15 @@ export function convertToTransformFirstData(promptData) {
                     imageData = obj._element.src;
                 }
                 console.log(`[LRPG] 📊 上传图像${obj.fabricId}数据长度:`, imageData ? imageData.length : 'null');
+            } else if (obj.fabricId && obj.fabricId.startsWith('cropped_')) {
+                imageSource = 'cropped';
+                console.log(`[LRPG] 🎯 裁切图像${obj.fabricId}源类型识别为: cropped`);
+                // 获取裁切图像的base64数据
+                imageData = obj.croppedImageData || obj.originalBase64 || obj.src || obj.getSrc?.();
+                if (!imageData && obj._element && obj._element.src) {
+                    imageData = obj._element.src;
+                }
+                console.log(`[LRPG] 📊 裁切图像${obj.fabricId}数据长度:`, imageData ? imageData.length : 'null');
             } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'polygon' || obj.type === 'path' || obj.type === 'text' || obj.type === 'i-text') {
                 // 🎯 标注类型识别 (包含文字标注)
                 imageSource = 'annotation';
@@ -3208,39 +3278,67 @@ export function convertToTransformFirstData(promptData) {
             });
             
             // 对于输入图像，使用显示尺寸计算中心点
-            let centerX, centerY, actualWidth, actualHeight;
-            
-            // 🔧 LRPG坐标系修正：正确计算缩放后的中心点
-            let centerX_method1, centerY_method1, centerX_method2, centerY_method2;
-            
-            // 方法1：使用getCenterPoint() API
-            if (obj.getCenterPoint) {
-                const centerPoint = obj.getCenterPoint();
-                centerX_method1 = centerPoint.x;
-                centerY_method1 = centerPoint.y;
-            }
-            
-            // 方法2：手动计算（基于缩放后的实际尺寸）
+            // 🚀 lg_tools核心机制：获取精确中心坐标
             const scaledWidth = (obj.width || 0) * (obj.scaleX || 1);
             const scaledHeight = (obj.height || 0) * (obj.scaleY || 1);
-            centerX_method2 = (obj.left || 0) + scaledWidth / 2;
-            centerY_method2 = (obj.top || 0) + scaledHeight / 2;
             
-            console.log(`[LRPG] 🧮 坐标计算对比 ${layerId}:`);
-            console.log(`  类型: ${isInputImage ? 'image' : 'annotation'}`);
-            console.log(`  Fabric位置: left=${obj.left}, top=${obj.top}`);
-            console.log(`  原始尺寸: ${obj.width}x${obj.height}, 缩放: ${obj.scaleX}x${obj.scaleY}`);
-            console.log(`  缩放后尺寸: ${scaledWidth}x${scaledHeight}`);
-            if (centerX_method1 !== undefined) {
-                console.log(`  方法1 getCenterPoint(): (${centerX_method1}, ${centerY_method1})`);
+            let centerX, centerY;
+            
+            // 🚀 lg_tools机制：优先使用真正的getCenterPoint坐标
+            if (obj.lgtools_centerX !== undefined && obj.lgtools_centerY !== undefined) {
+                // ✅ 使用从活跃Fabric对象获取的精确坐标
+                centerX = obj.lgtools_centerX;
+                centerY = obj.lgtools_centerY;
+                console.log(`[LRPG] 🎯 使用lg_tools精确坐标: (${centerX}, ${centerY})`);
+                
+                // 🚨 关键调试：lg_tools缩放值使用情况
+                if (obj.lgtools_scaleX !== undefined && obj.lgtools_scaleY !== undefined) {
+                    console.log(`[LRPG] 📊 发现lg_tools缩放值: scaleX=${obj.lgtools_scaleX}, scaleY=${obj.lgtools_scaleY}`);
+                    console.log(`[LRPG] 📊 JSON中原始缩放值: scaleX=${obj.scaleX}, scaleY=${obj.scaleY}`);
+                    
+                    // 🎯 lg_tools核心：使用活跃对象的真实缩放值而不是JSON中的缩放值
+                    const lgtools_actualScaleX = obj.lgtools_scaleX;
+                    const lgtools_actualScaleY = obj.lgtools_scaleY;
+                    const lgtools_actualWidth = obj.lgtools_actualWidth || (obj.width * lgtools_actualScaleX);
+                    const lgtools_actualHeight = obj.lgtools_actualHeight || (obj.height * lgtools_actualScaleY);
+                    
+                    console.log(`[LRPG] 🚀 lg_tools核心转换:`);
+                    console.log(`  实际缩放: ${lgtools_actualScaleX}x${lgtools_actualScaleY}`);
+                    console.log(`  实际尺寸: ${lgtools_actualWidth}x${lgtools_actualHeight}`);
+                }
+            } else {
+                // 🔄 备用方案：手动计算（当无法获取活跃对象时）
+                if (obj.originX === 'center' && obj.originY === 'center') {
+                    centerX = obj.left || 0;
+                    centerY = obj.top || 0;
+                    console.log(`[LRPG] 📍 备用-中心原点模式: (${centerX}, ${centerY})`);
+                } else {
+                    centerX = (obj.left || 0) + scaledWidth / 2;
+                    centerY = (obj.top || 0) + scaledHeight / 2;
+                    console.log(`[LRPG] 📍 备用-左上原点转换: (${centerX}, ${centerY})`);
+                }
             }
-            console.log(`  方法2 手动计算: (${centerX_method2}, ${centerY_method2})`);
             
-            // 使用正确的手动计算方法
-            centerX = centerX_method2;
-            centerY = centerY_method2;
+            console.log(`[LRPG] 🚀 lg_tools精准坐标机制 ${layerId}:`);
+            console.log(`  类型: ${isInputImage ? 'image' : 'annotation'}`);
+            console.log(`  🚨 实际Fabric设置: originX=${obj.originX}, originY=${obj.originY}`);
+            console.log(`  📍 Fabric原始位置: left=${obj.left}, top=${obj.top}`);
+            console.log(`  🔍 对象边界框: width=${obj.width}, height=${obj.height}`);
+            console.log(`  📏 实际尺寸: scaleX=${obj.scaleX}, scaleY=${obj.scaleY}`);
+            console.log(`  缩放后尺寸: ${scaledWidth}x${scaledHeight}`);
+            console.log(`  ✅ 最终中心坐标: (${centerX}, ${centerY})`)
             
-            console.log(`  ✅ 最终使用: (${centerX}, ${centerY})`);
+            // 🚨 决策日志：显示最终使用的缩放值
+            const finalScaleX = obj.lgtools_scaleX !== undefined ? obj.lgtools_scaleX : (obj.scaleX || 1);
+            const finalScaleY = obj.lgtools_scaleY !== undefined ? obj.lgtools_scaleY : (obj.scaleY || 1);
+            const finalActualWidth = obj.lgtools_actualWidth !== undefined ? obj.lgtools_actualWidth : scaledWidth;
+            const finalActualHeight = obj.lgtools_actualHeight !== undefined ? obj.lgtools_actualHeight : scaledHeight;
+            
+            console.log(`[LRPG] 🎯 最终传输给后端的缩放数据:`);
+            console.log(`  scaleX: ${finalScaleX} (${obj.lgtools_scaleX !== undefined ? 'lg_tools' : 'JSON'})`);
+            console.log(`  scaleY: ${finalScaleY} (${obj.lgtools_scaleY !== undefined ? 'lg_tools' : 'JSON'})`);
+            console.log(`  actualWidth: ${finalActualWidth} (${obj.lgtools_actualWidth !== undefined ? 'lg_tools' : 'calculated'})`);
+            console.log(`  actualHeight: ${finalActualHeight} (${obj.lgtools_actualHeight !== undefined ? 'lg_tools' : 'calculated'})`);
             
             const layerData = {
                 type: imageSource === 'annotation' ? obj.type : 'image', // 🎯 标注保留原始类型，图像统一为'image'
@@ -3249,10 +3347,13 @@ export function convertToTransformFirstData(promptData) {
                 _debug_fabricId: obj.fabricId,
                 _debug_name: obj.name,
                 image_data: imageData, // 🚀 新增：图像数据
-                centerX: centerX,
-                centerY: centerY,
-                scaleX: obj.scaleX || 1,
-                scaleY: obj.scaleY || 1,
+                // 🚀 lg_tools机制：使用中心坐标系，后端会自动转换为左上角
+                centerX: centerX,     // 中心点X坐标 (lg_tools方式)
+                centerY: centerY,     // 中心点Y坐标 (lg_tools方式)
+                actualWidth: obj.lgtools_actualWidth !== undefined ? obj.lgtools_actualWidth : scaledWidth,   // 实际显示宽度 (优先使用lg_tools)
+                actualHeight: obj.lgtools_actualHeight !== undefined ? obj.lgtools_actualHeight : scaledHeight, // 实际显示高度 (优先使用lg_tools)
+                scaleX: obj.lgtools_scaleX !== undefined ? obj.lgtools_scaleX : (obj.scaleX || 1),
+                scaleY: obj.lgtools_scaleY !== undefined ? obj.lgtools_scaleY : (obj.scaleY || 1),
                 angle: obj.angle || 0,
                 width: obj.width || 100,
                 height: obj.height || 100,
