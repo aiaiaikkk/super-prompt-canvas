@@ -218,7 +218,7 @@ class LRPGCanvas {
                 rotatingPointOffset: 30  // 旋转控制点偏移距离
             });
 
-            // 设置画布背景颜色为白色
+            // 设置画布背景为白色
             this.canvas.backgroundColor = '#ffffff';
             // 强制重新渲染以确保背景色生效
             this.canvas.renderAll();
@@ -251,8 +251,8 @@ class LRPGCanvas {
                 position: relative;
             `;
             
-            // 设置canvas背景为白色
-            this.canvas.lowerCanvasEl.style.backgroundColor = '#ffffff';
+            // 移除额外的背景色设置，使用canvas.backgroundColor即可
+            // this.canvas.lowerCanvasEl.style.backgroundColor = '#f0f0f0';
             canvasWrapper.appendChild(this.canvas.wrapperEl);
             
             // 创建简化的工具栏
@@ -1007,7 +1007,8 @@ class LRPGCanvas {
             { id: 'rectangle', icon: '▭', title: '矩形' },
             { id: 'circle', icon: '○', title: '圆形' },
             { id: 'text', icon: 'T', title: '文字' },
-            { id: 'freehand', icon: '✎', title: '画笔' }
+            { id: 'freehand', icon: '✎', title: '画笔' },
+            { id: 'crop', icon: '✂', title: '裁切' }
         ];
         
         this.currentTool = 'select';
@@ -1106,6 +1107,7 @@ class LRPGCanvas {
         bgColorPicker.value = '#ffffff';
         bgColorPicker.style.cssText = colorPicker.style.cssText;
         bgColorPicker.onchange = (e) => {
+            // 设置画布背景色
             this.canvas.backgroundColor = e.target.value;
             this.canvas.renderAll();
         };
@@ -1228,6 +1230,13 @@ class LRPGCanvas {
     }
 
     selectTool(toolId, button) {
+        // 清理裁切模式（如果正在使用）
+        if (this.currentTool === 'crop' && toolId !== 'crop' && this.cropMode && this.cropMode.isActive) {
+            this.clearCropPath();
+            this.cropMode.isActive = false;
+            console.log('[LRPG Canvas] 退出裁切模式');
+        }
+        
         // 更新按钮样式
         Object.entries(this.toolButtons).forEach(([id, btn]) => {
             if (id === toolId) {
@@ -1260,6 +1269,13 @@ class LRPGCanvas {
                 this.canvas.selection = false;
                 break;
                 
+            case 'crop':
+                this.canvas.isDrawingMode = false;
+                this.canvas.selection = false;
+                this.canvas.defaultCursor = 'crosshair';
+                this.initCropMode();
+                break;
+                
             default:
                 this.canvas.isDrawingMode = false;
                 this.canvas.selection = false;
@@ -1268,6 +1284,283 @@ class LRPGCanvas {
         }
         
         console.log(`[LRPG Canvas] 已切换到工具: ${toolId}`);
+    }
+    
+    // 裁切工具相关方法
+    initCropMode() {
+        // 初始化裁切模式
+        this.cropMode = {
+            isActive: true,
+            points: [],
+            lines: [],
+            dots: [],
+            tempLine: null,
+            targetObject: null
+        };
+        
+        // 清除之前的裁切路径
+        this.clearCropPath();
+        
+        // 获取当前选中的对象作为裁切目标
+        const activeObject = this.canvas.getActiveObject();
+        if (activeObject && activeObject.type === 'image') {
+            this.cropMode.targetObject = activeObject;
+            console.log('[LRPG Canvas] 裁切目标已设置');
+        } else {
+            console.log('[LRPG Canvas] 请先选择一个图像进行裁切');
+        }
+        
+        console.log('[LRPG Canvas] 裁切模式已激活 - 左键添加点，右键闭合裁切');
+    }
+    
+    clearCropPath() {
+        // 清除所有裁切相关的临时对象
+        if (this.cropMode) {
+            this.cropMode.lines.forEach(line => this.canvas.remove(line));
+            this.cropMode.dots.forEach(dot => this.canvas.remove(dot));
+            if (this.cropMode.tempLine) {
+                this.canvas.remove(this.cropMode.tempLine);
+            }
+            this.cropMode.points = [];
+            this.cropMode.lines = [];
+            this.cropMode.dots = [];
+            this.cropMode.tempLine = null;
+        }
+        this.canvas.renderAll();
+    }
+    
+    addCropPoint(point) {
+        // 添加裁切点
+        this.cropMode.points.push(point);
+        
+        // 创建控制点视觉表示
+        const dot = new fabric.Circle({
+            left: point.x - 4,
+            top: point.y - 4,
+            radius: 4,
+            fill: '#00ff00',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true
+        });
+        this.canvas.add(dot);
+        this.cropMode.dots.push(dot);
+        
+        // 如果有多个点，绘制连线
+        if (this.cropMode.points.length > 1) {
+            const prevPoint = this.cropMode.points[this.cropMode.points.length - 2];
+            const line = new fabric.Line(
+                [prevPoint.x, prevPoint.y, point.x, point.y],
+                {
+                    stroke: '#00ff00',
+                    strokeWidth: 2,
+                    selectable: false,
+                    evented: false,
+                    excludeFromExport: true
+                }
+            );
+            this.canvas.add(line);
+            this.cropMode.lines.push(line);
+        }
+        
+        this.canvas.renderAll();
+    }
+    
+    closeCropPath() {
+        // 闭合裁切路径
+        if (this.cropMode.points.length < 3) {
+            alert('至少需要3个点才能创建裁切区域');
+            return;
+        }
+        
+        // 移除预览线
+        if (this.cropMode.tempLine) {
+            this.canvas.remove(this.cropMode.tempLine);
+            this.cropMode.tempLine = null;
+        }
+        
+        // 绘制闭合线
+        const firstPoint = this.cropMode.points[0];
+        const lastPoint = this.cropMode.points[this.cropMode.points.length - 1];
+        const closingLine = new fabric.Line(
+            [lastPoint.x, lastPoint.y, firstPoint.x, firstPoint.y],
+            {
+                stroke: '#00ff00',
+                strokeWidth: 2,
+                selectable: false,
+                evented: false,
+                excludeFromExport: true
+            }
+        );
+        this.canvas.add(closingLine);
+        this.cropMode.lines.push(closingLine);
+        
+        // 执行裁切
+        this.executeCrop();
+    }
+    
+    executeCrop() {
+        if (!this.cropMode.targetObject) {
+            // 如果没有预选目标，尝试找到裁切路径下的图像
+            const objects = this.canvas.getObjects();
+            for (let obj of objects) {
+                if (obj.type === 'image' && !obj.excludeFromExport) {
+                    this.cropMode.targetObject = obj;
+                    break;
+                }
+            }
+        }
+        
+        if (!this.cropMode.targetObject) {
+            alert('没有找到可裁切的图像');
+            this.clearCropPath();
+            return;
+        }
+        
+        // 创建裁切后的新图像
+        const targetObj = this.cropMode.targetObject;
+        
+        // 计算裁切区域的边界框
+        let minX = Math.min(...this.cropMode.points.map(p => p.x));
+        let maxX = Math.max(...this.cropMode.points.map(p => p.x));
+        let minY = Math.min(...this.cropMode.points.map(p => p.y));
+        let maxY = Math.max(...this.cropMode.points.map(p => p.y));
+        
+        const cropWidth = maxX - minX;
+        const cropHeight = maxY - minY;
+        
+        // 先保存裁切点数据
+        const cropPoints = [...this.cropMode.points];
+        
+        // 只清理视觉元素，不清理点数据
+        if (this.cropMode) {
+            this.cropMode.lines.forEach(line => this.canvas.remove(line));
+            this.cropMode.dots.forEach(dot => this.canvas.remove(dot));
+            if (this.cropMode.tempLine) {
+                this.canvas.remove(this.cropMode.tempLine);
+            }
+            this.cropMode.lines = [];
+            this.cropMode.dots = [];
+            this.cropMode.tempLine = null;
+        }
+        
+        // 创建临时画布用于裁切
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d', { alpha: true });
+        
+        // 设置临时画布大小为裁切区域大小
+        tempCanvas.width = cropWidth;
+        tempCanvas.height = cropHeight;
+        
+        // 清空画布，保持透明背景
+        ctx.clearRect(0, 0, cropWidth, cropHeight);
+        
+        // 保存当前状态
+        ctx.save();
+        
+        // 创建裁切路径（相对于裁切区域）
+        ctx.beginPath();
+        cropPoints.forEach((point, index) => {
+            const x = point.x - minX;
+            const y = point.y - minY;
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.closePath();
+        ctx.clip();
+        
+        // 获取目标对象的实际渲染边界（包含所有变换）
+        const objBounds = targetObj.getBoundingRect();
+        
+        // 计算图像在临时画布上的位置
+        const imgX = objBounds.left - minX;
+        const imgY = objBounds.top - minY;
+        
+        // 绘制目标对象 - 使用简单的方法，先设置位置再绘制
+        ctx.save();
+        
+        // 移动到对象中心
+        ctx.translate(imgX + objBounds.width/2, imgY + objBounds.height/2);
+        
+        // 应用旋转（如果有）
+        if (targetObj.angle) {
+            ctx.rotate(targetObj.angle * Math.PI / 180);
+        }
+        
+        // 绘制图像，考虑缩放
+        const img = targetObj.getElement();
+        const scaleX = targetObj.scaleX || 1;
+        const scaleY = targetObj.scaleY || 1;
+        const drawWidth = targetObj.width * scaleX;
+        const drawHeight = targetObj.height * scaleY;
+        
+        ctx.drawImage(img, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
+        
+        ctx.restore();
+        ctx.restore();
+        
+        // 获取裁切后的图像数据
+        const croppedImageUrl = tempCanvas.toDataURL('image/png');
+        
+        console.log('[LRPG Canvas] 裁切调试信息:', {
+            targetObjBounds: objBounds,
+            cropArea: { minX, minY, maxX, maxY, width: cropWidth, height: cropHeight },
+            targetObjScale: { scaleX, scaleY },
+            targetObjAngle: targetObj.angle || 0
+        });
+        
+        // 创建新的fabric图像对象
+        fabric.Image.fromURL(croppedImageUrl, (newImg) => {
+            if (!newImg || !newImg.getElement()) {
+                console.error('[LRPG Canvas] 裁切失败：无法创建新图像');
+                alert('裁切失败，请重试');
+                return;
+            }
+            
+            newImg.set({
+                left: minX,
+                top: minY,
+                selectable: true,
+                evented: true,
+                hasControls: true,
+                hasBorders: true,
+                name: `裁切图层 ${Date.now()}`
+            });
+            
+            // 删除原图层
+            this.canvas.remove(targetObj);
+            
+            // 添加新图层
+            this.canvas.add(newImg);
+            this.canvas.setActiveObject(newImg);
+            this.canvas.renderAll();
+            
+            // 退出裁切模式
+            this.cropMode.isActive = false;
+            this.selectTool('select', this.toolButtons['select']);
+            
+            // 更新图层列表
+            if (this.layerPanel && this.layerPanel.isExpanded) {
+                this.updateLayerList();
+            }
+            
+            // 标记画布已改变
+            this.markCanvasChanged();
+            
+            console.log('[LRPG Canvas] 裁切完成，已生成新图层', {
+                width: cropWidth,
+                height: cropHeight,
+                position: { x: minX, y: minY }
+            });
+        }, {
+            // 确保图像加载选项
+            crossOrigin: 'anonymous'
+        });
     }
 
     setupOverlayToolEvents() {
@@ -1295,6 +1588,14 @@ class LRPGCanvas {
             this.markCanvasChanged();
         });
         
+        // 添加右键事件处理（用于闭合裁切路径）
+        this.canvas.wrapperEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (this.currentTool === 'crop' && this.cropMode && this.cropMode.isActive) {
+                this.closeCropPath();
+            }
+        });
+        
         // 监听对象变化事件，强制清除缓存
         this.canvas.on('object:added', () => {
             this.markCanvasChanged();
@@ -1312,6 +1613,13 @@ class LRPGCanvas {
     handleMouseDown(e) {
         if (this.currentTool === 'select') {
             // 选择工具：完全交给Fabric.js处理
+            return;
+        }
+        
+        // 裁切模式处理
+        if (this.currentTool === 'crop' && this.cropMode && this.cropMode.isActive) {
+            const pointer = this.canvas.getPointer(e.e);
+            this.addCropPoint(pointer);
             return;
         }
         
@@ -1340,8 +1648,33 @@ class LRPGCanvas {
     }
 
     handleMouseMove(e) {
+        const pointer = this.canvas.getPointer(e.e);
+        
+        // 裁切模式下显示预览线
+        if (this.currentTool === 'crop' && this.cropMode && this.cropMode.isActive && this.cropMode.points.length > 0) {
+            // 移除旧的预览线
+            if (this.cropMode.tempLine) {
+                this.canvas.remove(this.cropMode.tempLine);
+            }
+            
+            // 创建新的预览线
+            const lastPoint = this.cropMode.points[this.cropMode.points.length - 1];
+            this.cropMode.tempLine = new fabric.Line(
+                [lastPoint.x, lastPoint.y, pointer.x, pointer.y],
+                {
+                    stroke: '#ffff00',
+                    strokeWidth: 1,
+                    strokeDashArray: [5, 5],
+                    selectable: false,
+                    evented: false,
+                    excludeFromExport: true
+                }
+            );
+            this.canvas.add(this.cropMode.tempLine);
+            this.canvas.renderAll();
+        }
+        
         if (this.isDrawing && this.drawingObject) {
-            const pointer = this.canvas.getPointer(e.e);
             this.updateDrawingShape(pointer);
         }
     }
@@ -1842,11 +2175,12 @@ class LRPGCanvas {
             
             const layer_transforms = this.extractTransformData();
             
-            // 获取画布图像数据
+            // 获取画布图像数据（包含背景）
             const canvasDataURL = this.canvas.toDataURL({
                 format: 'png',
                 quality: 1.0,
-                multiplier: 1
+                multiplier: 1,
+                withoutBackground: false  // 包含背景
             });
             
             // 转换为字节数组
