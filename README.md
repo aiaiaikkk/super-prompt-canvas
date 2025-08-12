@@ -32,17 +32,23 @@
 - **成本控制**: 实时显示Token消耗和费用估算
 - **智能分析**: 自动理解编辑意图并优化指令
 
+![API](images/api.png)
+
 ### Ollama Flux Kontext Enhancer  
 本地运行的大模型增强器
 - **隐私保护**: 完全本地处理，无需网络连接
 - **模型管理**: 支持多种开源LLM模型
 - **参数可调**: 温度、最大Token等参数自定义
 
+![Ollama](images/ollama.png)
+
 ### TextGenWebUI Flux Kontext Enhancer
 与Text Generation WebUI的集成方案
 - **无缝对接**: 直接调用WebUI接口
 - **批量处理**: 支持多任务并行处理
 - **状态监控**: 实时显示处理进度
+
+![TextGenWebUI](images/textgen_webui.png)
 
 ## 📋 使用方法
 
