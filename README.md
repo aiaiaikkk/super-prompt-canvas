@@ -82,6 +82,7 @@ pip install torch torchvision opencv-python openai
 
 ## ⚡ 核心特性
 
+- **专业画布**: 基于Fabric.js的高性能图层编辑器
 - **智能模板**: 40+种专业编辑操作模板
 - **多AI集成**: 支持API和本地模型增强
 - **模块化设计**: 节点可独立使用或组合使用
@@ -90,3 +91,99 @@ pip install torch torchvision opencv-python openai
 ---
 
 **版本**: 1.3.2 | **许可**: MIT | **仓库**: https://github.com/aiaiaikkk/kontext-super-prompt
+
+---
+
+# Kontext Super Prompt
+
+**ComfyUI Image Editing & Intelligent Prompt Generation Toolkit** - Professional visual editing with AI-enhanced prompt generation
+
+![Installation](images/instruction.png)
+
+## 🎯 Main Nodes
+
+### 🎨 LRPG Canvas  
+Visual canvas annotation tool providing professional layer management and drawing capabilities
+- Interactive canvas interface based on Fabric.js
+- Support for multiple drawing tools and layer operations
+- Automatically generates structured layer data for downstream nodes
+- Real-time canvas state synchronization
+
+![LRPG Canvas](images/LRPG_Canvas.png)
+
+### 🎯 Kontext Super Prompt
+Intelligent prompt generator that converts layer information into structured editing instructions
+- **Four editing modes**: Local editing, global editing, text editing, professional operations
+- **40+ operation templates**: Including color transformation, style reconstruction, intelligent replacement, etc.
+- **Constraints and enhancements**: Automatically generates quality control and effect enhancement prompts
+- **Deterministic output**: Same input guarantees same results
+
+![Kontext Super Prompt](images/KontextSuperPrompt.png)
+
+## 🤖 AI Enhancement Nodes
+
+### API Flux Kontext Enhancer
+Enhances prompt generation through API calls to multiple large language models
+- **Supported platforms**: OpenAI, DeepSeek, Qianwen, Gemini, SiliconFlow
+- **Cost control**: Real-time display of token consumption and cost estimation
+- **Intelligent analysis**: Automatically understands editing intent and optimizes instructions
+
+![API](images/api.png)
+
+### Ollama Flux Kontext Enhancer  
+Local-running large language model enhancer
+- **Privacy protection**: Completely local processing, no network connection required
+- **Model management**: Support for various open-source LLM models
+- **Adjustable parameters**: Customizable temperature, max tokens, and other parameters
+
+![Ollama](images/ollama.png)
+
+### TextGenWebUI Flux Kontext Enhancer
+Integration solution with Text Generation WebUI
+- **Seamless integration**: Direct WebUI interface calls
+- **Batch processing**: Support for multi-task parallel processing
+- **Status monitoring**: Real-time display of processing progress
+
+![TextGenWebUI](images/textgen_webui.png)
+
+## 📋 Usage
+
+### Basic Workflow
+1. Add `🎨 LRPG Canvas` node and connect image input
+2. Create layers and annotation areas in the canvas
+3. Connect `🎯 Kontext Super Prompt` node to generate editing instructions
+4. Optionally connect AI enhancement nodes for further prompt optimization
+
+### Node Connections
+- **LRPG Canvas**: Outputs `image` and `layer_info`
+- **Kontext Super Prompt**: Receives `layer_info` and `image`, outputs `edited_image` and `generated_prompt`
+- **AI Enhancers**: Receive `layer_info` layer information, output AI-optimized editing instructions
+
+## 🛠️ Installation
+
+### Method 1: Git Clone Installation
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
+pip install torch torchvision opencv-python openai
+```
+
+### Method 2: ComfyUI Manager Installation
+1. Open ComfyUI Manager
+2. Search for "kontext-super-prompt"
+3. Click install and restart ComfyUI
+
+### Installation Complete
+After restarting ComfyUI, find the "🎨 LRPG Canvas" category in the node menu
+
+## ⚡ Core Features
+
+- **Professional Canvas**: High-performance layer editor based on Fabric.js
+- **Intelligent Templates**: 40+ professional editing operation templates
+- **Multi-AI Integration**: Support for API and local model enhancement
+- **Modular Design**: Nodes can be used independently or in combination
+- **Real-time Sync**: Canvas state synchronizes with node data in real-time
+
+---
+
+**Version**: 1.3.2 | **License**: MIT | **Repository**: https://github.com/aiaiaikkk/kontext-super-prompt
