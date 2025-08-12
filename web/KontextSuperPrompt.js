@@ -1798,6 +1798,10 @@ class KontextSuperPrompt {
         notice.textContent = '🦙 使用本地Ollama模型生成私密安全的编辑提示词';
         panel.appendChild(notice);
 
+        // Ollama服务管理区域
+        const serviceManagementSection = this.createOllamaServiceManagementSection();
+        panel.appendChild(serviceManagementSection);
+
         // Ollama配置区域
         const ollamaConfigSection = this.createOllamaConfigSection();
         panel.appendChild(ollamaConfigSection);
@@ -2062,7 +2066,7 @@ class KontextSuperPrompt {
         promptPreviewTextarea.placeholder = '生成的超级提示词将在此处显示，可编辑修改...';
         promptPreviewTextarea.style.cssText = `
             width: 100%;
-            height: 100px;
+            height: 180px;
             background: #2a2a2a;
             color: #fff;
             border: 1px solid #444;
@@ -2401,6 +2405,87 @@ class KontextSuperPrompt {
             intentSelect,
             styleSelect
         };
+
+        return section;
+    }
+
+    createOllamaServiceManagementSection() {
+        const section = document.createElement('div');
+        section.className = 'ollama-service-section';
+        section.style.cssText = `
+            margin-bottom: 12px;
+            padding: 8px;
+            border: 1px solid #666;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.03);
+        `;
+
+        // 紧凑的一行布局
+        const controlRow = document.createElement('div');
+        controlRow.style.cssText = `
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            font-size: 11px;
+        `;
+        
+        // 服务标识
+        const serviceLabel = document.createElement('span');
+        serviceLabel.textContent = '🦙';
+        serviceLabel.style.cssText = `font-size: 14px;`;
+        
+        // 状态显示
+        this.ollamaStatusDisplay = document.createElement('span');
+        this.ollamaStatusDisplay.style.cssText = `
+            padding: 2px 6px; font-size: 10px; border-radius: 2px;
+            font-weight: bold; min-width: 50px; text-align: center;
+        `;
+        this.ollamaStatusDisplay.textContent = '检测中';
+        this.updateOllamaServiceStatus('检测中');
+
+        // 启动/停止按钮
+        this.ollamaServiceButton = document.createElement('button');
+        this.ollamaServiceButton.style.cssText = `
+            padding: 3px 8px; border: none; border-radius: 3px;
+            background: #4CAF50; color: white; font-size: 10px;
+            cursor: pointer; font-weight: bold; min-width: 40px;
+        `;
+        this.ollamaServiceButton.textContent = '启动';
+        this.ollamaServiceButton.onclick = () => this.toggleOllamaService();
+
+        // 释放内存按钮
+        const unloadButton = document.createElement('button');
+        unloadButton.style.cssText = `
+            padding: 3px 8px; border: none; border-radius: 3px;
+            background: #FF9800; color: white; font-size: 10px;
+            cursor: pointer; font-weight: bold;
+        `;
+        unloadButton.textContent = '释放';
+        unloadButton.title = '释放模型内存';
+        unloadButton.onclick = () => this.unloadOllamaModels();
+
+        // 刷新按钮
+        const refreshButton = document.createElement('button');
+        refreshButton.style.cssText = `
+            padding: 3px 6px; border: none; border-radius: 3px;
+            background: #2196F3; color: white; font-size: 10px;
+            cursor: pointer; font-weight: bold;
+        `;
+        refreshButton.textContent = '🔄';
+        refreshButton.title = '刷新状态';
+        refreshButton.onclick = () => this.checkOllamaServiceStatus();
+
+        // 组装元素 - 一行排列
+        controlRow.appendChild(serviceLabel);
+        controlRow.appendChild(this.ollamaStatusDisplay);
+        controlRow.appendChild(this.ollamaServiceButton);
+        controlRow.appendChild(unloadButton);
+        controlRow.appendChild(refreshButton);
+        
+        section.appendChild(controlRow);
+
+        // 初始状态检查
+        this.checkOllamaServiceStatus();
 
         return section;
     }
@@ -4041,15 +4126,22 @@ class KontextSuperPrompt {
         // 获取描述 - 尝试多种选择器
         let description = '';
         const descriptionInputs = [
-            this.editorContainer.querySelector('.api-edit-panel .description-textarea'),
-            this.editorContainer.querySelector('.description-textarea'),
+            this.editorContainer.querySelector('.api-edit-panel .description-section textarea'),
+            this.editorContainer.querySelector('.description-section textarea'),
+            this.descriptionTextarea,
             this.descriptionInput
         ];
         
-        for (const input of descriptionInputs) {
-            if (input && input.value) {
-                description = input.value;
-                break;
+        // 优先使用当前组件的description属性
+        if (this.description && this.description.trim()) {
+            description = this.description.trim();
+        } else {
+            // 回退到DOM查询
+            for (const input of descriptionInputs) {
+                if (input && input.value && input.value.trim()) {
+                    description = input.value.trim();
+                    break;
+                }
             }
         }
         
@@ -4125,15 +4217,22 @@ class KontextSuperPrompt {
         // 获取描述 - 尝试多种选择器
         let description = '';
         const descriptionInputs = [
-            this.editorContainer.querySelector('.ollama-edit-panel .description-textarea'),
-            this.editorContainer.querySelector('.description-textarea'),
+            this.editorContainer.querySelector('.ollama-edit-panel .description-section textarea'),
+            this.editorContainer.querySelector('.description-section textarea'),
+            this.descriptionTextarea,
             this.descriptionInput
         ];
         
-        for (const input of descriptionInputs) {
-            if (input && input.value) {
-                description = input.value;
-                break;
+        // 优先使用当前组件的description属性
+        if (this.description && this.description.trim()) {
+            description = this.description.trim();
+        } else {
+            // 回退到DOM查询
+            for (const input of descriptionInputs) {
+                if (input && input.value && input.value.trim()) {
+                    description = input.value.trim();
+                    break;
+                }
             }
         }
         
@@ -4644,6 +4743,178 @@ class KontextSuperPrompt {
         } catch (error) {
             console.warn(`获取${provider}模型列表失败:`, error);
             return null;
+        }
+    }
+
+    // Ollama服务管理相关方法
+    async checkOllamaServiceStatus() {
+        try {
+            // 检查Ollama服务状态
+            const response = await fetch('/ollama_service_control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'status' })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.updateOllamaServiceStatus(result.status || '未知');
+            } else {
+                // 尝试直接检查Ollama API
+                try {
+                    const ollamaResponse = await fetch('http://127.0.0.1:11434/api/tags', { 
+                        method: 'GET',
+                        signal: AbortSignal.timeout(3000) 
+                    });
+                    if (ollamaResponse.ok) {
+                        this.updateOllamaServiceStatus('运行中');
+                    } else {
+                        this.updateOllamaServiceStatus('已停止');
+                    }
+                } catch {
+                    this.updateOllamaServiceStatus('已停止');
+                }
+            }
+        } catch (error) {
+            console.warn('[Ollama Service] 状态检查失败:', error);
+            this.updateOllamaServiceStatus('未知');
+        }
+    }
+
+    updateOllamaServiceStatus(status) {
+        if (!this.ollamaStatusDisplay) return;
+        
+        // 根据状态设置样式和按钮
+        switch (status) {
+            case '运行中':
+                this.ollamaStatusDisplay.textContent = '运行中';
+                this.ollamaStatusDisplay.style.background = '#4CAF50';
+                this.ollamaStatusDisplay.style.color = 'white';
+                if (this.ollamaServiceButton) {
+                    this.ollamaServiceButton.textContent = '停止';
+                    this.ollamaServiceButton.style.background = '#f44336';
+                    this.ollamaServiceButton.disabled = false;
+                }
+                break;
+            case '已停止':
+                this.ollamaStatusDisplay.textContent = '已停止';
+                this.ollamaStatusDisplay.style.background = '#f44336';
+                this.ollamaStatusDisplay.style.color = 'white';
+                if (this.ollamaServiceButton) {
+                    this.ollamaServiceButton.textContent = '启动';
+                    this.ollamaServiceButton.style.background = '#4CAF50';
+                    this.ollamaServiceButton.disabled = false;
+                }
+                break;
+            case '启动中':
+                this.ollamaStatusDisplay.textContent = '启动中';
+                this.ollamaStatusDisplay.style.background = '#FF9800';
+                this.ollamaStatusDisplay.style.color = 'white';
+                if (this.ollamaServiceButton) {
+                    this.ollamaServiceButton.textContent = '启动中';
+                    this.ollamaServiceButton.disabled = true;
+                }
+                break;
+            case '停止中':
+                this.ollamaStatusDisplay.textContent = '停止中';
+                this.ollamaStatusDisplay.style.background = '#FF9800';
+                this.ollamaStatusDisplay.style.color = 'white';
+                if (this.ollamaServiceButton) {
+                    this.ollamaServiceButton.textContent = '停止中';
+                    this.ollamaServiceButton.disabled = true;
+                }
+                break;
+            default:
+                this.ollamaStatusDisplay.textContent = '检测中';
+                this.ollamaStatusDisplay.style.background = '#666';
+                this.ollamaStatusDisplay.style.color = '#ccc';
+                if (this.ollamaServiceButton) {
+                    this.ollamaServiceButton.textContent = '启动';
+                    this.ollamaServiceButton.style.background = '#4CAF50';
+                    this.ollamaServiceButton.disabled = false;
+                }
+        }
+    }
+
+    async toggleOllamaService() {
+        try {
+            const currentStatus = this.ollamaStatusDisplay?.textContent || '';
+            const action = currentStatus === '运行中' ? 'stop' : 'start';
+            
+            // 设置操作中状态
+            this.updateOllamaServiceStatus(action === 'start' ? '启动中' : '停止中');
+            
+            const response = await fetch('/ollama_service_control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: action })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification(result.message || `${action === 'start' ? '启动' : '停止'}服务成功`, 'success');
+                // 延迟检查状态，给服务时间启动/停止
+                setTimeout(() => this.checkOllamaServiceStatus(), 2000);
+            } else {
+                this.showNotification(`操作失败: ${result.message}`, 'error');
+                this.checkOllamaServiceStatus();
+            }
+        } catch (error) {
+            console.error('[Ollama Service] 服务控制失败:', error);
+            this.showNotification(`服务操作失败: ${error.message}`, 'error');
+            this.checkOllamaServiceStatus();
+        }
+    }
+
+    async unloadOllamaModels() {
+        try {
+            this.showNotification('正在释放Ollama模型...', 'info');
+            
+            // 方法1: 调用Ollama API释放所有模型
+            try {
+                const response = await fetch('http://127.0.0.1:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: '',
+                        keep_alive: 0  // 立即释放所有模型
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showNotification('模型内存释放成功！', 'success');
+                    return;
+                }
+            } catch (directError) {
+                console.warn('[Ollama] 直接API调用失败:', directError);
+            }
+
+            // 方法2: 通过后端服务控制
+            const response = await fetch('/ollama_service_control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'unload' })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification(result.message || '模型内存释放成功！', 'success');
+            } else {
+                this.showNotification(`释放失败: ${result.message}`, 'warning');
+            }
+        } catch (error) {
+            console.error('[Ollama Service] 释放模型失败:', error);
+            this.showNotification(`释放模型失败: ${error.message}`, 'error');
         }
     }
 }

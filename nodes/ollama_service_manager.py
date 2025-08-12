@@ -179,6 +179,43 @@ class OllamaServiceManager:
         except Exception as e:
             cls._service_status = "stopped"
             return {"success": False, "message": f"停止失败: {str(e)}"}
+    
+    @classmethod
+    def unload_ollama_models(cls) -> Dict[str, Any]:
+        """释放Ollama模型内存"""
+        try:
+            # 检查服务是否运行
+            if cls.check_ollama_status() != "运行中":
+                return {"success": False, "message": "Ollama服务未运行"}
+            
+            # 方法1: 通过API释放所有模型
+            try:
+                response = requests.post(
+                    "http://localhost:11434/api/generate",
+                    json={"model": "", "keep_alive": 0},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    return {"success": True, "message": "所有模型内存已释放"}
+            except Exception as api_error:
+                print(f"[Ollama Manager] API释放失败: {api_error}")
+            
+            # 方法2: 重启服务来释放内存
+            print("[Ollama Manager] 尝试通过重启服务释放内存...")
+            stop_result = cls.stop_ollama_service()
+            if not stop_result["success"]:
+                return {"success": False, "message": f"停止服务失败: {stop_result['message']}"}
+            
+            time.sleep(2)  # 等待服务完全停止
+            
+            start_result = cls.start_ollama_service()
+            if start_result["success"]:
+                return {"success": True, "message": "服务已重启，模型内存已释放"}
+            else:
+                return {"success": False, "message": f"重启失败: {start_result['message']}"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"释放模型失败: {str(e)}"}
 
 # Web API接口
 if WEB_AVAILABLE:
@@ -203,6 +240,10 @@ if WEB_AVAILABLE:
             
             elif action == "stop":
                 result = OllamaServiceManager.stop_ollama_service()
+                return web.json_response(result)
+            
+            elif action == "unload":
+                result = OllamaServiceManager.unload_ollama_models()
                 return web.json_response(result)
             
             else:

@@ -23,75 +23,73 @@ class OllamaServiceManagerUI {
     }
     
     createUI() {
-        // 创建主容器
+        // 创建主容器 - 紧凑的一行布局
         const container = document.createElement('div');
         container.style.cssText = `
-            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
             background: #2a2a2a;
-            border-radius: 5px;
-            margin: 5px 0;
+            border-radius: 3px;
             border: 1px solid #444;
+            font-size: 11px;
         `;
         
-        // 标题
-        const title = document.createElement('div');
-        title.textContent = '🦙 Ollama Service Manager';
-        title.style.cssText = `
+        // 服务名称标签
+        const nameLabel = document.createElement('span');
+        nameLabel.textContent = '🦙';
+        nameLabel.style.cssText = `
             font-size: 14px;
-            font-weight: bold;
-            color: #fff;
-            margin-bottom: 10px;
-            text-align: center;
+            margin-right: 4px;
         `;
         
         // 状态显示
-        this.statusDisplay = document.createElement('div');
-        this.statusDisplay.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
+        this.statusIcon = document.createElement('span');
+        this.statusIcon.style.cssText = `
             font-size: 12px;
+            margin-right: 4px;
         `;
         
-        this.statusIcon = document.createElement('span');
-        this.statusIcon.style.marginRight = '5px';
-        
         this.statusText = document.createElement('span');
-        this.statusText.style.color = '#ccc';
+        this.statusText.style.cssText = `
+            color: #ccc;
+            font-size: 11px;
+            min-width: 60px;
+        `;
         
-        this.statusDisplay.appendChild(this.statusIcon);
-        this.statusDisplay.appendChild(this.statusText);
-        
-        // 控制按钮
+        // 主控制按钮 - 紧凑样式
         this.controlButton = document.createElement('button');
         this.controlButton.style.cssText = `
-            width: 100%;
-            padding: 8px 12px;
+            padding: 4px 8px;
             border: none;
-            border-radius: 4px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             transition: all 0.2s;
-            margin-bottom: 5px;
+            min-width: 60px;
         `;
         
         this.controlButton.addEventListener('click', () => this.toggleService());
         
-        // 刷新按钮
+        // 刷新按钮 - 小图标按钮
         const refreshButton = document.createElement('button');
-        refreshButton.textContent = '🔄 刷新状态';
+        refreshButton.textContent = '🔄';
+        refreshButton.title = '刷新状态';
         refreshButton.style.cssText = `
-            width: 100%;
-            padding: 6px 12px;
+            width: 24px;
+            height: 24px;
+            padding: 2px;
             border: 1px solid #555;
-            border-radius: 4px;
+            border-radius: 3px;
             background: #333;
             color: #ccc;
             cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         `;
         
         refreshButton.addEventListener('click', () => this.checkStatus());
@@ -102,9 +100,10 @@ class OllamaServiceManagerUI {
             refreshButton.style.background = '#333';
         });
         
-        // 组装UI
-        container.appendChild(title);
-        container.appendChild(this.statusDisplay);
+        // 组装UI - 一行排列
+        container.appendChild(nameLabel);
+        container.appendChild(this.statusIcon);
+        container.appendChild(this.statusText);
         container.appendChild(this.controlButton);
         container.appendChild(refreshButton);
         
@@ -121,27 +120,29 @@ class OllamaServiceManagerUI {
         switch (status) {
             case "运行中":
                 this.statusIcon.textContent = "🟢";
-                this.statusText.textContent = "服务运行中";
+                this.statusText.textContent = "运行中";
                 this.statusText.style.color = "#4CAF50";
-                this.controlButton.textContent = "⏹️ 停止服务";
+                this.controlButton.textContent = "停止";
                 this.controlButton.style.background = "#f44336";
                 this.controlButton.style.color = "white";
+                this.controlButton.disabled = false;
                 break;
                 
             case "已停止":
                 this.statusIcon.textContent = "🔴";
-                this.statusText.textContent = "服务已停止";
+                this.statusText.textContent = "已停止";
                 this.statusText.style.color = "#f44336";
-                this.controlButton.textContent = "▶️ 启动服务";
+                this.controlButton.textContent = "启动";
                 this.controlButton.style.background = "#4CAF50";
                 this.controlButton.style.color = "white";
+                this.controlButton.disabled = false;
                 break;
                 
             case "starting":
                 this.statusIcon.textContent = "🟡";
-                this.statusText.textContent = "正在启动...";
+                this.statusText.textContent = "启动中";
                 this.statusText.style.color = "#FF9800";
-                this.controlButton.textContent = "启动中...";
+                this.controlButton.textContent = "启动中";
                 this.controlButton.style.background = "#666";
                 this.controlButton.style.color = "#ccc";
                 this.controlButton.disabled = true;
@@ -149,21 +150,22 @@ class OllamaServiceManagerUI {
                 
             case "stopping":
                 this.statusIcon.textContent = "🟡";
-                this.statusText.textContent = "正在停止...";
+                this.statusText.textContent = "停止中";
                 this.statusText.style.color = "#FF9800";
-                this.controlButton.textContent = "停止中...";
+                this.controlButton.textContent = "停止中";
                 this.controlButton.style.background = "#666";
                 this.controlButton.style.color = "#ccc";
                 this.controlButton.disabled = true;
                 break;
                 
             default:
-                this.statusIcon.textContent = "⚫";
-                this.statusText.textContent = "状态未知";
+                this.statusIcon.textContent = "⚪";
+                this.statusText.textContent = "未知";
                 this.statusText.style.color = "#999";
-                this.controlButton.textContent = "🔄 检查状态";
+                this.controlButton.textContent = "检查";
                 this.controlButton.style.background = "#666";
                 this.controlButton.style.color = "#ccc";
+                this.controlButton.disabled = false;
                 break;
         }
         
@@ -316,6 +318,17 @@ app.registerExtension({
                 
                 // 创建UI管理器
                 this.ollamaUI = new OllamaServiceManagerUI(this);
+                
+                // 设置节点大小 - 紧凑的一行布局
+                this.size = [280, 50];  // 宽280px, 高50px (一行高度)
+                
+                // 强制更新节点大小
+                if (this.setSize) {
+                    this.setSize([280, 50]);
+                }
+                
+                // 禁用自动调整大小
+                this.resizable = false;
             };
             
             const onRemoved = nodeType.prototype.onRemoved;
