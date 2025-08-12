@@ -76,7 +76,6 @@ pip install torch torchvision opencv-python openai
 
 ## ⚡ 核心特性
 
-- **专业画布**: 基于Fabric.js的高性能图层编辑器
 - **智能模板**: 40+种专业编辑操作模板
 - **多AI集成**: 支持API和本地模型增强
 - **模块化设计**: 节点可独立使用或组合使用
