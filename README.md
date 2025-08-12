@@ -59,10 +59,20 @@
 
 ## 🛠️ 安装
 
-1. 克隆到ComfyUI的`custom_nodes`目录
-2. 安装依赖: `pip install torch torchvision opencv-python openai`
-3. 重启ComfyUI
-4. 在节点菜单中找到"🎨 LRPG Canvas"分类
+### 方式一：Git克隆安装
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
+pip install torch torchvision opencv-python openai
+```
+
+### 方式二：ComfyUI Manager安装
+1. 打开ComfyUI Manager
+2. 搜索"kontext-super-prompt"
+3. 点击安装并重启ComfyUI
+
+### 安装完成
+重启ComfyUI后，在节点菜单中找到"🎨 LRPG Canvas"分类
 
 ## ⚡ 核心特性
 
