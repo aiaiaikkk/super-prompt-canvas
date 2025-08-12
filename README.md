@@ -2,7 +2,7 @@
 
 **ComfyUI图像编辑与智能提示词生成工具集** - 专业的可视化编辑与AI增强提示词生成
 
-![LRPG Canvas](images/LRPG_Canvas.png)
+![Installation](images/instruction.png)
 
 ## 🎯 主要节点
 
@@ -12,6 +12,8 @@
 - 支持多种绘制工具和图层操作
 - 自动生成结构化图层数据供下游节点使用
 - 实时画布状态同步
+
+![LRPG Canvas](images/LRPG_Canvas.png)
 
 ### 🎯 Kontext Super Prompt
 智能提示词生成器，将图层信息转换为结构化编辑指令
