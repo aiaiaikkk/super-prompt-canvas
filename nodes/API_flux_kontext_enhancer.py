@@ -27,7 +27,7 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     OpenAI = None
-    print("Warning: openai package not found. Please install with: pip install openai")
+    # print("Warning: openai package not found. Please install with: pip install openai")
 
 # 注：Gemini API可以通过OpenAI兼容接口访问，因此使用相同的客户端库
 
@@ -108,15 +108,15 @@ class APIFluxKontextEnhancer:
         
         # 如果提供商有预定义的模型列表，优先使用
         if "models" in provider_config:
-            print(f"[OK] Using {provider_config['name']} predefined model list: {provider_config['models']}")
+            # print(f"[OK] Using {provider_config['name']} predefined model list: {provider_config['models']}")
             return provider_config["models"]
         
         if not OPENAI_AVAILABLE:
-            print("[ERROR] OpenAI library not installed, cannot get API models")
+            # print("[ERROR] OpenAI library not installed, cannot get API models")
             return [provider_config["default_model"]]
             
         if not api_key:
-            print(f"[ERROR] {provider} API key not provided, using default model")
+            # print(f"[ERROR] {provider} API key not provided, using default model")
             return [provider_config["default_model"]]
             
         import time
@@ -127,12 +127,12 @@ class APIFluxKontextEnhancer:
             provider in cls._cached_models and 
             provider in cls._cache_timestamp and
             current_time - cls._cache_timestamp[provider] < cls._cache_duration):
-            print(f"[INFO] Using cached {provider} model list: {cls._cached_models[provider]}")
+            # print(f"[INFO] Using cached {provider} model list: {cls._cached_models[provider]}")
             return cls._cached_models[provider]
         
         try:
             if not OPENAI_AVAILABLE or OpenAI is None:
-                print(f"[ERROR] OpenAI library not installed, cannot get {provider} models")
+                # print(f"[ERROR] OpenAI library not installed, cannot get {provider} models")
                 return [cls.API_PROVIDERS[provider]["default_model"]]
             
             provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["siliconflow"])
@@ -148,22 +148,22 @@ class APIFluxKontextEnhancer:
             
             for model in models_response.data:
                 model_names.append(model.id)
-                print(f"[OK] {provider_config['name']} detected model: {model.id}")
+                # print(f"[OK] {provider_config['name']} detected model: {model.id}")
             
             # 如果没有获取到模型，使用默认模型
             if not model_names:
                 model_names = [provider_config["default_model"]]
-                print(f"[WARN] Failed to get {provider} model list, using default model: {provider_config['default_model']}")
+                # print(f"[WARN] Failed to get {provider} model list, using default model: {provider_config['default_model']}")
             
             # 更新缓存
             cls._cached_models[provider] = model_names
             cls._cache_timestamp[provider] = current_time
             
-            print(f"[UPDATE] {provider_config['name']} model list updated, {len(model_names)} models total")
+            # print(f"[UPDATE] {provider_config['name']} model list updated, {len(model_names)} models total")
             return model_names
             
         except Exception as e:
-            print(f"[ERROR] Failed to get {provider} model list: {str(e)}")
+            # print(f"[ERROR] Failed to get {provider} model list: {str(e)}")
             # 返回默认模型
             default_model = cls.API_PROVIDERS[provider]["default_model"]
             return [default_model]
@@ -216,7 +216,7 @@ You are a professional image editing expert. Please convert annotation data into
 
 For more examples, please check guidance_template options."""
         except Exception as e:
-            print(f"Failed to get template content: {e}")
+            # print(f"Failed to get template content: {e}")
             return """Enter your custom AI guidance instructions...
 
 For example:
@@ -413,7 +413,7 @@ For more examples, please check guidance_template options."""
             return enhanced_prompt
             
         except Exception as e:
-            print(f"[WARN] Intelligent prompt analysis failed: {e}")
+            # print(f"[WARN] Intelligent prompt analysis failed: {e}")
             # 回退到基础系统提示词
             return guidance_manager.build_system_prompt(
                 guidance_style=guidance_style,
@@ -470,7 +470,7 @@ For more examples, please check guidance_template options."""
             
             return json.dumps(data, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"[WARN] Error processing layer info: {str(e)}")
+            # print(f"[WARN] Error processing layer info: {str(e)}")
             return layer_info
     
     def _generate_with_api(self, client, model_name: str, 
@@ -537,7 +537,7 @@ For more examples, please check guidance_template options."""
         except Exception as e:
             self.session_stats["total_requests"] += 1
             error_msg = f"API call failed: {str(e)}"
-            print(f"[ERROR] {error_msg}")
+            # print(f"[ERROR] {error_msg}")
             
             response_info = {
                 "error": error_msg,
@@ -587,7 +587,7 @@ For more examples, please check guidance_template options."""
             return enhanced_prompt.strip(), kontext_instructions.strip()
             
         except Exception as e:
-            print(f"[WARN] Failed to parse API response: {str(e)}")
+            # print(f"[WARN] Failed to parse API response: {str(e)}")
             return response_text, ""
     
     def _map_intent_to_guidance(self, editing_intent: str, processing_style: str) -> tuple:
@@ -662,7 +662,7 @@ For more examples, please check guidance_template options."""
             # 处理保存按钮点击
             if save_guidance_button and save_guidance_name and custom_guidance:
                 guidance_manager.save_guidance(save_guidance_name, custom_guidance)
-                print(f"[OK] Guidance '{save_guidance_name}' saved.")
+                # print(f"[OK] Guidance '{save_guidance_name}' saved.")
                 # 重置按钮状态避免重复保存
                 save_guidance_button = False
 
@@ -671,7 +671,7 @@ For more examples, please check guidance_template options."""
                 loaded_data = guidance_manager.load_guidance(load_saved_guidance)
                 if loaded_data and 'content' in loaded_data:
                     custom_guidance = loaded_data['content']
-                    print(f"[INFO] Guidance '{load_saved_guidance}' loaded.")
+                    # print(f"[INFO] Guidance '{load_saved_guidance}' loaded.")
             
             # 获取 guidance manager 的实例
             guidance_manager_instance = guidance_manager
@@ -693,9 +693,9 @@ For more examples, please check guidance_template options."""
                     guidance_style, guidance_template, custom_guidance, 
                     load_saved_guidance, language, guidance_manager_instance
                 )
-                print("[OK] Using intelligent system prompt analysis")
+                # print("[OK] Using intelligent system prompt analysis")
             except Exception as e:
-                print(f"[WARN] Intelligent system prompt failed: {e}")
+                # print(f"[WARN] Intelligent system prompt failed: {e}")
                 system_prompt = guidance_manager_instance.build_system_prompt(
                     guidance_style=guidance_style,
                     guidance_template=guidance_template,
@@ -716,7 +716,7 @@ For more examples, please check guidance_template options."""
 
             cache_key = self._get_cache_key(layer_info, edit_description, model_name, seed)
             if cache_key in self.cache:
-                print("[OK] Using cached response")
+                # print("[OK] Using cached response")
                 cached_data = self.cache[cache_key]
                 return (cached_data["response"], cached_data["system_prompt"])
 
@@ -735,12 +735,12 @@ For more examples, please check guidance_template options."""
             self.cache[cache_key] = {"response": flux_instructions, "system_prompt": system_prompt}
             
             end_time = time.time()
-            print(f"[OK] API call successful, cost {end_time - start_time:.2f}s")
+            # print(f"[OK] API call successful, cost {end_time - start_time:.2f}s")
             
             return (flux_instructions, system_prompt)
             
         except Exception as e:
-            print(f"[ERROR] API call failed: {traceback.format_exc()}")
+            # print(f"[ERROR] API call failed: {traceback.format_exc()}")
             return ("", f"Error: {e}")
     
     def _clean_natural_language_output(self, instructions: str) -> str:
@@ -815,8 +815,8 @@ if WEB_AVAILABLE:
             return web.json_response({"error": str(e)}, status=500)
             
 # 调试信息
-print("DEBUG: API_flux_kontext_enhancer.py is being loaded")
-print(f"DEBUG: APIFluxKontextEnhancer class exists: {APIFluxKontextEnhancer}")
+# print("DEBUG: API_flux_kontext_enhancer.py is being loaded")
+# print(f"DEBUG: APIFluxKontextEnhancer class exists: {APIFluxKontextEnhancer}")
 
 # 节点映射
 NODE_CLASS_MAPPINGS = {
@@ -828,5 +828,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "APIFluxKontextEnhancer": "APIFluxKontextEnhancer"
 }
 
-print(f"DEBUG: NODE_CLASS_MAPPINGS = {NODE_CLASS_MAPPINGS}")
-print(f"DEBUG: NODE_DISPLAY_NAME_MAPPINGS = {NODE_DISPLAY_NAME_MAPPINGS}")
+# print(f"DEBUG: NODE_CLASS_MAPPINGS = {NODE_CLASS_MAPPINGS}")
+# print(f"DEBUG: NODE_DISPLAY_NAME_MAPPINGS = {NODE_DISPLAY_NAME_MAPPINGS}")

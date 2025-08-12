@@ -28,21 +28,6 @@ class LRPGCanvas {
         // 立即应用尺寸到实例属性
         this.currentSize = { ...this.originalSize };
         this.maxDisplaySize = 768;
-        // 创建缩放值显示元素
-        this.scaleText = document.createElement('div');
-        this.scaleText.style.cssText = `
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 1000;
-            display: none;
-        `;
         
         // 异步初始化
         this.initCanvas();
@@ -65,7 +50,7 @@ class LRPGCanvas {
     
     updateCanvasSize(displayWidth, displayHeight) {
         // 采用lg_tools的显示缩放策略
-        console.log(`[LRPG Canvas] updateCanvasSize: display=${displayWidth}x${displayHeight}, original=${this.originalSize.width}x${this.originalSize.height}`);
+        // // console.log(`[LRPG Canvas] updateCanvasSize: display=${displayWidth}x${displayHeight}, original=${this.originalSize.width}x${this.originalSize.height}`);
         
         if (!this.canvas) return;
         
@@ -91,7 +76,7 @@ class LRPGCanvas {
         // 4. 更新容器尺寸
         this.updateContainerSize(displayWidth, displayHeight);
         
-        console.log(`[LRPG Canvas] CSS transform scale applied: ${scale}, actual canvas: ${this.originalSize.width}x${this.originalSize.height}`);
+        // // console.log(`[LRPG Canvas] CSS transform scale applied: ${scale}, actual canvas: ${this.originalSize.width}x${this.originalSize.height}`);
     }
     
     updateContainerSize(canvasWidth, canvasHeight) {
@@ -105,7 +90,7 @@ class LRPGCanvas {
             ? LAYER_PANEL_EXPANDED_HEIGHT 
             : LAYER_PANEL_COLLAPSED_HEIGHT;
         
-        console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px`);
+        // // console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px`);
         
         const totalContainerHeight = canvasHeight + TOOLBAR_HEIGHT + layerPanelHeight;
         
@@ -113,7 +98,6 @@ class LRPGCanvas {
             this.canvasContainer.style.width = `${canvasWidth}px`;
             // 不设置固定高度，让容器自动适应内容
             this.canvasContainer.style.minHeight = `${totalContainerHeight}px`;
-            // 移除之前可能设置的固定高度
             this.canvasContainer.style.height = 'auto';
         }
         
@@ -137,39 +121,25 @@ class LRPGCanvas {
                 totalContainerHeight + LG_BOTTOM_MARGIN
             ];
             this.node.computeSize = () => computedSize;
-            console.log(`[LRPG Canvas] computeSize包含图层面板: ${computedSize[0]}x${computedSize[1]}`);
+            // // console.log(`[LRPG Canvas] computeSize包含图层面板: ${computedSize[0]}x${computedSize[1]}`);
         }
         
-        // 更新缩放文字显示
-        if (this.scaleText) {
-            const scale = Math.min(canvasWidth / this.originalSize.width, canvasHeight / this.originalSize.height);
-            this.scaleText.textContent = `scale: ${(scale * 100).toFixed(0)}%`;
-        }
         
         // 通知节点尺寸变化并验证设置是否生效
         if (this.node) {
             this.node.setDirtyCanvas(true, true);
             
-            // 调试：验证设置是否真的生效
             setTimeout(() => {
                 if (this.node.canvasElement) {
                     const computedStyle = window.getComputedStyle(this.node.canvasElement);
-                    console.log(`[LRPG Canvas] 验证DOM元素实际样式:`);
-                    console.log(`  - width: ${computedStyle.width}`);
-                    console.log(`  - height: ${computedStyle.height}`);
-                    console.log(`  - minWidth: ${computedStyle.minWidth}`);
-                    console.log(`  - minHeight: ${computedStyle.minHeight}`);
-                    console.log(`  - position: ${computedStyle.position}`);
+                    // // console.log(`[LRPG Canvas] 验证DOM元素实际样式:`);
                 }
                 if (this.canvasContainer) {
                     const containerStyle = window.getComputedStyle(this.canvasContainer);
-                    console.log(`[LRPG Canvas] 验证canvasContainer实际样式:`);
-                    console.log(`  - background: ${containerStyle.backgroundColor}`);
-                    console.log(`  - width: ${containerStyle.width}`);
-                    console.log(`  - height: ${containerStyle.height}`);
+                    // // console.log(`[LRPG Canvas] 验证canvasContainer实际样式:`);
                 }
                 if (this.node.size) {
-                    console.log(`[LRPG Canvas] 验证节点实际尺寸: [${this.node.size[0]}, ${this.node.size[1]}]`);
+                    // // console.log(`[LRPG Canvas] 验证节点实际尺寸: [${this.node.size[0]}, ${this.node.size[1]}]`);
                 }
             }, 100);
         }
@@ -178,7 +148,7 @@ class LRPGCanvas {
 
     async initCanvas() {
         try {
-            console.log('[LRPG Canvas] Starting canvas initialization with Fabric.js:', fabric.version);
+            // // console.log('[LRPG Canvas] Starting canvas initialization with Fabric.js:', fabric.version);
             
             this.canvasContainer = document.createElement('div');
             this.canvasContainer.className = 'kontext-canvas-container';
@@ -241,7 +211,7 @@ class LRPGCanvas {
                 background: transparent;
                 box-sizing: border-box;
             `;
-            console.log('[LRPG Canvas] canvasContainer style set to transparent background');
+            // // console.log('[LRPG Canvas] canvasContainer style set to transparent background');
             
             // 创建简单的画布包装容器，类似lg_tools
             const canvasWrapper = document.createElement('div');
@@ -251,7 +221,6 @@ class LRPGCanvas {
                 position: relative;
             `;
             
-            // 移除额外的背景色设置，使用canvas.backgroundColor即可
             // this.canvas.lowerCanvasEl.style.backgroundColor = '#f0f0f0';
             canvasWrapper.appendChild(this.canvas.wrapperEl);
             
@@ -270,8 +239,6 @@ class LRPGCanvas {
             contentArea.appendChild(this.sidebar);
             contentArea.appendChild(canvasWrapper);
             
-            // 添加缩放文字显示
-            canvasWrapper.appendChild(this.scaleText);
             
             // 保存canvasWrapper引用，用于updateContainerSize方法
             this.canvasWrapper = canvasWrapper;
@@ -302,10 +269,9 @@ class LRPGCanvas {
                 this.maxDisplaySize
             );
             
-            // 更新实际canvas尺寸
             this.updateCanvasSize(initialScaledSize.width, initialScaledSize.height);
 
-            console.log('[LRPG Canvas] Canvas initialized successfully');
+            // // console.log('[LRPG Canvas] Canvas initialized successfully');
         } catch (error) {
             console.error('[LRPG Canvas] Failed to initialize canvas:', error);
             this.showError(error.message);
@@ -482,7 +448,6 @@ class LRPGCanvas {
         // 获取所有Fabric对象作为图层
         const objects = this.canvas.getObjects();
         
-        // 更新计数
         if (this.layerCount) {
             this.layerCount.textContent = `(${objects.length} 个图层)`;
         }
@@ -780,7 +745,7 @@ class LRPGCanvas {
         if (this.node.computeSize) {
             const newSize = this.node.computeSize();
             this.node.size = newSize;
-            console.log(`[LRPG Canvas] 强制更新节点size: [${newSize[0]}, ${newSize[1]}]`);
+            // // console.log(`[LRPG Canvas] 强制更新节点size: [${newSize[0]}, ${newSize[1]}]`);
         }
         
         // 确保节点立即刷新
@@ -792,7 +757,7 @@ class LRPGCanvas {
             }
         }
         
-        console.log(`[LRPG Canvas] 图层面板${isExpanded ? '展开' : '折叠'}，节点尺寸已更新`);
+        // // console.log(`[LRPG Canvas] 图层面板${isExpanded ? '展开' : '折叠'}，节点尺寸已更新`);
     }
     
     createModernToolbar() {
@@ -1063,7 +1028,7 @@ class LRPGCanvas {
             if (this.canvas.isDrawingMode) {
                 this.canvas.freeDrawingBrush.color = this.currentColor;
             }
-            console.log(`[LRPG Canvas] 颜色切换为: ${this.currentColor}`);
+            // // console.log(`[LRPG Canvas] 颜色切换为: ${this.currentColor}`);
         };
         
         // 添加画布背景颜色选择器
@@ -1159,17 +1124,15 @@ class LRPGCanvas {
     }
     
     updateFillModeButtons(filledBtn, outlineBtn) {
-        // 更新实心按钮样式
         filledBtn.style.border = `1px solid ${this.fillMode === 'filled' ? '#22c55e' : 'rgba(255, 255, 255, 0.2)'}`;
         filledBtn.style.background = this.fillMode === 'filled' ? 'linear-gradient(145deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.05)';
         filledBtn.style.color = this.fillMode === 'filled' ? 'white' : '#e2e8f0';
         
-        // 更新空心按钮样式
         outlineBtn.style.border = `1px solid ${this.fillMode === 'outline' ? '#22c55e' : 'rgba(255, 255, 255, 0.2)'}`;
         outlineBtn.style.background = this.fillMode === 'outline' ? 'linear-gradient(145deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.05)';
         outlineBtn.style.color = this.fillMode === 'outline' ? 'white' : '#e2e8f0';
         
-        console.log(`[LRPG Canvas] 填充模式切换为: ${this.fillMode}`);
+        // // console.log(`[LRPG Canvas] 填充模式切换为: ${this.fillMode}`);
     }
     
     createStyledButton(text, color) {
@@ -1200,14 +1163,12 @@ class LRPGCanvas {
     }
 
     selectTool(toolId, button) {
-        // 清理裁切模式（如果正在使用）
         if (this.currentTool === 'crop' && toolId !== 'crop' && this.cropMode && this.cropMode.isActive) {
             this.clearCropPath();
             this.cropMode.isActive = false;
-            console.log('[LRPG Canvas] 退出裁切模式');
+            // // console.log('[LRPG Canvas] 退出裁切模式');
         }
         
-        // 更新按钮样式
         Object.entries(this.toolButtons).forEach(([id, btn]) => {
             if (id === toolId) {
                 btn.style.border = '1px solid #22c55e';
@@ -1253,7 +1214,7 @@ class LRPGCanvas {
                 break;
         }
         
-        console.log(`[LRPG Canvas] 已切换到工具: ${toolId}`);
+        // // console.log(`[LRPG Canvas] 已切换到工具: ${toolId}`);
     }
     
     // 裁切工具相关方法
@@ -1268,23 +1229,21 @@ class LRPGCanvas {
             targetObject: null
         };
         
-        // 清除之前的裁切路径
         this.clearCropPath();
         
         // 获取当前选中的对象作为裁切目标
         const activeObject = this.canvas.getActiveObject();
         if (activeObject && activeObject.type === 'image') {
             this.cropMode.targetObject = activeObject;
-            console.log('[LRPG Canvas] 裁切目标已设置');
+            // // console.log('[LRPG Canvas] 裁切目标已设置');
         } else {
-            console.log('[LRPG Canvas] 请先选择一个图像进行裁切');
+            // // console.log('[LRPG Canvas] 请先选择一个图像进行裁切');
         }
         
-        console.log('[LRPG Canvas] 裁切模式已激活 - 左键添加点，右键闭合裁切');
+        // // console.log('[LRPG Canvas] 裁切模式已激活 - 左键添加点，右键闭合裁切');
     }
     
     clearCropPath() {
-        // 清除所有裁切相关的临时对象
         if (this.cropMode) {
             this.cropMode.lines.forEach(line => this.canvas.remove(line));
             this.cropMode.dots.forEach(dot => this.canvas.remove(dot));
@@ -1345,7 +1304,6 @@ class LRPGCanvas {
             return;
         }
         
-        // 移除预览线
         if (this.cropMode.tempLine) {
             this.canvas.remove(this.cropMode.tempLine);
             this.cropMode.tempLine = null;
@@ -1477,12 +1435,7 @@ class LRPGCanvas {
         // 获取裁切后的图像数据
         const croppedImageUrl = tempCanvas.toDataURL('image/png');
         
-        console.log('[LRPG Canvas] 裁切调试信息:', {
-            targetObjBounds: objBounds,
-            cropArea: { minX, minY, maxX, maxY, width: cropWidth, height: cropHeight },
-            targetObjScale: { scaleX, scaleY },
-            targetObjAngle: targetObj.angle || 0
-        });
+        // Debug crop information removed during cleanup
         
         // 创建新的fabric图像对象
         fabric.Image.fromURL(croppedImageUrl, (newImg) => {
@@ -1502,7 +1455,6 @@ class LRPGCanvas {
                 name: `裁切图层 ${Date.now()}`
             });
             
-            // 删除原图层
             this.canvas.remove(targetObj);
             
             // 添加新图层
@@ -1514,7 +1466,6 @@ class LRPGCanvas {
             this.cropMode.isActive = false;
             this.selectTool('select', this.toolButtons['select']);
             
-            // 更新图层列表
             if (this.layerPanel && this.layerPanel.isExpanded) {
                 this.updateLayerList();
             }
@@ -1522,11 +1473,11 @@ class LRPGCanvas {
             // 标记画布已改变
             this.markCanvasChanged();
             
-            console.log('[LRPG Canvas] 裁切完成，已生成新图层', {
-                width: cropWidth,
-                height: cropHeight,
-                position: { x: minX, y: minY }
-            });
+            // console.log('[LRPG Canvas] 裁切完成，已生成新图层', {
+            //     width: cropWidth,
+            //     height: cropHeight,
+            //     position: { x: minX, y: minY }
+            // });
         }, {
             // 确保图像加载选项
             crossOrigin: 'anonymous'
@@ -1554,7 +1505,7 @@ class LRPGCanvas {
         
         // 文字编辑完成事件
         this.canvas.on('text:editing:exited', (e) => {
-            console.log('[LRPG Canvas] 文字编辑完成');
+            // // console.log('[LRPG Canvas] 文字编辑完成');
             this.markCanvasChanged();
         });
         
@@ -1601,7 +1552,6 @@ class LRPGCanvas {
         // 点击空白处：根据当前工具进行绘制
         const pointer = this.canvas.getPointer(e.e);
         
-        // 更新绘制选项
         this.updateDrawingOptions();
         
         switch(this.currentTool) {
@@ -1622,7 +1572,6 @@ class LRPGCanvas {
         
         // 裁切模式下显示预览线
         if (this.currentTool === 'crop' && this.cropMode && this.cropMode.isActive && this.cropMode.points.length > 0) {
-            // 移除旧的预览线
             if (this.cropMode.tempLine) {
                 this.canvas.remove(this.cropMode.tempLine);
             }
@@ -1776,7 +1725,7 @@ class LRPGCanvas {
             }
         }, 50);
         
-        console.log('[LRPG Canvas] 创建文字对象，已进入编辑模式');
+        // // console.log('[LRPG Canvas] 创建文字对象，已进入编辑模式');
     }
 
     handleDoubleClick(e) {
@@ -1784,7 +1733,7 @@ class LRPGCanvas {
         if (e.target && (e.target.type === 'i-text' || e.target.type === 'text')) {
             // 确保是IText对象才能编辑
             if (e.target.type === 'i-text') {
-                console.log('[LRPG Canvas] 双击进入文字编辑模式');
+                // // console.log('[LRPG Canvas] 双击进入文字编辑模式');
                 this.canvas.setActiveObject(e.target);
                 
                 // 延迟进入编辑模式，确保选中状态稳定
@@ -1795,13 +1744,13 @@ class LRPGCanvas {
                     }
                 }, 100);
             } else {
-                console.log('[LRPG Canvas] 此文字对象不支持编辑，请使用文字工具创建可编辑文字');
+                // // console.log('[LRPG Canvas] 此文字对象不支持编辑，请使用文字工具创建可编辑文字');
             }
         }
     }
 
     markCanvasChanged() {
-        console.log('[LRPG Canvas] 画布内容已改变');
+        // // console.log('[LRPG Canvas] 画布内容已改变');
         
         // 发送画布变化通知到后端 - 完全复制lg_tools的做法
         if (this.node && this.node.id) {
@@ -1814,7 +1763,7 @@ class LRPGCanvas {
                     node_id: this.node.id.toString()
                 })
             }).catch(err => {
-                console.log('[LRPG Canvas] 清除缓存请求失败:', err.message);
+                // // console.log('[LRPG Canvas] 清除缓存请求失败:', err.message);
             });
         }
     }
@@ -2008,9 +1957,6 @@ class LRPGCanvas {
                 activeObject.scale(scale);
                 this.canvas.renderAll();
 
-                // 更新缩放值显示
-                this.scaleText.innerHTML = `scale: ${scale.toFixed(2)}×`;
-                this.scaleText.style.display = 'block';
                 
                 opt.e.preventDefault();
                 opt.e.stopPropagation();
@@ -2068,9 +2014,8 @@ class LRPGCanvas {
     
             // 使用标准的Fabric.js图片加载方式
             fabric.Image.fromURL(imageData, (img) => {
-                // 修复：所有上传的图像都应该是可编辑的，不再自动设置背景图像
                 if (options.center && options.autoScale) {
-                    console.log('[LRPG Canvas] 添加前景图片（居中并缩放）');
+                    // // console.log('[LRPG Canvas] 添加前景图片（居中并缩放）');
                     // 计算适合画布的缩放比例
                     const scale = Math.min(
                         this.originalSize.width / img.width * 0.8, // 稍微小一点，不要占满整个画布
@@ -2093,7 +2038,7 @@ class LRPGCanvas {
                     // 添加到画布
                     this.canvas.add(img);
                 } else {
-                    console.log('[LRPG Canvas] 添加前景图片（原始位置）');
+                    // // console.log('[LRPG Canvas] 添加前景图片（原始位置）');
                     // 不进行居中和缩放，使用原始尺寸和位置
                     img.set({
                         left: 50, // 稍微偏移一点，避免与左上角重叠
@@ -2114,7 +2059,7 @@ class LRPGCanvas {
                 // 重要：通知画布内容已改变
                 this.markCanvasChanged();
                 
-                console.log(`[LRPG Canvas] 图片上传成功，当前画布对象数量: ${this.canvas.getObjects().length}`);
+                // // console.log(`[LRPG Canvas] 图片上传成功，当前画布对象数量: ${this.canvas.getObjects().length}`);
             });
     
         } catch (error) {
@@ -2128,7 +2073,7 @@ class LRPGCanvas {
         
         // 防重复执行机制 - 关键修复
         if (this.isSendingData) {
-            console.log('[LRPG Canvas] 数据发送中，跳过重复请求');
+            // // console.log('[LRPG Canvas] 数据发送中，跳过重复请求');
             return;
         }
         
@@ -2176,7 +2121,7 @@ class LRPGCanvas {
             });
 
             if (response.ok) {
-                console.log('[LRPG Canvas] 数据发送成功');
+                // // console.log('[LRPG Canvas] 数据发送成功');
             } else {
                 console.error('[LRPG Canvas] 数据发送失败:', response.statusText);
             }
@@ -2214,7 +2159,6 @@ class LRPGCanvas {
                 height: obj.height || 100,
                 flipX: obj.flipX || false,
                 flipY: obj.flipY || false,
-                // 新增图层状态信息
                 visible: obj.visible !== false, // 默认为true
                 locked: obj.selectable === false, // locked状态通过selectable判断
                 z_index: index, // 图层层级
@@ -2274,14 +2218,11 @@ class LRPGCanvas {
         const scaleX = width / oldWidth;
         const scaleY = height / oldHeight;
         
-        // 调整背景图像以适应新尺寸
         this.resizeBackground(width, height, scaleX, scaleY);
         
-        // 调整画布尺寸
         this.canvas.setDimensions({ width, height });
         this.canvas.renderAll();
         
-        // 更新当前尺寸
         this.currentSize.width = width;
         this.currentSize.height = height;
         this.originalSize.width = width;
@@ -2293,7 +2234,6 @@ class LRPGCanvas {
         // LRPG方式：更新canvas尺寸，让ComfyUI节点系统处理边界
         this.updateCanvasSize(scaledSize.width, scaledSize.height);
         
-        // 更新节点DOM元素的最小宽度
         if (this.node && this.node.canvasElement) {
             this.node.canvasElement.style.minWidth = `${scaledSize.width + CANVAS_SIZE.SIDEBAR_WIDTH}px`;
         }
@@ -2314,7 +2254,7 @@ class LRPGCanvas {
             });
         }
         
-        console.log(`[LRPG Canvas] 画布尺寸已调整为: ${width}x${height}, 显示尺寸: ${scaledSize.width}x${scaledSize.height}, 节点尺寸: [${this.node.size[0]}, ${this.node.size[1]}]`);
+        // // console.log(`[LRPG Canvas] 画布尺寸已调整为: ${width}x${height}, 显示尺寸: ${scaledSize.width}x${scaledSize.height}, 节点尺寸: [${this.node.size[0]}, ${this.node.size[1]}]`);
     }
 
     // 动态更新显示尺寸限制
@@ -2327,13 +2267,12 @@ class LRPGCanvas {
                 maxSize
             );
             
-            // 更新显示尺寸
             this.updateCanvasSize(scaledSize.width, scaledSize.height);
             
             // 确保画布完全重新渲染
             this.canvas.renderAll();
             
-            console.log(`[LRPG Canvas] 最大显示尺寸已更新为: ${maxSize}px, 当前显示尺寸: ${scaledSize.width}x${scaledSize.height}`);
+            // // console.log(`[LRPG Canvas] 最大显示尺寸已更新为: ${maxSize}px, 当前显示尺寸: ${scaledSize.width}x${scaledSize.height}`);
         }
     }
 
@@ -2343,7 +2282,6 @@ class LRPGCanvas {
         objects.forEach(obj => {
             // 如果是背景图像（通常是最底层的图像对象）
             if (obj.type === 'image' && obj.isBackground) {
-                // 调整背景图像的位置和大小
                 obj.set({
                     left: obj.left * scaleX,
                     top: obj.top * scaleY,
@@ -2368,7 +2306,7 @@ class LRPGCanvas {
     }
 
     getImageSizeFromInput(widthInput, heightInput) {
-        console.log('[LRPG Canvas] 开始从输入端口获取图像尺寸');
+        // // console.log('[LRPG Canvas] 开始从输入端口获取图像尺寸');
         
         if (!this.node || !this.node.graph) {
             console.warn('[LRPG Canvas] 节点或图形对象不可用');
@@ -2398,15 +2336,14 @@ class LRPGCanvas {
             return;
         }
 
-        console.log(`[LRPG Canvas] 找到源节点: ${sourceNode.type} (ID: ${sourceNodeId})`);
+        // // console.log(`[LRPG Canvas] 找到源节点: ${sourceNode.type} (ID: ${sourceNodeId})`);
 
         // 提取图像尺寸
         const dimensions = this.extractImageSizeFromNode(sourceNode);
         if (dimensions) {
             const { width, height } = dimensions;
-            console.log(`[LRPG Canvas] 从节点获取到尺寸: ${width}x${height}`);
+            // // console.log(`[LRPG Canvas] 从节点获取到尺寸: ${width}x${height}`);
             
-            // 更新输入框
             widthInput.value = width;
             heightInput.value = height;
             
@@ -2423,7 +2360,7 @@ class LRPGCanvas {
                 // 加载连接的图像到画布
                 this.loadImageFromConnectedNode(sourceNode);
                 
-                console.log(`[LRPG Canvas] 已应用新尺寸: ${width}x${height}`);
+                // // console.log(`[LRPG Canvas] 已应用新尺寸: ${width}x${height}`);
             }
         } else {
             console.warn('[LRPG Canvas] 无法从连接的节点获取图像尺寸');
@@ -2432,7 +2369,7 @@ class LRPGCanvas {
     }
 
     extractImageSizeFromNode(node) {
-        console.log(`[LRPG Canvas] 正在分析节点类型: ${node.type}`);
+        // // console.log(`[LRPG Canvas] 正在分析节点类型: ${node.type}`);
         
         // 处理不同类型的节点
         switch (node.type) {
@@ -2479,11 +2416,10 @@ class LRPGCanvas {
             }
         }
         
-        // 检查widgets中的图像选择器
         if (node.widgets) {
             const imageWidget = node.widgets.find(w => w.name === 'image');
             if (imageWidget && imageWidget.value) {
-                console.log('[LRPG Canvas] LoadImage节点检测到选中图像:', imageWidget.value);
+                // // console.log('[LRPG Canvas] LoadImage节点检测到选中图像:', imageWidget.value);
                 
                 // 尝试从选项中获取尺寸信息（如果options是数组）
                 if (imageWidget.options && Array.isArray(imageWidget.options)) {
@@ -2510,12 +2446,12 @@ class LRPGCanvas {
         if (node.imgs && node.imgs.length > 0) {
             const img = node.imgs[0];
             if (img && img.naturalWidth && img.naturalHeight) {
-                console.log(`[LRPG Canvas] LoadImage从DOM图像获取尺寸: ${img.naturalWidth}x${img.naturalHeight}`);
+                // // console.log(`[LRPG Canvas] LoadImage从DOM图像获取尺寸: ${img.naturalWidth}x${img.naturalHeight}`);
                 return { width: img.naturalWidth, height: img.naturalHeight };
             }
         }
         
-        console.log('[LRPG Canvas] LoadImage节点暂不支持自动尺寸检测，请手动设置');
+        // // console.log('[LRPG Canvas] LoadImage节点暂不支持自动尺寸检测，请手动设置');
         return null;
     }
 
@@ -2611,7 +2547,6 @@ class LRPGCanvas {
             }
         }
         
-        // 检查是否有直接的尺寸参数
         if (node.widgets) {
             const widthWidget = node.widgets.find(w => w.name === 'width');
             const heightWidget = node.widgets.find(w => w.name === 'height');
@@ -2666,12 +2601,12 @@ class LRPGCanvas {
             }
         }
         
-        console.log(`[LRPG Canvas] 未知节点类型，无法提取尺寸: ${node.type}`);
+        // // console.log(`[LRPG Canvas] 未知节点类型，无法提取尺寸: ${node.type}`);
         return null;
     }
 
     loadImageFromConnectedNode(sourceNode) {
-        console.log(`[LRPG Canvas] 开始从连接节点加载图像: ${sourceNode.type} (ID: ${sourceNode.id})`);
+        // // console.log(`[LRPG Canvas] 开始从连接节点加载图像: ${sourceNode.type} (ID: ${sourceNode.id})`);
         
         switch (sourceNode.type) {
             case 'LoadImage':
@@ -2680,7 +2615,7 @@ class LRPGCanvas {
                 break;
                 
             default:
-                console.log(`[LRPG Canvas] 暂不支持从 ${sourceNode.type} 节点加载图像`);
+                // // console.log(`[LRPG Canvas] 暂不支持从 ${sourceNode.type} 节点加载图像`);
                 // 尝试通用方法
                 this.loadFromGenericImageNode(sourceNode);
                 break;
@@ -2692,7 +2627,7 @@ class LRPGCanvas {
         if (node.imgs && node.imgs.length > 0) {
             const domImg = node.imgs[0];
             if (domImg && domImg.src) {
-                console.log(`[LRPG Canvas] 从LoadImage节点的DOM元素加载图像: ${domImg.src.substring(0, 50)}...`);
+                // // console.log(`[LRPG Canvas] 从LoadImage节点的DOM元素加载图像: ${domImg.src.substring(0, 50)}...`);
                 
                 fabric.Image.fromURL(domImg.src, (fabricImg) => {
                     // 设置为背景图像，使用原始canvas尺寸（实际分辨率）
@@ -2715,7 +2650,7 @@ class LRPGCanvas {
                     this.canvas.sendToBack(fabricImg);
                     this.canvas.renderAll();
                     
-                    console.log(`[LRPG Canvas] 背景图像已加载并填满画布（原始分辨率: ${this.originalSize.width}x${this.originalSize.height}）`);
+                    // // console.log(`[LRPG Canvas] 背景图像已加载并填满画布（原始分辨率: ${this.originalSize.width}x${this.originalSize.height}）`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -2727,7 +2662,7 @@ class LRPGCanvas {
         if (node.widgets) {
             const imageWidget = node.widgets.find(w => w.name === 'image');
             if (imageWidget && imageWidget.value) {
-                console.log(`[LRPG Canvas] 从LoadImage节点的widget获取图像: ${imageWidget.value}`);
+                // // console.log(`[LRPG Canvas] 从LoadImage节点的widget获取图像: ${imageWidget.value}`);
                 
                 // 构建图像URL（假设使用ComfyUI的标准图像服务）
                 const imageUrl = `/view?filename=${encodeURIComponent(imageWidget.value)}&subfolder=&type=input`;
@@ -2753,7 +2688,7 @@ class LRPGCanvas {
                     this.canvas.sendToBack(fabricImg);
                     this.canvas.renderAll();
                     
-                    console.log(`[LRPG Canvas] 背景图像已从文件加载并填满画布: ${imageWidget.value}`);
+                    // // console.log(`[LRPG Canvas] 背景图像已从文件加载并填满画布: ${imageWidget.value}`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -2761,17 +2696,16 @@ class LRPGCanvas {
             }
         }
 
-        console.log(`[LRPG Canvas] LoadImage节点没有可用的图像数据`);
+        // // console.log(`[LRPG Canvas] LoadImage节点没有可用的图像数据`);
     }
 
     loadFromGenericImageNode(node) {
-        console.log(`[LRPG Canvas] 尝试从通用图像节点加载: ${node.type}`);
+        // // console.log(`[LRPG Canvas] 尝试从通用图像节点加载: ${node.type}`);
         
-        // 检查节点是否有DOM图像元素
         if (node.imgs && node.imgs.length > 0) {
             const domImg = node.imgs[0];
             if (domImg && domImg.src) {
-                console.log(`[LRPG Canvas] 从通用节点的DOM元素加载图像`);
+                // // console.log(`[LRPG Canvas] 从通用节点的DOM元素加载图像`);
                 
                 fabric.Image.fromURL(domImg.src, (fabricImg) => {
                     // 设置为背景图像，完全填满画布
@@ -2793,7 +2727,7 @@ class LRPGCanvas {
                     this.canvas.sendToBack(fabricImg);
                     this.canvas.renderAll();
                     
-                    console.log(`[LRPG Canvas] 通用节点图像已加载并填满画布`);
+                    // // console.log(`[LRPG Canvas] 通用节点图像已加载并填满画布`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -2801,7 +2735,7 @@ class LRPGCanvas {
             }
         }
         
-        console.log(`[LRPG Canvas] 通用节点没有可用的图像数据`);
+        // // console.log(`[LRPG Canvas] 通用节点没有可用的图像数据`);
     }
 
     cleanup() {
@@ -2826,7 +2760,6 @@ app.registerExtension({
             nodeType.prototype.onNodeCreated = function() {
                 const result = onNodeCreated?.apply(this, arguments);
                 
-                console.log("[LRPG Canvas] 创建节点:", this.id);
                 return result;
             };
             
@@ -2845,7 +2778,7 @@ app.registerExtension({
                     element.style.position = "relative";
                     element.style.width = "100%";
                     element.style.height = "100%";  // lg_tools方式：让ComfyUI控制大小
-                    console.log('[LRPG Canvas] onAdded: element style set to 100% width/height');
+                    // // console.log('[LRPG Canvas] onAdded: element style set to 100% width/height');
                     
                     // 存储 element 引用
                     this.canvasElement = element;
@@ -2863,7 +2796,7 @@ app.registerExtension({
                     // lg_tools方式：只设置minSize作为约束
                     element.style.minWidth = `${scaledSize.width}px`;
                     element.style.minHeight = `${scaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT}px`;
-                    console.log(`[LRPG Canvas] onAdded: element minSize set to ${scaledSize.width}x${scaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT}`);
+                    // // console.log(`[LRPG Canvas] onAdded: element minSize set to ${scaledSize.width}x${scaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT}`);
                     
                     // lg_tools方式：computeSize与updateContainerSize保持一致
                     this.computeSize = () => {
@@ -2889,7 +2822,7 @@ app.registerExtension({
                             currentScaledSize.width + ADJUSTED_RIGHT_MARGIN,
                             totalHeight + LG_BOTTOM_MARGIN
                         ];
-                        console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px): ${result[0]}x${result[1]}`);
+                        // // console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px): ${result[0]}x${result[1]}`);
                         return result;
                     };
                     

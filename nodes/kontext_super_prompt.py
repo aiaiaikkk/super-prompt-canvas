@@ -281,4 +281,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "KontextSuperPrompt": "🎯 Kontext Super Prompt",
 }
 
-print("[Kontext Super Prompt] 🎯 Kontext超级提示词节点已注册")
+print("[Kontext Super Prompt] Kontext Super Prompt node registered")

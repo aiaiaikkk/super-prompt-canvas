@@ -39,7 +39,6 @@ async function fetchOllamaModels(url) {
         
         const responseData = await response.json();
         
-        // 检查是否是错误响应
         if (responseData.error) {
             console.error(`❌ Backend API returned error: ${responseData.error}`);
             console.error(`🔍 Error details: ${responseData.details}`);
@@ -160,7 +159,6 @@ async function refreshModels(node, modelWidget, urlWidget) {
             
             // 方法4: 尝试从ComfyUI配置中获取
             if (currentUrl === "http://127.0.0.1:11434") {
-                // 检查是否有全局配置
                 const possibleUrls = [
                     "http://localhost:11434",
                     "http://ollama:11434", 
@@ -325,7 +323,6 @@ function getTemplateContentForPlaceholder(guidanceStyle, guidanceTemplate) {
         }
     };
     
-    // Template library content
     const templateLibrary = {
         "ecommerce_product": {
             "name": "E-commerce Product Editing",
@@ -427,7 +424,6 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     const originalStyleCallback = guidanceStyleWidget.callback;
     const originalTemplateCallback = guidanceTemplateWidget?.callback;
 
-    // 更新placeholder的函数
     function updateCustomGuidancePlaceholder() {
         try {
             const currentStyle = guidanceStyleWidget.value;
@@ -453,7 +449,6 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     // 设置引导风格变化回调
     guidanceStyleWidget.callback = function(value, ...args) {
         
-        // 更新placeholder
         setTimeout(updateCustomGuidancePlaceholder, 100);
         
         // 调用原始回调
@@ -466,8 +461,7 @@ function setupGuidanceWidgetsInteraction(node, guidanceStyleWidget, guidanceTemp
     if (guidanceTemplateWidget) {
         guidanceTemplateWidget.callback = function(value, ...args) {
             
-            // 更新placeholder
-            setTimeout(updateCustomGuidancePlaceholder, 100);
+                setTimeout(updateCustomGuidancePlaceholder, 100);
             
             // 调用原始回调
             if (originalTemplateCallback) {
@@ -642,12 +636,10 @@ function setupSaveGuidanceUI(node) {
                 // 使用更简洁的提示
             }
             
-            // 重置按钮状态
             setTimeout(() => {
                 saveButton.textContent = originalText;
                 saveButton.style.background = "#4CAF50";
                 saveGuidanceWidget.value = false;
-                // 更新加载选项
                 updateLoadOptions();
             }, 2000);
         });
@@ -878,7 +870,6 @@ app.registerExtension({
                     // 将刷新按钮移动到紧接在 model 之后
                     const modelIndex = this.widgets.findIndex(w => w.name === "model");
                     if (modelIndex !== -1) {
-                        // 移除刷新按钮从当前位置
                         const buttonIndex = this.widgets.indexOf(refreshButton);
                         if (buttonIndex !== -1) {
                             this.widgets.splice(buttonIndex, 1);
@@ -922,7 +913,6 @@ app.registerExtension({
             if (guidanceNameWidget) guidanceNameWidget.hidden = false;
             if (loadGuidanceWidget) loadGuidanceWidget.hidden = false;
             
-            // 优化控件标签显示
             if (guidanceNameWidget) {
                 guidanceNameWidget.name = "💾 Guidance Name";
             }
@@ -938,7 +928,6 @@ app.registerExtension({
                 // 找到当前custom_guidance的位置
                 const currentIndex = this.widgets.indexOf(customGuidanceWidget);
                 if (currentIndex !== -1) {
-                    // 移除当前位置的custom_guidance
                     this.widgets.splice(currentIndex, 1);
                     // 添加到最底部
                     this.widgets.push(customGuidanceWidget);
