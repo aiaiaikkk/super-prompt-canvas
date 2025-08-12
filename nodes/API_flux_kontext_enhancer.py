@@ -65,6 +65,7 @@ class APIFluxKontextEnhancer:
             "default_model": "deepseek-ai/DeepSeek-V3",
             "cost_per_1k": 0.001,
             "description": "SiliconFlow - 支持DeepSeek R1/V3等最新模型",
+            "supports_dynamic_models": True,
             "models": [
                 "deepseek-ai/DeepSeek-R1",
                 "deepseek-ai/DeepSeek-V3"
@@ -75,28 +76,66 @@ class APIFluxKontextEnhancer:
             "base_url": "https://api.deepseek.com/v1",
             "default_model": "deepseek-chat",
             "cost_per_1k": 0.001,
-            "description": "DeepSeek official - High-performance Chinese optimization model"
+            "description": "DeepSeek official - High-performance Chinese optimization model",
+            "supports_dynamic_models": True
         },
         "qianwen": {
             "name": "Qianwen/Qianwen",
             "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
             "default_model": "qwen-turbo",
             "cost_per_1k": 0.002,
-            "description": "Aliyun Qianwen model"
+            "description": "Aliyun Qianwen model",
+            "supports_dynamic_models": True
+        },
+        "zhipu": {
+            "name": "智谱AI (Zhipu)",
+            "base_url": "https://open.bigmodel.cn/api/paas/v4",
+            "default_model": "glm-4",
+            "cost_per_1k": 0.01,
+            "description": "智谱AI - GLM系列大模型",
+            "supports_dynamic_models": True,
+            "models": [
+                "glm-4",
+                "glm-4-flash",
+                "glm-4-plus",
+                "glm-4v",
+                "glm-4v-plus"
+            ]
+        },
+        "moonshot": {
+            "name": "Moonshot (月之暗面)",
+            "base_url": "https://api.moonshot.cn/v1",
+            "default_model": "moonshot-v1-8k",
+            "cost_per_1k": 0.012,
+            "description": "Moonshot/Kimi - 长文本处理专家",
+            "supports_dynamic_models": True,
+            "models": [
+                "moonshot-v1-8k",
+                "moonshot-v1-32k",
+                "moonshot-v1-128k"
+            ]
         },
         "gemini": {
             "name": "Google Gemini",
             "base_url": "https://generativelanguage.googleapis.com/v1beta",
             "default_model": "gemini-pro",
             "cost_per_1k": 0.0005,
-            "description": "Google Gemini API - Fast and efficient multimodal AI"
+            "description": "Google Gemini API - Fast and efficient multimodal AI",
+            "supports_dynamic_models": True,
+            "models": [
+                "gemini-pro",
+                "gemini-2.0-flash-exp",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash"
+            ]
         },
         "openai": {
             "name": "OpenAI",
             "base_url": "https://api.openai.com/v1",
             "default_model": "gpt-3.5-turbo",
             "cost_per_1k": 0.015,
-            "description": "OpenAI official model"
+            "description": "OpenAI official model",
+            "supports_dynamic_models": True
         }
     }
     
@@ -106,8 +145,8 @@ class APIFluxKontextEnhancer:
         
         provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["siliconflow"])
         
-        # 如果提供商有预定义的模型列表，优先使用
-        if "models" in provider_config:
+        # 如果提供商有预定义的模型列表且不支持动态获取，优先使用预定义列表
+        if "models" in provider_config and not provider_config.get("supports_dynamic_models", False):
             # print(f"[OK] Using {provider_config['name']} predefined model list: {provider_config['models']}")
             return provider_config["models"]
         
@@ -137,6 +176,36 @@ class APIFluxKontextEnhancer:
             
             provider_config = cls.API_PROVIDERS.get(provider, cls.API_PROVIDERS["siliconflow"])
             
+            # Gemini API需要特殊处理
+            if provider == "gemini":
+                try:
+                    import requests
+                    # Gemini使用不同的API端点获取模型列表
+                    response = requests.get(
+                        f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        model_names = []
+                        for model in data.get("models", []):
+                            model_name = model.get("name", "").replace("models/", "")
+                            if "generateContent" in model.get("supportedGenerationMethods", []):
+                                model_names.append(model_name)
+                        
+                        if model_names:
+                            # 更新缓存
+                            cls._cached_models[provider] = model_names
+                            cls._cache_timestamp[provider] = current_time
+                            return model_names
+                except Exception as e:
+                    # print(f"[WARN] Failed to get Gemini models dynamically: {e}")
+                    pass
+                
+                # 如果动态获取失败，使用预定义列表
+                return provider_config["models"]
+            
+            # 对于其他支持OpenAI兼容API的提供商
             client = OpenAI(
                 api_key=api_key,
                 base_url=provider_config["base_url"]
@@ -150,10 +219,13 @@ class APIFluxKontextEnhancer:
                 model_names.append(model.id)
                 # print(f"[OK] {provider_config['name']} detected model: {model.id}")
             
-            # 如果没有获取到模型，使用默认模型
+            # 如果没有获取到模型，使用默认模型或预定义列表
             if not model_names:
-                model_names = [provider_config["default_model"]]
-                # print(f"[WARN] Failed to get {provider} model list, using default model: {provider_config['default_model']}")
+                if "models" in provider_config:
+                    model_names = provider_config["models"]
+                else:
+                    model_names = [provider_config["default_model"]]
+                # print(f"[WARN] Failed to get {provider} model list, using fallback models")
             
             # 更新缓存
             cls._cached_models[provider] = model_names
@@ -249,7 +321,7 @@ For more examples, please check guidance_template options."""
                     "placeholder": "Describe the editing operations you want to perform...\n\nFor example:\n- Add a tree in the red rectangular area\n- Change the vehicle in the blue marked area to red\n- Remove the person in the circular area\n- Change the sky in the yellow area to sunset effect",
                     "tooltip": "Describe the editing operations you want to perform, combined with annotation information to generate precise editing instructions"
                 }),
-                "api_provider": (["siliconflow", "deepseek", "qianwen", "gemini", "openai"], {
+                "api_provider": (["siliconflow", "deepseek", "qianwen", "zhipu", "moonshot", "gemini", "openai"], {
                     "default": "siliconflow"
                 }),
                 "api_key": ("STRING", {
@@ -263,7 +335,16 @@ For more examples, please check guidance_template options."""
                     "deepseek-chat",
                     "qwen-turbo",
                     "gemini-pro",
+                    "gemini-2.0-flash-exp",
+                    "gemini-1.5-pro",
+                    "gemini-1.5-flash",
                     "gpt-3.5-turbo",
+                    "gpt-4",
+                    "gpt-4-turbo",
+                    "gpt-4o",
+                    "gpt-4o-mini",
+                    "o1-mini",
+                    "o1-preview",
                     "custom"
                 ], {
                     "default": "deepseek-ai/DeepSeek-V3"

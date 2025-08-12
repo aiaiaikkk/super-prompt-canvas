@@ -38,6 +38,16 @@ const OPERATION_CATEGORIES = {
             'texture_mixing', 'precision_cutout', 'alpha_composite', 'mask_feathering', 'depth_composite',
             'professional_product', 'zoom_focus', 'stylize_local', 'custom'
         ]
+    },
+    api: {
+        name: '🌐 远程API',
+        description: 'Remote cloud AI model enhancement',
+        templates: ['api_enhance']
+    },
+    ollama: {
+        name: '🦙 本地Ollama',
+        description: 'Local Ollama model enhancement',
+        templates: ['ollama_enhance']
     }
 };
 
@@ -97,7 +107,11 @@ const OPERATION_TEMPLATES = {
     'professional_product': { template: 'create professional product presentation with {target}', label: '专业产品', category: 'professional' },
     'zoom_focus': { template: 'apply zoom focus effect with {target}', label: '缩放聚焦', category: 'professional' },
     'stylize_local': { template: 'apply local stylization with {target}', label: '局部风格化', category: 'professional' },
-    'custom': { template: 'apply custom editing with {target}', label: '自定义', category: 'professional' }
+    'custom': { template: 'apply custom editing with {target}', label: '自定义', category: 'professional' },
+    
+    // API和Ollama增强模板
+    'api_enhance': { template: 'enhance with cloud AI model: {target}', label: 'AI增强', category: 'api' },
+    'ollama_enhance': { template: 'enhance with local Ollama model: {target}', label: 'Ollama增强', category: 'ollama' }
 };
 
 const CONSTRAINT_PROMPTS = {
@@ -1251,8 +1265,8 @@ class KontextSuperPrompt {
             generated_prompt: this.generatedPrompt
         });
         
-        // 初始化显示（切换到有提示词的标签页）
-        this.switchTab('global');
+        // 初始化显示（切换到默认标签页）
+        this.switchTab('local');
         
         // 设置默认操作类型（匹配global标签页）
         this.currentOperationType = 'global_color_grade'; // 全局编辑的默认操作类型
@@ -1378,7 +1392,9 @@ class KontextSuperPrompt {
             { id: 'local', name: '🎯 局部编辑' },
             { id: 'global', name: '🌍 全局编辑' },
             { id: 'text', name: '📝 文字编辑' },
-            { id: 'professional', name: '🔧 专业操作' }
+            { id: 'professional', name: '🔧 专业操作' },
+            { id: 'api', name: '🌐 远程API' },
+            { id: 'ollama', name: '🦙 本地Ollama' }
         ];
 
         tabs.forEach(tab => {
@@ -1530,7 +1546,9 @@ class KontextSuperPrompt {
             local: this.createLocalEditPanel(),
             global: this.createGlobalEditPanel(), 
             text: this.createTextEditPanel(),
-            professional: this.createProfessionalEditPanel()
+            professional: this.createProfessionalEditPanel(),
+            api: this.createAPIEditPanel(),
+            ollama: this.createOllamaEditPanel()
         };
 
         // 添加所有面板，但只显示当前激活的
@@ -1707,6 +1725,86 @@ class KontextSuperPrompt {
         // 修饰性提示词
         const decorativeSection = this.createDecorativePromptsSection();
         panel.appendChild(decorativeSection);
+
+        // 生成按钮
+        const generateSection = this.createGenerateSection();
+        panel.appendChild(generateSection);
+
+        return panel;
+    }
+
+    createAPIEditPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'edit-panel api-edit-panel';
+        panel.style.cssText = `
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+        `;
+
+        // API编辑说明
+        const notice = document.createElement('div');
+        notice.style.cssText = `
+            background: #2a4a4a;
+            border: 1px solid #4a8a8a;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            color: #8FBC8F;
+            font-size: 12px;
+        `;
+        notice.textContent = '🌐 使用云端AI模型生成高质量的编辑提示词';
+        panel.appendChild(notice);
+
+        // API配置区域
+        const apiConfigSection = this.createAPIConfigSection();
+        panel.appendChild(apiConfigSection);
+
+        // 描述输入
+        const descriptionSection = this.createDescriptionSection();
+        panel.appendChild(descriptionSection);
+
+        // 生成按钮
+        const generateSection = this.createGenerateSection();
+        panel.appendChild(generateSection);
+
+        return panel;
+    }
+
+    createOllamaEditPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'edit-panel ollama-edit-panel';
+        panel.style.cssText = `
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+        `;
+
+        // Ollama编辑说明
+        const notice = document.createElement('div');
+        notice.style.cssText = `
+            background: #4a2a4a;
+            border: 1px solid #8a4a8a;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            color: #FF9999;
+            font-size: 12px;
+        `;
+        notice.textContent = '🦙 使用本地Ollama模型生成私密安全的编辑提示词';
+        panel.appendChild(notice);
+
+        // Ollama配置区域
+        const ollamaConfigSection = this.createOllamaConfigSection();
+        panel.appendChild(ollamaConfigSection);
+
+        // 描述输入
+        const descriptionSection = this.createDescriptionSection();
+        panel.appendChild(descriptionSection);
 
         // 生成按钮
         const generateSection = this.createGenerateSection();
@@ -2059,7 +2157,525 @@ class KontextSuperPrompt {
         return section;
     }
 
+    createAPIConfigSection() {
+        const section = document.createElement('div');
+        section.className = 'api-config-section';
+        section.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid #4a8a8a;
+            border-radius: 6px;
+            background: #1a2a2a;
+        `;
+
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: #8FBC8F;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        `;
+        title.textContent = '🌐 远程API配置';
+
+        // API提供商选择
+        const providerRow = document.createElement('div');
+        providerRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const providerLabel = document.createElement('span');
+        providerLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        providerLabel.textContent = 'API提供商:';
+        
+        const providerSelect = document.createElement('select');
+        providerSelect.className = 'api-provider-select';
+        providerSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        const providerOptions = [
+            { value: 'siliconflow', text: 'SiliconFlow (DeepSeek)' },
+            { value: 'deepseek', text: 'DeepSeek 官方' },
+            { value: 'qianwen', text: '千问 (阿里云)' },
+            { value: 'zhipu', text: '智谱AI (GLM)' },
+            { value: 'moonshot', text: 'Moonshot (Kimi)' },
+            { value: 'gemini', text: 'Google Gemini' },
+            { value: 'openai', text: 'OpenAI' }
+        ];
+        providerOptions.forEach(provider => {
+            const option = document.createElement('option');
+            option.value = provider.value;
+            option.textContent = provider.text;
+            providerSelect.appendChild(option);
+        });
+
+        // API Key输入
+        const keyRow = document.createElement('div');
+        keyRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const keyLabel = document.createElement('span');
+        keyLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        keyLabel.textContent = 'API Key:';
+        
+        const keyInput = document.createElement('input');
+        keyInput.className = 'api-key-input';
+        keyInput.type = 'password';
+        keyInput.placeholder = '输入API密钥...';
+        keyInput.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+
+        // 模型选择
+        const modelRow = document.createElement('div');
+        modelRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const modelLabel = document.createElement('span');
+        modelLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        modelLabel.textContent = '模型:';
+        
+        const modelSelect = document.createElement('select');
+        modelSelect.className = 'api-model-select';
+        modelSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        // 定义每个提供商的默认模型
+        const providerModels = {
+            'siliconflow': ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1'],
+            'deepseek': ['deepseek-chat'],
+            'qianwen': ['qwen-turbo', 'qwen-plus', 'qwen-max'],
+            'zhipu': ['glm-4', 'glm-4-flash', 'glm-4-plus', 'glm-4v', 'glm-4v-plus'],
+            'moonshot': ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+            'gemini': ['gemini-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+            'openai': ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o1-preview']
+        };
+        
+        // 更新模型列表的函数
+        const updateModelList = async (provider) => {
+            modelSelect.innerHTML = '';
+            
+            // 添加加载提示
+            const loadingOption = document.createElement('option');
+            loadingOption.value = '';
+            loadingOption.textContent = '加载模型列表中...';
+            modelSelect.appendChild(loadingOption);
+            
+            try {
+                // 尝试动态获取模型列表
+                const apiKey = this.apiConfig?.keyInput?.value || '';
+                if (apiKey && this.supportsDynamicModels(provider)) {
+                    const dynamicModels = await this.fetchDynamicModels(provider, apiKey);
+                    if (dynamicModels && dynamicModels.length > 0) {
+                        modelSelect.innerHTML = '';
+                        dynamicModels.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            modelSelect.appendChild(option);
+                        });
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn(`动态获取${provider}模型失败:`, error);
+            }
+            
+            // 回退到预定义模型列表
+            modelSelect.innerHTML = '';
+            const models = providerModels[provider] || ['custom-model'];
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                modelSelect.appendChild(option);
+            });
+        };
+        
+        // 初始化模型列表
+        updateModelList('siliconflow');
+        
+        // 监听提供商变化
+        providerSelect.addEventListener('change', () => {
+            updateModelList(providerSelect.value);
+        });
+
+        // 监听API key变化，自动更新模型列表
+        let keyInputTimeout;
+        keyInput.addEventListener('input', () => {
+            // 防抖动，避免频繁请求
+            clearTimeout(keyInputTimeout);
+            keyInputTimeout = setTimeout(() => {
+                const provider = providerSelect.value;
+                const apiKey = keyInput.value.trim();
+                if (apiKey && this.supportsDynamicModels(provider)) {
+                    updateModelList(provider);
+                }
+            }, 1000); // 1秒延迟
+        });
+
+        // 编辑意图选择
+        const intentRow = document.createElement('div');
+        intentRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const intentLabel = document.createElement('span');
+        intentLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        intentLabel.textContent = '编辑意图:';
+        
+        const intentSelect = document.createElement('select');
+        intentSelect.className = 'api-intent-select';
+        intentSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        const intents = [
+            { value: 'product_showcase', text: '产品展示' },
+            { value: 'portrait_enhancement', text: '人像美化' },
+            { value: 'creative_design', text: '创意设计' },
+            { value: 'architectural_photo', text: '建筑摄影' },
+            { value: 'food_styling', text: '美食摄影' },
+            { value: 'fashion_retail', text: '时尚零售' },
+            { value: 'landscape_nature', text: '风景自然' },
+            { value: 'professional_editing', text: '专业编辑' },
+            { value: 'general_editing', text: '通用编辑' },
+            { value: 'custom', text: '自定义' }
+        ];
+        intents.forEach(intent => {
+            const option = document.createElement('option');
+            option.value = intent.value;
+            option.textContent = intent.text;
+            if (intent.value === 'general_editing') option.selected = true;
+            intentSelect.appendChild(option);
+        });
+
+        // 处理风格选择
+        const styleRow = document.createElement('div');
+        styleRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const styleLabel = document.createElement('span');
+        styleLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        styleLabel.textContent = '处理风格:';
+        
+        const styleSelect = document.createElement('select');
+        styleSelect.className = 'api-style-select';
+        styleSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        const styles = [
+            { value: 'auto_smart', text: '智能自动' },
+            { value: 'efficient_fast', text: '高效快速' },
+            { value: 'creative_artistic', text: '创意艺术' },
+            { value: 'precise_technical', text: '精确技术' },
+            { value: 'custom_guidance', text: '自定义指引' }
+        ];
+        styles.forEach(style => {
+            const option = document.createElement('option');
+            option.value = style.value;
+            option.textContent = style.text;
+            if (style.value === 'auto_smart') option.selected = true;
+            styleSelect.appendChild(option);
+        });
+
+        providerRow.appendChild(providerLabel);
+        providerRow.appendChild(providerSelect);
+        keyRow.appendChild(keyLabel);
+        keyRow.appendChild(keyInput);
+        modelRow.appendChild(modelLabel);
+        modelRow.appendChild(modelSelect);
+        intentRow.appendChild(intentLabel);
+        intentRow.appendChild(intentSelect);
+        styleRow.appendChild(styleLabel);
+        styleRow.appendChild(styleSelect);
+
+        section.appendChild(title);
+        section.appendChild(providerRow);
+        section.appendChild(keyRow);
+        section.appendChild(modelRow);
+        section.appendChild(intentRow);
+        section.appendChild(styleRow);
+
+        // 保存配置到实例
+        this.apiConfig = {
+            providerSelect,
+            keyInput,
+            modelSelect,
+            intentSelect,
+            styleSelect
+        };
+
+        return section;
+    }
+
+    createOllamaConfigSection() {
+        const section = document.createElement('div');
+        section.className = 'ollama-config-section';
+        section.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid #8a4a8a;
+            border-radius: 6px;
+            background: #2a1a2a;
+        `;
+
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: #FF9999;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        `;
+        title.textContent = '🦙 本地Ollama配置';
+
+        // Ollama URL输入
+        const urlRow = document.createElement('div');
+        urlRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const urlLabel = document.createElement('span');
+        urlLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        urlLabel.textContent = '服务地址:';
+        
+        const urlInput = document.createElement('input');
+        urlInput.value = 'http://127.0.0.1:11434';
+        urlInput.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+
+        // 模型选择
+        const modelRow = document.createElement('div');
+        modelRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const modelLabel = document.createElement('span');
+        modelLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        modelLabel.textContent = '模型:';
+        
+        const modelSelect = document.createElement('select');
+        modelSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        
+        // 添加刷新按钮
+        const refreshBtn = document.createElement('button');
+        refreshBtn.textContent = '🔄';
+        refreshBtn.style.cssText = `
+            margin-left: 4px; background: #444; color: #fff; border: 1px solid #666;
+            border-radius: 3px; padding: 4px 8px; cursor: pointer; font-size: 11px;
+        `;
+        
+        // 温度设置
+        const tempRow = document.createElement('div');
+        tempRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const tempLabel = document.createElement('span');
+        tempLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        tempLabel.textContent = '温度:';
+        
+        const tempInput = document.createElement('input');
+        tempInput.type = 'range';
+        tempInput.min = '0.1';
+        tempInput.max = '1.0';
+        tempInput.step = '0.1';
+        tempInput.value = '0.7';
+        tempInput.style.cssText = `flex: 1; margin-right: 8px;`;
+        
+        const tempValue = document.createElement('span');
+        tempValue.style.cssText = `color: #ccc; font-size: 11px; width: 30px;`;
+        tempValue.textContent = '0.7';
+
+        tempInput.addEventListener('input', () => {
+            tempValue.textContent = tempInput.value;
+        });
+
+        urlRow.appendChild(urlLabel);
+        urlRow.appendChild(urlInput);
+        modelRow.appendChild(modelLabel);
+        modelRow.appendChild(modelSelect);
+        modelRow.appendChild(refreshBtn);
+        tempRow.appendChild(tempLabel);
+        tempRow.appendChild(tempInput);
+        tempRow.appendChild(tempValue);
+
+        // 编辑意图选择
+        const intentRow = document.createElement('div');
+        intentRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const intentLabel = document.createElement('span');
+        intentLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        intentLabel.textContent = '编辑意图:';
+        
+        const intentSelect = document.createElement('select');
+        intentSelect.className = 'ollama-editing-intent';
+        intentSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        const intents = [
+            { value: 'product_showcase', label: '产品展示优化' },
+            { value: 'portrait_enhancement', label: '人像美化' },
+            { value: 'creative_design', label: '创意设计' },
+            { value: 'architectural_photo', label: '建筑摄影' },
+            { value: 'food_styling', label: '美食摄影' },
+            { value: 'fashion_retail', label: '时尚零售' },
+            { value: 'landscape_nature', label: '风景自然' },
+            { value: 'professional_editing', label: '专业图像编辑' },
+            { value: 'general_editing', label: '通用编辑' },
+            { value: 'custom', label: '自定义' }
+        ];
+        intents.forEach(intent => {
+            const option = document.createElement('option');
+            option.value = intent.value;
+            option.textContent = intent.label;
+            if (intent.value === 'general_editing') option.selected = true;
+            intentSelect.appendChild(option);
+        });
+
+        // 处理风格选择
+        const styleRow = document.createElement('div');
+        styleRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px;`;
+        
+        const styleLabel = document.createElement('span');
+        styleLabel.style.cssText = `color: #ccc; font-size: 11px; width: 80px;`;
+        styleLabel.textContent = '处理风格:';
+        
+        const styleSelect = document.createElement('select');
+        styleSelect.className = 'ollama-processing-style';
+        styleSelect.style.cssText = `
+            flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
+            border-radius: 3px; padding: 4px 8px; font-size: 11px;
+        `;
+        const styles = [
+            { value: 'auto_smart', label: '智能自动' },
+            { value: 'efficient_fast', label: '高效快速' },
+            { value: 'creative_artistic', label: '创意艺术' },
+            { value: 'precise_technical', label: '精确技术' },
+            { value: 'custom_guidance', label: '自定义指引' }
+        ];
+        styles.forEach(style => {
+            const option = document.createElement('option');
+            option.value = style.value;
+            option.textContent = style.label;
+            if (style.value === 'auto_smart') option.selected = true;
+            styleSelect.appendChild(option);
+        });
+
+        // 自定义指引文本框（默认隐藏）
+        const guidanceRow = document.createElement('div');
+        guidanceRow.className = 'ollama-custom-guidance-row';
+        guidanceRow.style.cssText = `display: none; margin-bottom: 8px;`;
+        
+        const guidanceLabel = document.createElement('div');
+        guidanceLabel.style.cssText = `color: #ccc; font-size: 11px; margin-bottom: 4px;`;
+        guidanceLabel.textContent = '自定义指引:';
+        
+        const guidanceTextarea = document.createElement('textarea');
+        guidanceTextarea.className = 'ollama-custom-guidance';
+        guidanceTextarea.placeholder = '输入自定义AI指引...';
+        guidanceTextarea.style.cssText = `
+            width: 100%; height: 60px; background: #2a2a2a; color: #fff; 
+            border: 1px solid #555; border-radius: 3px; padding: 4px 8px; 
+            font-size: 11px; resize: vertical; box-sizing: border-box;
+        `;
+
+        // 当选择自定义指引时显示文本框
+        styleSelect.addEventListener('change', () => {
+            guidanceRow.style.display = styleSelect.value === 'custom_guidance' ? 'block' : 'none';
+        });
+
+        // 额外选项
+        const optionsRow = document.createElement('div');
+        optionsRow.style.cssText = `display: flex; align-items: center; margin-bottom: 8px; gap: 16px;`;
+        
+        const visualCheckbox = document.createElement('input');
+        visualCheckbox.type = 'checkbox';
+        visualCheckbox.className = 'ollama-enable-visual';
+        visualCheckbox.id = 'ollama-visual';
+        
+        const visualLabel = document.createElement('label');
+        visualLabel.htmlFor = 'ollama-visual';
+        visualLabel.style.cssText = `color: #ccc; font-size: 11px; cursor: pointer;`;
+        visualLabel.textContent = '启用视觉分析';
+        
+        const unloadCheckbox = document.createElement('input');
+        unloadCheckbox.type = 'checkbox';
+        unloadCheckbox.className = 'ollama-auto-unload';
+        unloadCheckbox.id = 'ollama-unload';
+        
+        const unloadLabel = document.createElement('label');
+        unloadLabel.htmlFor = 'ollama-unload';
+        unloadLabel.style.cssText = `color: #ccc; font-size: 11px; cursor: pointer;`;
+        unloadLabel.textContent = '自动卸载模型';
+
+        optionsRow.appendChild(visualCheckbox);
+        optionsRow.appendChild(visualLabel);
+        optionsRow.appendChild(unloadCheckbox);
+        optionsRow.appendChild(unloadLabel);
+
+        intentRow.appendChild(intentLabel);
+        intentRow.appendChild(intentSelect);
+        styleRow.appendChild(styleLabel);
+        styleRow.appendChild(styleSelect);
+        guidanceRow.appendChild(guidanceLabel);
+        guidanceRow.appendChild(guidanceTextarea);
+
+        section.appendChild(title);
+        section.appendChild(urlRow);
+        section.appendChild(modelRow);
+        section.appendChild(tempRow);
+        section.appendChild(intentRow);
+        section.appendChild(styleRow);
+        section.appendChild(guidanceRow);
+        section.appendChild(optionsRow);
+
+        // 保存引用以便后续访问
+        this.ollamaUrlInput = urlInput;
+        this.ollamaModelSelect = modelSelect;
+        this.ollamaTempInput = tempInput;
+        this.ollamaIntentSelect = intentSelect;
+        this.ollamaStyleSelect = styleSelect;
+        this.ollamaGuidanceTextarea = guidanceTextarea;
+        this.ollamaVisualCheckbox = visualCheckbox;
+        this.ollamaUnloadCheckbox = unloadCheckbox;
+
+        // 添加刷新模型列表功能
+        refreshBtn.addEventListener('click', async () => {
+            try {
+                const url = urlInput.value || 'http://127.0.0.1:11434';
+                const response = await fetch('/ollama_flux_enhancer/get_models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const models = await response.json();
+                
+                // 清空并重新填充模型列表
+                modelSelect.innerHTML = '';
+                if (models && models.length > 0) {
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        modelSelect.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '未找到模型';
+                    modelSelect.appendChild(option);
+                }
+            } catch (e) {
+                console.error('获取Ollama模型失败:', e);
+            }
+        });
+
+        return section;
+    }
+
     switchTab(tabId) {
+        // 如果正在从API或Ollama更新，不执行切换
+        if (this.isUpdatingFromAPI || this.isUpdatingFromOllama) {
+            return;
+        }
+        
         const tabButtons = this.tabBar.querySelectorAll('.tab-button');
         tabButtons.forEach(btn => {
             if (btn.classList.contains(`tab-${tabId}`)) {
@@ -2155,7 +2771,9 @@ class KontextSuperPrompt {
             'local': 'change_color',
             'global': 'global_color_grade', 
             'text': 'text_add',
-            'professional': 'geometric_warp'
+            'professional': 'geometric_warp',
+            'api': 'api_enhance',
+            'ollama': 'ollama_enhance'
         };
         
         this.currentOperationType = defaultOperations[tabId] || '';
@@ -3201,6 +3819,15 @@ class KontextSuperPrompt {
     generateSuperPrompt() {
         // // console.log("[Kontext Super Prompt] ==================== 开始生成超级提示词 ====================");
         
+        // 检查当前选项卡模式
+        if (this.currentCategory === 'api') {
+            this.generateWithAPI();
+            return;
+        } else if (this.currentCategory === 'ollama') {
+            this.generateWithOllama();
+            return;
+        }
+        
         // 首先强制更新选择状态，确保与UI一致
         this.forceUpdateSelections();
         
@@ -3344,6 +3971,7 @@ class KontextSuperPrompt {
         
         // 定义要传递的数据字段
         const widgetFields = [
+            { name: 'tab_mode', value: data.tab_mode || 'manual' },
             { name: 'edit_mode', value: data.edit_mode || '局部编辑' },
             { name: 'operation_type', value: data.operation_type || '' },
             { name: 'description', value: data.description || '' },
@@ -3351,7 +3979,25 @@ class KontextSuperPrompt {
             { name: 'decorative_prompts', value: data.decorative_prompts || '' },
             { name: 'selected_layers', value: data.selected_layers || '' },
             { name: 'auto_generate', value: data.auto_generate !== false },
-            { name: 'generated_prompt', value: data.generated_prompt || '' }
+            { name: 'generated_prompt', value: data.generated_prompt || '' },
+            // API参数
+            { name: 'api_provider', value: data.api_provider || 'siliconflow' },
+            { name: 'api_key', value: data.api_key || '' },
+            { name: 'api_model', value: data.api_model || 'deepseek-ai/DeepSeek-V3' },
+            { name: 'api_editing_intent', value: data.api_editing_intent || 'general_editing' },
+            { name: 'api_processing_style', value: data.api_processing_style || 'auto_smart' },
+            { name: 'api_seed', value: data.api_seed || 0 },
+            { name: 'api_custom_guidance', value: data.api_custom_guidance || '' },
+            // Ollama参数
+            { name: 'ollama_url', value: data.ollama_url || 'http://127.0.0.1:11434' },
+            { name: 'ollama_model', value: data.ollama_model || '' },
+            { name: 'ollama_temperature', value: data.ollama_temperature || 0.7 },
+            { name: 'ollama_editing_intent', value: data.ollama_editing_intent || 'general_editing' },
+            { name: 'ollama_processing_style', value: data.ollama_processing_style || 'auto_smart' },
+            { name: 'ollama_seed', value: data.ollama_seed || 42 },
+            { name: 'ollama_custom_guidance', value: data.ollama_custom_guidance || '' },
+            { name: 'ollama_enable_visual', value: data.ollama_enable_visual || false },
+            { name: 'ollama_auto_unload', value: data.ollama_auto_unload || false }
         ];
         
         // 创建或更新widget
@@ -3371,6 +4017,418 @@ class KontextSuperPrompt {
         });
         
         // console.log('[Kontext Super Prompt] 隐藏widget已更新:', this.node.widgets.map(w => ({ name: w.name, value: w.value })));
+    }
+
+    generateWithAPI() {
+        // 防止重复触发
+        if (this.isGeneratingAPI) {
+            return;
+        }
+        this.isGeneratingAPI = true;
+        
+        console.log('[Kontext Super Prompt] 使用API生成提示词');
+        
+        // 保存当前选项卡状态
+        const currentTab = this.currentCategory;
+        
+        // 获取API配置
+        const provider = this.apiConfig?.providerSelect?.value || 'siliconflow';
+        const apiKey = this.apiConfig?.keyInput?.value || '';
+        const model = this.apiConfig?.modelSelect?.value || 'deepseek-ai/DeepSeek-V3';
+        const intent = this.apiConfig?.intentSelect?.value || 'general_editing';
+        const style = this.apiConfig?.styleSelect?.value || 'auto_smart';
+        
+        // 获取描述 - 尝试多种选择器
+        let description = '';
+        const descriptionInputs = [
+            this.editorContainer.querySelector('.api-edit-panel .description-textarea'),
+            this.editorContainer.querySelector('.description-textarea'),
+            this.descriptionInput
+        ];
+        
+        for (const input of descriptionInputs) {
+            if (input && input.value) {
+                description = input.value;
+                break;
+            }
+        }
+        
+        console.log('[API] 获取到的描述:', description);
+        
+        if (!apiKey) {
+            alert('请输入API密钥');
+            return;
+        }
+        
+        // 设置生成中状态
+        this.generatedPrompt = '正在使用API生成提示词...';
+        this.updateAllPreviewTextareas();
+        
+        // 设置标志位防止切换选项卡
+        this.isUpdatingFromAPI = true;
+        
+        // 更新节点数据
+        this.updateNodeWidgets({
+            tab_mode: 'api',
+            edit_mode: '远程API',  // 设置为API模式
+            api_provider: provider,
+            api_key: apiKey,
+            api_model: model,
+            api_editing_intent: intent,
+            api_processing_style: style,
+            api_seed: Math.floor(Math.random() * 1000000),
+            api_custom_guidance: style === 'custom_guidance' ? (this.apiConfig?.guidanceTextarea?.value || '') : '',
+            description: description,
+            generated_prompt: '',
+            // 保持空的约束和修饰提示词，避免与手动模式混淆
+            constraint_prompts: '',
+            decorative_prompts: '',
+            operation_type: 'api_enhance'
+        });
+        
+        // 触发后端处理
+        this.notifyNodeUpdate();
+        
+        // 确保保持在API选项卡
+        setTimeout(() => {
+            this.isUpdatingFromAPI = false;
+            if (this.currentCategory !== currentTab) {
+                this.switchTab(currentTab);
+            }
+        }, 100);
+        
+        // 等待后端处理结果
+        this.waitForAPIResult(provider, model, description);
+    }
+    
+    generateWithOllama() {
+        // 防止重复触发
+        if (this.isGeneratingOllama) {
+            return;
+        }
+        this.isGeneratingOllama = true;
+        
+        console.log('[Kontext Super Prompt] 使用Ollama生成提示词');
+        
+        // 保存当前选项卡状态
+        const currentTab = this.currentCategory;
+        
+        // 获取Ollama配置
+        const url = this.ollamaUrlInput?.value || 'http://127.0.0.1:11434';
+        const model = this.ollamaModelSelect?.value || '';
+        const temperature = parseFloat(this.ollamaTempInput?.value || '0.7');
+        const intent = this.ollamaIntentSelect?.value || 'general_editing';
+        const style = this.ollamaStyleSelect?.value || 'auto_smart';
+        const enableVisual = this.ollamaVisualCheckbox?.checked || false;
+        const autoUnload = this.ollamaUnloadCheckbox?.checked || false;
+        
+        // 获取描述 - 尝试多种选择器
+        let description = '';
+        const descriptionInputs = [
+            this.editorContainer.querySelector('.ollama-edit-panel .description-textarea'),
+            this.editorContainer.querySelector('.description-textarea'),
+            this.descriptionInput
+        ];
+        
+        for (const input of descriptionInputs) {
+            if (input && input.value) {
+                description = input.value;
+                break;
+            }
+        }
+        
+        console.log('[Ollama] 获取到的描述:', description);
+        
+        if (!model) {
+            alert('请选择Ollama模型');
+            return;
+        }
+        
+        // 设置生成中状态
+        this.generatedPrompt = '正在使用Ollama生成提示词...';
+        this.updateAllPreviewTextareas();
+        
+        // 设置标志位防止切换选项卡
+        this.isUpdatingFromOllama = true;
+        
+        // 更新节点数据
+        this.updateNodeWidgets({
+            tab_mode: 'ollama',
+            edit_mode: '本地Ollama',  // 设置为Ollama模式
+            ollama_url: url,
+            ollama_model: model,
+            ollama_temperature: temperature,
+            ollama_editing_intent: intent,
+            ollama_processing_style: style,
+            ollama_seed: Math.floor(Math.random() * 1000000),
+            ollama_custom_guidance: style === 'custom_guidance' ? (this.ollamaGuidanceTextarea?.value || '') : '',
+            ollama_enable_visual: enableVisual,
+            ollama_auto_unload: autoUnload,
+            description: description,
+            generated_prompt: '',
+            // 保持空的约束和修饰提示词，避免与手动模式混淆
+            constraint_prompts: '',
+            decorative_prompts: '',
+            operation_type: 'ollama_enhance'
+        });
+        
+        // 触发后端处理
+        this.notifyNodeUpdate();
+        
+        // 确保保持在Ollama选项卡
+        setTimeout(() => {
+            this.isUpdatingFromOllama = false;
+            if (this.currentCategory !== currentTab) {
+                this.switchTab(currentTab);
+            }
+        }, 100);
+        
+        // 等待后端处理结果
+        this.waitForOllamaResult(model, description);
+    }
+
+    async waitForAPIResult(provider, model, description) {
+        try {
+            console.log('[API] 开始调用远程API服务...');
+            
+            // 显示连接状态
+            this.generatedPrompt = `🔄 正在连接 ${provider} (${model})...`;
+            this.updateAllPreviewTextareas();
+            
+            // 获取API配置
+            const apiKey = this.apiConfig?.keyInput?.value || '';
+            const editingIntent = this.apiConfig?.intentSelect?.value || 'general_editing';
+            const processingStyle = this.apiConfig?.styleSelect?.value || 'auto_smart';
+            const customGuidance = this.apiConfig?.guidanceTextarea?.value || '';
+            
+            // 根据提供商构建API请求
+            let apiUrl, headers, requestBody;
+            
+            if (provider === 'zhipu') {
+                apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+                requestBody = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000
+                };
+            } else if (provider === 'moonshot') {
+                apiUrl = 'https://api.moonshot.cn/v1/chat/completions';
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+                requestBody = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000
+                };
+            } else if (provider === 'siliconflow') {
+                apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+                requestBody = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000
+                };
+            } else if (provider === 'deepseek') {
+                apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+                requestBody = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1000
+                };
+            } else if (provider === 'gemini') {
+                // Note: Gemini API需要特殊处理，使用不同的URL格式
+                apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                headers = {
+                    'Content-Type': 'application/json'
+                };
+                requestBody = {
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                                }
+                            ]
+                        }
+                    ],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 1000
+                    }
+                };
+            } else {
+                // 对于不支持直接调用的提供商，显示说明
+                this.generatedPrompt = `ℹ️ ${provider} 提供商暂不支持前端直接调用\n\n由于浏览器CORS限制，某些API提供商无法直接从前端调用。\n\n请使用支持的提供商：\n- 智谱AI (zhipu)\n- Moonshot (moonshot) 
+- SiliconFlow (siliconflow)\n- DeepSeek (deepseek)\n- Google Gemini (gemini)\n\n或者联系开发者添加对 ${provider} 的支持。`;
+                this.updateAllPreviewTextareas();
+                this.isGeneratingAPI = false;
+                return;
+            }
+            
+            this.generatedPrompt = `⚡ 正在调用 ${provider} API...`;
+            this.updateAllPreviewTextareas();
+            
+            // 调用远程API
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log('[API] 远程API响应:', result);
+            
+            // 提取生成的内容
+            let generatedContent = '';
+            if (provider === 'gemini') {
+                // Gemini API使用不同的响应格式
+                if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts) {
+                    generatedContent = result.candidates[0].content.parts[0].text;
+                } else {
+                    generatedContent = '未能获取到有效的Gemini响应';
+                }
+            } else if (result.choices && result.choices[0] && result.choices[0].message) {
+                generatedContent = result.choices[0].message.content;
+            } else {
+                generatedContent = '未能获取到有效响应';
+            }
+            
+            // 显示最终结果
+            this.generatedPrompt = `✅ ${provider} API生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
+            this.updateAllPreviewTextareas();
+            this.isGeneratingAPI = false;
+            
+        } catch (error) {
+            console.error('[API] 请求失败:', error);
+            
+            if (error.message.includes('Failed to fetch') || error.message.includes('CORS') || error.message.includes('Network')) {
+                this.generatedPrompt = `❌ 网络请求失败 (${provider})\n\n可能的原因：\n1. 浏览器CORS限制 - 某些API不允许前端直接调用\n2. 网络连接问题\n3. API服务不可用\n\n建议：\n- 检查API密钥是否正确\n- 尝试其他支持的API提供商\n- 或使用本地Ollama选项卡`;
+            } else if (error.message.includes('401') || error.message.includes('403')) {
+                this.generatedPrompt = `❌ 认证失败 (${provider})\n\nAPI密钥错误或已过期\n\n请检查：\n1. API密钥是否正确\n2. API密钥是否有效\n3. 账户是否有足够余额`;
+            } else if (error.message.includes('429')) {
+                this.generatedPrompt = `❌ 请求频率过高 (${provider})\n\n请稍后再试或升级API套餐`;
+            } else {
+                this.generatedPrompt = `❌ API请求失败 (${provider}/${model}): ${error.message}`;
+            }
+            
+            this.updateAllPreviewTextareas();
+            this.isGeneratingAPI = false;
+        }
+    }
+    
+    async waitForOllamaResult(model, description) {
+        try {
+            console.log('[Ollama] 开始调用本地Ollama服务...');
+            
+            // 显示连接状态
+            this.generatedPrompt = `🔄 正在连接本地 Ollama (${model})...`;
+            this.updateAllPreviewTextareas();
+            
+            // 获取Ollama配置
+            const ollamaUrl = this.ollamaUrlInput?.value || 'http://127.0.0.1:11434';
+            const temperature = parseFloat(this.ollamaTempInput?.value || '0.7');
+            const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
+            const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
+            const customGuidance = this.ollamaGuidanceTextarea?.value || '';
+            
+            // 构建Ollama API请求
+            const requestBody = {
+                model: model,
+                messages: [
+                    {
+                        role: 'user',
+                        content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                    }
+                ],
+                options: {
+                    temperature: temperature
+                },
+                stream: false
+            };
+            
+            this.generatedPrompt = `⚡ 正在调用本地 Ollama API...`;
+            this.updateAllPreviewTextareas();
+            
+            // 调用本地Ollama API
+            const response = await fetch(`${ollamaUrl}/api/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Ollama API请求失败: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log('[Ollama] 本地API响应:', result);
+            
+            // 提取生成的内容
+            let generatedContent = '';
+            if (result.message && result.message.content) {
+                generatedContent = result.message.content;
+            } else {
+                generatedContent = '未能获取到有效响应';
+            }
+            
+            // 显示最终结果
+            this.generatedPrompt = `✅ 本地 Ollama 生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
+            this.updateAllPreviewTextareas();
+            this.isGeneratingOllama = false;
+            
+        } catch (error) {
+            console.error('[Ollama] 请求失败:', error);
+            if (error.message.includes('Failed to fetch')) {
+                this.generatedPrompt = `❌ 无法连接到本地 Ollama 服务\n\n请确保:\n1. Ollama 已启动 (ollama serve)\n2. 模型已下载 (ollama pull ${model})\n3. 服务地址正确: ${this.ollamaUrlInput?.value || 'http://127.0.0.1:11434'}`;
+            } else {
+                this.generatedPrompt = `❌ Ollama请求失败 (${model}): ${error.message}`;
+            }
+            this.updateAllPreviewTextareas();
+            this.isGeneratingOllama = false;
+        }
     }
 
     copyToClipboard() {
@@ -3527,6 +4585,66 @@ class KontextSuperPrompt {
                 notification.remove();
             }, 300);
         }, 3000);
+    }
+
+    // 检查API提供商是否支持动态模型获取
+    supportsDynamicModels(provider) {
+        const dynamicProviders = ['openai', 'gemini', 'siliconflow', 'deepseek', 'qianwen', 'zhipu', 'moonshot'];
+        return dynamicProviders.includes(provider);
+    }
+
+    // 动态获取模型列表
+    async fetchDynamicModels(provider, apiKey) {
+        try {
+            if (provider === 'gemini') {
+                // Gemini API特殊处理
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                const models = [];
+                
+                for (const model of data.models || []) {
+                    const modelName = model.name?.replace('models/', '');
+                    if (model.supportedGenerationMethods?.includes('generateContent')) {
+                        models.push(modelName);
+                    }
+                }
+                
+                return models.length > 0 ? models : null;
+                
+            } else {
+                // OpenAI兼容API提供商
+                const baseUrls = {
+                    'openai': 'https://api.openai.com/v1',
+                    'siliconflow': 'https://api.siliconflow.cn/v1',
+                    'deepseek': 'https://api.deepseek.com/v1',
+                    'qianwen': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                    'zhipu': 'https://open.bigmodel.cn/api/paas/v4',
+                    'moonshot': 'https://api.moonshot.cn/v1'
+                };
+                
+                const baseUrl = baseUrls[provider];
+                if (!baseUrl) return null;
+                
+                const response = await fetch(`${baseUrl}/models`, {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                const models = data.data?.map(model => model.id) || [];
+                
+                return models.length > 0 ? models : null;
+            }
+        } catch (error) {
+            console.warn(`获取${provider}模型列表失败:`, error);
+            return null;
+        }
     }
 }
 

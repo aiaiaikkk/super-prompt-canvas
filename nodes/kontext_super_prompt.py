@@ -14,8 +14,13 @@ import json
 import base64
 import time
 import random
+import os
+import sys
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
+
+# 添加节点目录到系统路径以导入其他节点
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Optional dependencies
 try:
@@ -67,6 +72,7 @@ class KontextSuperPrompt:
             "required": {
                 "layer_info": ("LAYER_INFO",),
                 "image": ("IMAGE",),
+                "tab_mode": (["manual", "api", "ollama"], {"default": "manual"}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -78,6 +84,26 @@ class KontextSuperPrompt:
                 "selected_layers": ("STRING", {"default": "", "multiline": True}),
                 "auto_generate": ("BOOLEAN", {"default": True}),
                 "generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                
+                # API选项卡参数
+                "api_provider": ("STRING", {"default": "siliconflow"}),
+                "api_key": ("STRING", {"default": ""}),
+                "api_model": ("STRING", {"default": "deepseek-ai/DeepSeek-V3"}),
+                "api_editing_intent": ("STRING", {"default": "general_editing"}),
+                "api_processing_style": ("STRING", {"default": "auto_smart"}),
+                "api_seed": ("INT", {"default": 0}),
+                "api_custom_guidance": ("STRING", {"default": "", "multiline": True}),
+                
+                # Ollama选项卡参数
+                "ollama_url": ("STRING", {"default": "http://127.0.0.1:11434"}),
+                "ollama_model": ("STRING", {"default": ""}),
+                "ollama_temperature": ("FLOAT", {"default": 0.7}),
+                "ollama_editing_intent": ("STRING", {"default": "general_editing"}),
+                "ollama_processing_style": ("STRING", {"default": "auto_smart"}),
+                "ollama_seed": ("INT", {"default": 42}),
+                "ollama_custom_guidance": ("STRING", {"default": "", "multiline": True}),
+                "ollama_enable_visual": ("BOOLEAN", {"default": False}),
+                "ollama_auto_unload": ("BOOLEAN", {"default": False}),
             },
         }
     
@@ -92,30 +118,48 @@ class KontextSuperPrompt:
         # 强制每次都重新执行
         return float(time.time())
     
-    def process_super_prompt(self, layer_info, image, unique_id="", edit_mode="局部编辑", 
+    def process_super_prompt(self, layer_info, image, tab_mode="manual", unique_id="", edit_mode="局部编辑", 
                            operation_type="", description="", constraint_prompts="", 
                            decorative_prompts="", selected_layers="", auto_generate=True, 
-                           generated_prompt=""):
+                           generated_prompt="", 
+                           # API选项卡参数
+                           api_provider="siliconflow", api_key="", api_model="deepseek-ai/DeepSeek-V3",
+                           api_editing_intent="general_editing", api_processing_style="auto_smart",
+                           api_seed=0, api_custom_guidance="",
+                           # Ollama选项卡参数  
+                           ollama_url="http://127.0.0.1:11434", ollama_model="", ollama_temperature=0.7,
+                           ollama_editing_intent="general_editing", ollama_processing_style="auto_smart",
+                           ollama_seed=42, ollama_custom_guidance="", ollama_enable_visual=False,
+                           ollama_auto_unload=False):
         """
         处理Kontext超级提示词生成
         """
         try:
             print(f"[Kontext Super Prompt] 开始处理超级提示词生成，节点ID: {unique_id}")
+            print(f"[Kontext Super Prompt] 选项卡模式: {tab_mode}")
             print(f"[Kontext Super Prompt] 编辑模式: {edit_mode}")
-            print(f"[Kontext Super Prompt] 操作类型: '{operation_type}'")
             print(f"[Kontext Super Prompt] 描述: '{description}'")
-            print(f"[Kontext Super Prompt] 约束提示词: '{constraint_prompts}'")
-            print(f"[Kontext Super Prompt] 修饰提示词: '{decorative_prompts}'")
-            print(f"[Kontext Super Prompt] 自动生成: {auto_generate}")
-            print(f"[Kontext Super Prompt] 前端传来的生成提示词: '{generated_prompt}'")
-            print(f"[Kontext Super Prompt] 前端传来的生成提示词长度: {len(generated_prompt)}")
             
-            # 优先使用前端传来的generated_prompt，如果没有则使用后端生成
-            if generated_prompt and generated_prompt.strip():
+            # 根据选项卡模式处理
+            if tab_mode == "api" and api_key:
+                print("[Kontext Super Prompt] 使用API模式生成提示词")
+                final_generated_prompt = self.process_api_mode(
+                    layer_info, description, api_provider, api_key, api_model,
+                    api_editing_intent, api_processing_style, api_seed, 
+                    api_custom_guidance, image
+                )
+            elif tab_mode == "ollama" and ollama_model:
+                print("[Kontext Super Prompt] 使用Ollama模式生成提示词")
+                final_generated_prompt = self.process_ollama_mode(
+                    layer_info, description, ollama_url, ollama_model, ollama_temperature,
+                    ollama_editing_intent, ollama_processing_style, ollama_seed,
+                    ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
+                )
+            elif generated_prompt and generated_prompt.strip():
                 print("[Kontext Super Prompt] 使用前端生成的提示词")
                 final_generated_prompt = generated_prompt.strip()
             else:
-                print("[Kontext Super Prompt] 前端未提供提示词，使用后端生成")
+                print("[Kontext Super Prompt] 使用手动模式生成提示词")
                 # 解析图层信息
                 parsed_layer_info = self.parse_layer_info(layer_info)
                 
@@ -270,6 +314,88 @@ class KontextSuperPrompt:
         full_description = " | ".join(full_description_parts)
         
         return positive_prompt, negative_prompt, full_description
+    
+    def process_api_mode(self, layer_info, description, api_provider, api_key, api_model,
+                        editing_intent, processing_style, seed, custom_guidance, image):
+        """处理API模式的提示词生成"""
+        try:
+            from API_flux_kontext_enhancer import APIFluxKontextEnhancer
+            
+            # 创建API增强器实例
+            api_enhancer = APIFluxKontextEnhancer()
+            
+            # 转换图层信息为JSON字符串
+            layer_info_str = json.dumps(layer_info) if isinstance(layer_info, dict) else str(layer_info)
+            
+            # 调用API增强器
+            enhanced_instructions, system_prompt = api_enhancer.enhance_flux_instructions(
+                api_provider=api_provider,
+                api_key=api_key,
+                model_preset=api_model,
+                custom_model="",
+                layer_info=layer_info_str,
+                edit_description=description,
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                seed=seed,
+                custom_guidance=custom_guidance,
+                load_saved_guidance="none",
+                save_guidance_name="",
+                save_guidance_button=False,
+                image=image
+            )
+            
+            if enhanced_instructions:
+                return enhanced_instructions
+            else:
+                print("[Kontext Super Prompt] API模式生成失败，使用fallback")
+                return f"API生成失败: {description or '无描述'}"
+                
+        except Exception as e:
+            print(f"[Kontext Super Prompt] API模式处理错误: {e}")
+            return f"API处理错误: {description or '无描述'}"
+    
+    def process_ollama_mode(self, layer_info, description, ollama_url, ollama_model, 
+                           temperature, editing_intent, processing_style, seed,
+                           custom_guidance, enable_visual, auto_unload, image):
+        """处理Ollama模式的提示词生成"""
+        try:
+            from ollama_flux_kontext_enhancer import OllamaFluxKontextEnhancerV2
+            
+            # 创建Ollama增强器实例
+            ollama_enhancer = OllamaFluxKontextEnhancerV2()
+            
+            # 转换图层信息为JSON字符串
+            layer_info_str = json.dumps(layer_info) if isinstance(layer_info, dict) else str(layer_info)
+            
+            # 调用Ollama增强器
+            enhanced_instructions, system_prompt = ollama_enhancer.enhance_flux_instructions(
+                layer_info=layer_info_str,
+                edit_description=description,
+                model=ollama_model,
+                auto_unload_model=auto_unload,
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                image=image,
+                url=ollama_url,
+                temperature=temperature,
+                enable_visual_analysis=enable_visual,
+                seed=seed,
+                load_saved_guidance="none",
+                save_guidance=False,
+                guidance_name="",
+                custom_guidance=custom_guidance
+            )
+            
+            if enhanced_instructions:
+                return enhanced_instructions
+            else:
+                print("[Kontext Super Prompt] Ollama模式生成失败，使用fallback")
+                return f"Ollama生成失败: {description or '无描述'}"
+                
+        except Exception as e:
+            print(f"[Kontext Super Prompt] Ollama模式处理错误: {e}")
+            return f"Ollama处理错误: {description or '无描述'}"
 
 
 # 注册节点
