@@ -2,7 +2,7 @@
 TextGenWebUIFluxKontextEnhancer Node
 Text Generation WebUI-integrated Flux Kontext prompt enhancement node
 
-Converts VisualPromptEditor annotation data through Text Generation WebUI models to
+Converts LRPG Canvas layer data through Text Generation WebUI models to
 Flux Kontext-optimized structured editing instructions
 """
 
@@ -35,7 +35,7 @@ class TextGenWebUIFluxKontextEnhancer:
     """
     🌐 Text Generation WebUI Flux Kontext Enhancer
     
-    Converts annotation data from VisualPromptEditor into structured editing instructions
+    Converts annotation data from LRPG Canvas into structured editing instructions
     optimized for Flux Kontext, using Text Generation WebUI models.
     """
     
@@ -302,10 +302,10 @@ For more examples, please check guidance_template options."""
         
         return {
             "required": {
-                "annotation_data": ("STRING", {
+                "layer_info": ("STRING", {
                     "forceInput": True,
                     "default": "",
-                    "tooltip": "Annotation JSON data from VisualPromptEditor. Can be left empty if only using Edit Description."
+                    "tooltip": "Annotation JSON data from LRPG Canvas. Can be left empty if only using Edit Description."
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,
@@ -435,7 +435,7 @@ For more examples, please check guidance_template options."""
         self.debug_logs = []
         self.start_time = None
 
-    def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
+    def enhance_flux_instructions(self, layer_info: str, edit_description: str, model: str, 
                                 auto_unload_model: bool, editing_intent: str, processing_style: str,
                                 image=None, url: str = "http://127.0.0.1:5000", 
                                 temperature: float = 0.7, seed: int = 42,
@@ -450,7 +450,7 @@ For more examples, please check guidance_template options."""
         # Enable verbose logging during actual workflow execution
         self.__class__._silent_mode = False
         
-        if not (edit_description and edit_description.strip()) and not (annotation_data and annotation_data.strip()):
+        if not (edit_description and edit_description.strip()) and not (layer_info and layer_info.strip()):
             error_msg = "Error: You must provide either an edit description or connect valid annotation data."
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return self._create_fallback_output(error_msg, debug_mode)
@@ -472,12 +472,12 @@ For more examples, please check guidance_template options."""
         parsed_data = {}
         has_annotations = False
 
-        if annotation_data and annotation_data.strip():
+        if layer_info and layer_info.strip():
             try:
-                parsed_json = json.loads(annotation_data)
+                parsed_json = json.loads(layer_info)
                 if isinstance(parsed_json, dict) and 'annotations' in parsed_json and len(parsed_json['annotations']) > 0:
                     self._log_debug("  -> Path: Annotation-based Generation", debug_mode)
-                    annotations, parsed_data = self._parse_annotation_data(annotation_data, debug_mode)
+                    annotations, parsed_data = self._parse_layer_info(layer_info, debug_mode)
                     has_annotations = True
                 else:
                     self._log_debug("  -> Path: Text-only Generation (annotations list is empty or not a valid dict structure)", debug_mode)
@@ -488,7 +488,7 @@ For more examples, please check guidance_template options."""
 
         # Build system and user prompts
         system_prompt = self._build_intelligent_system_prompt(
-            editing_intent, processing_style, edit_description, annotation_data,
+            editing_intent, processing_style, edit_description, layer_info,
             guidance_style, guidance_template, custom_guidance
         )
         
@@ -500,7 +500,7 @@ For more examples, please check guidance_template options."""
         try:
             # Generate cache key
             cache_key = self._get_cache_key(
-                annotation_data, edit_description, edit_instruction_type, model, temperature,
+                layer_info, edit_description, edit_instruction_type, model, temperature,
                 guidance_style, guidance_template, seed, custom_guidance, load_saved_guidance
             )
             
@@ -615,7 +615,7 @@ For more examples, please check guidance_template options."""
         return edit_instruction_type, guidance_style, guidance_template
 
     def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
-                                       edit_description: str, annotation_data: str = "",
+                                       edit_description: str, layer_info: str = "",
                                        guidance_style: str = "efficient_concise", guidance_template: str = "none",
                                        custom_guidance: str = "") -> str:
         """Build intelligent system prompt using English templates for TextGen WebUI"""
@@ -684,14 +684,14 @@ For more examples, please check guidance_template options."""
         except Exception as e:
             return "You are a professional image editing AI assistant. Please generate precise editing instructions based on user requirements."
 
-    def _parse_annotation_data(self, annotation_data: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
+    def _parse_layer_info(self, layer_info: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
         """Parse annotation data from frontend"""
         try:
-            if not annotation_data or not annotation_data.strip():
+            if not layer_info or not layer_info.strip():
                 self._log_debug("⚠️ Annotation data is empty", debug_mode)
                 return [], {}
             
-            parsed_data = json.loads(annotation_data)
+            parsed_data = json.loads(layer_info)
             self._log_debug(f"📊 Annotation data parsed successfully, data type: {type(parsed_data)}", debug_mode)
             
             # Extract annotations
@@ -1029,13 +1029,13 @@ For more examples, please check guidance_template options."""
             # If cleaning fails, return original
             return instructions
 
-    def _get_cache_key(self, annotation_data: str, edit_description: str, 
+    def _get_cache_key(self, layer_info: str, edit_description: str, 
                       edit_instruction_type: str, model: str, temperature: float,
                       guidance_style: str, guidance_template: str, seed: int,
                       custom_guidance: str = "", load_saved_guidance: str = "none") -> str:
         """Generate cache key including all parameters"""
         import hashlib
-        content = f"{annotation_data}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
+        content = f"{layer_info}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):

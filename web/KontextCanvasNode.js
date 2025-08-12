@@ -396,14 +396,10 @@ class LRPGCanvas {
         `;
         
         // 添加控制按钮
-        const addLayerBtn = this.createLayerControlButton('➕', '添加图层');
         const deleteLayerBtn = this.createLayerControlButton('🗑️', '删除图层');
-        const mergeLayerBtn = this.createLayerControlButton('🔗', '合并图层');
         const lockLayerBtn = this.createLayerControlButton('🔒', '锁定/解锁');
         
-        controlBar.appendChild(addLayerBtn);
         controlBar.appendChild(deleteLayerBtn);
-        controlBar.appendChild(mergeLayerBtn);
         controlBar.appendChild(lockLayerBtn);
         
         // 组装面板
@@ -441,9 +437,7 @@ class LRPGCanvas {
         this.layerCount = layerCount;
         
         // 绑定控制按钮事件
-        addLayerBtn.addEventListener('click', () => this.addNewLayer());
         deleteLayerBtn.addEventListener('click', () => this.deleteSelectedLayer());
-        mergeLayerBtn.addEventListener('click', () => this.mergeSelectedLayers());
         lockLayerBtn.addEventListener('click', () => this.toggleLayerLock());
         
         return panel;
@@ -748,21 +742,6 @@ class LRPGCanvas {
     }
     
     // 图层操作方法
-    addNewLayer() {
-        // 添加一个默认矩形作为新图层
-        const rect = new fabric.Rect({
-            left: 100,
-            top: 100,
-            width: 100,
-            height: 100,
-            fill: '#' + Math.floor(Math.random()*16777215).toString(16),
-            name: `图层 ${this.canvas.getObjects().length + 1}`
-        });
-        this.canvas.add(rect);
-        this.canvas.setActiveObject(rect);
-        this.canvas.renderAll();
-        this.updateLayerList();
-    }
     
     deleteSelectedLayer() {
         const activeObject = this.canvas.getActiveObject();
@@ -773,15 +752,6 @@ class LRPGCanvas {
         }
     }
     
-    mergeSelectedLayers() {
-        const activeSelection = this.canvas.getActiveObject();
-        if (activeSelection && activeSelection.type === 'activeSelection') {
-            const group = activeSelection.toGroup();
-            group.name = '合并的图层';
-            this.canvas.renderAll();
-            this.updateLayerList();
-        }
-    }
     
     toggleLayerLock() {
         const activeObject = this.canvas.getActiveObject();
@@ -2243,11 +2213,57 @@ class LRPGCanvas {
                 width: obj.width || 100,
                 height: obj.height || 100,
                 flipX: obj.flipX || false,
-                flipY: obj.flipY || false
+                flipY: obj.flipY || false,
+                // 新增图层状态信息
+                visible: obj.visible !== false, // 默认为true
+                locked: obj.selectable === false, // locked状态通过selectable判断
+                z_index: index, // 图层层级
+                name: obj.name || `图层 ${index + 1}`, // 图层名称
+                // 添加缩略图数据用于后续重构
+                thumbnail: this.generateObjectThumbnailData(obj)
             };
         });
 
         return layer_transforms;
+    }
+
+    generateObjectThumbnailData(obj) {
+        try {
+            // 创建临时画布用于生成缩略图
+            const tempCanvas = document.createElement('canvas');
+            const ctx = tempCanvas.getContext('2d');
+            
+            // 设置缩略图尺寸
+            const thumbSize = 64;
+            tempCanvas.width = thumbSize;
+            tempCanvas.height = thumbSize;
+            
+            // 获取对象边界
+            const bounds = obj.getBoundingRect();
+            const scale = Math.min(thumbSize / bounds.width, thumbSize / bounds.height);
+            
+            // 设置变换
+            ctx.save();
+            ctx.translate(thumbSize / 2, thumbSize / 2);
+            ctx.scale(scale, scale);
+            ctx.translate(-bounds.width / 2, -bounds.height / 2);
+            
+            // 渲染对象到缩略图
+            if (obj.type === 'image') {
+                const element = obj.getElement();
+                if (element) {
+                    ctx.drawImage(element, 0, 0, bounds.width, bounds.height);
+                }
+            }
+            
+            ctx.restore();
+            
+            // 返回base64数据
+            return tempCanvas.toDataURL('image/png');
+        } catch (e) {
+            console.warn('生成缩略图失败:', e);
+            return null;
+        }
     }
 
     resizeCanvas(width, height) {

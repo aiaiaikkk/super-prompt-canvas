@@ -2,7 +2,7 @@
 API Flux Kontext Enhancer Node
 API集成的Flux Kontext提示词增强节点
 
-将VisualPromptEditor的标注数据通过API模型转换为
+将LRPG Canvas的图层数据通过API模型转换为
 Flux Kontext优化的结构化编辑指令
 
 支持多个API提供商:
@@ -238,10 +238,10 @@ For more examples, please check guidance_template options."""
 
         return {
             "required": {
-                "annotation_data": ("STRING", {
+                "layer_info": ("STRING", {
                     "forceInput": True,
                     "default": "",
-                    "tooltip": "Annotation JSON data from VisualPromptEditor (optional - can work with edit_description alone)"
+                    "tooltip": "Layer information JSON from LRPG Canvas (optional - can work with edit_description alone)"
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,
@@ -351,12 +351,12 @@ For more examples, please check guidance_template options."""
         }
         self._manage_cache()
     
-    def _get_cache_key(self, annotation_data: str, 
+    def _get_cache_key(self, layer_info: str, 
                       edit_description: str, 
                       model_name: str, seed: int = 0) -> str:
         """生成缓存键"""
         import hashlib
-        content = f"{annotation_data}|{edit_description}|{model_name}|{seed}"
+        content = f"{layer_info}|{edit_description}|{model_name}|{seed}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
@@ -391,7 +391,7 @@ For more examples, please check guidance_template options."""
     
     
     def _build_intelligent_system_prompt(self, editing_intent, processing_style, 
-                                       edit_description, annotation_data,
+                                       edit_description, layer_info,
                                        guidance_style, guidance_template, custom_guidance,
                                        load_saved_guidance, language, guidance_manager):
         """构建智能系统提示词"""
@@ -407,7 +407,7 @@ For more examples, please check guidance_template options."""
                 editing_intent=editing_intent,
                 processing_style=processing_style,
                 edit_description=edit_description,
-                annotation_data=annotation_data
+                layer_info=layer_info
             )
             
             return enhanced_prompt
@@ -423,7 +423,7 @@ For more examples, please check guidance_template options."""
                 language=language
             )
 
-    def _build_user_prompt(self, annotation_data: str, edit_description: str = "") -> str:
+    def _build_user_prompt(self, layer_info: str, edit_description: str = "") -> str:
         """构建用户提示词"""
         
         prompt_parts = []
@@ -437,9 +437,9 @@ For more examples, please check guidance_template options."""
         # 2. 标注数据
         prompt_parts.append(f"\n**Annotation Data:**")
         
-        # 处理编号显示设置
-        processed_annotation_data = self._process_annotation_data(annotation_data)
-        prompt_parts.append(f"```json\n{processed_annotation_data}\n```")
+        # 处理图层信息
+        processed_layer_info = self._process_layer_info(layer_info)
+        prompt_parts.append(f"```json\n{processed_layer_info}\n```")
         
         # 3. 简化的生成要求
         prompt_parts.append(f"\nGenerate ONLY a single, simple editing instruction.")
@@ -453,11 +453,11 @@ For more examples, please check guidance_template options."""
         
         return "\n".join(prompt_parts)
     
-    def _process_annotation_data(self, annotation_data: str) -> str:
-        """处理标注数据，根据include_annotation_numbers设置过滤编号信息"""
+    def _process_layer_info(self, layer_info: str) -> str:
+        """处理图层信息，根据include_annotation_numbers设置过滤编号信息"""
         try:
             import json
-            data = json.loads(annotation_data)
+            data = json.loads(layer_info)
             
             # 检查是否包含编号设置
             include_numbers = data.get("include_annotation_numbers", True)
@@ -470,8 +470,8 @@ For more examples, please check guidance_template options."""
             
             return json.dumps(data, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"[WARN] Error processing annotation data: {str(e)}")
-            return annotation_data
+            print(f"[WARN] Error processing layer info: {str(e)}")
+            return layer_info
     
     def _generate_with_api(self, client, model_name: str, 
                          system_prompt: str, user_prompt: str, 
@@ -648,7 +648,7 @@ For more examples, please check guidance_template options."""
         return edit_instruction_type, guidance_style, guidance_template
 
     def enhance_flux_instructions(self, api_provider, api_key, model_preset, custom_model, 
-                                annotation_data, edit_description, 
+                                layer_info, edit_description, 
                                 editing_intent, processing_style, seed,
                                 custom_guidance, load_saved_guidance,
                                 save_guidance_name, save_guidance_button, 
@@ -689,7 +689,7 @@ For more examples, please check guidance_template options."""
             # 构建系统提示词
             try:
                 system_prompt = self._build_intelligent_system_prompt(
-                    editing_intent, processing_style, edit_description, annotation_data,
+                    editing_intent, processing_style, edit_description, layer_info,
                     guidance_style, guidance_template, custom_guidance, 
                     load_saved_guidance, language, guidance_manager_instance
                 )
@@ -707,14 +707,14 @@ For more examples, please check guidance_template options."""
                 )
 
             # 2. 构建用户Prompt
-            user_prompt = self._build_user_prompt(annotation_data, edit_description)
+            user_prompt = self._build_user_prompt(layer_info, edit_description)
             
             # 3. API调用 & 缓存管理
             client = self._create_api_client(api_provider, api_key)
             if client is None:
                 return ("", "API client creation failed. Please check API key and provider.")
 
-            cache_key = self._get_cache_key(annotation_data, edit_description, model_name, seed)
+            cache_key = self._get_cache_key(layer_info, edit_description, model_name, seed)
             if cache_key in self.cache:
                 print("[OK] Using cached response")
                 cached_data = self.cache[cache_key]

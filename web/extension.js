@@ -6,10 +6,8 @@
  */
 
 import { app } from "../../scripts/app.js";
-import { KontextUtils, Z_INDEX } from "./modules/visual_prompt_editor_utils.js";
 
-// 导入核心前端扩展 - 纯Fabric.js官方架构
-import "./visual_prompt_editor_v2.js";        // 核心可视化编辑器（简化版）
+// 导入核心前端扩展
 import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展
 import "./API_flux_kontext_enhancer.js";      // API增强节点扩展
 
@@ -114,15 +112,19 @@ app.registerExtension({
     },
     
     openQuickEditor() {
-        // 查找Visual Prompt Editor节点
-        const editorNode = app.graph._nodes.find(node => 
-            node.type === "VisualPromptEditor"
+        // 查找LRPG Canvas节点
+        const canvasNode = app.graph._nodes.find(node => 
+            node.type === "KontextCanvas"
         );
         
-        if (editorNode) {
-            editorNode.openUnifiedEditor();
+        if (canvasNode) {
+            // 触发canvas节点的编辑器打开
+            const widget = canvasNode.widgets.find(w => w.name === "canvas_editor");
+            if (widget && widget.callback) {
+                widget.callback();
+            }
         } else {
-            app.ui.dialog.show("⚠️ No Visual Prompt Editor node found in the current workflow.");
+            app.ui.dialog.show("⚠️ No LRPG Canvas node found in the current workflow.");
         }
     },
     
@@ -213,7 +215,6 @@ app.registerExtension({
     }
 });
 
-// 统一工具函数：使用utils.js中的KontextUtils类
-window.KontextUtils = KontextUtils;
+// 新的Kontext节点系统已启用
 
 console.log("🎨 Kontext Visual Prompt Window main extension loaded");

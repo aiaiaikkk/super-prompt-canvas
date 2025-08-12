@@ -2,7 +2,7 @@
 OllamaFluxKontextEnhancer Node
 Ollama-integrated Flux Kontext prompt enhancement node
 
-Converts VisualPromptEditor annotation data through local Ollama models to
+Converts LRPG Canvas layer data through local Ollama models to
 Flux Kontext-optimized structured editing instructions
 """
 
@@ -35,7 +35,7 @@ class OllamaFluxKontextEnhancerV2:
     """
     🦙 Ollama Flux Kontext Enhancer
     
-    Converts annotation data from VisualPromptEditor into structured editing instructions
+    Converts layer data from LRPG Canvas into structured editing instructions
     optimized for Flux Kontext, using local Ollama models.
     """
     
@@ -320,10 +320,10 @@ For more examples, please check guidance_template options."""
         
         return {
             "required": {
-                "annotation_data": ("STRING", {
+                "layer_info": ("STRING", {
                     "forceInput": True,
                     "default": "",
-                    "tooltip": "Annotation JSON data from VisualPromptEditor. Can be left empty if only using Edit Description."
+                    "tooltip": "Layer information JSON from LRPG Canvas. Can be left empty if only using Edit Description."
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,
@@ -453,13 +453,13 @@ For more examples, please check guidance_template options."""
         self.debug_logs = []
         self.start_time = None
     
-    def _get_cache_key(self, annotation_data: str, edit_description: str, 
+    def _get_cache_key(self, layer_info: str, edit_description: str, 
                       edit_instruction_type: str, model: str, temperature: float,
                       guidance_style: str, guidance_template: str, seed: int,
                       custom_guidance: str = "", load_saved_guidance: str = "none") -> str:
         """生成缓存键，包含所有参数"""
         import hashlib
-        content = f"{annotation_data}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
+        content = f"{layer_info}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
@@ -470,7 +470,7 @@ For more examples, please check guidance_template options."""
             del self.cache[oldest_key]
     
     def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
-                                       edit_description: str, annotation_data: str = "",
+                                       edit_description: str, layer_info: str = "",
                                        guidance_style: str = "efficient_concise", guidance_template: str = "none",
                                        custom_guidance: str = "", load_saved_guidance: str = "none",
                                        language: str = "zh", guidance_manager = None) -> str:
@@ -489,7 +489,7 @@ For more examples, please check guidance_template options."""
                 editing_intent=editing_intent,
                 processing_style=processing_style,
                 edit_description=edit_description,
-                annotation_data=annotation_data
+                layer_info=layer_info
             )
             
             return intelligent_prompt
@@ -629,7 +629,7 @@ For more examples, please check guidance_template options."""
         
         return edit_instruction_type, guidance_style, guidance_template
 
-    def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
+    def enhance_flux_instructions(self, layer_info: str, edit_description: str, model: str, 
                                 auto_unload_model: bool, editing_intent: str, processing_style: str,
                                 image=None, url: str = "http://127.0.0.1:11434", temperature: float = 0.7,
                                 enable_visual_analysis: bool = False, seed: int = 42,
@@ -663,7 +663,7 @@ For more examples, please check guidance_template options."""
             
         self._log_debug(f"🎯 Intent mapping: {editing_intent} + {processing_style} -> {edit_instruction_type}, {guidance_style}, {guidance_template}", debug_mode)
 
-        if not (edit_description and edit_description.strip()) and not (annotation_data and annotation_data.strip()):
+        if not (edit_description and edit_description.strip()) and not (layer_info and layer_info.strip()):
             error_msg = "Error: You must provide either an edit description or connect valid annotation data."
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return self._create_fallback_output(error_msg, debug_mode)
@@ -677,12 +677,12 @@ For more examples, please check guidance_template options."""
         parsed_data = {}
         has_annotations = False
 
-        if annotation_data and annotation_data.strip():
+        if layer_info and layer_info.strip():
             try:
-                parsed_json = json.loads(annotation_data)
+                parsed_json = json.loads(layer_info)
                 if isinstance(parsed_json, dict) and 'annotations' in parsed_json and len(parsed_json['annotations']) > 0:
                     self._log_debug("  -> Path: Annotation-based Generation", debug_mode)
-                    annotations, parsed_data = self._parse_annotation_data(annotation_data, debug_mode)
+                    annotations, parsed_data = self._parse_layer_info(layer_info, debug_mode)
                     has_annotations = True
                 else:
                     self._log_debug("  -> Path: Text-only Generation (annotations list is empty or not a valid dict structure)", debug_mode)
@@ -691,7 +691,7 @@ For more examples, please check guidance_template options."""
         else:
             self._log_debug("  -> Path: Text-only Generation (no annotation data provided)", debug_mode)
 
-        strategy_input = annotation_data if has_annotations else ""
+        strategy_input = layer_info if has_annotations else ""
         strategy = self._auto_detect_strategy(strategy_input, edit_description, debug_mode) if edit_instruction_type == 'auto_detect' else edit_instruction_type
         self._log_debug(f"   - Determined Strategy: {strategy}", debug_mode)
 
@@ -704,7 +704,7 @@ For more examples, please check guidance_template options."""
         try:
             # 缓存键生成
             cache_key = self._get_cache_key(
-                annotation_data, edit_description, edit_instruction_type, model, temperature,
+                layer_info, edit_description, edit_instruction_type, model, temperature,
                 guidance_style, guidance_template, seed, custom_guidance, load_saved_guidance
             )
             
@@ -858,16 +858,16 @@ For more examples, please check guidance_template options."""
             self._log_debug(f"❌ Image encoding failed: {e}", debug_mode)
             return None
     
-    def _auto_detect_strategy(self, annotation_data: str, edit_description: str, debug_mode: bool) -> str:
+    def _auto_detect_strategy(self, layer_info: str, edit_description: str, debug_mode: bool) -> str:
         """根据输入自动检测最佳编辑策略"""
         self._log_debug("  -> Detecting strategy...", debug_mode)
         
-        if not annotation_data or not annotation_data.strip():
+        if not layer_info or not layer_info.strip():
             self._log_debug("     - No annotation data string, defaulting to 'semantic_enhanced'.", debug_mode)
             return "semantic_enhanced"
             
         try:
-            parsed_data = json.loads(annotation_data)
+            parsed_data = json.loads(layer_info)
             annotations = parsed_data.get("annotations", [])
             
             if not annotations:
@@ -883,14 +883,14 @@ For more examples, please check guidance_template options."""
         self._log_debug(f"     - Defaulting to 'spatial_precise' for annotation-based edit.", debug_mode)
         return "spatial_precise"
     
-    def _parse_annotation_data(self, annotation_data: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
+    def _parse_layer_info(self, layer_info: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
         """解析从前端传入的JSON标注数据"""
         try:
-            if not annotation_data or not annotation_data.strip():
+            if not layer_info or not layer_info.strip():
                 self._log_debug("⚠️ Annotation data is empty", debug_mode)
                 return [], {}
             
-            parsed_data = json.loads(annotation_data)
+            parsed_data = json.loads(layer_info)
             self._log_debug(f"📊 Annotation data parsed successfully, data type: {type(parsed_data)}", debug_mode)
             
             # 提取annotations

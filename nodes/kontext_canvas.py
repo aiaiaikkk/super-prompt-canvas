@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import base64
 import cv2
+import time
 from PIL import Image, ImageOps
 from io import BytesIO
 from threading import Event
@@ -189,6 +190,18 @@ async def handle_canvas_data(request):
             'transform_data': transform_data
         }
 
+        # 存储到缓存中，供其他节点使用
+        canvas_cache = get_canvas_cache()
+        canvas_cache[node_id] = {
+            'transform_data': transform_data,
+            'canvas_size': {
+                'width': transform_data.get('background', {}).get('width', 500),
+                'height': transform_data.get('background', {}).get('height', 500)
+            },
+            'timestamp': time.time()
+        }
+        print(f"[LRPG Canvas] 已将节点 {node_id} 的数据存储到缓存")
+
         waiting_node.processed_data = processed_data
         waiting_node.response_event.set()
         print(f"[LRPG Canvas] 已完成数据处理并通知节点 {node_id}")
@@ -215,6 +228,51 @@ async def clear_canvas_cache(request):
         
     except Exception as e:
         print(f"[LRPG Canvas] 处理画布变化通知失败: {str(e)}")
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+@routes.post("/lrpg_canvas_get_data")
+async def get_canvas_data(request):
+    """获取指定节点的画布数据"""
+    try:
+        data = await request.json()
+        node_id = data.get('node_id')
+        if not node_id:
+            return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
+        
+        print(f"[LRPG Canvas] 尝试获取节点 {node_id} 的画布数据")
+        
+        # 从节点数据存储中获取
+        canvas_storage = get_canvas_storage()
+        canvas_cache = get_canvas_cache()
+        
+        # 检查缓存中是否有数据
+        if node_id in canvas_cache:
+            cached_data = canvas_cache[node_id]
+            print(f"[LRPG Canvas] 从缓存获取到节点 {node_id} 的数据")
+            return web.json_response({
+                "status": "success",
+                "transform_data": cached_data.get('transform_data', {}),
+                "canvas_size": cached_data.get('canvas_size', {'width': 500, 'height': 500})
+            })
+        
+        # 检查存储中是否有数据
+        if node_id in canvas_storage:
+            stored_data = canvas_storage[node_id]
+            print(f"[LRPG Canvas] 从存储获取到节点 {node_id} 的数据")
+            return web.json_response({
+                "status": "success",
+                "transform_data": stored_data.get('transform_data', {}),
+                "canvas_size": stored_data.get('canvas_size', {'width': 500, 'height': 500})
+            })
+        
+        print(f"[LRPG Canvas] 未找到节点 {node_id} 的数据")
+        return web.json_response({
+            "status": "not_found",
+            "message": "No data found for the specified node"
+        })
+        
+    except Exception as e:
+        print(f"[LRPG Canvas] 获取画布数据失败: {str(e)}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 class LRPGCanvas:
@@ -251,8 +309,8 @@ class LRPGCanvas:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "TRANSFORM_DATA")
-    RETURN_NAMES = ("image", "mask", "transform_data") 
+    RETURN_TYPES = ("IMAGE", "LAYER_INFO")
+    RETURN_NAMES = ("image", "layer_info") 
     FUNCTION = "canvas_execute"
     CATEGORY = CATEGORY_TYPE
     OUTPUT_NODE = True
@@ -288,7 +346,7 @@ class LRPGCanvas:
                 print(f"[LRPG Canvas] 等待前端响应超时")
                 self.waiting_for_response = False
                 LRPGCanvas.clean_nodes()
-                return None, None, None
+                return None, None
 
             self.waiting_for_response = False
             LRPGCanvas.clean_nodes()
@@ -305,15 +363,39 @@ class LRPGCanvas:
                         'height': bg_height
                     }
                 
-                return image, mask, transform_data
+                # 构建详细的图层信息
+                layer_info = {
+                    'layers': [],
+                    'canvas_size': {
+                        'width': bg_width,
+                        'height': bg_height
+                    },
+                    'transform_data': transform_data
+                }
+                
+                # 从transform_data中提取图层信息
+                for layer_id, layer_data in transform_data.items():
+                    if layer_id != 'background':
+                        layer_info['layers'].append({
+                            'id': layer_id,
+                            'transform': layer_data,
+                            'visible': layer_data.get('visible', True),
+                            'locked': layer_data.get('locked', False),
+                            'z_index': layer_data.get('z_index', 0)
+                        })
+                
+                # 按z_index排序
+                layer_info['layers'].sort(key=lambda x: x.get('z_index', 0))
+                
+                return image, layer_info
             
-            return None, None, None
+            return None, None
 
         except Exception as e:
             print(f"[LRPG Canvas] 处理过程发生异常: {str(e)}")
             self.waiting_for_response = False
             LRPGCanvas.clean_nodes()
-            return None, None, None
+            return None, None
 
     def __del__(self):
         # 确保从活动节点列表中删除 - 完全复制lg_tools的做法
