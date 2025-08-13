@@ -8,10 +8,9 @@
 
 ### 🎨 LRPG Canvas  
 可视化画布标注工具，提供专业的图层管理和绘制功能
-- 基于Fabric.js的交互式画布界面
 - 支持多种绘制工具和图层操作（画笔、形状、文字、裁切等）
-- **画笔羽化效果**: 高斯分布算法实现的专业边缘羽化，8-15层透明度渐变
-- **精确鼠标控制**: 完全修复的画笔工具，按住绘制、释放停止，响应自然
+- **画笔羽化效果**: 专业边缘羽化，支持1-20像素可调羽化半径
+- **精确鼠标控制**: 按住绘制、释放停止，响应自然
 - 自动生成结构化图层数据供下游节点使用
 - 实时画布状态同步
 
@@ -109,7 +108,7 @@ pip install torch torchvision opencv-python openai
 
 ## ⚡ 核心特性
 
-- **专业画布**: 基于Fabric.js的高性能图层编辑器
+- **专业画布**: 高性能图层编辑器，支持画笔羽化效果
 - **智能模板**: 40+种专业编辑操作模板  
 - **多AI集成**: 内置远程API和本地Ollama服务支持
 - **动态模型选择**: 自动获取最新可用AI模型列表
@@ -129,8 +128,7 @@ pip install torch torchvision opencv-python openai
   - 确保只有按住鼠标左键时才绘制，释放时停止
   - 动态管理事件监听器，避免与Fabric.js内置功能冲突
 - **🎯 真正的羽化效果**: 重构羽化算法实现专业级边缘效果
-  - 使用高斯分布数学模型计算透明度衰减
-  - 8-15层透明度渐变，提供平滑自然的边缘模糊
+  - 多层透明度渐变，提供平滑自然的边缘模糊
   - 替换简单阴影效果，实现真正的边缘羽化
   - 支持1-20像素可调羽化半径
 
@@ -152,10 +150,9 @@ pip install torch torchvision opencv-python openai
 
 ### 🎨 LRPG Canvas  
 Visual canvas annotation tool providing professional layer management and drawing capabilities
-- Interactive canvas interface based on Fabric.js
 - Support for multiple drawing tools and layer operations (brush, shapes, text, cropping, etc.)
-- **Brush Feather Effect**: Professional edge feathering with Gaussian distribution algorithm, 8-15 layer transparency gradients
-- **Precise Mouse Control**: Completely fixed brush tool with natural hold-to-draw, release-to-stop response
+- **Brush Feather Effect**: Professional edge feathering with adjustable feather radius from 1-20 pixels
+- **Precise Mouse Control**: Natural hold-to-draw, release-to-stop response
 - Automatically generates structured layer data for downstream nodes
 - Real-time canvas state synchronization
 
@@ -253,7 +250,7 @@ After restarting ComfyUI, find the "🎨 LRPG Canvas" category in the node menu
 
 ## ⚡ Core Features
 
-- **Professional Canvas**: High-performance layer editor based on Fabric.js
+- **Professional Canvas**: High-performance layer editor with brush feather effects
 - **Intelligent Templates**: 40+ professional editing operation templates
 - **Multi-AI Integration**: Built-in remote API and local Ollama service support
 - **Dynamic Model Selection**: Automatically fetches latest available AI model lists
@@ -273,8 +270,7 @@ After restarting ComfyUI, find the "🎨 LRPG Canvas" category in the node menu
   - Ensures drawing only occurs when holding left mouse button, stops when released
   - Dynamic event listener management to avoid conflicts with Fabric.js built-in functionality
 - **🎯 True Feather Effect**: Reconstructed feathering algorithm for professional-grade edge effects
-  - Uses Gaussian distribution mathematical model for transparency decay calculation
-  - 8-15 layer transparency gradients providing smooth and natural edge blur
+  - Multi-layer transparency gradients providing smooth and natural edge blur
   - Replaced simple shadow effects with true edge feathering
   - Supports adjustable feather radius from 1-20 pixels
 
