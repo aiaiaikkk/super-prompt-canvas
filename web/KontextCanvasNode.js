@@ -18,6 +18,7 @@ class LRPGCanvas {
         this.node = node;
         this.lastCanvasState = null; 
         this.isSendingData = false; // 防重复发送标志
+        this.customEventsActive = false; // 自定义事件监听器状态标志
         
         // 使用传入的初始尺寸或默认尺寸
         this.originalSize = initialSize || {
@@ -1115,7 +1116,130 @@ class LRPGCanvas {
         
         colorSection.append(colorTitle, colorPicker, bgColorTitle, bgColorPicker, fillModeTitle, fillModeContainer);
         
-        sidebar.append(toolsContainer, colorSection);
+        // 画笔参数控制区域
+        const brushSection = document.createElement('div');
+        brushSection.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        `;
+        
+        const brushTitle = document.createElement('div');
+        brushTitle.textContent = '画笔';
+        brushTitle.style.cssText = toolsTitle.style.cssText;
+        
+        // 画笔粗细控制
+        const brushSizeContainer = document.createElement('div');
+        brushSizeContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            width: 100%;
+        `;
+        
+        const brushSizeLabel = document.createElement('div');
+        brushSizeLabel.textContent = '粗细';
+        brushSizeLabel.style.cssText = `
+            color: #999;
+            font-size: 9px;
+            margin-bottom: 2px;
+        `;
+        
+        this.brushSize = 2; // 初始画笔粗细
+        
+        const brushSizeSlider = document.createElement('input');
+        brushSizeSlider.type = 'range';
+        brushSizeSlider.min = '1';
+        brushSizeSlider.max = '50';
+        brushSizeSlider.value = this.brushSize;
+        brushSizeSlider.style.cssText = `
+            width: 32px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            border-radius: 2px;
+            appearance: none;
+            cursor: pointer;
+        `;
+        
+        // 自定义滑块样式
+        const sliderStyle = document.createElement('style');
+        sliderStyle.textContent = `
+            input[type="range"]::-webkit-slider-thumb {
+                appearance: none;
+                width: 8px;
+                height: 8px;
+                background: #22c55e;
+                border-radius: 50%;
+                cursor: pointer;
+            }
+            input[type="range"]::-moz-range-thumb {
+                width: 8px;
+                height: 8px;
+                background: #22c55e;
+                border-radius: 50%;
+                border: none;
+                cursor: pointer;
+            }
+        `;
+        document.head.appendChild(sliderStyle);
+        
+        const brushSizeValue = document.createElement('div');
+        brushSizeValue.textContent = this.brushSize + 'px';
+        brushSizeValue.style.cssText = `
+            color: #e2e8f0;
+            font-size: 8px;
+            min-height: 10px;
+        `;
+        
+        brushSizeSlider.oninput = (e) => {
+            this.brushSize = parseInt(e.target.value);
+            brushSizeValue.textContent = this.brushSize + 'px';
+            if (this.canvas.isDrawingMode) {
+                this.canvas.freeDrawingBrush.width = this.brushSize;
+            }
+        };
+        
+        // 边缘羽化控制
+        const featherContainer = document.createElement('div');
+        featherContainer.style.cssText = brushSizeContainer.style.cssText;
+        
+        const featherLabel = document.createElement('div');
+        featherLabel.textContent = '羽化';
+        featherLabel.style.cssText = brushSizeLabel.style.cssText;
+        featherLabel.style.marginTop = '4px';
+        
+        this.brushFeather = 0; // 初始羽化值
+        
+        const featherSlider = document.createElement('input');
+        featherSlider.type = 'range';
+        featherSlider.min = '0';
+        featherSlider.max = '20';
+        featherSlider.value = this.brushFeather;
+        featherSlider.style.cssText = brushSizeSlider.style.cssText;
+        
+        const featherValue = document.createElement('div');
+        featherValue.textContent = this.brushFeather + 'px';
+        featherValue.style.cssText = brushSizeValue.style.cssText;
+        
+        featherSlider.oninput = (e) => {
+            this.brushFeather = parseInt(e.target.value);
+            featherValue.textContent = this.brushFeather + 'px';
+            if (this.canvas.isDrawingMode) {
+                this.updateBrushFeather();
+            }
+        };
+        
+        brushSizeContainer.append(brushSizeLabel, brushSizeSlider, brushSizeValue);
+        featherContainer.append(featherLabel, featherSlider, featherValue);
+        brushSection.append(brushTitle, brushSizeContainer, featherContainer);
+        
+        sidebar.append(toolsContainer, colorSection, brushSection);
         
         // 设置工具事件处理
         this.setupOverlayToolEvents();
@@ -1191,12 +1315,15 @@ class LRPGCanvas {
                 this.canvas.isDrawingMode = false;
                 this.canvas.selection = true;
                 this.canvas.defaultCursor = 'default';
+                this.addCustomMouseEvents(); // 选择工具需要自定义事件处理
                 break;
                 
             case 'freehand':
+                this.removeCustomMouseEvents(); // 移除自定义事件监听器，让Fabric.js完全控制
                 this.canvas.isDrawingMode = true;
-                this.canvas.freeDrawingBrush.width = 2;
+                this.canvas.freeDrawingBrush.width = this.brushSize || 2;
                 this.canvas.freeDrawingBrush.color = this.currentColor || '#ff0000';
+                this.updateBrushFeather();
                 this.canvas.selection = false;
                 break;
                 
@@ -1204,6 +1331,7 @@ class LRPGCanvas {
                 this.canvas.isDrawingMode = false;
                 this.canvas.selection = false;
                 this.canvas.defaultCursor = 'crosshair';
+                this.addCustomMouseEvents(); // 裁切工具需要自定义事件处理
                 this.initCropMode();
                 break;
                 
@@ -1211,6 +1339,7 @@ class LRPGCanvas {
                 this.canvas.isDrawingMode = false;
                 this.canvas.selection = false;
                 this.canvas.defaultCursor = 'crosshair';
+                this.addCustomMouseEvents(); // 其他绘制工具需要自定义事件处理
                 break;
         }
         
@@ -1485,23 +1614,14 @@ class LRPGCanvas {
     }
 
     setupOverlayToolEvents() {
-        // 按visual prompt editor方式：智能鼠标点击处理
-        this.canvas.on('mouse:down', (e) => {
-            this.handleMouseDown(e);
-        });
+        // 保存事件处理器的引用，方便后续移除
+        this.mouseDownHandler = (e) => this.handleMouseDown(e);
+        this.mouseMoveHandler = (e) => this.handleMouseMove(e);
+        this.mouseUpHandler = (e) => this.handleMouseUp(e);
+        this.dblClickHandler = (e) => this.handleDoubleClick(e);
         
-        this.canvas.on('mouse:move', (e) => {
-            this.handleMouseMove(e);
-        });
-        
-        this.canvas.on('mouse:up', (e) => {
-            this.handleMouseUp(e);
-        });
-        
-        // 双击编辑文字
-        this.canvas.on('mouse:dblclick', (e) => {
-            this.handleDoubleClick(e);
-        });
+        // 添加自定义鼠标事件监听器
+        this.addCustomMouseEvents();
         
         // 文字编辑完成事件
         this.canvas.on('text:editing:exited', (e) => {
@@ -1529,6 +1649,30 @@ class LRPGCanvas {
         this.canvas.on('object:modified', () => {
             this.markCanvasChanged();
         });
+    }
+
+    // 添加自定义鼠标事件监听器
+    addCustomMouseEvents() {
+        if (!this.customEventsActive) {
+            this.canvas.on('mouse:down', this.mouseDownHandler);
+            this.canvas.on('mouse:move', this.mouseMoveHandler);
+            this.canvas.on('mouse:up', this.mouseUpHandler);
+            this.canvas.on('mouse:dblclick', this.dblClickHandler);
+            this.customEventsActive = true;
+            // console.log('[LRPG Canvas] 自定义鼠标事件已添加');
+        }
+    }
+
+    // 移除自定义鼠标事件监听器
+    removeCustomMouseEvents() {
+        if (this.customEventsActive) {
+            this.canvas.off('mouse:down', this.mouseDownHandler);
+            this.canvas.off('mouse:move', this.mouseMoveHandler);
+            this.canvas.off('mouse:up', this.mouseUpHandler);
+            this.canvas.off('mouse:dblclick', this.dblClickHandler);
+            this.customEventsActive = false;
+            // console.log('[LRPG Canvas] 自定义鼠标事件已移除');
+        }
     }
 
     handleMouseDown(e) {
@@ -2302,6 +2446,119 @@ class LRPGCanvas {
         // 如果画布有背景颜色，确保它正确填充
         if (this.canvas.backgroundColor) {
             this.canvas.renderAll();
+        }
+    }
+
+    // 更新画笔羽化效果
+    updateBrushFeather() {
+        if (!this.canvas.isDrawingMode) return;
+        
+        const brushSize = this.brushSize || 2;
+        const featherValue = this.brushFeather || 0;
+        const color = this.currentColor || '#ff0000';
+        
+        // 创建标准画笔，不重写任何方法
+        const brush = new fabric.PencilBrush(this.canvas);
+        brush.width = brushSize;
+        brush.color = color;
+        
+        this.canvas.freeDrawingBrush = brush;
+        
+        // 移除之前的监听器
+        if (this._pathCreatedHandler) {
+            this.canvas.off('path:created', this._pathCreatedHandler);
+            this.canvas.off('object:added', this._pathCreatedHandler);
+            this._pathCreatedHandler = null;
+        }
+        
+        // 如果有羽化值，添加真正的羽化效果
+        if (featherValue > 0) {
+            this._pathCreatedHandler = (e) => {
+                console.log(`[画笔羽化] 原始事件对象:`, e);
+                
+                // 尝试多种方式获取路径对象
+                let pathObject = null;
+                if (e.path) {
+                    pathObject = e.path;
+                } else if (e.target) {
+                    pathObject = e.target;
+                } else if (e && e.type === 'path') {
+                    pathObject = e;
+                }
+                
+                if (pathObject && pathObject.type === 'path') {
+                    try {
+                        console.log(`[画笔羽化] 开始应用真正的羽化效果，羽化值: ${featherValue}px`);
+                        
+                        // 移除原有的阴影效果
+                        pathObject.set('shadow', null);
+                        
+                        // 获取原始路径数据
+                        const originalPath = pathObject.path;
+                        const originalStrokeWidth = pathObject.strokeWidth || brushSize;
+                        
+                        // 创建精细的多层羽化效果
+                        const featherLayers = Math.min(15, Math.max(8, Math.floor(featherValue / 1.5))); // 8-15层，更细腻
+                        
+                        // 高斯分布函数，用于计算更自然的透明度
+                        const gaussianOpacity = (distance, sigma) => {
+                            return Math.exp(-(distance * distance) / (2 * sigma * sigma));
+                        };
+                        
+                        const sigma = featherValue / 3; // 控制羽化的衰减速度
+                        
+                        for (let i = featherLayers - 1; i >= 0; i--) {
+                            const distance = (i + 1) * featherValue / featherLayers; // 距离中心的距离
+                            const layerWidth = originalStrokeWidth + distance * 2; // 宽度线性增加
+                            
+                            // 使用高斯分布计算透明度，使边缘更自然
+                            let layerOpacity = gaussianOpacity(distance, sigma) * 0.9;
+                            
+                            // 为最外层添加额外的衰减
+                            if (i < featherLayers * 0.3) {
+                                layerOpacity *= (i / (featherLayers * 0.3)) * 0.7;
+                            }
+                            
+                            // 确保透明度在合理范围内
+                            layerOpacity = Math.max(0.02, Math.min(0.9, layerOpacity));
+                            
+                            // 创建羽化层路径
+                            const featherPath = new fabric.Path(originalPath, {
+                                stroke: color,
+                                strokeWidth: layerWidth,
+                                fill: 'transparent',
+                                opacity: layerOpacity,
+                                strokeLineCap: 'round',
+                                strokeLineJoin: 'round',
+                                selectable: false,
+                                evented: false
+                            });
+                            
+                            // 将羽化层添加到画布，但要在原路径下方
+                            this.canvas.insertAt(featherPath, this.canvas.getObjects().indexOf(pathObject), false);
+                        }
+                        
+                        // 调整原始路径到最上层，确保清晰的中心线条
+                        pathObject.set({
+                            strokeWidth: originalStrokeWidth,
+                            opacity: 1
+                        });
+                        this.canvas.bringToFront(pathObject);
+                        
+                        this.canvas.renderAll();
+                        console.log(`[画笔羽化] 真正的羽化效果已应用: ${featherLayers}层, 羽化值: ${featherValue}px`);
+                    } catch (error) {
+                        console.error('[画笔羽化] 应用羽化效果时出错:', error);
+                    }
+                } else {
+                    console.log(`[画笔羽化] 未找到有效的路径对象`);
+                }
+            };
+            
+            this.canvas.on('path:created', this._pathCreatedHandler);
+            console.log(`[画笔] 画笔设置完成，羽化值: ${featherValue}px`);
+        } else {
+            console.log('[画笔] 画笔设置完成，无羽化效果');
         }
     }
 

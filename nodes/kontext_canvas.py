@@ -32,55 +32,6 @@ def get_canvas_cache():
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
 
-class LRPGCanvasTool:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "bg_img": ("IMAGE",),
-            },
-            "optional": {
-                "img_1": ("IMAGE",),
-            }
-        }
-    RETURN_NAMES = ("lrpg_data",)
-    RETURN_TYPES = ("LRPG_DATA",)
-    FUNCTION = "process_images"
-    CATEGORY = CATEGORY_TYPE
-
-    def process_images(self, bg_img, **kwargs):
-        canvas_data = {
-            "background": None,
-            "layers": []
-        }
-        
-        canvas_data["background"] = {
-            "id": 0,
-            "image": tensor_to_base64(bg_img),
-            "is_background": True,
-            "size": {
-                "height": int(bg_img.shape[1]),
-                "width": int(bg_img.shape[2])
-            }
-        }
-        
-        for key, value in kwargs.items():
-            if value is not None and key.startswith("img_"):
-                layer_id = int(key.split('_')[1])
-                
-                layer_data = {
-                    "id": layer_id,
-                    "image": tensor_to_base64(value),
-                    "is_background": False,
-                    "size": {
-                        "height": int(value.shape[1]),
-                        "width": int(value.shape[2])
-                    }
-                }
-                canvas_data["layers"].append(layer_data)
-        
-        canvas_data["layers"].sort(key=lambda x: x["id"])
-        return (canvas_data,)
 
 def base64_to_tensor(base64_string):
     """将 base64 图像数据转换为 tensor"""
@@ -434,12 +385,10 @@ def array_to_tensor(array_data, data_type):
 
 # 节点注册
 NODE_CLASS_MAPPINGS = {
-    "LRPGCanvasTool": LRPGCanvasTool,
     "LRPGCanvas": LRPGCanvas,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LRPGCanvasTool": "🎨 LRPG Canvas Tool",
     "LRPGCanvas": "🎨 LRPG Canvas",
 }
 
