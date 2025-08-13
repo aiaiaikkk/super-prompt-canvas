@@ -9,7 +9,9 @@
 ### 🎨 LRPG Canvas  
 可视化画布标注工具，提供专业的图层管理和绘制功能
 - 基于Fabric.js的交互式画布界面
-- 支持多种绘制工具和图层操作
+- 支持多种绘制工具和图层操作（画笔、形状、文字、裁切等）
+- **画笔羽化效果**: 高斯分布算法实现的专业边缘羽化，8-15层透明度渐变
+- **精确鼠标控制**: 完全修复的画笔工具，按住绘制、释放停止，响应自然
 - 自动生成结构化图层数据供下游节点使用
 - 实时画布状态同步
 
@@ -32,20 +34,22 @@
 - **🔄 动态模型获取**: 自动获取最新AI模型列表，支持Gemini 2.0、GPT-4o等最新模型
 - **💬 聊天式交互**: API和Ollama选项卡支持自由输入，类似ChatGPT的交互体验
 - **⚡ 智能资源管理**: 自动检测服务状态，一键释放GPU显存，优化系统资源
+- **🎨 修复画笔工具**: 完全修复LRPG Canvas画笔的鼠标响应问题，确保按住绘制、释放停止的正常交互
+- **✨ 改进羽化效果**: 使用高斯分布算法实现真正的边缘羽化，多层透明度渐变，媲美专业图像编辑软件
 
 #### 编辑模式界面展示
 
 **局部编辑模式** - 精确的对象级编辑操作
 ![局部编辑](images/KontextSuperPrompt1.png)
 
+**全局编辑模式** - 整体图像风格和效果调整
+![全局编辑](images/KontextSuperPrompt2.png)
+
 **远程API模式** - 集成多种云端AI模型，支持动态模型选择
-![远程API](images/KontextSuperPrompt2.png)
+![远程API](images/KontextSuperPrompt3.png)
 
 **本地Ollama模式** - 内置服务管理，一键启动/停止，释放GPU资源
-![本地Ollama](images/KontextSuperPrompt3.png)
-
-**专业操作模式** - 高级图像处理和专业编辑功能
-![专业操作](images/KontextSuperPrompt4.png)
+![本地Ollama](images/KontextSuperPrompt4.png)
 
 ## 🤖 AI增强节点
 
@@ -116,7 +120,20 @@ pip install torch torchvision opencv-python openai
 
 ---
 
-**版本**: 1.3.2 | **许可**: MIT | **仓库**: https://github.com/aiaiaikkk/kontext-super-prompt
+**版本**: 1.3.3 | **许可**: MIT | **仓库**: https://github.com/aiaiaikkk/kontext-super-prompt
+
+## 🔧 最新更新日志 (v1.3.3)
+
+### 🎨 LRPG Canvas 重大改进
+- **✅ 修复画笔工具**: 完全解决了画笔鼠标事件处理问题
+  - 修复了"鼠标在画布上就绘制"的异常行为
+  - 确保只有按住鼠标左键时才绘制，释放时停止
+  - 动态管理事件监听器，避免与Fabric.js内置功能冲突
+- **🎯 真正的羽化效果**: 重构羽化算法实现专业级边缘效果
+  - 使用高斯分布数学模型计算透明度衰减
+  - 8-15层透明度渐变，提供平滑自然的边缘模糊
+  - 替换简单阴影效果，实现真正的边缘羽化
+  - 支持1-20像素可调羽化半径
 
 ---
 
@@ -131,7 +148,9 @@ pip install torch torchvision opencv-python openai
 ### 🎨 LRPG Canvas  
 Visual canvas annotation tool providing professional layer management and drawing capabilities
 - Interactive canvas interface based on Fabric.js
-- Support for multiple drawing tools and layer operations
+- Support for multiple drawing tools and layer operations (brush, shapes, text, cropping, etc.)
+- **Brush Feather Effect**: Professional edge feathering with Gaussian distribution algorithm, 8-15 layer transparency gradients
+- **Precise Mouse Control**: Completely fixed brush tool with natural hold-to-draw, release-to-stop response
 - Automatically generates structured layer data for downstream nodes
 - Real-time canvas state synchronization
 
@@ -154,6 +173,8 @@ Intelligent prompt generator that converts layer information into structured edi
 - **🔄 Dynamic Model Fetching**: Automatically fetch latest AI model lists, supporting Gemini 2.0, GPT-4o and other newest models
 - **💬 Chat-like Interaction**: API and Ollama tabs support free input with ChatGPT-like interactive experience
 - **⚡ Smart Resource Management**: Automatic service status detection, one-click GPU memory release, optimized system resources
+- **🎨 Fixed Brush Tool**: Completely fixed LRPG Canvas brush mouse response issues, ensuring proper hold-to-draw, release-to-stop interaction
+- **✨ Enhanced Feather Effect**: Gaussian distribution algorithm for true edge feathering with multi-layer transparency gradients, comparable to professional image editing software
 
 #### Editing Mode Interface Showcase
 
@@ -238,4 +259,17 @@ After restarting ComfyUI, find the "🎨 LRPG Canvas" category in the node menu
 
 ---
 
-**Version**: 1.3.2 | **License**: MIT | **Repository**: https://github.com/aiaiaikkk/kontext-super-prompt
+**Version**: 1.3.3 | **License**: MIT | **Repository**: https://github.com/aiaiaikkk/kontext-super-prompt
+
+## 🔧 Latest Update Log (v1.3.3)
+
+### 🎨 LRPG Canvas Major Improvements
+- **✅ Fixed Brush Tool**: Completely resolved brush mouse event handling issues
+  - Fixed abnormal "drawing when mouse is on canvas" behavior
+  - Ensures drawing only occurs when holding left mouse button, stops when released
+  - Dynamic event listener management to avoid conflicts with Fabric.js built-in functionality
+- **🎯 True Feather Effect**: Reconstructed feathering algorithm for professional-grade edge effects
+  - Uses Gaussian distribution mathematical model for transparency decay calculation
+  - 8-15 layer transparency gradients providing smooth and natural edge blur
+  - Replaced simple shadow effects with true edge feathering
+  - Supports adjustable feather radius from 1-20 pixels
