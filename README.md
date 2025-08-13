@@ -51,24 +51,23 @@
 **本地Ollama模式** - 内置服务管理，一键启动/停止，释放GPU资源
 ![本地Ollama](images/KontextSuperPrompt4.png)
 
-## 🤖 AI增强节点
+## 💬 集成AI功能
 
-### API Flux Kontext Enhancer
-通过API调用多种大模型增强提示词生成
-- **支持平台**: OpenAI (GPT-4o, o1系列)、DeepSeek、千问、Gemini (2.0 Flash)、智谱AI、Moonshot、SiliconFlow
-- **动态模型**: 自动获取最新模型列表，支持最前沿AI模型
+项目已将AI功能完全集成到前端界面中，提供更流畅的用户体验：
+
+### 🌐 内置远程API支持
+- **多平台集成**: 直接在编辑界面使用OpenAI、Gemini、DeepSeek等云端AI
+- **动态模型选择**: 自动获取最新AI模型列表，支持Gemini 2.0、GPT-4o等最新模型  
 - **成本控制**: 实时显示Token消耗和费用估算
-- **智能分析**: 自动理解编辑意图并优化指令
+- **聊天式交互**: 类似ChatGPT的自由输入体验
 
-![API](images/api.png)
-
-### Ollama Flux Kontext Enhancer  
-本地运行的大模型增强器
+### 🦙 内置Ollama服务
+- **服务管理**: 一键启动/停止，智能释放GPU资源
 - **隐私保护**: 完全本地处理，无需网络连接
 - **模型管理**: 支持多种开源LLM模型
 - **参数可调**: 温度、最大Token等参数自定义
 
-![Ollama](images/ollama.png)
+## 🤖 外部AI集成
 
 ### TextGenWebUI Flux Kontext Enhancer
 与Text Generation WebUI的集成方案
@@ -84,12 +83,12 @@
 1. 添加`🎨 LRPG Canvas`节点，连接图像输入
 2. 在画布中创建图层和标注区域
 3. 连接`🎯 Kontext Super Prompt`节点生成编辑指令
-4. 可选连接AI增强节点进一步优化提示词
+4. 在Kontext Super Prompt界面中使用内置的API或Ollama功能优化提示词
 
 ### 节点连接
 - **LRPG Canvas**: 输出`image`和`layer_info`
 - **Kontext Super Prompt**: 接收`layer_info`和`image`，输出`edited_image`和`generated_prompt`
-- **AI增强器**: 接收`layer_info`图层信息，输出AI优化的编辑指令
+- **内置AI功能**: 直接在Kontext Super Prompt界面中使用，无需额外节点
 
 ## 🛠️ 安装
 
@@ -134,6 +133,12 @@ pip install torch torchvision opencv-python openai
   - 8-15层透明度渐变，提供平滑自然的边缘模糊
   - 替换简单阴影效果，实现真正的边缘羽化
   - 支持1-20像素可调羽化半径
+
+### 🗑️ 架构简化
+- **移除独立Enhancer节点**: 废弃API、Ollama等独立enhancer节点
+- **前端集成优化**: 主要AI功能已集成到Kontext Super Prompt前端界面
+- **保留外部集成**: 保留TextGen WebUI enhancer节点，支持外部AI系统对接
+- **减少复杂度**: 核心AI功能无需多个节点连接，在单一界面内完成
 
 ---
 
@@ -190,30 +195,29 @@ Intelligent prompt generator that converts layer information into structured edi
 **Professional Operations Mode** - Advanced image processing and professional editing features
 ![Professional Operations](images/KontextSuperPrompt4.png)
 
-## 🤖 AI Enhancement Nodes
+## 💬 Integrated AI Features
 
-### API Flux Kontext Enhancer
-Enhances prompt generation through API calls to multiple large language models
-- **Supported platforms**: OpenAI (GPT-4o, o1 series), DeepSeek, Qianwen, Gemini (2.0 Flash), Zhipu AI, Moonshot, SiliconFlow
-- **Dynamic Models**: Automatically fetch latest model lists, supporting cutting-edge AI models
-- **Cost control**: Real-time display of token consumption and cost estimation
-- **Intelligent analysis**: Automatically understands editing intent and optimizes instructions
+The project has fully integrated AI functionality into the frontend interface for a smoother user experience:
 
-![API](images/api.png)
+### 🌐 Built-in Remote API Support
+- **Multi-platform Integration**: Directly use OpenAI, Gemini, DeepSeek and other cloud AI in the editing interface
+- **Dynamic Model Selection**: Automatically fetch latest AI model lists, supporting Gemini 2.0, GPT-4o and other newest models
+- **Cost Control**: Real-time display of token consumption and cost estimation
+- **Chat-like Interaction**: ChatGPT-like free input experience
 
-### Ollama Flux Kontext Enhancer  
-Local-running large language model enhancer
-- **Privacy protection**: Completely local processing, no network connection required
-- **Model management**: Support for various open-source LLM models
-- **Adjustable parameters**: Customizable temperature, max tokens, and other parameters
+### 🦙 Built-in Ollama Service
+- **Service Management**: One-click start/stop with intelligent GPU resource management
+- **Privacy Protection**: Completely local processing, no network connection required
+- **Model Management**: Support for various open-source LLM models
+- **Adjustable Parameters**: Customizable temperature, max tokens, and other parameters
 
-![Ollama](images/ollama.png)
+## 🤖 External AI Integration
 
 ### TextGenWebUI Flux Kontext Enhancer
 Integration solution with Text Generation WebUI
-- **Seamless integration**: Direct WebUI interface calls
-- **Batch processing**: Support for multi-task parallel processing
-- **Status monitoring**: Real-time display of processing progress
+- **Seamless Integration**: Direct WebUI interface calls
+- **Batch Processing**: Support for multi-task parallel processing
+- **Status Monitoring**: Real-time display of processing progress
 
 ![TextGenWebUI](images/textgen_webui.png)
 
@@ -223,12 +227,12 @@ Integration solution with Text Generation WebUI
 1. Add `🎨 LRPG Canvas` node and connect image input
 2. Create layers and annotation areas in the canvas
 3. Connect `🎯 Kontext Super Prompt` node to generate editing instructions
-4. Optionally connect AI enhancement nodes for further prompt optimization
+4. Use built-in API or Ollama features directly in the Kontext Super Prompt interface to optimize prompts
 
 ### Node Connections
 - **LRPG Canvas**: Outputs `image` and `layer_info`
 - **Kontext Super Prompt**: Receives `layer_info` and `image`, outputs `edited_image` and `generated_prompt`
-- **AI Enhancers**: Receive `layer_info` layer information, output AI-optimized editing instructions
+- **Built-in AI Features**: Used directly within the Kontext Super Prompt interface, no additional nodes required
 
 ## 🛠️ Installation
 
@@ -273,3 +277,9 @@ After restarting ComfyUI, find the "🎨 LRPG Canvas" category in the node menu
   - 8-15 layer transparency gradients providing smooth and natural edge blur
   - Replaced simple shadow effects with true edge feathering
   - Supports adjustable feather radius from 1-20 pixels
+
+### 🗑️ Architecture Simplification
+- **Removed Standalone Enhancer Nodes**: Deprecated API, Ollama and other standalone enhancer nodes
+- **Frontend Integration Optimization**: Core AI functionality integrated into Kontext Super Prompt frontend interface
+- **Preserved External Integration**: Kept TextGen WebUI enhancer node for external AI system integration
+- **Reduced Complexity**: Core AI features no longer need multiple node connections, completed within a single interface

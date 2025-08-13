@@ -3,7 +3,7 @@ kontext-super-prompt - ComfyUI Custom Nodes
 Intelligent Visual Prompt Builder with Kontext Transform Engine
 Kontext团队原创架构 - Transform-First设计
 
-Version: 1.3.2
+Version: 1.3.3
 Author: Kontext Team
 Repository: https://github.com/aiaiaikkk/kontext-super-prompt
 License: MIT
@@ -14,7 +14,7 @@ import os
 import sys
 
 # Version information
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 __author__ = "Kontext Team"
 __description__ = "Intelligent Visual Prompt Builder with Kontext Transform Engine"
 
