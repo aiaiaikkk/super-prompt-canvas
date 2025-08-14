@@ -1202,8 +1202,67 @@ class KontextSuperPrompt {
         this.autoGenerate = true;
         this.generatedPrompt = '';
         
+        // 事件监听器管理系统 - 防止堆积和内存泄漏
+        this._eventListeners = [];
+        this._apiEventListeners = [];
+        this._timeouts = [];
+        this._intervals = [];
+        
         // 初始化UI
         this.initEditor();
+    }
+
+    // 事件监听器管理方法 - 统一管理所有监听器以防止内存泄漏
+    addEventListenerManaged(element, event, handler, options = false) {
+        element.addEventListener(event, handler, options);
+        this._eventListeners.push({ element, event, handler, options });
+    }
+
+    addAPIEventListenerManaged(event, handler) {
+        if (api && api.addEventListener) {
+            api.addEventListener(event, handler);
+            this._apiEventListeners.push({ event, handler });
+        }
+    }
+
+    addTimeoutManaged(callback, delay) {
+        const timeoutId = setTimeout(callback, delay);
+        this._timeouts.push(timeoutId);
+        return timeoutId;
+    }
+
+    addIntervalManaged(callback, interval) {
+        const intervalId = setInterval(callback, interval);
+        this._intervals.push(intervalId);
+        return intervalId;
+    }
+
+    // 清理所有事件监听器和定时器
+    cleanup() {
+        // 清理DOM事件监听器
+        this._eventListeners.forEach(({ element, event, handler, options }) => {
+            if (element && element.removeEventListener) {
+                element.removeEventListener(event, handler, options);
+            }
+        });
+        this._eventListeners = [];
+
+        // 清理API事件监听器
+        this._apiEventListeners.forEach(({ event, handler }) => {
+            if (api && api.removeEventListener) {
+                api.removeEventListener(event, handler);
+            }
+        });
+        this._apiEventListeners = [];
+
+        // 清理定时器
+        this._timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+        this._timeouts = [];
+
+        this._intervals.forEach(intervalId => clearInterval(intervalId));
+        this._intervals = [];
+
+        console.log('[Kontext Super Prompt] 已清理所有事件监听器和定时器');
     }
 
     initEditor() {
@@ -1412,7 +1471,7 @@ class KontextSuperPrompt {
                 transition: all 0.2s;
             `;
 
-            tabButton.addEventListener('click', () => {
+            this.addEventListenerManaged(tabButton, 'click', () => {
                 this.switchTab(tab.id);
             });
 
@@ -1518,12 +1577,12 @@ class KontextSuperPrompt {
         panel.appendChild(header);
         panel.appendChild(this.layerList);
 
-        // 绑定按钮事件
-        refreshBtn.addEventListener('click', () => {
+        // 绑定按钮事件 - 使用管理方法防止监听器泄漏
+        this.addEventListenerManaged(refreshBtn, 'click', () => {
             this.refreshLayerInfo();
         });
 
-        selectAllBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(selectAllBtn, 'click', () => {
             this.toggleSelectAll();
         });
 
@@ -3248,9 +3307,22 @@ class KontextSuperPrompt {
     updateLayerInfo(layerInfo) {
         // // console.log("[Kontext Super Prompt] 更新图层信息", layerInfo);
         
+        // 递归防护：防止updateLayerInfo和tryGetLayerInfoFromConnectedNode之间的无限递归
+        if (this._updateLayerInfoInProgress) {
+            // console.log("[Kontext Super Prompt] 检测到递归调用，跳过以防止无限循环");
+            return;
+        }
+        
         if (!layerInfo) {
             console.warn("[Kontext Super Prompt] layerInfo为空，尝试主动获取");
-            this.tryGetLayerInfoFromConnectedNode();
+            // 设置递归防护标志
+            this._updateLayerInfoInProgress = true;
+            try {
+                this.tryGetLayerInfoFromConnectedNode();
+            } finally {
+                // 确保无论成功失败都重置标志
+                this._updateLayerInfoInProgress = false;
+            }
             return;
         }
         
@@ -3335,7 +3407,10 @@ class KontextSuperPrompt {
                         const realLayerInfo = this.buildLayerInfoFromTransformData(data.transform_data, sourceNode);
                         if (realLayerInfo && realLayerInfo.layers && realLayerInfo.layers.length > 0) {
                             // // console.log("[Kontext Super Prompt] 从后端获取到真实图层数据:", realLayerInfo);
-                            this.updateLayerInfo(realLayerInfo);
+                            // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
+                            if (!this._updateLayerInfoInProgress) {
+                                this.updateLayerInfo(realLayerInfo);
+                            }
                         }
                     }
                 }).catch(err => {
@@ -3370,7 +3445,10 @@ class KontextSuperPrompt {
             
             if (layerInfo) {
                 // // console.log("[Kontext Super Prompt] 更新图层信息:", layerInfo);
-                this.updateLayerInfo(layerInfo);
+                // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
+                if (!this._updateLayerInfoInProgress) {
+                    this.updateLayerInfo(layerInfo);
+                }
             }
             
             this.setupLRPGCanvasListener(sourceNode);
@@ -3378,9 +3456,31 @@ class KontextSuperPrompt {
     }
 
     extractLayerInfoFromFabricCanvas(fabricCanvas) {
-        if (!fabricCanvas || !fabricCanvas.getObjects) return null;
+        // 防御性检查：确保是有效的Fabric.js实例且与其他插件兼容
+        if (!fabricCanvas) {
+            console.warn('[Kontext Super Prompt] Fabric.js canvas实例为空');
+            return null;
+        }
         
-        const objects = fabricCanvas.getObjects();
+        // 检查Fabric.js对象的完整性，防止版本冲突
+        if (!fabricCanvas.getObjects || typeof fabricCanvas.getObjects !== 'function') {
+            console.warn('[Kontext Super Prompt] 无效的Fabric.js实例或版本不兼容');
+            return null;
+        }
+        
+        let objects;
+        try {
+            objects = fabricCanvas.getObjects();
+        } catch (error) {
+            console.warn('[Kontext Super Prompt] 获取Fabric.js对象失败:', error);
+            return null;
+        }
+        
+        if (!Array.isArray(objects)) {
+            console.warn('[Kontext Super Prompt] Fabric.js返回的对象不是数组');
+            return null;
+        }
+        
         const layers = [];
         
         objects.forEach((obj, index) => {
@@ -3548,6 +3648,7 @@ class KontextSuperPrompt {
     }
 
     setupLRPGCanvasListener(sourceNode) {
+        // 清理旧的定时器防止泄漏
         if (this.layerCheckInterval) {
             clearInterval(this.layerCheckInterval);
         }
@@ -3557,20 +3658,19 @@ class KontextSuperPrompt {
             this.checkForLayerUpdates(sourceNode);
         };
         
-        // 定时检查数据更新 - 更频繁的检查
-        this.layerCheckInterval = setInterval(checkForUpdates, 1000); // 1秒检查一次
+        // 使用管理方法添加定时器，防止内存泄漏
+        this.layerCheckInterval = this.addIntervalManaged(checkForUpdates, 1000);
         
-        // 监听ComfyUI的执行完成事件
-        if (api && api.addEventListener) {
-            api.addEventListener('executed', (event) => {
-                if (event.detail && event.detail.node === sourceNode.id.toString()) {
-                    // console.log('[Kontext Super Prompt] 检测到LRPG Canvas执行完成，刷新图层信息');
-                    setTimeout(() => {
-                        this.tryGetLayerInfoFromConnectedNode();
-                    }, 500);
-                }
-            });
-        }
+        // 使用管理方法添加API监听器，防止堆积
+        const executedHandler = (event) => {
+            if (event.detail && event.detail.node === sourceNode.id.toString()) {
+                // console.log('[Kontext Super Prompt] 检测到LRPG Canvas执行完成，刷新图层信息');
+                this.addTimeoutManaged(() => {
+                    this.tryGetLayerInfoFromConnectedNode();
+                }, 500);
+            }
+        };
+        this.addAPIEventListenerManaged('executed', executedHandler);
     }
 
     buildLayerInfoFromTransformData(transformData, sourceNode) {
@@ -5124,44 +5224,54 @@ app.registerExtension({
                     }
                 };
                 
-                // 监听WebSocket消息以获取实时数据
+                // 监听WebSocket消息以获取实时数据 - 使用管理方法防止泄漏
                 this.listenToWebSocketMessages = function(sourceNode) {
-                    if (this._wsListenerAdded) return;
-                    this._wsListenerAdded = true;
+                    // 检查是否已经有盘中的kontextSuperPrompt实例
+                    if (!this.kontextSuperPrompt) return;
                     
-                    // 监听WebSocket消息
-                    if (api.addEventListener) {
-                        api.addEventListener("executed", (event) => {
-                            // // console.log("[Kontext Super Prompt] 监听到executed事件:", event);
-                            
-                            if (event.detail && event.detail.node === sourceNode.id.toString()) {
-                                // // console.log("[Kontext Super Prompt] 匹配的节点执行:", event.detail);
-                                
-                                if (event.detail.output) {
-                                    // 查找layer_info输出
-                                    if (event.detail.output.layer_info) {
-                                        let layerInfo = event.detail.output.layer_info;
-                                        if (typeof layerInfo === 'string') {
-                                            try {
-                                                layerInfo = JSON.parse(layerInfo);
-                                            } catch (e) {
-                                                console.warn("[Kontext Super Prompt] 解析WebSocket数据失败:", e);
-                                                return;
-                                            }
-                                        }
-                                        
-                                        // // console.log("[Kontext Super Prompt] 从WebSocket获取图层信息:", layerInfo);
-                                        this.kontextSuperPrompt.updateLayerInfo(layerInfo);
+                    // 使用kontextSuperPrompt的管理方法添加监听器
+                    const executedHandler = (event) => {
+                        if (event.detail && event.detail.node === sourceNode.id.toString()) {
+                            if (event.detail.output && event.detail.output.layer_info) {
+                                let layerInfo = event.detail.output.layer_info;
+                                if (typeof layerInfo === 'string') {
+                                    try {
+                                        layerInfo = JSON.parse(layerInfo);
+                                    } catch (e) {
+                                        console.warn("[Kontext Super Prompt] 解析WebSocket数据失败:", e);
+                                        return;
                                     }
                                 }
+                                
+                                // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
+                                if (!this.kontextSuperPrompt._updateLayerInfoInProgress) {
+                                    this.kontextSuperPrompt.updateLayerInfo(layerInfo);
+                                }
                             }
-                        });
-                    }
+                        }
+                    };
+                    
+                    this.kontextSuperPrompt.addAPIEventListenerManaged('executed', executedHandler);
                 };
                 
                 // 重写getExtraMenuOptions以防止显示widget选项
                 this.getExtraMenuOptions = function(_, options) {
                     return options;
+                };
+                
+                // 添加节点销毁时的清理机制，防止内存泄漏
+                const originalOnRemoved = this.onRemoved;
+                this.onRemoved = function() {
+                    // 清理KontextSuperPrompt实例的所有资源
+                    if (this.kontextSuperPrompt && this.kontextSuperPrompt.cleanup) {
+                        this.kontextSuperPrompt.cleanup();
+                        console.log('[Kontext Super Prompt] 节点被销毁，已清理所有资源');
+                    }
+                    
+                    // 调用原始的onRemoved方法
+                    if (originalOnRemoved) {
+                        originalOnRemoved.call(this);
+                    }
                 };
                 
                 // 隐藏widget数据传递方式，不再需要复杂的serialize重写

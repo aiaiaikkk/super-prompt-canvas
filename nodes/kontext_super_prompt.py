@@ -72,10 +72,10 @@ class KontextSuperPrompt:
             "required": {
                 "layer_info": ("LAYER_INFO",),
                 "image": ("IMAGE",),
-                "tab_mode": (["manual", "api", "ollama"], {"default": "manual"}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
+                "tab_mode": (["manual", "api", "ollama"], {"default": "manual"}),
                 "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
                 "operation_type": ("STRING", {"default": "", "multiline": False}),
                 "description": ("STRING", {"default": "", "multiline": True}),
@@ -115,8 +115,9 @@ class KontextSuperPrompt:
     
     @classmethod
     def IS_CHANGED(cls, **kwargs):
-        # 强制每次都重新执行
-        return float(time.time())
+        # 强制每次都重新执行，同时强制刷新节点定义
+        import time
+        return str(time.time())
     
     def process_super_prompt(self, layer_info, image, tab_mode="manual", unique_id="", edit_mode="局部编辑", 
                            operation_type="", description="", constraint_prompts="", 
@@ -404,7 +405,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "KontextSuperPrompt": "🎯 Kontext Super Prompt",
+    "KontextSuperPrompt": "🎯 Kontext Super Prompt v1.3.4",
 }
 
 print("[Kontext Super Prompt] Kontext Super Prompt node registered")

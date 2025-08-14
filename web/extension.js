@@ -8,8 +8,9 @@
 import { app } from "../../scripts/app.js";
 
 // 导入核心前端扩展
-import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展
-import "./API_flux_kontext_enhancer.js";      // API增强节点扩展
+// 注意：以下文件已删除，如需要请重新创建
+// import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展 (已删除)
+// import "./API_flux_kontext_enhancer.js";      // API增强节点扩展 (已删除)
 
 // 已移除的扩展 - moved to disabled_nodes/
 // - global_image_processor.js   # 全图处理扩展 (已移除)
