@@ -4641,6 +4641,9 @@ class KontextSuperPrompt {
         
         console.log('[Kontext Super Prompt] 使用API生成提示词');
         
+        // 清除任何可能的旧状态
+        this.description = '';  // 先清空缓存的description
+        
         // 保存当前选项卡状态
         const currentTab = this.currentCategory;
         
@@ -4651,7 +4654,7 @@ class KontextSuperPrompt {
         const intent = this.apiConfig?.intentSelect?.value || 'general_editing';
         const style = this.apiConfig?.styleSelect?.value || 'auto_smart';
         
-        // 获取描述 - 尝试多种选择器
+        // 获取描述 - 尝试多种选择器，优先使用当前DOM中的值
         let description = '';
         const descriptionInputs = [
             this.editorContainer.querySelector('.api-edit-panel .description-section textarea'),
@@ -4660,20 +4663,27 @@ class KontextSuperPrompt {
             this.descriptionInput
         ];
         
-        // 优先使用当前组件的description属性
-        if (this.description && this.description.trim()) {
-            description = this.description.trim();
-        } else {
-            // 回退到DOM查询
-            for (const input of descriptionInputs) {
-                if (input && input.value && input.value.trim()) {
-                    description = input.value.trim();
+        // 优先从DOM查询获取最新值，避免使用缓存的旧值
+        for (const input of descriptionInputs) {
+            if (input && input.value && typeof input.value === 'string') {
+                const trimmedValue = input.value.trim();
+                if (trimmedValue) {
+                    description = trimmedValue;
+                    // 更新组件的description属性为最新值
+                    this.description = description;
                     break;
                 }
             }
         }
         
+        // 如果DOM中没有找到，才使用缓存的值
+        if (!description && this.description && this.description.trim()) {
+            description = this.description.trim();
+        }
+        
         console.log('[API] 获取到的描述:', description);
+        console.log('[API] 当前缓存的description:', this.description);
+        console.log('[API] 所有输入框的值:', descriptionInputs.map(input => input?.value).filter(v => v));
         
         if (!apiKey) {
             alert('请输入API密钥');
@@ -4741,7 +4751,7 @@ class KontextSuperPrompt {
         const enableVisual = this.ollamaVisualCheckbox?.checked || false;
         const autoUnload = this.ollamaUnloadCheckbox?.checked || false;
         
-        // 获取描述 - 尝试多种选择器
+        // 获取描述 - 尝试多种选择器，优先使用当前DOM中的值
         let description = '';
         const descriptionInputs = [
             this.editorContainer.querySelector('.ollama-edit-panel .description-section textarea'),
@@ -4750,17 +4760,22 @@ class KontextSuperPrompt {
             this.descriptionInput
         ];
         
-        // 优先使用当前组件的description属性
-        if (this.description && this.description.trim()) {
-            description = this.description.trim();
-        } else {
-            // 回退到DOM查询
-            for (const input of descriptionInputs) {
-                if (input && input.value && input.value.trim()) {
-                    description = input.value.trim();
+        // 优先从DOM查询获取最新值，避免使用缓存的旧值
+        for (const input of descriptionInputs) {
+            if (input && input.value && typeof input.value === 'string') {
+                const trimmedValue = input.value.trim();
+                if (trimmedValue) {
+                    description = trimmedValue;
+                    // 更新组件的description属性为最新值
+                    this.description = description;
                     break;
                 }
             }
+        }
+        
+        // 如果DOM中没有找到，才使用缓存的值
+        if (!description && this.description && this.description.trim()) {
+            description = this.description.trim();
         }
         
         console.log('[Ollama] 获取到的描述:', description);
@@ -4955,6 +4970,8 @@ class KontextSuperPrompt {
                 }
             } else if (result.choices && result.choices[0] && result.choices[0].message) {
                 generatedContent = result.choices[0].message.content;
+                // 清理API响应，提取纯净提示词
+                generatedContent = this.cleanApiResponse(generatedContent);
             } else {
                 generatedContent = '未能获取到有效响应';
             }
@@ -4963,10 +4980,18 @@ class KontextSuperPrompt {
             this.generatedPrompt = `✅ ${provider} API生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
             this.updateAllPreviewTextareas();
             
-            // 将纯净的提示词传递给后端
-            this.updateNodeWidgets([
-                { name: 'generated_prompt', value: generatedContent || '' }
-            ]);
+            // 将纯净的提示词传递给后端，同时保持API模式设置
+            this.updateNodeWidgets({
+                tab_mode: 'api',
+                edit_mode: '远程API',
+                generated_prompt: generatedContent || '',
+                api_provider: provider,
+                api_key: apiKey,
+                api_model: model,
+                api_editing_intent: editingIntent,
+                api_processing_style: processingStyle,
+                description: description
+            });
             
             this.isGeneratingAPI = false;
             
@@ -5049,10 +5074,20 @@ class KontextSuperPrompt {
             this.generatedPrompt = `✅ 本地 Ollama 生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
             this.updateAllPreviewTextareas();
             
-            // 将纯净的提示词传递给后端
-            this.updateNodeWidgets([
-                { name: 'generated_prompt', value: generatedContent || '' }
-            ]);
+            // 将纯净的提示词传递给后端，同时保持Ollama模式设置
+            this.updateNodeWidgets({
+                tab_mode: 'ollama',
+                edit_mode: '本地Ollama',
+                generated_prompt: generatedContent || '',
+                ollama_url: ollamaUrl,
+                ollama_model: model,
+                ollama_temperature: temperature,
+                ollama_editing_intent: editingIntent,
+                ollama_processing_style: processingStyle,
+                description: description,
+                ollama_enable_visual: this.ollamaVisualCheckbox?.checked || false,
+                ollama_auto_unload: this.ollamaUnloadCheckbox?.checked || false
+            });
             
             this.isGeneratingOllama = false;
             
@@ -5152,6 +5187,93 @@ class KontextSuperPrompt {
         this.generatedPrompt = data.generatedPrompt || '';  // 添加生成的提示词
         
         this.updateUI();
+    }
+
+    cleanApiResponse(response) {
+        /**
+         * 清理API响应，提取纯净提示词
+         * 移除解释性文本，只保留核心提示词内容
+         */
+        if (!response) {
+            return response;
+        }
+
+        // 首先尝试提取代码块中的提示词
+        const codeBlockMatch = response.match(/```[^`]*?\n(.*?)\n```/s);
+        let cleaned = codeBlockMatch ? codeBlockMatch[1].trim() : response.trim();
+
+        // 移除常见的解释性文本模式
+        const patternsToRemove = [
+            /Based on your input.*?prompt[:\s]*/is,
+            /\*\*Optimized Prompt:\*\*\s*/g,
+            /```[^`]*```/g,  // 移除代码块
+            /\*\*[^*]*\*\*/g,  // 移除粗体标记
+            /### Key Optimizations.*/is,  // 移除解释章节
+            /### Why This Works.*/is,  // 移除工作原理说明
+            /Key Optimizations Explained:.*/is,  // 移除优化解释
+            /\d+\.\s+\*\*[^*]*\*\*.*/gm,  // 移除编号列表
+            /^\s*[-*]\s+.*$/gm,  // 移除列表项
+            /Here is.*?prompt[:\s]*/is,
+            /The following.*?prompt[:\s]*/is,
+            /Final prompt[:\s]*/is,
+            /Breakdown.*/is,
+            /Why this prompt.*/is,
+            /Rationale.*/is,
+            /^.*?prompt[:\s]*/i,
+        ];
+
+        // 应用清理模式
+        patternsToRemove.forEach(pattern => {
+            cleaned = cleaned.replace(pattern, '');
+        });
+
+        // 移除任何包含"#"的标题行
+        cleaned = cleaned.replace(/^.*#.*$/gm, '');
+
+        // 移除列表格式的行（以数字或符号开头）
+        cleaned = cleaned.replace(/^\s*\d+\..*$/gm, '');
+        cleaned = cleaned.replace(/^\s*[-*].*$/gm, '');
+
+        // 清理多余的换行和空格
+        cleaned = cleaned.replace(/\n+/g, ' ');
+        cleaned = cleaned.replace(/\s+/g, ' ');
+        cleaned = cleaned.trim();
+
+        // 如果清理后为空或过短，尝试提取第一个有意义的句子
+        if (!cleaned || cleaned.length < 20) {
+            // 查找看起来像提示词的长句子（通常包含动作词汇）
+            const sentences = response.split(/[.!?]+/);
+            for (const sentence of sentences) {
+                const trimmed = sentence.trim();
+                if (trimmed.length > 20 && 
+                    /apply|transform|change|convert|adjust|modify|enhance|create/i.test(trimmed)) {
+                    cleaned = trimmed;
+                    break;
+                }
+            }
+
+            // 如果还是没找到，使用第一个长句子
+            if (!cleaned) {
+                for (const sentence of sentences) {
+                    const trimmed = sentence.trim();
+                    if (trimmed.length > 30) {
+                        cleaned = trimmed;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 最终清理：移除引号包装，确保首字母大写
+        cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '');
+        if (cleaned && !cleaned[0].match(/[A-Z]/)) {
+            cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        }
+
+        // 移除末尾句号（如果存在）
+        cleaned = cleaned.replace(/\.$/, '');
+
+        return cleaned;
     }
 
     updateUI() {

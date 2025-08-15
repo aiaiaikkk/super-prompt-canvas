@@ -140,6 +140,7 @@ class KontextSuperPrompt:
             print(f"[Kontext Super Prompt] 选项卡模式: {tab_mode}")
             print(f"[Kontext Super Prompt] 编辑模式: {edit_mode}")
             print(f"[Kontext Super Prompt] 描述: '{description}'")
+            print(f"[Kontext Super Prompt] 前端生成提示词: '{generated_prompt}'")
             
             # 根据选项卡模式处理
             if tab_mode == "api" and generated_prompt and generated_prompt.strip():
