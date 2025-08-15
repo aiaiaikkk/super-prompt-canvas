@@ -1,7 +1,7 @@
 [project]
 name = "kontext-super-prompt"
 description = "Intelligent Visual Prompt Builder for Flux Kontext - Advanced image editing, visual annotation recognition, and structured prompt generation"
-version = "1.3.3"
+version = "1.3.4"
 license = { text = "MIT License" }
 dependencies = [
     "torch>=1.13.0",
