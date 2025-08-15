@@ -13,6 +13,14 @@ import importlib.util
 import os
 import sys
 
+# 核心依赖检查（仅检查必需的依赖）
+try:
+    import requests
+    import numpy
+except ImportError as e:
+    print(f"[Kontext-Super-Prompt] ❌ 核心依赖缺失: {e}")
+    print("[Kontext-Super-Prompt] 💡 请通过ComfyUI Manager重新安装")
+
 # Version information
 __version__ = "1.3.3"
 __author__ = "Kontext Team"

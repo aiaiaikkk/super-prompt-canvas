@@ -2,8 +2,125 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-// 导入Visual Prompt Editor的模板和工具
-const OPERATION_CATEGORIES = {
+// Kontext Super Prompt 命名空间 - 资源隔离机制
+window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
+    instances: new Map(), // 存储所有实例
+    constants: {},        // 存储常量
+    utils: {},           // 存储工具函数
+    version: '1.3.4',    // 版本信息
+    
+    // 注册实例
+    registerInstance(nodeId, instance) {
+        this.instances.set(nodeId, instance);
+        console.log(`[KontextSuperPromptNS] 注册实例: ${nodeId}`);
+    },
+    
+    // 注销实例
+    unregisterInstance(nodeId) {
+        if (this.instances.has(nodeId)) {
+            const instance = this.instances.get(nodeId);
+            if (instance && instance.cleanup) {
+                instance.cleanup();
+            }
+            this.instances.delete(nodeId);
+            console.log(`[KontextSuperPromptNS] 注销实例: ${nodeId}`);
+        }
+    },
+    
+    // 获取实例
+    getInstance(nodeId) {
+        return this.instances.get(nodeId);
+    },
+    
+    // 清理所有实例
+    cleanup() {
+        this.instances.forEach((instance, nodeId) => {
+            this.unregisterInstance(nodeId);
+        });
+        console.log('[KontextSuperPromptNS] 清理所有实例完成');
+    },
+    
+    // 性能监控工具
+    performance: {
+        metrics: new Map(),
+        
+        // 开始性能计时
+        startTimer(key, label = '') {
+            this.metrics.set(key, {
+                label: label || key,
+                startTime: performance.now(),
+                endTime: null,
+                duration: null,
+                memoryStart: this.getMemoryUsage()
+            });
+        },
+        
+        // 结束性能计时
+        endTimer(key) {
+            const metric = this.metrics.get(key);
+            if (metric) {
+                metric.endTime = performance.now();
+                metric.duration = metric.endTime - metric.startTime;
+                metric.memoryEnd = this.getMemoryUsage();
+                metric.memoryDelta = metric.memoryEnd - metric.memoryStart;
+                
+                console.log(`[KSP Performance] ${metric.label}: ${metric.duration.toFixed(2)}ms, Memory: ${metric.memoryDelta > 0 ? '+' : ''}${metric.memoryDelta.toFixed(2)}MB`);
+                return metric;
+            }
+            return null;
+        },
+        
+        // 获取内存使用情况
+        getMemoryUsage() {
+            if (performance.memory) {
+                return performance.memory.usedJSHeapSize / 1024 / 1024; // MB
+            }
+            return 0;
+        },
+        
+        // 获取性能报告
+        getReport() {
+            const report = {
+                totalMetrics: this.metrics.size,
+                completedMetrics: 0,
+                totalTime: 0,
+                memoryUsage: this.getMemoryUsage(),
+                details: []
+            };
+            
+            this.metrics.forEach((metric, key) => {
+                if (metric.duration !== null) {
+                    report.completedMetrics++;
+                    report.totalTime += metric.duration;
+                    report.details.push({
+                        key,
+                        label: metric.label,
+                        duration: metric.duration,
+                        memoryDelta: metric.memoryDelta
+                    });
+                }
+            });
+            
+            return report;
+        },
+        
+        // 清理性能指标
+        clear() {
+            this.metrics.clear();
+        }
+    }
+};
+
+// 将常量移到命名空间中
+const KSP_NS = window.KontextSuperPromptNS;
+
+// 确保constants对象已初始化
+if (!KSP_NS.constants) {
+    KSP_NS.constants = {};
+}
+
+// 将常量存储到命名空间，避免全局污染
+KSP_NS.constants.OPERATION_CATEGORIES = {
     local: {
         name: '🎯 局部编辑',
         description: 'Local object-specific editing operations',
@@ -51,7 +168,7 @@ const OPERATION_CATEGORIES = {
     }
 };
 
-const OPERATION_TEMPLATES = {
+KSP_NS.constants.OPERATION_TEMPLATES = {
     'change_color': { template: 'transform {object} color to {target}', label: '颜色变换', category: 'local' },
     'change_style': { template: 'reimagine {object} in {target} aesthetic', label: '风格重构', category: 'local' },
     'replace_object': { template: 'thoughtfully replace {object} with {target}', label: '智能替换', category: 'local' },
@@ -114,7 +231,7 @@ const OPERATION_TEMPLATES = {
     'ollama_enhance': { template: 'enhance with local Ollama model: {target}', label: 'Ollama增强', category: 'ollama' }
 };
 
-const CONSTRAINT_PROMPTS = {
+KSP_NS.constants.CONSTRAINT_PROMPTS = {
     // === 🎨 外观转换约束 ===
     'change_color': [
         '保持原始材质纹理（织物编织、皮肤毛孔、表面粗糙度）',
@@ -361,7 +478,7 @@ const CONSTRAINT_PROMPTS = {
 };
 
 // 修饰性提示词模板
-const DECORATIVE_PROMPTS = {
+KSP_NS.constants.DECORATIVE_PROMPTS = {
     // 局部编辑修饰 (L01-L18)
     'change_color': [
         '应用色彩和谐原理（互补、类似或三角色彩方案）',
@@ -786,7 +903,7 @@ const DECORATIVE_PROMPTS = {
 };
 
 // 中英文提示词映射表
-const PROMPT_TRANSLATION_MAP = {
+KSP_NS.constants.PROMPT_TRANSLATION_MAP = {
     '保持原始材质纹理（织物编织、皮肤毛孔、表面粗糙度）': 'preserve original material textures (fabric weave, skin pores, surface roughness)',
     '保持重新着色表面的一致性光照反射和阴影': 'maintain consistent lighting reflections and shadows on the recolored surface',
     '避免颜色渗入相邻物体或区域': 'avoid color bleeding into adjacent objects or areas',
@@ -1176,11 +1293,11 @@ const PROMPT_TRANSLATION_MAP = {
 
 // 将中文提示词转换为英文
 function translatePromptsToEnglish(chinesePrompts) {
-    return chinesePrompts.map(prompt => PROMPT_TRANSLATION_MAP[prompt] || prompt);
+    return chinesePrompts.map(prompt => KSP_NS.constants.PROMPT_TRANSLATION_MAP[prompt] || prompt);
 }
 
 // 定义界面尺寸
-const EDITOR_SIZE = {
+KSP_NS.constants.EDITOR_SIZE = {
     WIDTH: 800, // 1000 * 0.8 - 减小20%
     HEIGHT: 700,
     LAYER_PANEL_HEIGHT: 144, // 180 * 0.8 - 减小20%
@@ -1190,7 +1307,13 @@ const EDITOR_SIZE = {
 
 class KontextSuperPrompt {
     constructor(node) {
+        // 开始性能监控
+        KSP_NS.performance.startTimer(`node_${node.id}_init`, `节点 ${node.id} 初始化`);
+        
         this.node = node;
+        
+        // 在命名空间中注册此实例
+        KSP_NS.registerInstance(node.id, this);
         this.layerInfo = null;
         this.selectedLayers = [];
         this.currentEditMode = "局部编辑";
@@ -1262,7 +1385,35 @@ class KontextSuperPrompt {
         this._intervals.forEach(intervalId => clearInterval(intervalId));
         this._intervals = [];
 
-        console.log('[Kontext Super Prompt] 已清理所有事件监听器和定时器');
+        // 清理渲染相关的定时器
+        if (this._renderTimeout) {
+            clearTimeout(this._renderTimeout);
+            this._renderTimeout = null;
+        }
+
+        // 清理图层检查定时器
+        if (this.layerCheckInterval) {
+            clearInterval(this.layerCheckInterval);
+            this.layerCheckInterval = null;
+        }
+
+        // 输出性能报告
+        const report = KSP_NS.performance.getReport();
+        if (report.completedMetrics > 0) {
+            console.log(`[KSP Performance Report] 节点 ${this.node.id}:`, {
+                总操作数: report.completedMetrics,
+                总耗时: `${report.totalTime.toFixed(2)}ms`,
+                当前内存: `${report.memoryUsage.toFixed(2)}MB`,
+                详细信息: report.details
+            });
+        }
+        
+        // 从命名空间注销实例
+        if (this.node && this.node.id) {
+            KSP_NS.unregisterInstance(this.node.id);
+        }
+
+        console.log('[Kontext Super Prompt] 已清理所有事件监听器、定时器和渲染资源');
     }
 
     initEditor() {
@@ -1271,8 +1422,8 @@ class KontextSuperPrompt {
         this.editorContainer = document.createElement('div');
         this.editorContainer.className = 'kontext-super-prompt-container';
         this.editorContainer.style.cssText = `
-            width: ${EDITOR_SIZE.WIDTH}px;
-            height: ${EDITOR_SIZE.HEIGHT}px;
+            width: ${KSP_NS.constants.EDITOR_SIZE.WIDTH}px;
+            height: ${KSP_NS.constants.EDITOR_SIZE.HEIGHT}px;
             background: #1a1a1a;
             border: 1px solid #444;
             border-radius: 8px;
@@ -1302,7 +1453,7 @@ class KontextSuperPrompt {
 
         // 设置节点尺寸
         const nodeWidth = 816; // 1020 * 0.8 - 减小20%
-        const nodeHeight = 750; // EDITOR_SIZE.HEIGHT + 50
+        const nodeHeight = 750; // KSP_NS.constants.EDITOR_SIZE.HEIGHT + 50
         this.node.size = [nodeWidth, nodeHeight];
         this.node.setSize?.(this.node.size);
         
@@ -1362,11 +1513,11 @@ class KontextSuperPrompt {
                 
                 if (this.constraintContainer && this.constraintContainer.children.length === 0) {
                     // 使用通用约束提示词强制填充
-                    this.updateConstraintContainer(CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control']);
+                    this.updateConstraintContainer(KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control']);
                 }
                 if (this.decorativeContainer && this.decorativeContainer.children.length === 0) {
                     // 使用通用修饰提示词强制填充
-                    this.updateDecorativeContainer(DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence']);
+                    this.updateDecorativeContainer(KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence']);
                 }
                 
                 // 再次强制检查
@@ -1381,7 +1532,7 @@ class KontextSuperPrompt {
         const toolbar = document.createElement('div');
         toolbar.className = 'kontext-toolbar';
         toolbar.style.cssText = `
-            height: ${EDITOR_SIZE.TOOLBAR_HEIGHT}px;
+            height: ${KSP_NS.constants.EDITOR_SIZE.TOOLBAR_HEIGHT}px;
             background: #2a2a2a;
             border-bottom: 1px solid #444;
             display: flex;
@@ -1440,7 +1591,7 @@ class KontextSuperPrompt {
         const tabBar = document.createElement('div');
         tabBar.className = 'kontext-tab-bar';
         tabBar.style.cssText = `
-            height: ${EDITOR_SIZE.TAB_HEIGHT}px;
+            height: ${KSP_NS.constants.EDITOR_SIZE.TAB_HEIGHT}px;
             background: #2a2a2a;
             border-bottom: 1px solid #444;
             display: flex;
@@ -1848,8 +1999,8 @@ class KontextSuperPrompt {
         notice.style.cssText = `
             background: #4a2a4a;
             border: 1px solid #8a4a8a;
-            border-radius: 4px;
-            padding: 8px 12px;
+            border-radius: 6px;
+            padding: 12px;
             margin-bottom: 16px;
             color: #FF9999;
             font-size: 12px;
@@ -1860,6 +2011,10 @@ class KontextSuperPrompt {
         // Ollama服务管理区域
         const serviceManagementSection = this.createOllamaServiceManagementSection();
         panel.appendChild(serviceManagementSection);
+
+        // 模型转换器区域
+        const converterSection = this.createModelConverterSection();
+        panel.appendChild(converterSection);
 
         // Ollama配置区域
         const ollamaConfigSection = this.createOllamaConfigSection();
@@ -1917,9 +2072,9 @@ class KontextSuperPrompt {
         operationSelect.appendChild(defaultOption);
 
         // 添加操作选项
-        const templates = OPERATION_CATEGORIES[category]?.templates || [];
+        const templates = KSP_NS.constants.OPERATION_CATEGORIES[category]?.templates || [];
         templates.forEach(templateId => {
-            const template = OPERATION_TEMPLATES[templateId];
+            const template = KSP_NS.constants.OPERATION_TEMPLATES[templateId];
             if (template) {
                 const option = document.createElement('option');
                 option.value = templateId;
@@ -2472,10 +2627,10 @@ class KontextSuperPrompt {
         const section = document.createElement('div');
         section.className = 'ollama-service-section';
         section.style.cssText = `
-            margin-bottom: 12px;
-            padding: 8px;
+            margin-bottom: 16px;
+            padding: 12px;
             border: 1px solid #666;
-            border-radius: 4px;
+            border-radius: 6px;
             background: rgba(255, 255, 255, 0.03);
         `;
 
@@ -2814,6 +2969,226 @@ class KontextSuperPrompt {
         return section;
     }
 
+    createModelConverterSection() {
+        const section = document.createElement('div');
+        section.className = 'model-converter-section';
+        section.style.cssText = `
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid #6a4a8a;
+            border-radius: 6px;
+            background: #1a1a2a;
+        `;
+
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: #BB99FF;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        `;
+        title.textContent = '🔄 GGUF模型转换器';
+
+        // 扫描按钮和状态显示
+        const scanRow = document.createElement('div');
+        scanRow.style.cssText = `display: flex; align-items: center; margin-bottom: 6px; gap: 6px;`;
+        
+        const scanBtn = document.createElement('button');
+        scanBtn.textContent = '扫描GGUF模型';
+        scanBtn.style.cssText = `
+            background: #4a6a8a; color: #fff; border: 1px solid #6a8aaa;
+            border-radius: 3px; padding: 4px 8px; cursor: pointer; font-size: 10px;
+        `;
+        
+        const statusSpan = document.createElement('span');
+        statusSpan.style.cssText = `color: #999; font-size: 10px; flex: 1;`;
+        statusSpan.textContent = '请先扫描GGUF模型文件';
+
+        scanRow.appendChild(scanBtn);
+        scanRow.appendChild(statusSpan);
+
+        // 模型列表容器
+        const modelsContainer = document.createElement('div');
+        modelsContainer.className = 'gguf-models-container';
+        modelsContainer.style.cssText = `
+            max-height: 120px; overflow-y: auto; border: 1px solid #444;
+            border-radius: 3px; background: #1a1a1a; margin-bottom: 6px;
+            display: none;
+        `;
+
+        // 说明文字
+        const helpText = document.createElement('div');
+        helpText.style.cssText = `color: #888; font-size: 9px; margin-top: 4px; line-height: 1.2;`;
+        helpText.textContent = '将GGUF模型文件放置到 ComfyUI/models/ollama_import/ 目录下，点击扫描后可转换为Ollama格式';
+
+        section.appendChild(title);
+        section.appendChild(scanRow);
+        section.appendChild(modelsContainer);
+        section.appendChild(helpText);
+
+        // 绑定扫描事件
+        scanBtn.addEventListener('click', () => {
+            this.scanGGUFModels(statusSpan, modelsContainer);
+        });
+
+        return section;
+    }
+
+    async scanGGUFModels(statusSpan, modelsContainer) {
+        try {
+            statusSpan.textContent = '正在扫描模型文件...';
+            statusSpan.style.color = '#ff9';
+            
+            const response = await fetch('/ollama_converter/models');
+            const data = await response.json();
+            
+            if (data.models && data.models.length > 0) {
+                this.displayGGUFModels(data.models, modelsContainer, statusSpan);
+                statusSpan.textContent = `发现 ${data.models.length} 个GGUF模型`;
+                statusSpan.style.color = '#9f9';
+                modelsContainer.style.display = 'block';
+            } else {
+                statusSpan.textContent = '未发现GGUF模型文件';
+                statusSpan.style.color = '#f99';
+                modelsContainer.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('[Model Converter] 扫描失败:', error);
+            statusSpan.textContent = '扫描失败: ' + error.message;
+            statusSpan.style.color = '#f99';
+            modelsContainer.style.display = 'none';
+        }
+    }
+
+    displayGGUFModels(models, container, statusSpan) {
+        container.innerHTML = '';
+        
+        models.forEach(model => {
+            const modelItem = document.createElement('div');
+            modelItem.style.cssText = `
+                padding: 6px; border-bottom: 1px solid #333; display: flex;
+                align-items: center; justify-content: space-between;
+            `;
+            
+            const modelInfo = document.createElement('div');
+            modelInfo.style.cssText = `flex: 1;`;
+            
+            const modelName = document.createElement('div');
+            modelName.style.cssText = `color: #fff; font-size: 10px; font-weight: bold;`;
+            modelName.textContent = model.name;
+            
+            const modelDetails = document.createElement('div');
+            modelDetails.style.cssText = `color: #888; font-size: 9px; margin-top: 1px;`;
+            modelDetails.textContent = `文件大小: ${(model.file_size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+            
+            const convertBtn = document.createElement('button');
+            convertBtn.style.cssText = `
+                padding: 3px 6px; font-size: 9px; border-radius: 2px;
+                border: 1px solid; cursor: pointer;
+            `;
+            
+            if (model.is_converted) {
+                convertBtn.textContent = '已转换';
+                convertBtn.style.cssText += `
+                    background: #2a4a2a; color: #9f9; border-color: #4a6a4a;
+                    cursor: default;
+                `;
+                convertBtn.disabled = true;
+            } else {
+                convertBtn.textContent = '转换';
+                convertBtn.style.cssText += `
+                    background: #4a2a8a; color: #fff; border-color: #6a4aaa;
+                `;
+                convertBtn.addEventListener('click', () => {
+                    this.convertGGUFModel(model, convertBtn, statusSpan);
+                });
+            }
+            
+            modelInfo.appendChild(modelName);
+            modelInfo.appendChild(modelDetails);
+            modelItem.appendChild(modelInfo);
+            modelItem.appendChild(convertBtn);
+            container.appendChild(modelItem);
+        });
+    }
+
+    async convertGGUFModel(model, button, statusSpan) {
+        try {
+            button.textContent = '转换中...';
+            button.disabled = true;
+            button.style.background = '#444';
+            statusSpan.textContent = `正在转换模型: ${model.name}`;
+            statusSpan.style.color = '#ff9';
+            
+            const response = await fetch('/ollama_converter/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model_name: model.name })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                button.textContent = '已转换';
+                button.style.background = '#2a4a2a';
+                button.style.color = '#9f9';
+                button.style.borderColor = '#4a6a4a';
+                statusSpan.textContent = `转换成功: ${model.ollama_name}`;
+                statusSpan.style.color = '#9f9';
+                
+                // 刷新Ollama模型列表
+                if (this.ollamaModelSelect) {
+                    this.refreshOllamaModels();
+                }
+            } else {
+                button.textContent = '转换失败';
+                button.disabled = false;
+                button.style.background = '#4a2a2a';
+                button.style.color = '#f99';
+                statusSpan.textContent = `转换失败: ${result.message}`;
+                statusSpan.style.color = '#f99';
+            }
+        } catch (error) {
+            console.error('[Model Converter] 转换失败:', error);
+            button.textContent = '转换失败';
+            button.disabled = false;
+            button.style.background = '#4a2a2a';
+            button.style.color = '#f99';
+            statusSpan.textContent = '转换失败: ' + error.message;
+            statusSpan.style.color = '#f99';
+        }
+    }
+
+    async refreshOllamaModels() {
+        try {
+            const url = this.ollamaUrlInput?.value || 'http://127.0.0.1:11434';
+            const response = await fetch('/ollama_flux_enhancer/get_models', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const models = await response.json();
+            
+            if (this.ollamaModelSelect && models && models.length > 0) {
+                const currentValue = this.ollamaModelSelect.value;
+                this.ollamaModelSelect.innerHTML = '';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    this.ollamaModelSelect.appendChild(option);
+                });
+                
+                // 恢复之前的选择
+                if (currentValue && models.includes(currentValue)) {
+                    this.ollamaModelSelect.value = currentValue;
+                }
+            }
+        } catch (error) {
+            console.error('[Model Converter] 刷新Ollama模型列表失败:', error);
+        }
+    }
+
     switchTab(tabId) {
         // 如果正在从API或Ollama更新，不执行切换
         if (this.isUpdatingFromAPI || this.isUpdatingFromOllama) {
@@ -2884,7 +3259,7 @@ class KontextSuperPrompt {
         });
 
         this.currentCategory = tabId;
-        this.currentEditMode = OPERATION_CATEGORIES[tabId].name.replace(/^\W+\s/, '');
+        this.currentEditMode = KSP_NS.constants.OPERATION_CATEGORIES[tabId].name.replace(/^\W+\s/, '');
         
         const currentPanel = this.tabContents[tabId];
         if (currentPanel) {
@@ -2975,10 +3350,10 @@ class KontextSuperPrompt {
         let constraints;
         if (!this.currentOperationType || this.currentOperationType === '') {
             // 如果没有选择操作类型，使用通用约束提示词
-            constraints = CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
+            constraints = KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
             // console.log('[Kontext Super Prompt] 使用通用约束提示词:', constraints);
         } else {
-            constraints = CONSTRAINT_PROMPTS[this.currentOperationType] || CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
+            constraints = KSP_NS.constants.CONSTRAINT_PROMPTS[this.currentOperationType] || KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
             // console.log('[Kontext Super Prompt] 使用操作类型约束提示词:', constraints);
         }
         
@@ -2993,10 +3368,10 @@ class KontextSuperPrompt {
         let decoratives;
         if (!this.currentOperationType || this.currentOperationType === '') {
             // 如果没有选择操作类型，使用通用修饰提示词
-            decoratives = DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
+            decoratives = KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
             // console.log('[Kontext Super Prompt] 使用通用修饰提示词:', decoratives);
         } else {
-            decoratives = DECORATIVE_PROMPTS[this.currentOperationType] || DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
+            decoratives = KSP_NS.constants.DECORATIVE_PROMPTS[this.currentOperationType] || KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
             // console.log('[Kontext Super Prompt] 使用操作类型修饰提示词:', decoratives);
         }
         
@@ -3015,10 +3390,10 @@ class KontextSuperPrompt {
         // 根据当前操作类型加载相应的约束性提示词（不自动选中）
         let constraints;
         if (!this.currentOperationType) {
-            constraints = CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
+            constraints = KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
             // console.log('[Kontext Super Prompt] 使用通用约束提示词:', constraints);
         } else {
-            constraints = CONSTRAINT_PROMPTS[this.currentOperationType] || CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
+            constraints = KSP_NS.constants.CONSTRAINT_PROMPTS[this.currentOperationType] || KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
             // console.log('[Kontext Super Prompt] 使用操作类型约束提示词:', this.currentOperationType, constraints);
         }
         this.updateConstraintContainer(constraints, false); // false表示不自动选中
@@ -3026,10 +3401,10 @@ class KontextSuperPrompt {
         // 根据当前操作类型加载相应的修饰性提示词（不自动选中）
         let decoratives;
         if (!this.currentOperationType) {
-            decoratives = DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
+            decoratives = KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
             // console.log('[Kontext Super Prompt] 使用通用修饰提示词:', decoratives);
         } else {
-            decoratives = DECORATIVE_PROMPTS[this.currentOperationType] || DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
+            decoratives = KSP_NS.constants.DECORATIVE_PROMPTS[this.currentOperationType] || KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
             // console.log('[Kontext Super Prompt] 使用操作类型修饰提示词:', this.currentOperationType, decoratives);
         }
         this.updateDecorativeContainer(decoratives, false); // false表示不自动选中
@@ -3302,6 +3677,9 @@ class KontextSuperPrompt {
         }
 
         // 描述输入事件监听已移到createDescriptionSection中，确保每个面板的输入框都有监听
+        
+        // 结束性能监控
+        KSP_NS.performance.endTimer(`node_${this.node.id}_init`);
     }
 
     updateLayerInfo(layerInfo) {
@@ -3333,8 +3711,23 @@ class KontextSuperPrompt {
         //     transformData: layerInfo.transform_data ? Object.keys(layerInfo.transform_data).length : 0
         // });
         
-        this.renderLayerList();
-        this.updateLayerCountDisplay();
+        // 使用防抖动批量渲染
+        this.scheduleRender();
+    }
+
+    scheduleRender() {
+        // 直接同步渲染，确保画布立即显示
+        try {
+            this.renderLayerList();
+            this.updateLayerCountDisplay();
+        } catch (error) {
+            console.error('[Kontext Super Prompt] 渲染失败:', error);
+        }
+    }
+
+    batchRender() {
+        // 简化为直接调用渲染
+        this.scheduleRender();
     }
 
     tryGetLayerInfoFromConnectedNode() {
@@ -3785,12 +4178,47 @@ class KontextSuperPrompt {
             return;
         }
 
+        // 批量DOM操作优化
+        const fragment = document.createDocumentFragment();
+        const layers = this.layerInfo.layers;
+        
+        // 对于大量图层使用分批渲染
+        if (layers.length > 50) {
+            this.renderLayersInBatches(layers, fragment);
+        } else {
+            // 小量图层直接渲染
+            layers.forEach((layer, index) => {
+                const layerItem = this.createLayerItem(layer, index);
+                fragment.appendChild(layerItem);
+            });
+        }
+        
+        // 一次性更新DOM
         this.layerList.innerHTML = '';
+        this.layerList.appendChild(fragment);
+    }
 
-        this.layerInfo.layers.forEach((layer, index) => {
-            const layerItem = this.createLayerItem(layer, index);
-            this.layerList.appendChild(layerItem);
-        });
+    renderLayersInBatches(layers, fragment) {
+        const batchSize = 10; // 每批处理10个图层
+        let currentIndex = 0;
+        
+        const renderBatch = () => {
+            const endIndex = Math.min(currentIndex + batchSize, layers.length);
+            
+            for (let i = currentIndex; i < endIndex; i++) {
+                const layerItem = this.createLayerItem(layers[i], i);
+                fragment.appendChild(layerItem);
+            }
+            
+            currentIndex = endIndex;
+            
+            // 如果还有更多图层需要渲染，使用requestAnimationFrame继续
+            if (currentIndex < layers.length) {
+                requestAnimationFrame(renderBatch);
+            }
+        };
+        
+        renderBatch();
     }
 
     createLayerItem(layer, index) {
@@ -4042,8 +4470,8 @@ class KontextSuperPrompt {
         // // console.log("[Kontext Super Prompt] 开始组装提示词部分:");
         
         // 添加操作类型模板（如果有模板，则使用模板并集成描述；否则只使用描述）
-        if (this.currentOperationType && OPERATION_TEMPLATES[this.currentOperationType]) {
-            const template = OPERATION_TEMPLATES[this.currentOperationType];
+        if (this.currentOperationType && KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType]) {
+            const template = KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType];
             // console.log(`  - 找到操作类型模板: ${this.currentOperationType}`, template);
             
             if (template.template) {
@@ -4271,7 +4699,6 @@ class KontextSuperPrompt {
             api_seed: Math.floor(Math.random() * 1000000),
             api_custom_guidance: style === 'custom_guidance' ? (this.apiConfig?.guidanceTextarea?.value || '') : '',
             description: description,
-            generated_prompt: '',
             // 保持空的约束和修饰提示词，避免与手动模式混淆
             constraint_prompts: '',
             decorative_prompts: '',
@@ -4364,7 +4791,6 @@ class KontextSuperPrompt {
             ollama_enable_visual: enableVisual,
             ollama_auto_unload: autoUnload,
             description: description,
-            generated_prompt: '',
             // 保持空的约束和修饰提示词，避免与手动模式混淆
             constraint_prompts: '',
             decorative_prompts: '',
@@ -4533,9 +4959,15 @@ class KontextSuperPrompt {
                 generatedContent = '未能获取到有效响应';
             }
             
-            // 显示最终结果
+            // 显示最终结果并传递纯净提示词给后端
             this.generatedPrompt = `✅ ${provider} API生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
             this.updateAllPreviewTextareas();
+            
+            // 将纯净的提示词传递给后端
+            this.updateNodeWidgets([
+                { name: 'generated_prompt', value: generatedContent || '' }
+            ]);
+            
             this.isGeneratingAPI = false;
             
         } catch (error) {
@@ -4613,9 +5045,15 @@ class KontextSuperPrompt {
                 generatedContent = '未能获取到有效响应';
             }
             
-            // 显示最终结果
+            // 显示最终结果并传递纯净提示词给后端
             this.generatedPrompt = `✅ 本地 Ollama 生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
             this.updateAllPreviewTextareas();
+            
+            // 将纯净的提示词传递给后端
+            this.updateNodeWidgets([
+                { name: 'generated_prompt', value: generatedContent || '' }
+            ]);
+            
             this.isGeneratingOllama = false;
             
         } catch (error) {
@@ -4661,7 +5099,7 @@ class KontextSuperPrompt {
 
     updateNodeSize() {
         const nodeWidth = 816; // 1020 * 0.8 - 减小20%
-        const nodeHeight = 750; // EDITOR_SIZE.HEIGHT + 50
+        const nodeHeight = 750; // KSP_NS.constants.EDITOR_SIZE.HEIGHT + 50
         
         // 强制更新节点大小
         this.node.size = [nodeWidth, nodeHeight];
@@ -5049,7 +5487,7 @@ app.registerExtension({
                 
                 // 设置节点初始大小
                 const nodeWidth = 816; // 1020 * 0.8 - 减小20%
-                const nodeHeight = 750; // EDITOR_SIZE.HEIGHT + 50
+                const nodeHeight = 750; // KSP_NS.constants.EDITOR_SIZE.HEIGHT + 50
                 this.size = [nodeWidth, nodeHeight];
                 
                 // 创建超级提示词编辑器实例
@@ -5084,6 +5522,18 @@ app.registerExtension({
                     this.setSize([nodeWidth, nodeHeight]);
                 }
                 
+                // 初始化默认界面，确保即使没有Canvas连接也能正常显示
+                setTimeout(() => {
+                    if (!this.kontextSuperPrompt.layerInfo || this.kontextSuperPrompt.layerInfo.layers.length === 0) {
+                        console.log("[Kontext Super Prompt] 初始化默认界面");
+                        this.kontextSuperPrompt.updateLayerInfo({ 
+                            layers: [], 
+                            canvas_size: { width: 512, height: 512 },
+                            transform_data: { background: { width: 512, height: 512 } }
+                        });
+                    }
+                }, 100);
+
                 // 监听输入变化
                 const onConnectionsChange = this.onConnectionsChange;
                 this.onConnectionsChange = function(type, index, connected, link_info) {
@@ -5104,6 +5554,14 @@ app.registerExtension({
                         setTimeout(() => {
                             this.kontextSuperPrompt.tryGetLayerInfoFromConnectedNode();
                         }, 500);
+                    } else if (type === 1 && index === 0 && !connected) {
+                        // 当断开连接时，显示默认界面
+                        console.log("[Kontext Super Prompt] Canvas连接断开，显示默认界面");
+                        this.kontextSuperPrompt.updateLayerInfo({ 
+                            layers: [], 
+                            canvas_size: { width: 512, height: 512 },
+                            transform_data: { background: { width: 512, height: 512 } }
+                        });
                     }
                 };
                 
@@ -5214,8 +5672,9 @@ app.registerExtension({
                                     // // console.log("[Kontext Super Prompt] 成功获取图层信息，更新界面:", layerInfo);
                                     this.kontextSuperPrompt.updateLayerInfo(layerInfo);
                                 } else {
-                                    console.warn("[Kontext Super Prompt] 未找到图层信息，尝试其他方法");
-                                    this.kontextSuperPrompt.tryGetLayerInfoFromConnectedNode();
+                                    console.warn("[Kontext Super Prompt] 未找到图层信息，显示默认界面");
+                                    // 即使没有图层信息也要确保界面正常显示
+                                    this.kontextSuperPrompt.updateLayerInfo({ layers: [], canvas_size: { width: 512, height: 512 } });
                                 }
                             }
                         }

@@ -117,7 +117,7 @@ class KontextSuperPrompt:
     def IS_CHANGED(cls, **kwargs):
         # 强制每次都重新执行，同时强制刷新节点定义
         import time
-        return str(time.time())
+        return str(time.time()) + "_force_refresh"
     
     def process_super_prompt(self, layer_info, image, tab_mode="manual", unique_id="", edit_mode="局部编辑", 
                            operation_type="", description="", constraint_prompts="", 
@@ -142,8 +142,11 @@ class KontextSuperPrompt:
             print(f"[Kontext Super Prompt] 描述: '{description}'")
             
             # 根据选项卡模式处理
-            if tab_mode == "api" and api_key:
-                print("[Kontext Super Prompt] 使用API模式生成提示词")
+            if tab_mode == "api" and generated_prompt and generated_prompt.strip():
+                print("[Kontext Super Prompt] 使用前端API生成的提示词")
+                final_generated_prompt = generated_prompt.strip()
+            elif tab_mode == "api" and api_key:
+                print("[Kontext Super Prompt] 前端未生成提示词，使用后端API生成")
                 final_generated_prompt = self.process_api_mode(
                     layer_info, description, api_provider, api_key, api_model,
                     api_editing_intent, api_processing_style, api_seed, 
@@ -157,7 +160,7 @@ class KontextSuperPrompt:
                     ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
                 )
             elif generated_prompt and generated_prompt.strip():
-                print("[Kontext Super Prompt] 使用前端生成的提示词")
+                print("[Kontext Super Prompt] 使用前端生成的提示词（非API模式）")
                 final_generated_prompt = generated_prompt.strip()
             else:
                 print("[Kontext Super Prompt] 使用手动模式生成提示词")
@@ -320,37 +323,95 @@ class KontextSuperPrompt:
                         editing_intent, processing_style, seed, custom_guidance, image):
         """处理API模式的提示词生成"""
         try:
-            from API_flux_kontext_enhancer import APIFluxKontextEnhancer
+            import requests
+            import re
+            import hashlib
             
-            # 创建API增强器实例
-            api_enhancer = APIFluxKontextEnhancer()
+            if not api_key:
+                print("[Kontext Super Prompt] API密钥为空")
+                return f"API密钥为空: {description or '无描述'}"
             
-            # 转换图层信息为JSON字符串
-            layer_info_str = json.dumps(layer_info) if isinstance(layer_info, dict) else str(layer_info)
+            # API提供商配置
+            api_configs = {
+                'siliconflow': {
+                    'base_url': 'https://api.siliconflow.cn/v1/chat/completions',
+                    'default_model': 'deepseek-ai/DeepSeek-V3'
+                },
+                'zhipu': {
+                    'base_url': 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+                    'default_model': 'glm-4.5'
+                },
+                'deepseek': {
+                    'base_url': 'https://api.deepseek.com/v1/chat/completions',
+                    'default_model': 'deepseek-chat'
+                }
+            }
             
-            # 调用API增强器
-            enhanced_instructions, system_prompt = api_enhancer.enhance_flux_instructions(
-                api_provider=api_provider,
-                api_key=api_key,
-                model_preset=api_model,
-                custom_model="",
-                layer_info=layer_info_str,
-                edit_description=description,
-                editing_intent=editing_intent,
-                processing_style=processing_style,
-                seed=seed,
-                custom_guidance=custom_guidance,
-                load_saved_guidance="none",
-                save_guidance_name="",
-                save_guidance_button=False,
-                image=image
-            )
+            # 获取API配置
+            api_config = api_configs.get(api_provider, api_configs['siliconflow'])
+            model = api_model or api_config['default_model']
             
-            if enhanced_instructions:
-                return enhanced_instructions
-            else:
-                print("[Kontext Super Prompt] API模式生成失败，使用fallback")
-                return f"API生成失败: {description or '无描述'}"
+            # 构建系统提示词
+            system_prompt = """You are an AI image editing prompt expert. Generate clean, professional English prompts for AI image editing tools.
+
+IMPORTANT: Your response should contain ONLY the final optimized prompt. Do not include explanations, breakdowns, or additional text.
+
+Requirements:
+- Generate concise, action-oriented prompts
+- Use professional terminology
+- Ensure natural language flow
+- Focus on the specific editing task"""
+            
+            if editing_intent == "creative_enhancement":
+                system_prompt += "\n- Prioritize artistic and creative improvements"
+            elif editing_intent == "technical_correction":
+                system_prompt += "\n- Focus on technical accuracy and corrections"
+            elif editing_intent == "style_transformation":
+                system_prompt += "\n- Emphasize style changes and artistic transformation"
+            
+            if processing_style == "auto_smart":
+                system_prompt += "\n- Use intelligent automatic processing"
+            elif processing_style == "manual_precise":
+                system_prompt += "\n- Require precise manual control"
+            elif processing_style == "balanced_hybrid":
+                system_prompt += "\n- Balance automatic and manual approaches"
+            
+            # 构建用户提示词
+            user_prompt = f"Generate an optimized English prompt for: {description}"
+            if custom_guidance:
+                user_prompt += f" | Additional guidance: {custom_guidance}"
+            user_prompt += " | Respond with only the final prompt, no explanations."
+            
+            # 发送API请求
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }
+            
+            data = {
+                'model': model,
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt}
+                ],
+                'temperature': 0.7,
+                'max_tokens': 500
+            }
+            
+            response = requests.post(api_config['base_url'], headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            api_response = result['choices'][0]['message']['content']
+            
+            # 清理响应，提取纯净提示词
+            cleaned_response = self._clean_api_response(api_response)
+            
+            print(f"[Kontext Super Prompt] ✅ {api_provider} API生成完成！")
+            print(f"[Kontext Super Prompt] 模型: {model}")
+            print(f"[Kontext Super Prompt] 输入: \"{description}\"")
+            
+            return cleaned_response
                 
         except Exception as e:
             print(f"[Kontext Super Prompt] API模式处理错误: {e}")
@@ -397,6 +458,89 @@ class KontextSuperPrompt:
         except Exception as e:
             print(f"[Kontext Super Prompt] Ollama模式处理错误: {e}")
             return f"Ollama处理错误: {description or '无描述'}"
+    
+    def _clean_api_response(self, response):
+        """清理API响应，提取纯净提示词"""
+        import re
+        
+        if not response:
+            return response
+        
+        # 移除常见的解释性文本模式
+        patterns_to_remove = [
+            r'Based on your input.*?prompt[:\s]*',
+            r'\*\*Optimized Prompt:\*\*\s*',
+            r'```[^`]*```',  # 移除代码块
+            r'\*\*[^*]*\*\*',  # 移除粗体标记
+            r'### Key Optimizations.*',  # 移除解释章节
+            r'### Why This Works.*',  # 移除工作原理说明
+            r'Key Optimizations Explained:.*',  # 移除优化解释
+            r'\d+\.\s+\*\*[^*]*\*\*.*',  # 移除编号列表
+            r'^\s*[-*]\s+.*$',  # 移除列表项
+            r'Here is.*?prompt[:\s]*',
+            r'The following.*?prompt[:\s]*',
+            r'Final prompt[:\s]*',
+            r'Breakdown.*',
+            r'Why this prompt.*',
+            r'Rationale.*',
+            r'^.*?prompt[:\s]*',
+        ]
+        
+        # 首先尝试提取代码块中的提示词
+        code_block_match = re.search(r'```[^`]*?\n(.*?)\n```', response, re.DOTALL)
+        if code_block_match:
+            extracted_prompt = code_block_match.group(1).strip()
+            if extracted_prompt and len(extracted_prompt) > 20:  # 确保是有意义的提示词
+                cleaned = extracted_prompt
+            else:
+                cleaned = response.strip()
+        else:
+            cleaned = response.strip()
+        
+        # 应用清理模式
+        for pattern in patterns_to_remove:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
+        
+        # 移除任何包含"#"的标题行
+        cleaned = re.sub(r'^.*#.*$', '', cleaned, flags=re.MULTILINE)
+        
+        # 移除列表格式的行（以数字或符号开头）
+        cleaned = re.sub(r'^\s*\d+\..*$', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'^\s*[-*].*$', '', cleaned, flags=re.MULTILINE)
+        
+        # 清理多余的换行和空格
+        cleaned = re.sub(r'\n+', ' ', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        cleaned = cleaned.strip()
+        
+        # 如果清理后为空或过短，尝试提取第一个有意义的句子
+        if not cleaned or len(cleaned) < 20:
+            # 查找看起来像提示词的长句子（通常包含动作词汇）
+            sentences = re.split(r'[.!?]+', response)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if (len(sentence) > 20 and 
+                    any(word in sentence.lower() for word in ['apply', 'transform', 'change', 'convert', 'adjust', 'modify', 'enhance', 'create'])):
+                    cleaned = sentence
+                    break
+            
+            # 如果还是没找到，使用第一个长句子
+            if not cleaned:
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if len(sentence) > 30:
+                        cleaned = sentence
+                        break
+        
+        # 最终清理：移除引号包装，确保首字母大写
+        cleaned = cleaned.strip('"\'`')
+        if cleaned and not cleaned[0].isupper():
+            cleaned = cleaned.capitalize()
+        
+        # 移除末尾句号（如果存在）
+        cleaned = cleaned.rstrip('.')
+        
+        return cleaned
 
 
 # 注册节点
@@ -405,7 +549,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "KontextSuperPrompt": "🎯 Kontext Super Prompt v1.3.4",
+    "KontextSuperPrompt": "🎯 Kontext Super Prompt",
 }
 
 print("[Kontext Super Prompt] Kontext Super Prompt node registered")
