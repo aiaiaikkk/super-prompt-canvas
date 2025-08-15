@@ -355,13 +355,16 @@ class KontextSuperPrompt:
             # 构建系统提示词
             system_prompt = """You are an AI image editing prompt expert. Generate clean, professional English prompts for AI image editing tools.
 
-IMPORTANT: Your response should contain ONLY the final optimized prompt. Do not include explanations, breakdowns, or additional text.
+CRITICAL: Generate ONLY ONE single prompt. Do not provide multiple options, variations, or numbered lists.
 
 Requirements:
-- Generate concise, action-oriented prompts
-- Use professional terminology
-- Ensure natural language flow
-- Focus on the specific editing task"""
+- Output exactly ONE cohesive prompt (50-150 words)
+- Be specific and descriptive about the requested changes
+- Use professional image editing terminology
+- Each generation should be unique even for the same input
+- Do NOT include titles, headers, or any formatting
+- Do NOT provide multiple prompts or variations
+- Just the prompt text itself, nothing else"""
             
             if editing_intent == "creative_enhancement":
                 system_prompt += "\n- Prioritize artistic and creative improvements"
@@ -377,11 +380,16 @@ Requirements:
             elif processing_style == "balanced_hybrid":
                 system_prompt += "\n- Balance automatic and manual approaches"
             
+            # 添加随机元素确保每次生成不同
+            import time
+            random_seed = int(time.time() * 1000) % 1000000
+            
             # 构建用户提示词
-            user_prompt = f"Generate an optimized English prompt for: {description}"
+            user_prompt = f"Generate a complete and detailed English prompt for the following image editing task: {description}"
             if custom_guidance:
-                user_prompt += f" | Additional guidance: {custom_guidance}"
-            user_prompt += " | Respond with only the final prompt, no explanations."
+                user_prompt += f"\n\nAdditional guidance: {custom_guidance}"
+            user_prompt += f"\n\nVariation seed: {random_seed}"  # 添加随机种子
+            user_prompt += "\n\nRemember: Output ONLY ONE single prompt. No titles, numbers, or multiple variations."
             
             # 发送API请求
             headers = {
@@ -395,8 +403,9 @@ Requirements:
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_prompt}
                 ],
-                'temperature': 0.7,
-                'max_tokens': 500
+                'temperature': 0.7 + (random_seed % 20) / 100,  # 0.7-0.89的随机温度
+                'max_tokens': 500,  # 增加到500确保有足够空间生成
+                'top_p': 0.95
             }
             
             response = requests.post(api_config['base_url'], headers=headers, json=data, timeout=30)
@@ -405,8 +414,14 @@ Requirements:
             result = response.json()
             api_response = result['choices'][0]['message']['content']
             
+            # 调试：显示原始响应
+            print(f"[Kontext Super Prompt] API原始响应: {api_response[:200]}..." if len(api_response) > 200 else f"[Kontext Super Prompt] API原始响应: {api_response}")
+            
             # 清理响应，提取纯净提示词
             cleaned_response = self._clean_api_response(api_response)
+            
+            # 调试：显示清理后的响应
+            print(f"[Kontext Super Prompt] 清理后响应: {cleaned_response[:200]}..." if len(cleaned_response) > 200 else f"[Kontext Super Prompt] 清理后响应: {cleaned_response}")
             
             print(f"[Kontext Super Prompt] ✅ {api_provider} API生成完成！")
             print(f"[Kontext Super Prompt] 模型: {model}")
@@ -467,81 +482,57 @@ Requirements:
         if not response:
             return response
         
-        # 移除常见的解释性文本模式
+        # 如果响应包含多个Prompt编号，只提取第一个
+        if '### Prompt' in response or 'Prompt 1:' in response:
+            print("[Kontext Super Prompt] 检测到多个提示词格式，提取第一个")
+            
+            # 尝试提取第一个引号内的提示词
+            first_quoted_match = re.search(r'"([^"]{30,})"', response)
+            if first_quoted_match:
+                print("[Kontext Super Prompt] 提取第一个引号中的提示词")
+                return first_quoted_match.group(1).strip()
+            
+            # 尝试提取第一个提示词段落
+            first_prompt_match = re.search(r'(?:Prompt \d+:.*?)"([^"]+)"', response, re.DOTALL)
+            if first_prompt_match:
+                print("[Kontext Super Prompt] 提取第一个编号提示词")
+                return first_prompt_match.group(1).strip()
+        
+        # 尝试提取引号中的提示词
+        quoted_match = re.search(r'"([^"]{30,})"', response)
+        if quoted_match:
+            print("[Kontext Super Prompt] 提取引号中的提示词")
+            return quoted_match.group(1).strip()
+        
+        # 清理标题和前缀
         patterns_to_remove = [
-            r'Based on your input.*?prompt[:\s]*',
-            r'\*\*Optimized Prompt:\*\*\s*',
-            r'```[^`]*```',  # 移除代码块
-            r'\*\*[^*]*\*\*',  # 移除粗体标记
-            r'### Key Optimizations.*',  # 移除解释章节
-            r'### Why This Works.*',  # 移除工作原理说明
-            r'Key Optimizations Explained:.*',  # 移除优化解释
-            r'\d+\.\s+\*\*[^*]*\*\*.*',  # 移除编号列表
-            r'^\s*[-*]\s+.*$',  # 移除列表项
-            r'Here is.*?prompt[:\s]*',
-            r'The following.*?prompt[:\s]*',
-            r'Final prompt[:\s]*',
-            r'Breakdown.*',
-            r'Why this prompt.*',
-            r'Rationale.*',
-            r'^.*?prompt[:\s]*',
+            r'^###.*$',            # 移除Markdown标题
+            r'^Prompt \d+:.*$',    # 移除"Prompt 1:"等
+            r'^---.*$',            # 移除分隔线
+            r'^.*?prompt:\s*',     # 移除prompt前缀
         ]
         
-        # 首先尝试提取代码块中的提示词
+        cleaned = response.strip()
+        
+        # 尝试提取代码块中的提示词
         code_block_match = re.search(r'```[^`]*?\n(.*?)\n```', response, re.DOTALL)
-        if code_block_match:
-            extracted_prompt = code_block_match.group(1).strip()
-            if extracted_prompt and len(extracted_prompt) > 20:  # 确保是有意义的提示词
-                cleaned = extracted_prompt
-            else:
-                cleaned = response.strip()
-        else:
-            cleaned = response.strip()
+        if code_block_match and len(code_block_match.group(1).strip()) > 20:
+            print("[Kontext Super Prompt] 提取代码块中的提示词")
+            return code_block_match.group(1).strip()
         
         # 应用清理模式
         for pattern in patterns_to_remove:
-            cleaned = re.sub(pattern, '', cleaned, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(pattern, '', cleaned, flags=re.MULTILINE | re.IGNORECASE)
         
-        # 移除任何包含"#"的标题行
-        cleaned = re.sub(r'^.*#.*$', '', cleaned, flags=re.MULTILINE)
+        # 清理多余空行
+        cleaned = re.sub(r'\n{2,}', '\n', cleaned).strip()
         
-        # 移除列表格式的行（以数字或符号开头）
-        cleaned = re.sub(r'^\s*\d+\..*$', '', cleaned, flags=re.MULTILINE)
-        cleaned = re.sub(r'^\s*[-*].*$', '', cleaned, flags=re.MULTILINE)
+        # 如果没有做任何处理或结果太短，返回原始内容
+        if not cleaned or len(cleaned) < 10:
+            print("[Kontext Super Prompt] 清理结果过短，返回原始内容")
+            return response.strip()
         
-        # 清理多余的换行和空格
-        cleaned = re.sub(r'\n+', ' ', cleaned)
-        cleaned = re.sub(r'\s+', ' ', cleaned)
-        cleaned = cleaned.strip()
-        
-        # 如果清理后为空或过短，尝试提取第一个有意义的句子
-        if not cleaned or len(cleaned) < 20:
-            # 查找看起来像提示词的长句子（通常包含动作词汇）
-            sentences = re.split(r'[.!?]+', response)
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if (len(sentence) > 20 and 
-                    any(word in sentence.lower() for word in ['apply', 'transform', 'change', 'convert', 'adjust', 'modify', 'enhance', 'create'])):
-                    cleaned = sentence
-                    break
-            
-            # 如果还是没找到，使用第一个长句子
-            if not cleaned:
-                for sentence in sentences:
-                    sentence = sentence.strip()
-                    if len(sentence) > 30:
-                        cleaned = sentence
-                        break
-        
-        # 最终清理：移除引号包装，确保首字母大写
-        cleaned = cleaned.strip('"\'`')
-        if cleaned and not cleaned[0].isupper():
-            cleaned = cleaned.capitalize()
-        
-        # 移除末尾句号（如果存在）
-        cleaned = cleaned.rstrip('.')
-        
-        return cleaned
+        return cleaned.strip()
 
 
 # 注册节点

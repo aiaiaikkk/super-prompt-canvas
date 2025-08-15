@@ -2132,7 +2132,15 @@ class KontextSuperPrompt {
         
         // 为每个描述输入框添加事件监听
         descriptionTextarea.addEventListener('input', (e) => {
-            this.description = e.target.value;
+            const newValue = e.target.value;
+            
+            // 调试：检测是否有模板文本被意外写入
+            if (newValue && newValue.includes('transform') && newValue.includes('selected area')) {
+                console.warn('[Kontext Super Prompt] ⚠️ 警告：检测到模板文本被写入描述字段:', newValue);
+                console.trace('[Kontext Super Prompt] 调用堆栈：');
+            }
+            
+            this.description = newValue;
             // console.log('[Kontext Super Prompt] 描述更新:', this.description);
             // 同步更新所有面板的描述输入框
             this.updateAllDescriptionTextareas();
@@ -3295,7 +3303,18 @@ class KontextSuperPrompt {
             'ollama': 'ollama_enhance'
         };
         
-        this.currentOperationType = defaultOperations[tabId] || '';
+        // 在API和Ollama模式下，清除任何可能导致模板生成的操作类型
+        if (tabId === 'api' || tabId === 'ollama') {
+            // API和Ollama模式专用操作类型，不会触发模板生成
+            this.currentOperationType = defaultOperations[tabId] || '';
+            // 额外保护：如果操作类型可能触发模板，立即清除
+            if (this.currentOperationType && this.currentOperationType.includes('change_color')) {
+                console.warn('[Kontext Super Prompt] API/Ollama模式下检测到模板操作类型，已清除');
+                this.currentOperationType = tabId === 'api' ? 'api_enhance' : 'ollama_enhance';
+            }
+        } else {
+            this.currentOperationType = defaultOperations[tabId] || '';
+        }
         // console.log('[Kontext Super Prompt] 切换到标签页:', tabId, '默认操作类型:', this.currentOperationType);
         
         // 延迟执行确保DOM完全更新
@@ -4432,11 +4451,15 @@ class KontextSuperPrompt {
     generateSuperPrompt() {
         // // console.log("[Kontext Super Prompt] ==================== 开始生成超级提示词 ====================");
         
-        // 检查当前选项卡模式
+        // 检查当前选项卡模式 - API和Ollama模式完全独立，不受模板影响
         if (this.currentCategory === 'api') {
+            // API模式：完全独立，不使用任何模板
+            console.log('[Kontext Super Prompt] API模式生成，不使用预设模板');
             this.generateWithAPI();
             return;
         } else if (this.currentCategory === 'ollama') {
+            // Ollama模式：完全独立，不使用任何模板
+            console.log('[Kontext Super Prompt] Ollama模式生成，不使用预设模板');
             this.generateWithOllama();
             return;
         }
@@ -4654,44 +4677,81 @@ class KontextSuperPrompt {
         const intent = this.apiConfig?.intentSelect?.value || 'general_editing';
         const style = this.apiConfig?.styleSelect?.value || 'auto_smart';
         
-        // 获取描述 - 尝试多种选择器，优先使用当前DOM中的值
-        let description = '';
-        const descriptionInputs = [
-            this.editorContainer.querySelector('.api-edit-panel .description-section textarea'),
-            this.editorContainer.querySelector('.description-section textarea'),
-            this.descriptionTextarea,
-            this.descriptionInput
-        ];
+        // 每次生成前清空缓存，强制重新读取
+        this.description = '';
         
-        // 优先从DOM查询获取最新值，避免使用缓存的旧值
-        for (const input of descriptionInputs) {
-            if (input && input.value && typeof input.value === 'string') {
-                const trimmedValue = input.value.trim();
-                if (trimmedValue) {
-                    description = trimmedValue;
-                    // 更新组件的description属性为最新值
-                    this.description = description;
-                    break;
+        // 获取描述 - 优先从API面板的输入框读取
+        let description = '';
+        const apiDescTextarea = this.editorContainer.querySelector('.api-edit-panel .description-section textarea');
+        
+        if (apiDescTextarea && apiDescTextarea.value) {
+            description = apiDescTextarea.value.trim();
+            console.log('[API] 从API面板读取描述:', description);
+        } else {
+            // 如果API面板没有输入框，尝试其他选择器
+            const descriptionInputs = [
+                this.editorContainer.querySelector('.description-section textarea'),
+                this.descriptionTextarea,
+                this.descriptionInput
+            ];
+            
+            for (const input of descriptionInputs) {
+                if (input && input.value && typeof input.value === 'string') {
+                    const trimmedValue = input.value.trim();
+                    if (trimmedValue) {
+                        description = trimmedValue;
+                        console.log('[API] 从备用选择器读取描述:', description);
+                        break;
+                    }
                 }
             }
         }
         
-        // 如果DOM中没有找到，才使用缓存的值
-        if (!description && this.description && this.description.trim()) {
-            description = this.description.trim();
-        }
+        // 更新缓存
+        this.description = description;
         
         console.log('[API] 获取到的描述:', description);
-        console.log('[API] 当前缓存的description:', this.description);
-        console.log('[API] 所有输入框的值:', descriptionInputs.map(input => input?.value).filter(v => v));
+        console.log('[API] 本次生成时间戳:', Date.now());
+        
+        // 检测并修复模板污染问题
+        const templatePatterns = [
+            /transform selected area color to\s+(.+)/,
+            /transform \{object\} color to\s+(.+)/,
+            /reimagine selected area in\s+(.+)\s+aesthetic/,
+            /thoughtfully replace selected area with\s+(.+)/,
+            /thoughtfully introduce\s+(.+)\s+to complement/,
+            /seamlessly eliminate selected area/,
+            /transform selected area surface to\s+(.+)\s+texture/
+        ];
+        
+        for (const pattern of templatePatterns) {
+            if (description && pattern.test(description)) {
+                console.warn('[API] ⚠️ 检测到模板污染:', description);
+                const matches = description.match(pattern);
+                if (matches && matches[1]) {
+                    description = matches[1].trim();
+                    console.log('[API] 提取纯净描述:', description);
+                } else if (description.includes('seamlessly eliminate')) {
+                    // 特殊处理remove_object模板
+                    description = '';
+                    console.log('[API] 检测到移除操作，清空描述');
+                }
+                // 更新组件的description属性为清理后的值
+                this.description = description;
+                // 不要将清理后的值写回输入框，保持用户原始输入
+                console.log('[API] 保持输入框原始值，不写入清理后的描述');
+                break;
+            }
+        }
         
         if (!apiKey) {
             alert('请输入API密钥');
             return;
         }
         
-        // 设置生成中状态
-        this.generatedPrompt = '正在使用API生成提示词...';
+        // 设置生成中状态 - 添加时间戳确保用户看到新的生成过程
+        const timestamp = new Date().toLocaleTimeString();
+        this.generatedPrompt = `🔄 正在使用API生成提示词... (${timestamp})`;
         this.updateAllPreviewTextareas();
         
         // 设置标志位防止切换选项卡
@@ -4780,13 +4840,45 @@ class KontextSuperPrompt {
         
         console.log('[Ollama] 获取到的描述:', description);
         
+        // 检测并修复模板污染问题（与API模式相同）
+        const templatePatterns = [
+            /transform selected area color to\s+(.+)/,
+            /transform \{object\} color to\s+(.+)/,
+            /reimagine selected area in\s+(.+)\s+aesthetic/,
+            /thoughtfully replace selected area with\s+(.+)/,
+            /thoughtfully introduce\s+(.+)\s+to complement/,
+            /seamlessly eliminate selected area/,
+            /transform selected area surface to\s+(.+)\s+texture/
+        ];
+        
+        for (const pattern of templatePatterns) {
+            if (description && pattern.test(description)) {
+                console.warn('[Ollama] ⚠️ 检测到模板污染:', description);
+                const matches = description.match(pattern);
+                if (matches && matches[1]) {
+                    description = matches[1].trim();
+                    console.log('[Ollama] 提取纯净描述:', description);
+                } else if (description.includes('seamlessly eliminate')) {
+                    // 特殊处理remove_object模板
+                    description = '';
+                    console.log('[Ollama] 检测到移除操作，清空描述');
+                }
+                // 更新组件的description属性
+                this.description = description;
+                // 更新所有描述输入框
+                this.updateAllDescriptionTextareas();
+                break;
+            }
+        }
+        
         if (!model) {
             alert('请选择Ollama模型');
             return;
         }
         
-        // 设置生成中状态
-        this.generatedPrompt = '正在使用Ollama生成提示词...';
+        // 设置生成中状态 - 添加时间戳确保用户看到新的生成过程  
+        const timestamp = new Date().toLocaleTimeString();
+        this.generatedPrompt = `🔄 正在使用Ollama生成提示词... (${timestamp})`;
         this.updateAllPreviewTextareas();
         
         // 设置标志位防止切换选项卡
@@ -4845,6 +4937,10 @@ class KontextSuperPrompt {
             let apiUrl, headers, requestBody;
             
             if (provider === 'zhipu') {
+                // 添加随机性确保每次生成不同结果
+                const randomSeed = Math.floor(Math.random() * 1000000);
+                const temperature = 0.7 + (Math.random() * 0.3); // 0.7-1.0之间的随机温度
+                
                 apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
                 headers = {
                     'Content-Type': 'application/json',
@@ -4855,13 +4951,18 @@ class KontextSuperPrompt {
                     messages: [
                         {
                             role: 'user',
-                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 1000
+                    temperature: temperature,
+                    max_tokens: 500,  // 确保有足够空间生成完整提示词
+                    top_p: 0.95
                 };
             } else if (provider === 'moonshot') {
+                // 添加随机性确保每次生成不同结果
+                const randomSeed = Math.floor(Math.random() * 1000000);
+                const temperature = 0.7 + (Math.random() * 0.3); // 0.7-1.0之间的随机温度
+                
                 apiUrl = 'https://api.moonshot.cn/v1/chat/completions';
                 headers = {
                     'Content-Type': 'application/json',
@@ -4872,13 +4973,18 @@ class KontextSuperPrompt {
                     messages: [
                         {
                             role: 'user',
-                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 1000
+                    temperature: temperature,
+                    max_tokens: 500,  // 确保有足够空间生成完整提示词
+                    top_p: 0.95
                 };
             } else if (provider === 'siliconflow') {
+                // 添加随机性确保每次生成不同结果
+                const randomSeed = Math.floor(Math.random() * 1000000);
+                const temperature = 0.7 + (Math.random() * 0.3); // 0.7-1.0之间的随机温度
+                
                 apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
                 headers = {
                     'Content-Type': 'application/json',
@@ -4889,13 +4995,18 @@ class KontextSuperPrompt {
                     messages: [
                         {
                             role: 'user',
-                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 1000
+                    temperature: temperature,
+                    max_tokens: 500,  // 确保有足够空间生成完整提示词
+                    top_p: 0.95
                 };
             } else if (provider === 'deepseek') {
+                // 添加随机性确保每次生成不同结果
+                const randomSeed = Math.floor(Math.random() * 1000000);
+                const temperature = 0.7 + (Math.random() * 0.3); // 0.7-1.0之间的随机温度
+                
                 apiUrl = 'https://api.deepseek.com/v1/chat/completions';
                 headers = {
                     'Content-Type': 'application/json',
@@ -4906,13 +5017,18 @@ class KontextSuperPrompt {
                     messages: [
                         {
                             role: 'user',
-                            content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
                         }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 1000
+                    temperature: temperature,
+                    max_tokens: 500,  // 确保有足够空间生成完整提示词
+                    top_p: 0.95
                 };
             } else if (provider === 'gemini') {
+                // 添加随机性确保每次生成不同结果
+                const randomSeed = Math.floor(Math.random() * 1000000);
+                const temperature = 0.7 + (Math.random() * 0.3); // 0.7-1.0之间的随机温度
+                
                 // Note: Gemini API需要特殊处理，使用不同的URL格式
                 apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                 headers = {
@@ -4923,13 +5039,13 @@ class KontextSuperPrompt {
                         {
                             parts: [
                                 {
-                                    text: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                                    text: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n随机种子: ${randomSeed}\n\n请生成专业的英文提示词，每次都要有所不同，提供创新的表达方式。`
                                 }
                             ]
                         }
                     ],
                     generationConfig: {
-                        temperature: 0.7,
+                        temperature: temperature,
                         maxOutputTokens: 1000
                     }
                 };
@@ -4942,7 +5058,8 @@ class KontextSuperPrompt {
                 return;
             }
             
-            this.generatedPrompt = `⚡ 正在调用 ${provider} API...`;
+            const callTimestamp = new Date().toLocaleTimeString();
+            this.generatedPrompt = `⚡ 正在调用 ${provider} API... (${callTimestamp})`;
             this.updateAllPreviewTextareas();
             
             // 调用远程API
@@ -4969,9 +5086,37 @@ class KontextSuperPrompt {
                     generatedContent = '未能获取到有效的Gemini响应';
                 }
             } else if (result.choices && result.choices[0] && result.choices[0].message) {
-                generatedContent = result.choices[0].message.content;
-                // 清理API响应，提取纯净提示词
-                generatedContent = this.cleanApiResponse(generatedContent);
+                const rawContent = result.choices[0].message.content;
+                console.log('[API] 原始响应内容:', rawContent ? `"${rawContent}"` : '(空)');
+                console.log('[API] 原始响应长度:', rawContent ? rawContent.length : 0);
+                
+                // 如果原始内容为空，尝试其他字段
+                if (!rawContent || rawContent.trim().length === 0) {
+                    console.error('[API] API返回了空内容！');
+                    console.log('[API] 完整的result.choices[0]:', result.choices[0]);
+                    console.log('[API] finish_reason:', result.choices[0].finish_reason);
+                    
+                    // 检查是否因为token限制导致的空响应
+                    if (result.choices[0].finish_reason === 'length') {
+                        generatedContent = '❌ API响应被截断（token限制），请重试或简化输入';
+                        console.warn('[API] 响应因token限制被截断');
+                    } else if (result.choices[0].text) {
+                        generatedContent = result.choices[0].text;
+                        console.log('[API] 使用text字段:', generatedContent);
+                    } else {
+                        generatedContent = '❌ API返回了空响应，请重试';
+                    }
+                } else {
+                    // 清理API响应，提取纯净提示词
+                    generatedContent = this.cleanApiResponse(rawContent);
+                    console.log('[API] 清理后内容:', generatedContent);
+                    
+                    // 如果清理后为空，使用原始内容
+                    if (!generatedContent || generatedContent.length < 10) {
+                        console.warn('[API] 清理后内容过短，使用原始内容');
+                        generatedContent = rawContent;
+                    }
+                }
             } else {
                 generatedContent = '未能获取到有效响应';
             }
@@ -4994,6 +5139,8 @@ class KontextSuperPrompt {
             });
             
             this.isGeneratingAPI = false;
+            // 确保选项卡不会被切换
+            this.currentCategory = 'api';
             
         } catch (error) {
             console.error('[API] 请求失败:', error);
@@ -5010,6 +5157,8 @@ class KontextSuperPrompt {
             
             this.updateAllPreviewTextareas();
             this.isGeneratingAPI = false;
+            // 确保选项卡不会被切换
+            this.currentCategory = 'api';
         }
     }
     
@@ -5028,22 +5177,28 @@ class KontextSuperPrompt {
             const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
             const customGuidance = this.ollamaGuidanceTextarea?.value || '';
             
+            // 添加随机性确保每次生成不同结果
+            const randomSeed = Math.floor(Math.random() * 1000000);
+            const finalTemperature = temperature + (Math.random() * 0.2); // 在原温度基础上增加一些随机性
+            
             // 构建Ollama API请求
             const requestBody = {
                 model: model,
                 messages: [
                     {
                         role: 'user',
-                        content: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n\n请生成专业的英文提示词。`
+                        content: `Generate an optimized image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nProvide a complete, detailed prompt in English. Be creative and vary your response each time.`
                     }
                 ],
                 options: {
-                    temperature: temperature
+                    temperature: finalTemperature,
+                    seed: randomSeed  // Ollama支持seed参数
                 },
                 stream: false
             };
             
-            this.generatedPrompt = `⚡ 正在调用本地 Ollama API...`;
+            const callTimestamp = new Date().toLocaleTimeString();
+            this.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
             this.updateAllPreviewTextareas();
             
             // 调用本地Ollama API
@@ -5090,6 +5245,8 @@ class KontextSuperPrompt {
             });
             
             this.isGeneratingOllama = false;
+            // 确保选项卡不会被切换
+            this.currentCategory = 'ollama';
             
         } catch (error) {
             console.error('[Ollama] 请求失败:', error);
@@ -5100,6 +5257,8 @@ class KontextSuperPrompt {
             }
             this.updateAllPreviewTextareas();
             this.isGeneratingOllama = false;
+            // 确保选项卡不会被切换
+            this.currentCategory = 'ollama';
         }
     }
 
@@ -5176,8 +5335,12 @@ class KontextSuperPrompt {
     setEditorData(data) {
         if (!data) return;
         
+        // 保存当前选项卡状态，防止被意外切换
+        const previousCategory = this.currentCategory;
+        const isGenerating = this.isGeneratingAPI || this.isGeneratingOllama;
+        
         this.currentEditMode = data.currentEditMode || "局部编辑";
-        this.currentCategory = data.currentCategory || 'local';
+        this.currentCategory = data.currentCategory || previousCategory || 'local';  // 优先保持当前选项卡
         this.currentOperationType = data.currentOperationType || '';
         this.description = data.description || '';
         this.selectedConstraints = data.selectedConstraints || [];
@@ -5186,93 +5349,81 @@ class KontextSuperPrompt {
         this.autoGenerate = data.autoGenerate !== false;
         this.generatedPrompt = data.generatedPrompt || '';  // 添加生成的提示词
         
-        this.updateUI();
+        // 如果正在生成中，不要更新UI（防止切换选项卡）
+        if (!isGenerating) {
+            this.updateUI();
+        }
     }
 
     cleanApiResponse(response) {
         /**
          * 清理API响应，提取纯净提示词
-         * 移除解释性文本，只保留核心提示词内容
+         * 处理各种格式，提取单一提示词
          */
         if (!response) {
+            console.warn('[API] 响应为空');
             return response;
         }
 
-        // 首先尝试提取代码块中的提示词
-        const codeBlockMatch = response.match(/```[^`]*?\n(.*?)\n```/s);
-        let cleaned = codeBlockMatch ? codeBlockMatch[1].trim() : response.trim();
+        console.log('[API] 开始清理响应，原始长度:', response.length);
 
-        // 移除常见的解释性文本模式
+        // 如果响应包含多个Prompt编号，只提取第一个
+        if (response.includes('### Prompt') || response.includes('Prompt 1:')) {
+            console.log('[API] 检测到多个提示词格式，提取第一个');
+            
+            // 尝试提取第一个引号内的提示词
+            const firstQuotedMatch = response.match(/"([^"]{30,})"/);
+            if (firstQuotedMatch) {
+                console.log('[API] 提取第一个引号中的提示词');
+                return firstQuotedMatch[1].trim();
+            }
+            
+            // 尝试提取第一个提示词段落（在第一个---之前）
+            const firstPromptMatch = response.match(/(?:Prompt \d+:.*?)"([^"]+)"/s);
+            if (firstPromptMatch) {
+                console.log('[API] 提取第一个编号提示词');
+                return firstPromptMatch[1].trim();
+            }
+        }
+
+        let cleaned = response.trim();
+        
+        // 尝试提取引号中的提示词（仅当引号内容足够长时）
+        const quotedMatch = response.match(/"([^"]{30,})"/);
+        if (quotedMatch) {
+            console.log('[API] 提取引号中的提示词');
+            return quotedMatch[1].trim();
+        }
+        
+        // 尝试提取代码块中的提示词
+        const codeBlockMatch = response.match(/```[^`]*?\n(.*?)\n```/s);
+        if (codeBlockMatch && codeBlockMatch[1].trim().length > 20) {
+            console.log('[API] 提取代码块中的提示词');
+            return codeBlockMatch[1].trim();
+        }
+
+        // 移除常见的标题和前缀
         const patternsToRemove = [
-            /Based on your input.*?prompt[:\s]*/is,
-            /\*\*Optimized Prompt:\*\*\s*/g,
-            /```[^`]*```/g,  // 移除代码块
-            /\*\*[^*]*\*\*/g,  // 移除粗体标记
-            /### Key Optimizations.*/is,  // 移除解释章节
-            /### Why This Works.*/is,  // 移除工作原理说明
-            /Key Optimizations Explained:.*/is,  // 移除优化解释
-            /\d+\.\s+\*\*[^*]*\*\*.*/gm,  // 移除编号列表
-            /^\s*[-*]\s+.*$/gm,  // 移除列表项
-            /Here is.*?prompt[:\s]*/is,
-            /The following.*?prompt[:\s]*/is,
-            /Final prompt[:\s]*/is,
-            /Breakdown.*/is,
-            /Why this prompt.*/is,
-            /Rationale.*/is,
-            /^.*?prompt[:\s]*/i,
+            /^###.*$/gm,           // 移除Markdown标题
+            /^Prompt \d+:.*$/gm,   // 移除"Prompt 1:"等
+            /^---.*$/gm,           // 移除分隔线
+            /^.*?prompt:\s*/i,     // 移除prompt前缀
         ];
 
-        // 应用清理模式
-        patternsToRemove.forEach(pattern => {
+        for (const pattern of patternsToRemove) {
             cleaned = cleaned.replace(pattern, '');
-        });
-
-        // 移除任何包含"#"的标题行
-        cleaned = cleaned.replace(/^.*#.*$/gm, '');
-
-        // 移除列表格式的行（以数字或符号开头）
-        cleaned = cleaned.replace(/^\s*\d+\..*$/gm, '');
-        cleaned = cleaned.replace(/^\s*[-*].*$/gm, '');
-
-        // 清理多余的换行和空格
-        cleaned = cleaned.replace(/\n+/g, ' ');
-        cleaned = cleaned.replace(/\s+/g, ' ');
-        cleaned = cleaned.trim();
-
-        // 如果清理后为空或过短，尝试提取第一个有意义的句子
-        if (!cleaned || cleaned.length < 20) {
-            // 查找看起来像提示词的长句子（通常包含动作词汇）
-            const sentences = response.split(/[.!?]+/);
-            for (const sentence of sentences) {
-                const trimmed = sentence.trim();
-                if (trimmed.length > 20 && 
-                    /apply|transform|change|convert|adjust|modify|enhance|create/i.test(trimmed)) {
-                    cleaned = trimmed;
-                    break;
-                }
-            }
-
-            // 如果还是没找到，使用第一个长句子
-            if (!cleaned) {
-                for (const sentence of sentences) {
-                    const trimmed = sentence.trim();
-                    if (trimmed.length > 30) {
-                        cleaned = trimmed;
-                        break;
-                    }
-                }
-            }
         }
+        
+        // 清理多余空行
+        cleaned = cleaned.replace(/\n{2,}/g, '\n').trim();
 
-        // 最终清理：移除引号包装，确保首字母大写
-        cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '');
-        if (cleaned && !cleaned[0].match(/[A-Z]/)) {
-            cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        // 确保返回有意义的内容
+        if (!cleaned || cleaned.length < 10) {
+            console.warn('[API] 清理后内容过短，返回原始响应');
+            return response.trim();
         }
-
-        // 移除末尾句号（如果存在）
-        cleaned = cleaned.replace(/\.$/, '');
-
+        
+        console.log('[API] 清理完成，最终长度:', cleaned.length);
         return cleaned;
     }
 
@@ -5311,6 +5462,12 @@ class KontextSuperPrompt {
     }
     
     updateAllDescriptionTextareas() {
+        // 如果正在API生成中，不更新输入框（防止模板污染）
+        if (this.isGeneratingAPI || this.isGeneratingOllama) {
+            console.log('[Kontext Super Prompt] 跳过更新描述输入框（正在生成中）');
+            return;
+        }
+        
         const allDescriptionTextareas = this.editorContainer.querySelectorAll('.description-section textarea');
         allDescriptionTextareas.forEach(textarea => {
             if (textarea && textarea.value !== this.description) {
