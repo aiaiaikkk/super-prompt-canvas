@@ -115,6 +115,44 @@ if (!KSP_NS.constants) {
     KSP_NS.constants = {};
 }
 
+// 编辑意图引导词模板
+KSP_NS.constants.INTENT_PROMPTS = {
+    color_change: "Transform {target} color to {new_color}, maintain original lighting and texture, professional color grading, natural color transition",
+    object_removal: "Remove {object} completely, seamlessly fill background, maintain perspective and lighting consistency, clean removal, invisible editing",
+    object_replacement: "Replace {original_object} with {new_object}, match lighting, scale, and perspective of original scene, seamless integration",
+    object_addition: "Add {new_object} to {location}, integrate naturally with existing lighting, shadows, and perspective, realistic insertion",
+    background_change: "Replace background with {new_background}, maintain subject lighting and edges, seamless composition, perfect edge detection",
+    face_swap: "Replace face with {target_face}, maintain original pose, lighting, and facial expression naturally, seamless face swap",
+    quality_enhancement: "Enhance image quality, increase resolution, reduce noise, sharpen details while maintaining natural appearance",
+    image_restoration: "Repair damaged areas, restore missing parts, fix {defect_type}, maintain original image style and quality",
+    style_transfer: "Transform image to {target_style} style, maintain subject recognition while applying artistic interpretation",
+    text_edit: "Edit text from '{original_text}' to '{new_text}', maintain font style, perspective, and integration",
+    lighting_adjustment: "Adjust lighting to {lighting_description}, modify shadows and highlights while maintaining natural appearance",
+    perspective_correction: "Correct perspective distortion, straighten {target_elements}, maintain proportions and natural geometry",
+    blur_sharpen: "Apply {blur_type} effect to {target_area}, create {desired_effect} while maintaining image quality",
+    local_deformation: "Modify {target_area} shape/size, apply {transformation_type}, maintain natural proportions and context",
+    composition_adjustment: "Reframe composition to {new_composition}, adjust {framing_elements}, maintain visual balance"
+};
+
+// 应用场景引导词模板
+KSP_NS.constants.SCENE_PROMPTS = {
+    ecommerce_product: "Clean product presentation, neutral background, even lighting, sharp details, commercial photography standard",
+    social_media: "Engaging visual content, trendy aesthetics, platform-optimized format, eye-catching appeal, vibrant color palette",
+    marketing_campaign: "Bold promotional imagery, campaign-driven aesthetics, brand message support, conversion-focused visuals",
+    portrait_professional: "Professional headshot quality, executive presence, corporate standard, confidence projection",
+    lifestyle: "Authentic lifestyle representation, aspirational living, natural moments, relatable scenarios",
+    food_photography: "Appetizing food presentation, culinary artistry, restaurant quality, food styling excellence",
+    real_estate: "Property showcase excellence, architectural photography, space maximization, luxury presentation",
+    fashion_retail: "Fashion photography excellence, style showcase, trend representation, retail presentation",
+    automotive: "Automotive photography excellence, vehicle showcase, performance emphasis, luxury automobile presentation",
+    beauty_cosmetics: "Beauty product excellence, cosmetic presentation, skin tone accuracy, makeup artistry showcase",
+    corporate_branding: "Corporate brand representation, professional identity, business excellence, brand consistency",
+    event_photography: "Event documentation excellence, moment capture, celebration atmosphere, professional event photography",
+    product_catalog: "Catalog photography standard, product line presentation, systematic showcase, inventory documentation",
+    artistic_creation: "Artistic expression freedom, creative vision support, fine art quality, gallery presentation",
+    documentary: "Documentary authenticity, journalistic integrity, real moment capture, storytelling excellence"
+};
+
 // 将常量存储到命名空间，避免全局污染
 KSP_NS.constants.OPERATION_CATEGORIES = {
     local: {
@@ -2541,16 +2579,23 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const intents = [
-            { value: 'product_showcase', text: '产品展示' },
-            { value: 'portrait_enhancement', text: '人像美化' },
-            { value: 'creative_design', text: '创意设计' },
-            { value: 'architectural_photo', text: '建筑摄影' },
-            { value: 'food_styling', text: '美食摄影' },
-            { value: 'fashion_retail', text: '时尚零售' },
-            { value: 'landscape_nature', text: '风景自然' },
-            { value: 'professional_editing', text: '专业编辑' },
-            { value: 'general_editing', text: '通用编辑' },
-            { value: 'custom', text: '自定义' }
+            // 编辑意图类型 - 具体的操作动作
+            { value: 'color_change', text: '颜色修改' },
+            { value: 'object_removal', text: '物体移除' },
+            { value: 'object_replacement', text: '物体替换' },
+            { value: 'object_addition', text: '物体添加' },
+            { value: 'background_change', text: '背景更换' },
+            { value: 'face_swap', text: '换脸' },
+            { value: 'quality_enhancement', text: '质量增强' },
+            { value: 'image_restoration', text: '图像修复' },
+            { value: 'style_transfer', text: '风格转换' },
+            { value: 'text_edit', text: '文字编辑' },
+            { value: 'lighting_adjustment', text: '光线调整' },
+            { value: 'perspective_correction', text: '透视校正' },
+            { value: 'blur_sharpen', text: '模糊/锐化' },
+            { value: 'local_deformation', text: '局部变形' },
+            { value: 'composition_adjustment', text: '构图调整' },
+            { value: 'general_editing', text: '通用编辑' }
         ];
         intents.forEach(intent => {
             const option = document.createElement('option');
@@ -2575,11 +2620,23 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const styles = [
-            { value: 'auto_smart', text: '智能自动' },
-            { value: 'efficient_fast', text: '高效快速' },
-            { value: 'creative_artistic', text: '创意艺术' },
-            { value: 'precise_technical', text: '精确技术' },
-            { value: 'custom_guidance', text: '自定义指引' }
+            // 应用场景/风格 - 用于什么场景
+            { value: 'ecommerce_product', text: '电商产品' },
+            { value: 'social_media', text: '社交媒体' },
+            { value: 'marketing_campaign', text: '营销活动' },
+            { value: 'portrait_professional', text: '专业肖像' },
+            { value: 'lifestyle', text: '生活方式' },
+            { value: 'food_photography', text: '美食摄影' },
+            { value: 'real_estate', text: '房地产' },
+            { value: 'fashion_retail', text: '时尚零售' },
+            { value: 'automotive', text: '汽车展示' },
+            { value: 'beauty_cosmetics', text: '美妆化妆品' },
+            { value: 'corporate_branding', text: '企业品牌' },
+            { value: 'event_photography', text: '活动摄影' },
+            { value: 'product_catalog', text: '产品目录' },
+            { value: 'artistic_creation', text: '艺术创作' },
+            { value: 'documentary', text: '纪实摄影' },
+            { value: 'auto_smart', text: '智能自动' }
         ];
         styles.forEach(style => {
             const option = document.createElement('option');
@@ -2805,16 +2862,23 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const intents = [
-            { value: 'product_showcase', label: '产品展示优化' },
-            { value: 'portrait_enhancement', label: '人像美化' },
-            { value: 'creative_design', label: '创意设计' },
-            { value: 'architectural_photo', label: '建筑摄影' },
-            { value: 'food_styling', label: '美食摄影' },
-            { value: 'fashion_retail', label: '时尚零售' },
-            { value: 'landscape_nature', label: '风景自然' },
-            { value: 'professional_editing', label: '专业图像编辑' },
-            { value: 'general_editing', label: '通用编辑' },
-            { value: 'custom', label: '自定义' }
+            // 编辑意图类型 - 与API模式保持一致
+            { value: 'color_change', label: '颜色修改' },
+            { value: 'object_removal', label: '物体移除' },
+            { value: 'object_replacement', label: '物体替换' },
+            { value: 'object_addition', label: '物体添加' },
+            { value: 'background_change', label: '背景更换' },
+            { value: 'face_swap', label: '换脸' },
+            { value: 'quality_enhancement', label: '质量增强' },
+            { value: 'image_restoration', label: '图像修复' },
+            { value: 'style_transfer', label: '风格转换' },
+            { value: 'text_edit', label: '文字编辑' },
+            { value: 'lighting_adjustment', label: '光线调整' },
+            { value: 'perspective_correction', label: '透视校正' },
+            { value: 'blur_sharpen', label: '模糊/锐化' },
+            { value: 'local_deformation', label: '局部变形' },
+            { value: 'composition_adjustment', label: '构图调整' },
+            { value: 'general_editing', label: '通用编辑' }
         ];
         intents.forEach(intent => {
             const option = document.createElement('option');
@@ -2839,11 +2903,23 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const styles = [
-            { value: 'auto_smart', label: '智能自动' },
-            { value: 'efficient_fast', label: '高效快速' },
-            { value: 'creative_artistic', label: '创意艺术' },
-            { value: 'precise_technical', label: '精确技术' },
-            { value: 'custom_guidance', label: '自定义指引' }
+            // 应用场景/风格 - 与API模式保持一致
+            { value: 'ecommerce_product', label: '电商产品' },
+            { value: 'social_media', label: '社交媒体' },
+            { value: 'marketing_campaign', label: '营销活动' },
+            { value: 'portrait_professional', label: '专业肖像' },
+            { value: 'lifestyle', label: '生活方式' },
+            { value: 'food_photography', label: '美食摄影' },
+            { value: 'real_estate', label: '房地产' },
+            { value: 'fashion_retail', label: '时尚零售' },
+            { value: 'automotive', label: '汽车展示' },
+            { value: 'beauty_cosmetics', label: '美妆化妆品' },
+            { value: 'corporate_branding', label: '企业品牌' },
+            { value: 'event_photography', label: '活动摄影' },
+            { value: 'product_catalog', label: '产品目录' },
+            { value: 'artistic_creation', label: '艺术创作' },
+            { value: 'documentary', label: '纪实摄影' },
+            { value: 'auto_smart', label: '智能自动' }
         ];
         styles.forEach(style => {
             const option = document.createElement('option');

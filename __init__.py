@@ -1,10 +1,8 @@
 """
 kontext-super-prompt - ComfyUI Custom Nodes
-Intelligent Visual Prompt Builder with Kontext Transform Engine
-Kontext团队原创架构 - Transform-First设计
 
-Version: 1.3.4
-Author: Kontext Team
+Version: 1.3.5
+Author: aiaiaikkk
 Repository: https://github.com/aiaiaikkk/kontext-super-prompt
 License: MIT
 """
@@ -22,9 +20,9 @@ except ImportError as e:
     print("[Kontext-Super-Prompt] 💡 请通过ComfyUI Manager重新安装")
 
 # Version information
-__version__ = "1.3.4"
-__author__ = "Kontext Team"
-__description__ = "Intelligent Visual Prompt Builder with Kontext Transform Engine"
+__version__ = "1.3.5"
+__author__ = "aiaiaikkk"
+__description__ = "ComfyUI Custom Nodes for Image Editing Prompt Generation"
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
@@ -66,6 +64,5 @@ if os.path.exists(nodes_dir):
 # 输出加载信息
 print(f"[Kontext-Super-Prompt] v{__version__} 加载完成")
 print(f"[Kontext-Super-Prompt] 已注册节点: {list(NODE_CLASS_MAPPINGS.keys())}")
-print(f"[Kontext-Super-Prompt] Kontext Transform Engine 已激活")
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
