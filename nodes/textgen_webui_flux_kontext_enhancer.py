@@ -2,7 +2,7 @@
 TextGenWebUIFluxKontextEnhancer Node
 Text Generation WebUI-integrated Flux Kontext prompt enhancement node
 
-Converts VisualPromptEditor annotation data through Text Generation WebUI models to
+Converts LRPG Canvas layer data through Text Generation WebUI models to
 Flux Kontext-optimized structured editing instructions
 """
 
@@ -17,7 +17,6 @@ try:
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
-    print("Warning: requests package not found. Please install with: pip install requests")
 
 try:
     from aiohttp import web
@@ -35,7 +34,7 @@ class TextGenWebUIFluxKontextEnhancer:
     """
     🌐 Text Generation WebUI Flux Kontext Enhancer
     
-    Converts annotation data from VisualPromptEditor into structured editing instructions
+    Converts annotation data from LRPG Canvas into structured editing instructions
     optimized for Flux Kontext, using Text Generation WebUI models.
     """
     
@@ -93,7 +92,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     return model_names
             except Exception as e:
                 if not silent:
-                    print(f"OpenAI API detection failed: {e}")
+                    print(f"[ERROR] Failed to get models via Ollama API: {str(e)}")
                 return []
         
         def try_native_api(api_url):
@@ -118,12 +117,12 @@ class TextGenWebUIFluxKontextEnhancer:
                     return [model_name] if model_name else []
             except Exception as e:
                 if not silent:
-                    print(f"Native API detection failed: {e}")
+                    print(f"[ERROR] Failed to parse model list: {str(e)}")
                 return []
         
         # Start model detection process
         if not silent:
-            print(f"Detecting TextGen WebUI models from URL: {url}")
+            print(f"[INFO] Starting model detection for URL: {url}")
         
         # Try multiple URL formats
         urls_to_try = [url]
@@ -136,7 +135,6 @@ class TextGenWebUIFluxKontextEnhancer:
                 "http://0.0.0.0:7860"
             ])
         
-        # Remove duplicates while preserving order
         urls_to_try = list(dict.fromkeys(urls_to_try))
         
         all_models = set()
@@ -150,7 +148,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(openai_models)
                     successful_url = test_url
                     if not silent:
-                        print(f"Found {len(openai_models)} models via OpenAI API from {test_url}")
+                        print(f"[OK] Found {len(openai_models)} models via OpenAI API at {test_url}")
                 
                 # Method 2: Native API (fallback)
                 native_models = try_native_api(test_url)
@@ -158,7 +156,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(native_models)
                     successful_url = test_url
                     if not silent:
-                        print(f"Found {len(native_models)} models via Native API from {test_url}")
+                        print(f"[OK] Found {len(native_models)} models via Native API at {test_url}")
                 
                 # Exit early if models found
                 if all_models:
@@ -166,7 +164,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     
             except Exception as e:
                 if not silent:
-                    print(f"Failed to test URL {test_url}: {e}")
+                    print(f"[ERROR] Failed to get models from {test_url}: {str(e)}")
                 continue
         
         # Convert to sorted list
@@ -174,7 +172,7 @@ class TextGenWebUIFluxKontextEnhancer:
         
         if model_list:
             if not silent:
-                print(f"Total {len(model_list)} unique models detected")
+                print(f"[OK] Found {len(model_list)} models: {model_list}")
             
             # Update cache
             cls._cached_models = model_list
@@ -182,19 +180,16 @@ class TextGenWebUIFluxKontextEnhancer:
             if successful_url:
                 cls._last_successful_url = successful_url
             if not silent:
-                print(f"Model list cached for {cls._cache_duration} seconds")
+                print(f"[OK] Successfully cached {len(model_list)} models")
             
             return model_list
         
         # If no models detected, return fallback
         if not silent:
-            print("Warning: No models detected, returning fallback list")
+            print(f"[WARN] No models found, using fallback")
         fallback_models = ["textgen-webui-model-not-found"]
         if not silent:
-            print("Please ensure:")
-            print("   1. Text Generation WebUI is running (python server.py --api)")
-            print("   2. At least one model is loaded")
-            print("   3. API is accessible (curl http://localhost:7860/v1/models)")
+            print(f"[WARN] Returning fallback model: {fallback_models[0]}")
         
         # Cache fallback to avoid repeated error detection
         cls._cached_models = fallback_models
@@ -205,7 +200,6 @@ class TextGenWebUIFluxKontextEnhancer:
     @classmethod
     def refresh_model_cache(cls):
         """Manually refreshes the model cache"""
-        print("🔄 Manually refreshing TextGen WebUI model cache...")
         cls._cached_models = None
         cls._cache_timestamp = 0
         # Enable verbose logging during manual refresh
@@ -256,7 +250,6 @@ You are a professional image editing expert. Please convert annotation data into
 
 For more examples, please check guidance_template options."""
         except Exception as e:
-            print(f"Failed to get template content: {e}")
             return """Enter your custom AI guidance instructions...
 
 For example:
@@ -290,7 +283,6 @@ For more examples, please check guidance_template options."""
                 default_model = available_models[0]
                 
         except Exception as e:
-            print(f"Failed to get dynamic model list: {e}")
             available_models = ["Error getting models - Check TextGen WebUI"]
             default_model = available_models[0]
         
@@ -302,10 +294,10 @@ For more examples, please check guidance_template options."""
         
         return {
             "required": {
-                "annotation_data": ("STRING", {
+                "layer_info": ("STRING", {
                     "forceInput": True,
                     "default": "",
-                    "tooltip": "Annotation JSON data from VisualPromptEditor. Can be left empty if only using Edit Description."
+                    "tooltip": "Annotation JSON data from LRPG Canvas. Can be left empty if only using Edit Description."
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,
@@ -412,7 +404,6 @@ For more examples, please check guidance_template options."""
             # If the model is not in the cache, force a refresh once
             available_models = cls.get_available_models(url=url, force_refresh=True)
             if model not in available_models:
-                print(f"⚠️ Model '{model}' not in available list: {available_models}")
                 # Don't return an error, let the user know but still proceed
                 return True
         
@@ -435,7 +426,7 @@ For more examples, please check guidance_template options."""
         self.debug_logs = []
         self.start_time = None
 
-    def enhance_flux_instructions(self, annotation_data: str, edit_description: str, model: str, 
+    def enhance_flux_instructions(self, layer_info: str, edit_description: str, model: str, 
                                 auto_unload_model: bool, editing_intent: str, processing_style: str,
                                 image=None, url: str = "http://127.0.0.1:5000", 
                                 temperature: float = 0.7, seed: int = 42,
@@ -450,7 +441,7 @@ For more examples, please check guidance_template options."""
         # Enable verbose logging during actual workflow execution
         self.__class__._silent_mode = False
         
-        if not (edit_description and edit_description.strip()) and not (annotation_data and annotation_data.strip()):
+        if not (edit_description and edit_description.strip()) and not (layer_info and layer_info.strip()):
             error_msg = "Error: You must provide either an edit description or connect valid annotation data."
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return self._create_fallback_output(error_msg, debug_mode)
@@ -472,12 +463,12 @@ For more examples, please check guidance_template options."""
         parsed_data = {}
         has_annotations = False
 
-        if annotation_data and annotation_data.strip():
+        if layer_info and layer_info.strip():
             try:
-                parsed_json = json.loads(annotation_data)
+                parsed_json = json.loads(layer_info)
                 if isinstance(parsed_json, dict) and 'annotations' in parsed_json and len(parsed_json['annotations']) > 0:
                     self._log_debug("  -> Path: Annotation-based Generation", debug_mode)
-                    annotations, parsed_data = self._parse_annotation_data(annotation_data, debug_mode)
+                    annotations, parsed_data = self._parse_layer_info(layer_info, debug_mode)
                     has_annotations = True
                 else:
                     self._log_debug("  -> Path: Text-only Generation (annotations list is empty or not a valid dict structure)", debug_mode)
@@ -488,7 +479,7 @@ For more examples, please check guidance_template options."""
 
         # Build system and user prompts
         system_prompt = self._build_intelligent_system_prompt(
-            editing_intent, processing_style, edit_description, annotation_data,
+            editing_intent, processing_style, edit_description, layer_info,
             guidance_style, guidance_template, custom_guidance
         )
         
@@ -500,7 +491,7 @@ For more examples, please check guidance_template options."""
         try:
             # Generate cache key
             cache_key = self._get_cache_key(
-                annotation_data, edit_description, edit_instruction_type, model, temperature,
+                layer_info, edit_description, edit_instruction_type, model, temperature,
                 guidance_style, guidance_template, seed, custom_guidance, load_saved_guidance
             )
             
@@ -541,23 +532,18 @@ For more examples, please check guidance_template options."""
             if not REQUESTS_AVAILABLE:
                 return False
             
-            print(f"Checking TextGen WebUI service at: {url}")
             # Try OpenAI API first
             response = requests.get(f"{url}/v1/models", timeout=5)
             if response.status_code == 200:
-                print("TextGen WebUI service is accessible via OpenAI API")
                 return True
             
             # Try native API as fallback
             response = requests.get(f"{url}/api/v1/model", timeout=5)
             if response.status_code == 200:
-                print("TextGen WebUI service is accessible via Native API")
                 return True
             
-            print(f"TextGen WebUI service returned status code: {response.status_code}")
             return False
         except Exception as e:
-            print(f"Failed to connect to TextGen WebUI service: {e}")
             return False
     
     def _map_intent_to_guidance(self, editing_intent: str, processing_style: str) -> tuple:
@@ -615,7 +601,7 @@ For more examples, please check guidance_template options."""
         return edit_instruction_type, guidance_style, guidance_template
 
     def _build_intelligent_system_prompt(self, editing_intent: str, processing_style: str, 
-                                       edit_description: str, annotation_data: str = "",
+                                       edit_description: str, layer_info: str = "",
                                        guidance_style: str = "efficient_concise", guidance_template: str = "none",
                                        custom_guidance: str = "") -> str:
         """Build intelligent system prompt using English templates for TextGen WebUI"""
@@ -626,21 +612,25 @@ For more examples, please check guidance_template options."""
                 guidance_style=guidance_style,
                 guidance_template=guidance_template,
                 custom_guidance=custom_guidance,
-                load_saved_guidance="none"
+                load_saved_guidance="none",
+                language="english"  # Force English output
             )
+            # Add extra English enforcement
+            system_prompt = "ENGLISH OUTPUT ONLY. " + system_prompt + "\n\nREMEMBER: Output in English only. No Chinese or other languages."
             return system_prompt
         except Exception as e:
-            print(f"⚠️ Guidance manager failed, using English fallback: {e}")
             return self._english_fallback_prompt(editing_intent, processing_style)
     
     def _english_fallback_prompt(self, editing_intent: str, processing_style: str) -> str:
         """English fallback prompt for TextGen WebUI"""
-        base_prompt = """You are a professional image editing AI assistant. Please generate precise editing instructions based on user requirements.
+        base_prompt = """You are an ENGLISH-ONLY image editing AI assistant.
+
+CRITICAL: Output in ENGLISH ONLY. Never use Chinese, Japanese, or any other language.
 
 ## Core Mission
-- Generate clear, actionable editing commands
-- Use simple, unambiguous language
-- Focus on reliability and consistency
+- Generate clear, actionable ENGLISH editing commands
+- Use simple, unambiguous ENGLISH language
+- ALL output must be in proper English
 - Create instructions optimized for Flux Kontext
 
 ## Communication Style
@@ -684,14 +674,14 @@ For more examples, please check guidance_template options."""
         except Exception as e:
             return "You are a professional image editing AI assistant. Please generate precise editing instructions based on user requirements."
 
-    def _parse_annotation_data(self, annotation_data: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
+    def _parse_layer_info(self, layer_info: str, debug_mode: bool) -> Tuple[List[Dict], Dict]:
         """Parse annotation data from frontend"""
         try:
-            if not annotation_data or not annotation_data.strip():
+            if not layer_info or not layer_info.strip():
                 self._log_debug("⚠️ Annotation data is empty", debug_mode)
                 return [], {}
             
-            parsed_data = json.loads(annotation_data)
+            parsed_data = json.loads(layer_info)
             self._log_debug(f"📊 Annotation data parsed successfully, data type: {type(parsed_data)}", debug_mode)
             
             # Extract annotations
@@ -868,7 +858,6 @@ For more examples, please check guidance_template options."""
             
             # Add image if visual analysis is enabled and image is provided
             if enable_visual_analysis and image is not None:
-                # TODO: Implement image encoding for multimodal models
                 self._log_debug("🖼️ Visual analysis requested but not yet implemented", debug_mode)
             
             # Prepare request payload
@@ -879,8 +868,6 @@ For more examples, please check guidance_template options."""
             }
             
             # Send request to TextGen WebUI OpenAI API
-            print(f"Sending request to TextGen WebUI API: {url}/v1/chat/completions")
-            print(f"Using model: {model}")
             
             try:
                 response = requests.post(
@@ -889,18 +876,13 @@ For more examples, please check guidance_template options."""
                     timeout=300  # 5 minutes timeout
                 )
             except requests.exceptions.Timeout:
-                print("Request timed out. Trying with simplified prompt...")
                 return self._generate_with_simplified_prompt(url, model, system_prompt, user_prompt, generation_params, debug_mode)
             
-            print(f"TextGen WebUI API response status: {response.status_code}")
             if response.status_code == 200:
                 try:
                     result = response.json()
-                    print(f"Parsed JSON successfully, result keys: {list(result.keys()) if result else 'None'}")
                     self._log_debug(f"🔍 TextGen WebUI API response: {str(result)[:200]}...", debug_mode)
                 except json.JSONDecodeError as e:
-                    print(f"JSON parsing error: {e}")
-                    print(f"Response text: {response.text}")
                     return None
                 
                 # Extract generated text from OpenAI format response
@@ -908,25 +890,22 @@ For more examples, please check guidance_template options."""
                     choice = result['choices'][0]
                     if 'message' in choice and 'content' in choice['message']:
                         generated_text = choice['message']['content'].strip()
-                        print(f"Generated text length: {len(generated_text)}")
                         self._log_debug("✅ OpenAI API response parsed successfully", debug_mode)
                         return generated_text
                     else:
                         self._log_debug(f"❌ OpenAI API response format error: {result}", debug_mode)
                         return None
                 else:
-                    print(f"Error: OpenAI API response missing 'choices' field. Available fields: {list(result.keys()) if result else 'None'}")
                     self._log_debug(f"❌ OpenAI API response missing 'choices' field: {result}", debug_mode)
                     return None
             else:
                 error_msg = f"TextGen WebUI API request failed - Status: {response.status_code}, Response: {response.text[:200]}"
-                print(f"Error: {error_msg}")
                 self._log_debug(f"❌ {error_msg}", debug_mode)
                 return None
                 
         except Exception as e:
             error_msg = f"TextGen WebUI generation exception: {str(e)}"
-            print(f"Error: {error_msg}")
+            # print(f"Error: {error_msg}")
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return None
 
@@ -944,7 +923,6 @@ For more examples, please check guidance_template options."""
             if len(user_lines) > 10:
                 simplified_user += "\n[Content truncated for faster processing]"
             
-            print("Trying with simplified prompt due to timeout...")
             
             # Build simplified payload
             payload = {
@@ -967,26 +945,21 @@ For more examples, please check guidance_template options."""
                     choice = result['choices'][0]
                     if 'message' in choice and 'content' in choice['message']:
                         generated_text = choice['message']['content'].strip()
-                        print("Simplified prompt generation successful")
                         return generated_text
                 
             return None
             
         except Exception as e:
-            print(f"Simplified prompt generation also failed: {e}")
             return None
 
     def _clean_natural_language_output(self, instructions: str) -> str:
         """Clean natural language output to remove technical details and annotation numbers"""
         try:
-            # Remove annotation numbers like "(annotation 0)", "(annotation 1)", etc.
             import re
             
-            # Remove annotation references
             instructions = re.sub(r'\(annotation\s+\d+\)', '', instructions, flags=re.IGNORECASE)
             instructions = re.sub(r'annotation\s+\d+:?', '', instructions, flags=re.IGNORECASE)
             
-            # Remove technical instruction sections
             lines = instructions.split('\n')
             cleaned_lines = []
             skip_section = False
@@ -1020,7 +993,6 @@ For more examples, please check guidance_template options."""
             # Join and clean up spacing
             result = ' '.join(cleaned_lines)
             
-            # Remove extra spaces and clean up
             result = re.sub(r'\s+', ' ', result).strip()
             
             return result if result else instructions
@@ -1029,22 +1001,20 @@ For more examples, please check guidance_template options."""
             # If cleaning fails, return original
             return instructions
 
-    def _get_cache_key(self, annotation_data: str, edit_description: str, 
+    def _get_cache_key(self, layer_info: str, edit_description: str, 
                       edit_instruction_type: str, model: str, temperature: float,
                       guidance_style: str, guidance_template: str, seed: int,
                       custom_guidance: str = "", load_saved_guidance: str = "none") -> str:
         """Generate cache key including all parameters"""
         import hashlib
-        content = f"{annotation_data}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
+        content = f"{layer_info}|{edit_description}|{edit_instruction_type}|{model}|{temperature}|{guidance_style}|{guidance_template}|{seed}|{custom_guidance}|{load_saved_guidance}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def _manage_cache(self):
         """Manage cache size"""
         if len(self.cache) > self.max_cache_size:
-            # Remove oldest entry
             oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k] if isinstance(self.cache[k], str) else 0)
             del self.cache[oldest_key]
-            print(f"🗑️ Removed oldest cache entry, cache size: {len(self.cache)}")
 
     def _log_debug(self, message: str, debug_mode: bool):
         """Records debug information"""
@@ -1060,7 +1030,6 @@ For more examples, please check guidance_template options."""
         
         fallback_instructions = f"""[EDIT_OPERATIONS]
 operation_1: Apply standard edit to marked regions
-# Error: {error_msg}
 
 [SPATIAL_CONSTRAINTS]
 preserve_regions: ["all_unmarked_areas"]
@@ -1085,38 +1054,24 @@ if WEB_AVAILABLE:
             data = await request.json()
             url = data.get("url", "http://127.0.0.1:7860")
             
-            print(f"🔄 API endpoint: Starting to fetch TextGen WebUI model list")
-            print(f"📡 API endpoint: Request URL: {url}")
-            print(f"🌐 API endpoint: Client source: {request.remote}")
             
             # Special handling for cloud environments
             if "127.0.0.1" in url or "localhost" in url:
-                print("⚠️ API endpoint: Detected localhost address, may not be accessible in cloud environments")
-                print("💡 API endpoint: Recommend checking TextGen WebUI service configuration and network connection")
+                print(f"[INFO] Cloud environment detected, using local URL: {url}")
             
             # Use the same model detection logic as main node
-            print("🔍 API endpoint: Calling get_available_models method")
             model_names = TextGenWebUIFluxKontextEnhancer.get_available_models(url=url, force_refresh=True, silent=False)
             
-            print(f"✅ API endpoint: Detection complete, found {len(model_names)} models")
             if model_names:
-                print(f"📋 API endpoint: Model list: {model_names}")
+                print(f"[OK] Found {len(model_names)} models")
             else:
-                print("❌ API endpoint: No models detected")
-                print("🔧 API endpoint: Possible reasons:")
-                print("   1. TextGen WebUI service not running")
-                print("   2. Network connection issues (common in cloud environments)")
-                print("   3. URL configuration error")
-                print("   4. API not enabled (missing --api flag)")
-                print("   5. Firewall blocking")
+                print(f"[WARN] No models found")
             
             return web.json_response(model_names)
             
         except Exception as e:
-            print(f"❌ API endpoint critical error: {e}")
             import traceback
             error_details = traceback.format_exc()
-            print(f"🔍 API endpoint error details:\n{error_details}")
             
             # Return error info to frontend
             return web.json_response({

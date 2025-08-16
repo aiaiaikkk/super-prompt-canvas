@@ -1,0 +1,6 @@
+# Kontext Super Prompt 依赖包
+# ComfyUI Manager 会自动安装这些依赖
+
+# 核心依赖
+requests>=2.28.0
+numpy>=1.20.0
