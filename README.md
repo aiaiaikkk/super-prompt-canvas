@@ -39,6 +39,18 @@
 **全局编辑模式** - 整体图像风格和效果调整
 ![全局编辑](images/KontextSuperPrompt2.png)
 
+**文字编辑模式** - 文本内容的添加和修改
+![文字编辑](images/KontextSuperPrompt3.png)
+
+**高级操作模式** - 高级图像处理功能
+![高级操作](images/KontextSuperPrompt4.png)
+
+**远程API模式** - 集成云端AI模型
+![远程API](images/KontextSuperPrompt5.png)
+
+**本地Ollama模式** - 使用本地大语言模型
+![本地Ollama](images/KontextSuperPrompt6.png)
+
 ## 🤖 引导词系统
 
 ### 编辑意图类型（16种操作）
