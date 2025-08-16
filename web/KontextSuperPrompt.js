@@ -12,7 +12,6 @@ window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
     // 注册实例
     registerInstance(nodeId, instance) {
         this.instances.set(nodeId, instance);
-        console.log(`[KontextSuperPromptNS] 注册实例: ${nodeId}`);
     },
     
     // 注销实例
@@ -23,7 +22,6 @@ window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
                 instance.cleanup();
             }
             this.instances.delete(nodeId);
-            console.log(`[KontextSuperPromptNS] 注销实例: ${nodeId}`);
         }
     },
     
@@ -37,7 +35,6 @@ window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
         this.instances.forEach((instance, nodeId) => {
             this.unregisterInstance(nodeId);
         });
-        console.log('[KontextSuperPromptNS] 清理所有实例完成');
     },
     
     // 性能监控工具
@@ -64,7 +61,6 @@ window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
                 metric.memoryEnd = this.getMemoryUsage();
                 metric.memoryDelta = metric.memoryEnd - metric.memoryStart;
                 
-                console.log(`[KSP Performance] ${metric.label}: ${metric.duration.toFixed(2)}ms, Memory: ${metric.memoryDelta > 0 ? '+' : ''}${metric.memoryDelta.toFixed(2)}MB`);
                 return metric;
             }
             return null;
@@ -1400,12 +1396,6 @@ class KontextSuperPrompt {
         // 输出性能报告
         const report = KSP_NS.performance.getReport();
         if (report.completedMetrics > 0) {
-            console.log(`[KSP Performance Report] 节点 ${this.node.id}:`, {
-                总操作数: report.completedMetrics,
-                总耗时: `${report.totalTime.toFixed(2)}ms`,
-                当前内存: `${report.memoryUsage.toFixed(2)}MB`,
-                详细信息: report.details
-            });
         }
         
         // 从命名空间注销实例
@@ -1413,7 +1403,6 @@ class KontextSuperPrompt {
             KSP_NS.unregisterInstance(this.node.id);
         }
 
-        console.log('[Kontext Super Prompt] 已清理所有事件监听器、定时器和渲染资源');
     }
 
     initEditor() {
@@ -2141,7 +2130,6 @@ class KontextSuperPrompt {
             }
             
             this.description = newValue;
-            // console.log('[Kontext Super Prompt] 描述更新:', this.description);
             // 同步更新所有面板的描述输入框
             this.updateAllDescriptionTextareas();
             this.notifyNodeUpdate();
@@ -3217,23 +3205,19 @@ class KontextSuperPrompt {
         });
 
         // 显示对应的内容面板
-        // console.log('[Kontext Super Prompt] 切换面板显示状态，目标标签页:', tabId);
         Object.entries(this.tabContents).forEach(([key, panel]) => {
             const shouldShow = key === tabId;
             panel.style.display = shouldShow ? 'flex' : 'none';
-            // // console.log(`[Kontext Super Prompt] 面板 ${key}: display = ${shouldShow ? 'flex' : 'none'}`);
             
             if (shouldShow) {
                 // Debug panel state information removed during cleanup
                 
                 // 深度检查约束和修饰容器在每个标签页的状态
                 setTimeout(() => {
-                    // // console.log(`[Kontext Super Prompt] === 标签页 ${key} 详细DOM分析 ===`);
                     
                     // 查找约束容器
                     const constraintSection = panel.querySelector('.constraint-prompts-section');
                     const constraintContainer = panel.querySelector('.constraint-prompts-container');
-                    // console.log(`[Kontext Super Prompt] 约束区域 ${key}:`, {
                     //     sectionExists: !!constraintSection,
                     //     containerExists: !!constraintContainer,
                     //     sectionDisplay: constraintSection ? window.getComputedStyle(constraintSection).display : 'N/A',
@@ -3246,7 +3230,6 @@ class KontextSuperPrompt {
                     // 查找修饰容器
                     const decorativeSection = panel.querySelector('.decorative-prompts-section');
                     const decorativeContainer = panel.querySelector('.decorative-prompts-container');
-                    // console.log(`[Kontext Super Prompt] 修饰区域 ${key}:`, {
                     //     sectionExists: !!decorativeSection,
                     //     containerExists: !!decorativeContainer,
                     //     sectionDisplay: decorativeSection ? window.getComputedStyle(decorativeSection).display : 'N/A',
@@ -3256,7 +3239,6 @@ class KontextSuperPrompt {
                     //     containerOffsetHeight: decorativeContainer ? decorativeContainer.offsetHeight : 0
                     // });
                     
-                    // console.log(`[Kontext Super Prompt] 容器引用检查 ${key}:`, {
                     //     globalConstraintSame: this.constraintContainer === constraintContainer,
                     //     globalDecorativeSame: this.decorativeContainer === decorativeContainer,
                     //     globalConstraintInThisTab: panel.contains(this.constraintContainer),
@@ -3276,18 +3258,15 @@ class KontextSuperPrompt {
             
             if (newConstraintContainer) {
                 this.constraintContainer = newConstraintContainer;
-                // console.log('[Kontext Super Prompt] 更新约束容器引用到标签页:', tabId);
             }
             
             if (newDecorativeContainer) {
                 this.decorativeContainer = newDecorativeContainer;
-                // console.log('[Kontext Super Prompt] 更新修饰容器引用到标签页:', tabId);
             }
             
             // 标签页切换后，根据新的操作类型重新加载提示词选项
             setTimeout(() => {
                 if (this.constraintContainer && this.decorativeContainer && this.currentOperationType) {
-                    // console.log('[Kontext Super Prompt] 标签页切换完成，根据操作类型重新加载提示词选项');
                     this.loadDefaultPrompts();
                 }
             }, 150); // 延迟更长一些，确保操作类型已经设置
@@ -3315,7 +3294,6 @@ class KontextSuperPrompt {
         } else {
             this.currentOperationType = defaultOperations[tabId] || '';
         }
-        // console.log('[Kontext Super Prompt] 切换到标签页:', tabId, '默认操作类型:', this.currentOperationType);
         
         // 延迟执行确保DOM完全更新
         setTimeout(() => {
@@ -3323,7 +3301,6 @@ class KontextSuperPrompt {
             
             // 自动生成已移除
             if (this.currentOperationType) {
-                // console.log('[Kontext Super Prompt] 标签页切换完成，等待用户手动选择');
             }
         }, 100);
         
@@ -3331,13 +3308,11 @@ class KontextSuperPrompt {
     }
 
     selectOperationType(operationType) {
-        // console.log('[Kontext Super Prompt] 操作类型改变:', this.currentOperationType, '→', operationType);
         this.currentOperationType = operationType;
         this.updateOperationButtons();
         
         // 重新加载对应操作类型的提示词选项（不自动选中）
         if (this.constraintContainer && this.decorativeContainer) {
-            // console.log('[Kontext Super Prompt] 根据操作类型更新提示词选项');
             this.loadDefaultPrompts();
         }
         
@@ -3362,36 +3337,26 @@ class KontextSuperPrompt {
     }
 
     autoAddConstraints() {
-        // console.log('[Kontext Super Prompt] autoAddConstraints 调用，当前操作类型:', this.currentOperationType);
-        // console.log('[Kontext Super Prompt] autoGenerate 状态:', this.autoGenerate);
-        // console.log('[Kontext Super Prompt] 当前标签页:', this.currentCategory);
         
         let constraints;
         if (!this.currentOperationType || this.currentOperationType === '') {
             // 如果没有选择操作类型，使用通用约束提示词
             constraints = KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
-            // console.log('[Kontext Super Prompt] 使用通用约束提示词:', constraints);
         } else {
             constraints = KSP_NS.constants.CONSTRAINT_PROMPTS[this.currentOperationType] || KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
-            // console.log('[Kontext Super Prompt] 使用操作类型约束提示词:', constraints);
         }
         
         this.updateConstraintContainer(constraints);
     }
 
     autoAddDecoratives() {
-        // console.log('[Kontext Super Prompt] autoAddDecoratives 调用，当前操作类型:', this.currentOperationType);
-        // console.log('[Kontext Super Prompt] autoGenerate 状态:', this.autoGenerate);
-        // console.log('[Kontext Super Prompt] 当前标签页:', this.currentCategory);
         
         let decoratives;
         if (!this.currentOperationType || this.currentOperationType === '') {
             // 如果没有选择操作类型，使用通用修饰提示词
             decoratives = KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
-            // console.log('[Kontext Super Prompt] 使用通用修饰提示词:', decoratives);
         } else {
             decoratives = KSP_NS.constants.DECORATIVE_PROMPTS[this.currentOperationType] || KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
-            // console.log('[Kontext Super Prompt] 使用操作类型修饰提示词:', decoratives);
         }
         
         this.updateDecorativeContainer(decoratives);
@@ -3400,20 +3365,16 @@ class KontextSuperPrompt {
     loadDefaultPrompts() {
         // 如果正在生成提示词，跳过重新加载以避免清空选择状态
         if (this.isGeneratingPrompt) {
-            // console.log('[Kontext Super Prompt] 正在生成提示词，跳过重新加载避免清空选择状态');
             return;
         }
         
-        // console.log('[Kontext Super Prompt] 加载提示词，当前操作类型:', this.currentOperationType);
         
         // 根据当前操作类型加载相应的约束性提示词（不自动选中）
         let constraints;
         if (!this.currentOperationType) {
             constraints = KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
-            // console.log('[Kontext Super Prompt] 使用通用约束提示词:', constraints);
         } else {
             constraints = KSP_NS.constants.CONSTRAINT_PROMPTS[this.currentOperationType] || KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control'];
-            // console.log('[Kontext Super Prompt] 使用操作类型约束提示词:', this.currentOperationType, constraints);
         }
         this.updateConstraintContainer(constraints, false); // false表示不自动选中
         
@@ -3421,43 +3382,27 @@ class KontextSuperPrompt {
         let decoratives;
         if (!this.currentOperationType) {
             decoratives = KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
-            // console.log('[Kontext Super Prompt] 使用通用修饰提示词:', decoratives);
         } else {
             decoratives = KSP_NS.constants.DECORATIVE_PROMPTS[this.currentOperationType] || KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence'];
-            // console.log('[Kontext Super Prompt] 使用操作类型修饰提示词:', this.currentOperationType, decoratives);
         }
         this.updateDecorativeContainer(decoratives, false); // false表示不自动选中
         
-        // console.log('[Kontext Super Prompt] 操作类型相关提示词加载完成，用户可手动选择');
     }
 
     updateConstraintContainer(constraints, autoSelect = true) {
-        // console.log('[Kontext Super Prompt] updateConstraintContainer 调用，约束提示词:', constraints);
-        // console.log('[Kontext Super Prompt] constraintContainer:', this.constraintContainer);
         
         // 保存现有的选择状态
         const previousSelections = new Set(this.selectedConstraints || []);
-        // console.log('[Kontext Super Prompt] 保存现有约束提示词选择状态:', Array.from(previousSelections));
         
         this.constraintContainer.innerHTML = '';
         
         const containerStyle = window.getComputedStyle(this.constraintContainer);
-        // console.log('[Kontext Super Prompt] 约束容器DOM状态:');
-        // console.log('  - isConnected:', this.constraintContainer.isConnected);
-        // console.log('  - parentElement:', this.constraintContainer.parentElement);
-        // console.log('  - offsetWidth:', this.constraintContainer.offsetWidth);
-        // console.log('  - offsetHeight:', this.constraintContainer.offsetHeight);
-        // console.log('  - display:', containerStyle.display);
-        // console.log('  - visibility:', containerStyle.visibility);
-        // console.log('  - opacity:', containerStyle.opacity);
-        // console.log('  - parentPanel display:', this.constraintContainer.parentElement ? window.getComputedStyle(this.constraintContainer.parentElement).display : 'no parent');
         
         if (!constraints || !Array.isArray(constraints)) {
             console.error('[Kontext Super Prompt] 约束提示词数据无效:', constraints);
             return;
         }
         
-        // console.log('[Kontext Super Prompt] 开始创建约束提示词元素，数量:', constraints.length);
         
         constraints.forEach(constraint => {
             const label = document.createElement('label');
@@ -3480,7 +3425,6 @@ class KontextSuperPrompt {
             // 恢复之前的选择状态，如果存在的话
             if (previousSelections.has(constraint)) {
                 checkbox.checked = true;
-                // console.log('[Kontext Super Prompt] 恢复约束提示词选择状态:', constraint);
             } else if (autoSelect && this.autoGenerate) {
                 checkbox.checked = true;
             }
@@ -3498,9 +3442,7 @@ class KontextSuperPrompt {
             label.appendChild(checkbox);
             label.appendChild(text);
             this.constraintContainer.appendChild(label);
-            // console.log('[Kontext Super Prompt] 添加约束提示词到容器:', constraint);
             
-            // console.log('[Kontext Super Prompt] 创建的label元素状态:', {
             //     offsetWidth: label.offsetWidth,
             //     offsetHeight: label.offsetHeight,
             //     isConnected: label.isConnected,
@@ -3509,7 +3451,6 @@ class KontextSuperPrompt {
             // });
         });
         
-        // console.log('[Kontext Super Prompt] 约束容器最终状态:', {
         //     childElementCount: this.constraintContainer.childElementCount,
         //     scrollHeight: this.constraintContainer.scrollHeight,
         //     offsetHeight: this.constraintContainer.offsetHeight
@@ -3519,16 +3460,12 @@ class KontextSuperPrompt {
     }
 
     updateDecorativeContainer(decoratives, autoSelect = true) {
-        // console.log('[Kontext Super Prompt] updateDecorativeContainer 调用，修饰提示词:', decoratives);
-        // console.log('[Kontext Super Prompt] decorativeContainer:', this.decorativeContainer);
         
         // 保存现有的选择状态
         const previousSelections = new Set(this.selectedDecoratives || []);
-        // console.log('[Kontext Super Prompt] 保存现有修饰提示词选择状态:', Array.from(previousSelections));
         
         this.decorativeContainer.innerHTML = '';
         
-        // console.log('[Kontext Super Prompt] 修饰容器DOM状态:', {
         //     isConnected: this.decorativeContainer.isConnected,
         //     parentElement: this.decorativeContainer.parentElement,
         //     offsetWidth: this.decorativeContainer.offsetWidth,
@@ -3542,7 +3479,6 @@ class KontextSuperPrompt {
             return;
         }
         
-        // console.log('[Kontext Super Prompt] 开始创建修饰提示词元素，数量:', decoratives.length);
         
         decoratives.forEach(decorative => {
             const label = document.createElement('label');
@@ -3565,7 +3501,6 @@ class KontextSuperPrompt {
             // 恢复之前的选择状态，如果存在的话
             if (previousSelections.has(decorative)) {
                 checkbox.checked = true;
-                // console.log('[Kontext Super Prompt] 恢复修饰提示词选择状态:', decorative);
             } else if (autoSelect && this.autoGenerate) {
                 checkbox.checked = true;
             }
@@ -3583,9 +3518,7 @@ class KontextSuperPrompt {
             label.appendChild(checkbox);
             label.appendChild(text);
             this.decorativeContainer.appendChild(label);
-            // console.log('[Kontext Super Prompt] 添加修饰提示词到容器:', decorative);
             
-            // console.log('[Kontext Super Prompt] 创建的label元素状态:', {
             //     offsetWidth: label.offsetWidth,
             //     offsetHeight: label.offsetHeight,
             //     isConnected: label.isConnected,
@@ -3594,7 +3527,6 @@ class KontextSuperPrompt {
             // });
         });
         
-        // console.log('[Kontext Super Prompt] 修饰容器最终状态:', {
         //     childElementCount: this.decorativeContainer.childElementCount,
         //     scrollHeight: this.decorativeContainer.scrollHeight,
         //     offsetHeight: this.decorativeContainer.offsetHeight
@@ -3620,7 +3552,6 @@ class KontextSuperPrompt {
     }
     
     forceUpdateSelections() {
-        // // console.log("[Kontext Super Prompt] 强制更新选择状态，确保与UI一致");
         
         // 强制更新描述字段 - 从当前活动面板读取
         const panelClassMap = {
@@ -3636,7 +3567,6 @@ class KontextSuperPrompt {
             const descriptionTextarea = currentPanel.querySelector('textarea[placeholder*="描述"]');
             if (descriptionTextarea) {
                 const currentDescription = descriptionTextarea.value;
-                // // console.log(`[Kontext Super Prompt] 从UI读取描述: "${currentDescription}" (之前: "${this.description}")`);
                 this.description = currentDescription;
             } else {
                 console.warn("[Kontext Super Prompt] 未找到描述输入框");
@@ -3646,10 +3576,8 @@ class KontextSuperPrompt {
             const operationSelect = currentPanel.querySelector('.operation-select');
             if (operationSelect && operationSelect.value) {
                 const currentOperationType = operationSelect.value;
-                // // console.log(`[Kontext Super Prompt] 从UI读取操作类型: "${currentOperationType}" (之前: "${this.currentOperationType}")`);
                 this.currentOperationType = currentOperationType;
             } else {
-                // // console.log(`[Kontext Super Prompt] 未找到操作类型下拉框或无选中值，保持当前值: "${this.currentOperationType}"`);
             }
         } else {
             console.warn(`[Kontext Super Prompt] 未找到当前面板: ${panelClass}`);
@@ -3659,7 +3587,6 @@ class KontextSuperPrompt {
         if (this.constraintContainer) {
             const constraintCheckboxes = this.constraintContainer.querySelectorAll('input[type="checkbox"]:checked');
             const newConstraints = Array.from(constraintCheckboxes).map(cb => cb.nextElementSibling.textContent);
-            // // console.log("[Kontext Super Prompt] 从UI扫描到的约束提示词:", newConstraints);
             this.selectedConstraints = newConstraints;
         } else {
             console.warn("[Kontext Super Prompt] 约束容器不存在");
@@ -3669,7 +3596,6 @@ class KontextSuperPrompt {
         if (this.decorativeContainer) {
             const decorativeCheckboxes = this.decorativeContainer.querySelectorAll('input[type="checkbox"]:checked');
             const newDecoratives = Array.from(decorativeCheckboxes).map(cb => cb.nextElementSibling.textContent);
-            // // console.log("[Kontext Super Prompt] 从UI扫描到的修饰提示词:", newDecoratives);
             this.selectedDecoratives = newDecoratives;
         } else {
             console.warn("[Kontext Super Prompt] 修饰容器不存在");
@@ -3702,11 +3628,9 @@ class KontextSuperPrompt {
     }
 
     updateLayerInfo(layerInfo) {
-        // // console.log("[Kontext Super Prompt] 更新图层信息", layerInfo);
         
         // 递归防护：防止updateLayerInfo和tryGetLayerInfoFromConnectedNode之间的无限递归
         if (this._updateLayerInfoInProgress) {
-            // console.log("[Kontext Super Prompt] 检测到递归调用，跳过以防止无限循环");
             return;
         }
         
@@ -3724,7 +3648,6 @@ class KontextSuperPrompt {
         }
         
         this.layerInfo = layerInfo;
-        // console.log("[Kontext Super Prompt] 图层信息解析结果:", {
         //     layers: layerInfo.layers?.length || 0,
         //     canvasSize: layerInfo.canvas_size,
         //     transformData: layerInfo.transform_data ? Object.keys(layerInfo.transform_data).length : 0
@@ -3750,10 +3673,8 @@ class KontextSuperPrompt {
     }
 
     tryGetLayerInfoFromConnectedNode() {
-        // // console.log("[Kontext Super Prompt] 主动尝试获取图层信息...");
         
         if (!this.node.inputs || !this.node.inputs[0] || !this.node.inputs[0].link) {
-            // // console.log("[Kontext Super Prompt] 未连接到源节点");
             return;
         }
 
@@ -3763,25 +3684,19 @@ class KontextSuperPrompt {
         const sourceNode = app.graph.getNodeById(link.origin_id);
         if (!sourceNode) return;
 
-        // // console.log("[Kontext Super Prompt] 源节点类型:", sourceNode.type);
-        // // console.log("[Kontext Super Prompt] 源节点完整信息:", sourceNode);
 
         // 直接从LRPG Canvas节点获取实时图层数据
         if (sourceNode.type === "LRPGCanvas") {
-            // // console.log("[Kontext Super Prompt] 检测到LRPG Canvas节点");
             
             let layerInfo = null;
             
             // 方式1: 从LRPG Canvas节点的canvasInstance属性获取
             if (sourceNode.canvasInstance && sourceNode.canvasInstance.canvas) {
                 const fabricCanvas = sourceNode.canvasInstance.canvas;
-                // // console.log("[Kontext Super Prompt] 找到LRPG Canvas实例:", sourceNode.canvasInstance);
-                // // console.log("[Kontext Super Prompt] 找到Fabric.js画布实例:", fabricCanvas);
                 
                 // 直接从Fabric.js画布提取图层数据
                 layerInfo = this.extractLayerInfoFromFabricCanvas(fabricCanvas);
                 if (layerInfo && layerInfo.layers && layerInfo.layers.length > 0) {
-                    // // console.log("[Kontext Super Prompt] 从Fabric.js画布成功获取到图层数据:", layerInfo);
                 }
             }
             
@@ -3790,7 +3705,6 @@ class KontextSuperPrompt {
                 const canvasElement = sourceNode.canvasElement.querySelector('canvas');
                 if (canvasElement && canvasElement.__fabric) {
                     const fabricCanvas = canvasElement.__fabric;
-                    // // console.log("[Kontext Super Prompt] 从DOM找到Fabric.js画布实例:", fabricCanvas);
                     
                     // 直接从Fabric.js画布提取图层数据
                     layerInfo = this.extractLayerInfoFromFabricCanvas(fabricCanvas);
@@ -3801,7 +3715,6 @@ class KontextSuperPrompt {
             if (!layerInfo && sourceNode.lrpgCanvas) {
                 if (sourceNode.lrpgCanvas.extractTransformData) {
                     const transformData = sourceNode.lrpgCanvas.extractTransformData();
-                    // // console.log("[Kontext Super Prompt] 从LRPG Canvas提取的变换数据:", transformData);
                     layerInfo = this.buildLayerInfoFromTransformData(transformData, sourceNode);
                 }
             }
@@ -3818,7 +3731,6 @@ class KontextSuperPrompt {
                     if (data && data.transform_data) {
                         const realLayerInfo = this.buildLayerInfoFromTransformData(data.transform_data, sourceNode);
                         if (realLayerInfo && realLayerInfo.layers && realLayerInfo.layers.length > 0) {
-                            // // console.log("[Kontext Super Prompt] 从后端获取到真实图层数据:", realLayerInfo);
                             // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
                             if (!this._updateLayerInfoInProgress) {
                                 this.updateLayerInfo(realLayerInfo);
@@ -3826,13 +3738,11 @@ class KontextSuperPrompt {
                         }
                     }
                 }).catch(err => {
-                    // // console.log("[Kontext Super Prompt] 从后端获取数据失败:", err);
                 });
             }
             
             // 如果还没有获取到，使用测试数据
             if (!layerInfo || !layerInfo.layers || layerInfo.layers.length === 0) {
-                // // console.log("[Kontext Super Prompt] 使用测试数据，但继续尝试获取真实数据");
                 layerInfo = {
                     layers: [
                         {
@@ -3856,7 +3766,6 @@ class KontextSuperPrompt {
             }
             
             if (layerInfo) {
-                // // console.log("[Kontext Super Prompt] 更新图层信息:", layerInfo);
                 // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
                 if (!this._updateLayerInfoInProgress) {
                     this.updateLayerInfo(layerInfo);
@@ -4076,7 +3985,6 @@ class KontextSuperPrompt {
         // 使用管理方法添加API监听器，防止堆积
         const executedHandler = (event) => {
             if (event.detail && event.detail.node === sourceNode.id.toString()) {
-                // console.log('[Kontext Super Prompt] 检测到LRPG Canvas执行完成，刷新图层信息');
                 this.addTimeoutManaged(() => {
                     this.tryGetLayerInfoFromConnectedNode();
                 }, 500);
@@ -4119,7 +4027,6 @@ class KontextSuperPrompt {
             transform_data: transformData
         };
 
-        // // console.log("[Kontext Super Prompt] 构建的图层信息:", layerInfo);
         return layerInfo;
     }
 
@@ -4139,7 +4046,6 @@ class KontextSuperPrompt {
                     const currentHash = JSON.stringify(layerInfo.layers);
                     
                     if (this.lastTransformHash !== currentHash) {
-                        // // console.log("[Kontext Super Prompt] 检测到LRPG Canvas实例数据更新，图层数量:", layerInfo.layers.length);
                         this.lastTransformHash = currentHash;
                         this.updateLayerInfo(layerInfo);
                         return;
@@ -4158,7 +4064,6 @@ class KontextSuperPrompt {
                         const currentHash = JSON.stringify(layerInfo.layers);
                         
                         if (this.lastTransformHash !== currentHash) {
-                            // // console.log("[Kontext Super Prompt] 检测到DOM Fabric.js画布数据更新，图层数量:", layerInfo.layers.length);
                             this.lastTransformHash = currentHash;
                             this.updateLayerInfo(layerInfo);
                             return;
@@ -4173,7 +4078,6 @@ class KontextSuperPrompt {
                 const currentHash = JSON.stringify(currentTransformData);
                 
                 if (this.lastTransformHash !== currentHash) {
-                    // // console.log("[Kontext Super Prompt] 检测到节点属性图层数据更新");
                     this.lastTransformHash = currentHash;
                     
                     layerInfo = this.buildLayerInfoFromTransformData(currentTransformData, sourceNode);
@@ -4406,7 +4310,6 @@ class KontextSuperPrompt {
     }
 
     refreshLayerInfo() {
-        // // console.log("[Kontext Super Prompt] 手动刷新图层信息");
         
         // 显示加载状态
         this.layerList.innerHTML = `
@@ -4449,17 +4352,14 @@ class KontextSuperPrompt {
     }
 
     generateSuperPrompt() {
-        // // console.log("[Kontext Super Prompt] ==================== 开始生成超级提示词 ====================");
         
         // 检查当前选项卡模式 - API和Ollama模式完全独立，不受模板影响
         if (this.currentCategory === 'api') {
             // API模式：完全独立，不使用任何模板
-            console.log('[Kontext Super Prompt] API模式生成，不使用预设模板');
             this.generateWithAPI();
             return;
         } else if (this.currentCategory === 'ollama') {
             // Ollama模式：完全独立，不使用任何模板
-            console.log('[Kontext Super Prompt] Ollama模式生成，不使用预设模板');
             this.generateWithOllama();
             return;
         }
@@ -4467,35 +4367,21 @@ class KontextSuperPrompt {
         // 首先强制更新选择状态，确保与UI一致
         this.forceUpdateSelections();
         
-        // // console.log("[Kontext Super Prompt] 当前状态详情:");
-        // console.log("  - 编辑模式:", this.currentEditMode);
-        // console.log("  - 操作类型:", this.currentOperationType);
-        // console.log("  - 描述:", `"${this.description}"`);
-        // console.log("  - 约束提示词数量:", this.selectedConstraints?.length || 0);
-        // console.log("  - 约束提示词内容:", this.selectedConstraints);
-        // console.log("  - 修饰提示词数量:", this.selectedDecoratives?.length || 0);
-        // console.log("  - 修饰提示词内容:", this.selectedDecoratives);
         
         // 设置标志位，防止在生成期间重新加载提示词
         this.isGeneratingPrompt = true;
-        // // console.log("[Kontext Super Prompt] 设置生成保护标志位 - 开始生成");
         
         // 收集所有数据，将中文提示词转换为英文
         const constraintPromptsEnglish = translatePromptsToEnglish(this.selectedConstraints || []);
         const decorativePromptsEnglish = translatePromptsToEnglish(this.selectedDecoratives || []);
-        // // console.log("[Kontext Super Prompt] 翻译结果:");
-        // console.log("  - 英文约束提示词:", constraintPromptsEnglish);
-        // console.log("  - 英文修饰提示词:", decorativePromptsEnglish);
         
         // 生成综合提示词
         let generatedPromptParts = [];
         
-        // // console.log("[Kontext Super Prompt] 开始组装提示词部分:");
         
         // 添加操作类型模板（如果有模板，则使用模板并集成描述；否则只使用描述）
         if (this.currentOperationType && KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType]) {
             const template = KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType];
-            // console.log(`  - 找到操作类型模板: ${this.currentOperationType}`, template);
             
             if (template.template) {
                 // 如果有描述，将其整合到模板中
@@ -4503,60 +4389,43 @@ class KontextSuperPrompt {
                     let processedTemplate = template.template
                         .replace('{object}', 'selected area')
                         .replace('{target}', this.description.trim());
-                    // console.log(`  - 使用模板+描述: "${processedTemplate}"`);
                     generatedPromptParts.push(processedTemplate);
                 } else {
                     // 如果没有描述，使用默认值
                     let defaultTemplate = template.template
                         .replace('{object}', 'selected area')
                         .replace('{target}', 'desired effect');
-                    // console.log(`  - 使用默认模板: "${defaultTemplate}"`);
                     generatedPromptParts.push(defaultTemplate);
                 }
             }
         } else if (this.description && this.description.trim()) {
             // 如果没有模板但有描述，直接添加描述
-            // console.log(`  - 没有模板，直接使用描述: "${this.description.trim()}"`);
             generatedPromptParts.push(this.description.trim());
         } else {
-            // console.log("  - 没有模板且没有描述，跳过主要部分");
         }
         
         // 添加修饰性提示词
         if (decorativePromptsEnglish.length > 0) {
-            // console.log(`  - 添加 ${decorativePromptsEnglish.length} 个修饰提示词:`, decorativePromptsEnglish);
             generatedPromptParts.push(...decorativePromptsEnglish);
         } else {
-            // console.log("  - 没有修饰提示词");
         }
         
         // 添加约束性提示词
         if (constraintPromptsEnglish.length > 0) {
-            // console.log(`  - 添加 ${constraintPromptsEnglish.length} 个约束提示词:`, constraintPromptsEnglish);
             generatedPromptParts.push(...constraintPromptsEnglish);
         } else {
-            // console.log("  - 没有约束提示词");
         }
         
         // 生成最终提示词
         this.generatedPrompt = generatedPromptParts.join(', ');
-        // // console.log("[Kontext Super Prompt] 生成的提示词部分:", generatedPromptParts);
-        // // console.log("[Kontext Super Prompt] 最终生成的提示词:", this.generatedPrompt);
         
-        // // console.log("[Kontext Super Prompt] ==================== 状态完整性检查 ====================");
-        // console.log("  - 生成后约束提示词状态:", this.selectedConstraints);
-        // console.log("  - 生成后修饰提示词状态:", this.selectedDecoratives);
-        // console.log("  - 生成后描述状态:", `"${this.description}"`);
-        // console.log("  - 生成后操作类型状态:", this.currentOperationType);
         
         // 如果没有生成任何内容，提供一个默认提示
         if (!this.generatedPrompt || this.generatedPrompt.trim() === '') {
             this.generatedPrompt = 'Please describe the changes you want to make or select some options above';
-            // // console.log("[Kontext Super Prompt] 没有生成内容，使用默认提示");
         }
         
         this.updateAllPreviewTextareas();
-        // // console.log("[Kontext Super Prompt] 已更新所有预览文本框");
         
         const promptData = {
             edit_mode: this.currentEditMode,
@@ -4574,7 +4443,6 @@ class KontextSuperPrompt {
         // 强制触发节点序列化，确保数据传递到后端
         if (this.node.serialize) {
             const serializedData = this.node.serialize();
-            // console.log('[Kontext Super Prompt] 强制序列化结果:', serializedData);
         }
         
         // 通知节点图更新
@@ -4583,7 +4451,6 @@ class KontextSuperPrompt {
         }
         
         this.isGeneratingPrompt = false;
-        // // console.log("[Kontext Super Prompt] 清除生成保护标志位 - 生成完成");
         
         // 通知生成完成
         this.showNotification("超级提示词已生成！", "success");
@@ -4652,7 +4519,6 @@ class KontextSuperPrompt {
             }
         });
         
-        // console.log('[Kontext Super Prompt] 隐藏widget已更新:', this.node.widgets.map(w => ({ name: w.name, value: w.value })));
     }
 
     generateWithAPI() {
@@ -4662,7 +4528,6 @@ class KontextSuperPrompt {
         }
         this.isGeneratingAPI = true;
         
-        console.log('[Kontext Super Prompt] 使用API生成提示词');
         
         // 清除任何可能的旧状态
         this.description = '';  // 先清空缓存的description
@@ -4686,7 +4551,6 @@ class KontextSuperPrompt {
         
         if (apiDescTextarea && apiDescTextarea.value) {
             description = apiDescTextarea.value.trim();
-            console.log('[API] 从API面板读取描述:', description);
         } else {
             // 如果API面板没有输入框，尝试其他选择器
             const descriptionInputs = [
@@ -4700,7 +4564,6 @@ class KontextSuperPrompt {
                     const trimmedValue = input.value.trim();
                     if (trimmedValue) {
                         description = trimmedValue;
-                        console.log('[API] 从备用选择器读取描述:', description);
                         break;
                     }
                 }
@@ -4710,8 +4573,6 @@ class KontextSuperPrompt {
         // 更新缓存
         this.description = description;
         
-        console.log('[API] 获取到的描述:', description);
-        console.log('[API] 本次生成时间戳:', Date.now());
         
         // 检测并修复模板污染问题
         const templatePatterns = [
@@ -4730,16 +4591,13 @@ class KontextSuperPrompt {
                 const matches = description.match(pattern);
                 if (matches && matches[1]) {
                     description = matches[1].trim();
-                    console.log('[API] 提取纯净描述:', description);
                 } else if (description.includes('seamlessly eliminate')) {
                     // 特殊处理remove_object模板
                     description = '';
-                    console.log('[API] 检测到移除操作，清空描述');
                 }
                 // 更新组件的description属性为清理后的值
                 this.description = description;
                 // 不要将清理后的值写回输入框，保持用户原始输入
-                console.log('[API] 保持输入框原始值，不写入清理后的描述');
                 break;
             }
         }
@@ -4797,7 +4655,6 @@ class KontextSuperPrompt {
         }
         this.isGeneratingOllama = true;
         
-        console.log('[Kontext Super Prompt] 使用Ollama生成提示词');
         
         // 保存当前选项卡状态
         const currentTab = this.currentCategory;
@@ -4838,7 +4695,6 @@ class KontextSuperPrompt {
             description = this.description.trim();
         }
         
-        console.log('[Ollama] 获取到的描述:', description);
         
         // 检测并修复模板污染问题（与API模式相同）
         const templatePatterns = [
@@ -4857,11 +4713,9 @@ class KontextSuperPrompt {
                 const matches = description.match(pattern);
                 if (matches && matches[1]) {
                     description = matches[1].trim();
-                    console.log('[Ollama] 提取纯净描述:', description);
                 } else if (description.includes('seamlessly eliminate')) {
                     // 特殊处理remove_object模板
                     description = '';
-                    console.log('[Ollama] 检测到移除操作，清空描述');
                 }
                 // 更新组件的description属性
                 this.description = description;
@@ -4921,7 +4775,6 @@ class KontextSuperPrompt {
 
     async waitForAPIResult(provider, model, description) {
         try {
-            console.log('[API] 开始调用远程API服务...');
             
             // 显示连接状态
             this.generatedPrompt = `🔄 正在连接 ${provider} (${model})...`;
@@ -5074,7 +4927,6 @@ class KontextSuperPrompt {
             }
             
             const result = await response.json();
-            console.log('[API] 远程API响应:', result);
             
             // 提取生成的内容
             let generatedContent = '';
@@ -5087,14 +4939,10 @@ class KontextSuperPrompt {
                 }
             } else if (result.choices && result.choices[0] && result.choices[0].message) {
                 const rawContent = result.choices[0].message.content;
-                console.log('[API] 原始响应内容:', rawContent ? `"${rawContent}"` : '(空)');
-                console.log('[API] 原始响应长度:', rawContent ? rawContent.length : 0);
                 
                 // 如果原始内容为空，尝试其他字段
                 if (!rawContent || rawContent.trim().length === 0) {
                     console.error('[API] API返回了空内容！');
-                    console.log('[API] 完整的result.choices[0]:', result.choices[0]);
-                    console.log('[API] finish_reason:', result.choices[0].finish_reason);
                     
                     // 检查是否因为token限制导致的空响应
                     if (result.choices[0].finish_reason === 'length') {
@@ -5102,14 +4950,12 @@ class KontextSuperPrompt {
                         console.warn('[API] 响应因token限制被截断');
                     } else if (result.choices[0].text) {
                         generatedContent = result.choices[0].text;
-                        console.log('[API] 使用text字段:', generatedContent);
                     } else {
                         generatedContent = '❌ API返回了空响应，请重试';
                     }
                 } else {
                     // 清理API响应，提取纯净提示词
                     generatedContent = this.cleanApiResponse(rawContent);
-                    console.log('[API] 清理后内容:', generatedContent);
                     
                     // 如果清理后为空，使用原始内容
                     if (!generatedContent || generatedContent.length < 10) {
@@ -5164,7 +5010,6 @@ class KontextSuperPrompt {
     
     async waitForOllamaResult(model, description) {
         try {
-            console.log('[Ollama] 开始调用本地Ollama服务...');
             
             // 显示连接状态
             this.generatedPrompt = `🔄 正在连接本地 Ollama (${model})...`;
@@ -5215,7 +5060,6 @@ class KontextSuperPrompt {
             }
             
             const result = await response.json();
-            console.log('[Ollama] 本地API响应:', result);
             
             // 提取生成的内容
             let generatedContent = '';
@@ -5365,23 +5209,19 @@ class KontextSuperPrompt {
             return response;
         }
 
-        console.log('[API] 开始清理响应，原始长度:', response.length);
 
         // 如果响应包含多个Prompt编号，只提取第一个
         if (response.includes('### Prompt') || response.includes('Prompt 1:')) {
-            console.log('[API] 检测到多个提示词格式，提取第一个');
             
             // 尝试提取第一个引号内的提示词
             const firstQuotedMatch = response.match(/"([^"]{30,})"/);
             if (firstQuotedMatch) {
-                console.log('[API] 提取第一个引号中的提示词');
                 return firstQuotedMatch[1].trim();
             }
             
             // 尝试提取第一个提示词段落（在第一个---之前）
             const firstPromptMatch = response.match(/(?:Prompt \d+:.*?)"([^"]+)"/s);
             if (firstPromptMatch) {
-                console.log('[API] 提取第一个编号提示词');
                 return firstPromptMatch[1].trim();
             }
         }
@@ -5391,14 +5231,12 @@ class KontextSuperPrompt {
         // 尝试提取引号中的提示词（仅当引号内容足够长时）
         const quotedMatch = response.match(/"([^"]{30,})"/);
         if (quotedMatch) {
-            console.log('[API] 提取引号中的提示词');
             return quotedMatch[1].trim();
         }
         
         // 尝试提取代码块中的提示词
         const codeBlockMatch = response.match(/```[^`]*?\n(.*?)\n```/s);
         if (codeBlockMatch && codeBlockMatch[1].trim().length > 20) {
-            console.log('[API] 提取代码块中的提示词');
             return codeBlockMatch[1].trim();
         }
 
@@ -5423,14 +5261,12 @@ class KontextSuperPrompt {
             return response.trim();
         }
         
-        console.log('[API] 清理完成，最终长度:', cleaned.length);
         return cleaned;
     }
 
     updateUI() {
         // 如果正在生成提示词，跳过UI更新以避免清空选择状态
         if (this.isGeneratingPrompt) {
-            // console.log('[Kontext Super Prompt] 正在生成提示词，跳过UI更新避免清空选择状态');
             return;
         }
         
@@ -5464,7 +5300,6 @@ class KontextSuperPrompt {
     updateAllDescriptionTextareas() {
         // 如果正在API生成中，不更新输入框（防止模板污染）
         if (this.isGeneratingAPI || this.isGeneratingOllama) {
-            console.log('[Kontext Super Prompt] 跳过更新描述输入框（正在生成中）');
             return;
         }
         
@@ -5804,7 +5639,6 @@ app.registerExtension({
                 // 初始化默认界面，确保即使没有Canvas连接也能正常显示
                 setTimeout(() => {
                     if (!this.kontextSuperPrompt.layerInfo || this.kontextSuperPrompt.layerInfo.layers.length === 0) {
-                        console.log("[Kontext Super Prompt] 初始化默认界面");
                         this.kontextSuperPrompt.updateLayerInfo({ 
                             layers: [], 
                             canvas_size: { width: 512, height: 512 },
@@ -5820,11 +5654,9 @@ app.registerExtension({
                         onConnectionsChange.apply(this, arguments);
                     }
                     
-                    // // console.log("[Kontext Super Prompt] 连接变化:", { type, index, connected, link_info });
                     
                     // 当layer_info输入连接时，更新图层信息
                     if (type === 1 && index === 0 && connected) { // input, layer_info, connected
-                        // // console.log("[Kontext Super Prompt] Layer info输入已连接");
                         setTimeout(() => {
                             this.updateLayerInfo();
                         }, 100);
@@ -5835,7 +5667,6 @@ app.registerExtension({
                         }, 500);
                     } else if (type === 1 && index === 0 && !connected) {
                         // 当断开连接时，显示默认界面
-                        console.log("[Kontext Super Prompt] Canvas连接断开，显示默认界面");
                         this.kontextSuperPrompt.updateLayerInfo({ 
                             layers: [], 
                             canvas_size: { width: 512, height: 512 },
@@ -5851,7 +5682,6 @@ app.registerExtension({
                         originalOnExecuted.apply(this, arguments);
                     }
                     
-                    // // console.log("[Kontext Super Prompt] 节点执行完成:", message);
                     
                     // 从执行结果中提取图层信息
                     if (message && message.text) {
@@ -5871,7 +5701,6 @@ app.registerExtension({
                             }
                             
                             if (layerData) {
-                                // // console.log("[Kontext Super Prompt] 从执行结果解析图层数据:", layerData);
                                 this.kontextSuperPrompt.updateLayerInfo(layerData);
                             }
                         } catch (e) {
@@ -5881,27 +5710,20 @@ app.registerExtension({
                 };
                 
                 this.updateLayerInfo = function() {
-                    // // console.log("[Kontext Super Prompt] 尝试更新图层信息...");
                     
                     if (this.inputs[0] && this.inputs[0].link) {
                         const link = app.graph.links[this.inputs[0].link];
-                        // // console.log("[Kontext Super Prompt] 找到连接链接:", link);
                         
                         if (link) {
                             const sourceNode = app.graph.getNodeById(link.origin_id);
-                            // // console.log("[Kontext Super Prompt] 源节点:", sourceNode);
-                            // // console.log("[Kontext Super Prompt] 源节点类型:", sourceNode?.type);
                             
                             if (sourceNode) {
-                                // // console.log("[Kontext Super Prompt] 源节点属性:", sourceNode.properties);
-                                // // console.log("[Kontext Super Prompt] 源节点输出:", sourceNode.outputs);
                                 
                                 // 尝试多种方式获取图层信息
                                 let layerInfo = null;
                                 
                                 // 方式1: 从最近的执行输出获取
                                 if (sourceNode.last_output) {
-                                    // // console.log("[Kontext Super Prompt] 检查最近输出:", sourceNode.last_output);
                                     if (sourceNode.last_output.length > 1) {
                                         try {
                                             const layerInfoOutput = sourceNode.last_output[1]; // 第二个输出是layer_info
@@ -5910,7 +5732,6 @@ app.registerExtension({
                                             } else {
                                                 layerInfo = layerInfoOutput;
                                             }
-                                            // // console.log("[Kontext Super Prompt] 从last_output获取到图层信息:", layerInfo);
                                         } catch (e) {
                                             console.warn("[Kontext Super Prompt] 解析last_output失败:", e);
                                         }
@@ -5920,7 +5741,6 @@ app.registerExtension({
                                 // 方式2: 从properties获取
                                 if (!layerInfo && sourceNode.properties && sourceNode.properties.layer_info) {
                                     layerInfo = sourceNode.properties.layer_info;
-                                    // // console.log("[Kontext Super Prompt] 从properties获取到图层信息:", layerInfo);
                                 }
                                 
                                 // 方式3: 从widget值获取（新增）
@@ -5929,7 +5749,6 @@ app.registerExtension({
                                         if (widget.name === 'layer_info' && widget.value) {
                                             try {
                                                 layerInfo = typeof widget.value === 'string' ? JSON.parse(widget.value) : widget.value;
-                                                // // console.log("[Kontext Super Prompt] 从widget获取到图层信息:", layerInfo);
                                                 break;
                                             } catch (e) {
                                                 console.warn("[Kontext Super Prompt] 解析widget值失败:", e);
@@ -5948,7 +5767,6 @@ app.registerExtension({
                                 }
                                 
                                 if (layerInfo) {
-                                    // // console.log("[Kontext Super Prompt] 成功获取图层信息，更新界面:", layerInfo);
                                     this.kontextSuperPrompt.updateLayerInfo(layerInfo);
                                 } else {
                                     console.warn("[Kontext Super Prompt] 未找到图层信息，显示默认界面");
@@ -5958,7 +5776,6 @@ app.registerExtension({
                             }
                         }
                     } else {
-                        // // console.log("[Kontext Super Prompt] 没有layer_info输入连接");
                     }
                 };
                 
@@ -6003,7 +5820,6 @@ app.registerExtension({
                     // 清理KontextSuperPrompt实例的所有资源
                     if (this.kontextSuperPrompt && this.kontextSuperPrompt.cleanup) {
                         this.kontextSuperPrompt.cleanup();
-                        console.log('[Kontext Super Prompt] 节点被销毁，已清理所有资源');
                     }
                     
                     // 调用原始的onRemoved方法
@@ -6013,10 +5829,8 @@ app.registerExtension({
                 };
                 
                 // 隐藏widget数据传递方式，不再需要复杂的serialize重写
-                // console.log('[Kontext Super Prompt] 使用隐藏widget数据传递机制');
             };
         }
     }
 });
 
-// // console.log("[Kontext Super Prompt] 🎯 Kontext超级提示词编辑器前端已加载");

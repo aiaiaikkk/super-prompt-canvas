@@ -612,20 +612,25 @@ For more examples, please check guidance_template options."""
                 guidance_style=guidance_style,
                 guidance_template=guidance_template,
                 custom_guidance=custom_guidance,
-                load_saved_guidance="none"
+                load_saved_guidance="none",
+                language="english"  # Force English output
             )
+            # Add extra English enforcement
+            system_prompt = "ENGLISH OUTPUT ONLY. " + system_prompt + "\n\nREMEMBER: Output in English only. No Chinese or other languages."
             return system_prompt
         except Exception as e:
             return self._english_fallback_prompt(editing_intent, processing_style)
     
     def _english_fallback_prompt(self, editing_intent: str, processing_style: str) -> str:
         """English fallback prompt for TextGen WebUI"""
-        base_prompt = """You are a professional image editing AI assistant. Please generate precise editing instructions based on user requirements.
+        base_prompt = """You are an ENGLISH-ONLY image editing AI assistant.
+
+CRITICAL: Output in ENGLISH ONLY. Never use Chinese, Japanese, or any other language.
 
 ## Core Mission
-- Generate clear, actionable editing commands
-- Use simple, unambiguous language
-- Focus on reliability and consistency
+- Generate clear, actionable ENGLISH editing commands
+- Use simple, unambiguous ENGLISH language
+- ALL output must be in proper English
 - Create instructions optimized for Flux Kontext
 
 ## Communication Style

@@ -136,35 +136,25 @@ class KontextSuperPrompt:
         处理Kontext超级提示词生成
         """
         try:
-            print(f"[Kontext Super Prompt] 开始处理超级提示词生成，节点ID: {unique_id}")
-            print(f"[Kontext Super Prompt] 选项卡模式: {tab_mode}")
-            print(f"[Kontext Super Prompt] 编辑模式: {edit_mode}")
-            print(f"[Kontext Super Prompt] 描述: '{description}'")
-            print(f"[Kontext Super Prompt] 前端生成提示词: '{generated_prompt}'")
             
             # 根据选项卡模式处理
             if tab_mode == "api" and generated_prompt and generated_prompt.strip():
-                print("[Kontext Super Prompt] 使用前端API生成的提示词")
                 final_generated_prompt = generated_prompt.strip()
             elif tab_mode == "api" and api_key:
-                print("[Kontext Super Prompt] 前端未生成提示词，使用后端API生成")
                 final_generated_prompt = self.process_api_mode(
                     layer_info, description, api_provider, api_key, api_model,
                     api_editing_intent, api_processing_style, api_seed, 
                     api_custom_guidance, image
                 )
             elif tab_mode == "ollama" and ollama_model:
-                print("[Kontext Super Prompt] 使用Ollama模式生成提示词")
                 final_generated_prompt = self.process_ollama_mode(
                     layer_info, description, ollama_url, ollama_model, ollama_temperature,
                     ollama_editing_intent, ollama_processing_style, ollama_seed,
                     ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
                 )
             elif generated_prompt and generated_prompt.strip():
-                print("[Kontext Super Prompt] 使用前端生成的提示词（非API模式）")
                 final_generated_prompt = generated_prompt.strip()
             else:
-                print("[Kontext Super Prompt] 使用手动模式生成提示词")
                 # 解析图层信息
                 parsed_layer_info = self.parse_layer_info(layer_info)
                 
@@ -197,7 +187,6 @@ class KontextSuperPrompt:
                 'timestamp': time.time()
             }
             
-            print(f"[Kontext Super Prompt] 最终生成提示词来源: {edit_data['generated_prompt_source']}")
             return (image, final_generated_prompt)
             
         except Exception as e:
@@ -329,7 +318,6 @@ class KontextSuperPrompt:
             import hashlib
             
             if not api_key:
-                print("[Kontext Super Prompt] API密钥为空")
                 return f"API密钥为空: {description or '无描述'}"
             
             # API提供商配置
@@ -352,19 +340,22 @@ class KontextSuperPrompt:
             api_config = api_configs.get(api_provider, api_configs['siliconflow'])
             model = api_model or api_config['default_model']
             
-            # 构建系统提示词
-            system_prompt = """You are an AI image editing prompt expert. Generate clean, professional English prompts for AI image editing tools.
+            # 构建系统提示词 - 强制英文版 v1.3.4
+            system_prompt = """You are an English-only image editing specialist. 
 
-CRITICAL: Generate ONLY ONE single prompt. Do not provide multiple options, variations, or numbered lists.
+CRITICAL: You MUST output in ENGLISH ONLY. Never use Chinese, Japanese, Korean or any other language.
 
-Requirements:
-- Output exactly ONE cohesive prompt (50-150 words)
-- Be specific and descriptive about the requested changes
-- Use professional image editing terminology
-- Each generation should be unique even for the same input
-- Do NOT include titles, headers, or any formatting
-- Do NOT provide multiple prompts or variations
-- Just the prompt text itself, nothing else"""
+RULES:
+1. Output ONE complete ENGLISH instruction (30-60 words)
+2. Use ENGLISH color names and terms only
+3. All output must be in proper English
+4. If user input is in another language, translate to English
+
+FORMAT: [English verb] [target] to/into [English color/result], [English quality terms].
+
+Example: Transform the marked area into deep navy blue, preserving texture naturally.
+
+REMEMBER: ENGLISH ONLY. No Chinese characters. No other languages."""
             
             if editing_intent == "creative_enhancement":
                 system_prompt += "\n- Prioritize artistic and creative improvements"
@@ -384,12 +375,12 @@ Requirements:
             import time
             random_seed = int(time.time() * 1000) % 1000000
             
-            # 构建用户提示词
-            user_prompt = f"Generate a complete and detailed English prompt for the following image editing task: {description}"
+            # 构建用户提示词 - 强制英文
+            user_prompt = f"Generate ENGLISH instruction for: {description}"
             if custom_guidance:
-                user_prompt += f"\n\nAdditional guidance: {custom_guidance}"
-            user_prompt += f"\n\nVariation seed: {random_seed}"  # 添加随机种子
-            user_prompt += "\n\nRemember: Output ONLY ONE single prompt. No titles, numbers, or multiple variations."
+                user_prompt += f" Additional: {custom_guidance}"
+            user_prompt += f" (v{random_seed})"  # 添加变体标识
+            user_prompt += "\nOUTPUT IN ENGLISH ONLY. No Chinese or other languages."
             
             # 发送API请求
             headers = {
@@ -404,8 +395,11 @@ Requirements:
                     {'role': 'user', 'content': user_prompt}
                 ],
                 'temperature': 0.7 + (random_seed % 20) / 100,  # 0.7-0.89的随机温度
-                'max_tokens': 500,  # 增加到500确保有足够空间生成
-                'top_p': 0.95
+                'max_tokens': 200,  # 设置为200，平衡质量和token消耗
+                'top_p': 0.9,
+                'presence_penalty': 0.1,  # 避免重复
+                'frequency_penalty': 0.1,  # 增加多样性
+                'language': 'en'  # 强制英文输出（某些API支持）
             }
             
             response = requests.post(api_config['base_url'], headers=headers, json=data, timeout=30)
@@ -415,17 +409,12 @@ Requirements:
             api_response = result['choices'][0]['message']['content']
             
             # 调试：显示原始响应
-            print(f"[Kontext Super Prompt] API原始响应: {api_response[:200]}..." if len(api_response) > 200 else f"[Kontext Super Prompt] API原始响应: {api_response}")
             
             # 清理响应，提取纯净提示词
             cleaned_response = self._clean_api_response(api_response)
             
             # 调试：显示清理后的响应
-            print(f"[Kontext Super Prompt] 清理后响应: {cleaned_response[:200]}..." if len(cleaned_response) > 200 else f"[Kontext Super Prompt] 清理后响应: {cleaned_response}")
             
-            print(f"[Kontext Super Prompt] ✅ {api_provider} API生成完成！")
-            print(f"[Kontext Super Prompt] 模型: {model}")
-            print(f"[Kontext Super Prompt] 输入: \"{description}\"")
             
             return cleaned_response
                 
@@ -436,72 +425,105 @@ Requirements:
     def process_ollama_mode(self, layer_info, description, ollama_url, ollama_model, 
                            temperature, editing_intent, processing_style, seed,
                            custom_guidance, enable_visual, auto_unload, image):
-        """处理Ollama模式的提示词生成"""
+        """处理Ollama模式的提示词生成 - 强制英文输出"""
         try:
-            from ollama_flux_kontext_enhancer import OllamaFluxKontextEnhancerV2
+            import requests
             
-            # 创建Ollama增强器实例
-            ollama_enhancer = OllamaFluxKontextEnhancerV2()
+            # 构建强制英文的系统提示词
+            system_prompt = """You are an ENGLISH-ONLY image editing assistant using Ollama.
+
+CRITICAL RULES:
+1. Output in ENGLISH ONLY
+2. Never use Chinese characters or any other language
+3. Generate ONE clear English instruction (30-60 words)
+4. Use proper English color names and terms
+
+If input is in Chinese, translate to English first.
+
+FORMAT: [English verb] [target] to [English result], [quality terms].
+
+REMEMBER: ENGLISH ONLY OUTPUT."""
             
-            # 转换图层信息为JSON字符串
-            layer_info_str = json.dumps(layer_info) if isinstance(layer_info, dict) else str(layer_info)
+            # 构建用户提示词
+            user_prompt = f"Generate ENGLISH editing instruction for: {description}"
+            if custom_guidance:
+                user_prompt += f" Additional: {custom_guidance}"
+            user_prompt += "\nOUTPUT IN ENGLISH ONLY."
             
-            # 调用Ollama增强器
-            enhanced_instructions, system_prompt = ollama_enhancer.enhance_flux_instructions(
-                layer_info=layer_info_str,
-                edit_description=description,
-                model=ollama_model,
-                auto_unload_model=auto_unload,
-                editing_intent=editing_intent,
-                processing_style=processing_style,
-                image=image,
-                url=ollama_url,
-                temperature=temperature,
-                enable_visual_analysis=enable_visual,
-                seed=seed,
-                load_saved_guidance="none",
-                save_guidance=False,
-                guidance_name="",
-                custom_guidance=custom_guidance
+            # 调用Ollama API
+            response = requests.post(
+                f"{ollama_url}/api/generate",
+                json={
+                    "model": ollama_model,
+                    "prompt": user_prompt,
+                    "system": system_prompt,
+                    "temperature": temperature,
+                    "seed": seed,
+                    "stream": False,
+                    "options": {
+                        "num_predict": 200,  # 限制输出长度
+                        "stop": ["\n\n", "###", "---"],  # 停止标记
+                    }
+                },
+                timeout=30
             )
             
-            if enhanced_instructions:
-                return enhanced_instructions
+            if response.status_code == 200:
+                result = response.json()
+                generated_text = result.get('response', '')
+                
+                # 清理和验证输出
+                cleaned_text = self._clean_api_response(generated_text)
+                
+                # 检查是否包含中文字符
+                if any('\u4e00' <= char <= '\u9fff' for char in cleaned_text):
+                    # 如果包含中文，返回默认英文
+                    return f"Transform marked area as requested: {description}"
+                
+                return cleaned_text if cleaned_text else f"Transform marked area: {description}"
             else:
-                print("[Kontext Super Prompt] Ollama模式生成失败，使用fallback")
-                return f"Ollama生成失败: {description or '无描述'}"
+                return f"Ollama request failed: {description}"
                 
         except Exception as e:
             print(f"[Kontext Super Prompt] Ollama模式处理错误: {e}")
-            return f"Ollama处理错误: {description or '无描述'}"
+            # 返回英文fallback
+            return f"Apply editing to marked area: {description}"
     
     def _clean_api_response(self, response):
-        """清理API响应，提取纯净提示词"""
+        """清理API响应，提取纯净英文提示词"""
         import re
         
         if not response:
             return response
         
+        # 首先检查是否包含中文，如果是纯中文响应则返回默认英文
+        if any('\u4e00' <= char <= '\u9fff' for char in response):
+            # 尝试提取英文部分
+            english_parts = re.findall(r'[a-zA-Z][a-zA-Z\s,\.\-]+', response)
+            if english_parts:
+                # 合并英文部分
+                english_text = ' '.join(english_parts)
+                if len(english_text) > 20:  # 如果英文部分足够长
+                    return english_text.strip()
+            # 否则返回默认英文指令
+            return "Transform the marked area as specified in the editing request"
+        
         # 如果响应包含多个Prompt编号，只提取第一个
         if '### Prompt' in response or 'Prompt 1:' in response:
-            print("[Kontext Super Prompt] 检测到多个提示词格式，提取第一个")
             
             # 尝试提取第一个引号内的提示词
             first_quoted_match = re.search(r'"([^"]{30,})"', response)
             if first_quoted_match:
-                print("[Kontext Super Prompt] 提取第一个引号中的提示词")
                 return first_quoted_match.group(1).strip()
             
             # 尝试提取第一个提示词段落
             first_prompt_match = re.search(r'(?:Prompt \d+:.*?)"([^"]+)"', response, re.DOTALL)
             if first_prompt_match:
-                print("[Kontext Super Prompt] 提取第一个编号提示词")
                 return first_prompt_match.group(1).strip()
         
         # 尝试提取引号中的提示词
         quoted_match = re.search(r'"([^"]{30,})"', response)
         if quoted_match:
-            print("[Kontext Super Prompt] 提取引号中的提示词")
             return quoted_match.group(1).strip()
         
         # 清理标题和前缀
@@ -517,7 +539,6 @@ Requirements:
         # 尝试提取代码块中的提示词
         code_block_match = re.search(r'```[^`]*?\n(.*?)\n```', response, re.DOTALL)
         if code_block_match and len(code_block_match.group(1).strip()) > 20:
-            print("[Kontext Super Prompt] 提取代码块中的提示词")
             return code_block_match.group(1).strip()
         
         # 应用清理模式
@@ -529,7 +550,6 @@ Requirements:
         
         # 如果没有做任何处理或结果太短，返回原始内容
         if not cleaned or len(cleaned) < 10:
-            print("[Kontext Super Prompt] 清理结果过短，返回原始内容")
             return response.strip()
         
         return cleaned.strip()
@@ -544,4 +564,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "KontextSuperPrompt": "🎯 Kontext Super Prompt",
 }
 
-print("[Kontext Super Prompt] Kontext Super Prompt node registered")
