@@ -49,6 +49,20 @@
 - **资源优化**：智能释放GPU内存
 - **隐私保护**：完全本地运行，无需联网
 
+### 编辑模式界面展示
+
+**局部编辑模式** - 精确的对象级编辑操作
+![局部编辑](images/KontextSuperPrompt1.png)
+
+**全局编辑模式** - 整体图像风格和效果调整
+![全局编辑](images/KontextSuperPrompt2.png)
+
+**远程API模式** - 集成多种云端AI模型
+![远程API](images/KontextSuperPrompt3.png)
+
+**本地Ollama模式** - 内置服务管理
+![本地Ollama](images/KontextSuperPrompt4.png)
+
 ## 🤖 引导词系统
 
 ### 预设模式
