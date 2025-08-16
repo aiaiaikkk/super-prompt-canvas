@@ -297,7 +297,28 @@ class LRPGCanvas:
                 print(f"[LRPG Canvas] 等待前端响应超时")
                 self.waiting_for_response = False
                 LRPGCanvas.clean_nodes()
-                return None, None
+                # 返回默认值而不是None
+                if image is not None:
+                    # 如果有输入图像，返回原图和空的图层信息
+                    empty_layer_info = {
+                        'layers': [],
+                        'canvas_size': {
+                            'width': image.shape[2] if len(image.shape) > 2 else 512,
+                            'height': image.shape[1] if len(image.shape) > 1 else 512
+                        },
+                        'transform_data': {}
+                    }
+                    return (image, empty_layer_info)
+                else:
+                    # 如果没有输入图像，创建默认空图像
+                    import torch
+                    empty_image = torch.zeros((1, 512, 512, 3), dtype=torch.float32)
+                    empty_layer_info = {
+                        'layers': [],
+                        'canvas_size': {'width': 512, 'height': 512},
+                        'transform_data': {}
+                    }
+                    return (empty_image, empty_layer_info)
 
             self.waiting_for_response = False
             LRPGCanvas.clean_nodes()
@@ -340,13 +361,51 @@ class LRPGCanvas:
                 
                 return image, layer_info
             
-            return None, None
+            # 没有处理数据时返回默认值
+            if image is not None:
+                empty_layer_info = {
+                    'layers': [],
+                    'canvas_size': {
+                        'width': image.shape[2] if len(image.shape) > 2 else 512,
+                        'height': image.shape[1] if len(image.shape) > 1 else 512
+                    },
+                    'transform_data': {}
+                }
+                return (image, empty_layer_info)
+            else:
+                import torch
+                empty_image = torch.zeros((1, 512, 512, 3), dtype=torch.float32)
+                empty_layer_info = {
+                    'layers': [],
+                    'canvas_size': {'width': 512, 'height': 512},
+                    'transform_data': {}
+                }
+                return (empty_image, empty_layer_info)
 
         except Exception as e:
             print(f"[LRPG Canvas] 处理过程发生异常: {str(e)}")
             self.waiting_for_response = False
             LRPGCanvas.clean_nodes()
-            return None, None
+            # 异常时也返回默认值
+            if image is not None:
+                empty_layer_info = {
+                    'layers': [],
+                    'canvas_size': {
+                        'width': image.shape[2] if len(image.shape) > 2 else 512,
+                        'height': image.shape[1] if len(image.shape) > 1 else 512
+                    },
+                    'transform_data': {}
+                }
+                return (image, empty_layer_info)
+            else:
+                import torch
+                empty_image = torch.zeros((1, 512, 512, 3), dtype=torch.float32)
+                empty_layer_info = {
+                    'layers': [],
+                    'canvas_size': {'width': 512, 'height': 512},
+                    'transform_data': {}
+                }
+                return (empty_image, empty_layer_info)
 
     def __del__(self):
         # 确保从活动节点列表中删除 - 完全复制lg_tools的做法

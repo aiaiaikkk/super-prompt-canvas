@@ -205,8 +205,8 @@ KSP_NS.constants.OPERATION_CATEGORIES = {
 KSP_NS.constants.OPERATION_TEMPLATES = {
     'change_color': { template: 'transform {object} color to {target}', label: '颜色变换', category: 'local' },
     'change_style': { template: 'reimagine {object} in {target} aesthetic', label: '风格重构', category: 'local' },
-    'replace_object': { template: 'thoughtfully replace {object} with {target}', label: '智能替换', category: 'local' },
-    'add_object': { template: 'thoughtfully introduce {target} to complement {object}', label: '智能添加', category: 'local' },
+    'replace_object': { template: 'replace {object} with {target}', label: '替换物体', category: 'local' },
+    'add_object': { template: 'add {target} to {object}', label: '添加物体', category: 'local' },
     'remove_object': { template: 'seamlessly eliminate {object} while preserving scene integrity', label: '无缝移除', category: 'local' },
     'change_texture': { template: 'transform {object} surface to {target} texture', label: '纹理增强', category: 'local' },
     'change_pose': { template: 'guide {object} into {target} pose', label: '姿态调整', category: 'local' },
@@ -4427,6 +4427,70 @@ class KontextSuperPrompt {
         }, 2000);
     }
 
+    translateToEnglish(chineseText) {
+        // 简单的中文到英文翻译映射
+        const translations = {
+            '给女生带上太阳眼睛': 'add sunglasses to the woman',
+            '给女生戴上太阳镜': 'add sunglasses to the woman',
+            '添加太阳镜': 'add sunglasses',
+            '戴上眼镜': 'wear glasses',
+            '换成红色': 'change to red',
+            '变成蓝色': 'change to blue',
+            '变成黑色': 'change to black',
+            '删除背景': 'remove background',
+            '模糊背景': 'blur background',
+            '增强质量': 'enhance quality',
+            '提高清晰度': 'improve clarity',
+            '修复图像': 'fix image',
+            '添加文字': 'add text',
+            '更换背景': 'replace background',
+            '调整光线': 'adjust lighting',
+            '改变风格': 'change style',
+            '移除物体': 'remove object',
+            '替换物体': 'replace object',
+            '放大': 'enlarge',
+            '缩小': 'shrink',
+            '旋转': 'rotate',
+            '翻转': 'flip',
+            '裁剪': 'crop'
+        };
+        
+        // 检查是否有直接的翻译
+        if (translations[chineseText]) {
+            return translations[chineseText];
+        }
+        
+        // 如果已经是英文，直接返回
+        if (!/[\u4e00-\u9fa5]/.test(chineseText)) {
+            return chineseText;
+        }
+        
+        // 尝试部分匹配和转换
+        let result = chineseText;
+        for (const [chinese, english] of Object.entries(translations)) {
+            if (chineseText.includes(chinese)) {
+                result = result.replace(chinese, english);
+            }
+        }
+        
+        // 如果仍包含中文，返回通用描述
+        if (/[\u4e00-\u9fa5]/.test(result)) {
+            console.warn('无法完全翻译的中文输入:', chineseText);
+            // 根据操作类型返回合适的默认值
+            if (this.currentOperationType === 'add_object') {
+                return 'add object to selected area';
+            } else if (this.currentOperationType === 'replace_object') {
+                return 'replace selected object';
+            } else if (this.currentOperationType === 'remove_object') {
+                return 'remove selected object';
+            } else {
+                return 'edit selected area';
+            }
+        }
+        
+        return result;
+    }
+    
     generateSuperPrompt() {
         
         // 检查当前选项卡模式 - API和Ollama模式完全独立，不受模板影响
@@ -4460,12 +4524,13 @@ class KontextSuperPrompt {
             const template = KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType];
             
             if (template.template) {
-                // 如果有描述，将其整合到模板中
+                // 如果有描述，先翻译成英文再整合到模板中
                 if (this.description && this.description.trim()) {
-                    let processedTemplate = template.template
-                        .replace('{object}', 'selected area')
-                        .replace('{target}', this.description.trim());
-                    generatedPromptParts.push(processedTemplate);
+                    // 翻译中文描述为英文
+                    let englishDescription = this.translateToEnglish(this.description.trim());
+                    
+                    // 不使用模板，直接使用翻译后的描述
+                    generatedPromptParts.push(englishDescription);
                 } else {
                     // 如果没有描述，使用默认值
                     let defaultTemplate = template.template
@@ -4475,8 +4540,9 @@ class KontextSuperPrompt {
                 }
             }
         } else if (this.description && this.description.trim()) {
-            // 如果没有模板但有描述，直接添加描述
-            generatedPromptParts.push(this.description.trim());
+            // 如果没有模板但有描述，翻译后添加
+            let englishDescription = this.translateToEnglish(this.description.trim());
+            generatedPromptParts.push(englishDescription);
         } else {
         }
         
@@ -5040,7 +5106,26 @@ class KontextSuperPrompt {
                     }
                 }
             } else {
-                generatedContent = '未能获取到有效响应';
+                generatedContent = 'Unable to get valid response, using default prompt';
+            }
+            
+            // 最终验证：确保输出是英文
+            if (generatedContent && /[\u4e00-\u9fa5]/.test(generatedContent)) {
+                console.error('[API] ⚠️ 最终输出仍包含中文，强制替换为英文');
+                // 根据描述生成备用英文
+                if (description.includes('颜色') || description.includes('color')) {
+                    generatedContent = 'Transform the selected area to the specified color with natural blending';
+                } else if (description.includes('删除') || description.includes('移除') || description.includes('remove')) {
+                    generatedContent = 'Remove the selected object seamlessly from the image';
+                } else if (description.includes('添加') || description.includes('add')) {
+                    generatedContent = 'Add the requested element to the selected area naturally';
+                } else if (description.includes('替换') || description.includes('replace')) {
+                    generatedContent = 'Replace the selected object with the specified element';
+                } else if (description.includes('风格') || description.includes('style')) {
+                    generatedContent = 'Apply the specified style transformation to the marked region';
+                } else {
+                    generatedContent = 'Edit the selected area according to the specified requirements';
+                }
             }
             
             // 显示最终结果并传递纯净提示词给后端
@@ -5170,10 +5255,12 @@ class KontextSuperPrompt {
             
         } catch (error) {
             console.error('[Ollama] 请求失败:', error);
-            if (error.message.includes('Failed to fetch')) {
-                this.generatedPrompt = `❌ 无法连接到本地 Ollama 服务\n\n请确保:\n1. Ollama 已启动 (ollama serve)\n2. 模型已下载 (ollama pull ${model})\n3. 服务地址正确: ${this.ollamaUrlInput?.value || 'http://127.0.0.1:11434'}`;
+            if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+                this.generatedPrompt = `❌ 无法连接到本地 Ollama 服务\n\n请确保:\n1. Ollama 已安装并启动\n   Windows: 运行 ollama serve\n   Mac/Linux: ollama serve\n\n2. 模型已下载\n   运行: ollama pull ${model || 'llama2'}\n   推荐模型: deepseek-r1:1.5b (轻量快速)\n\n3. 服务地址正确\n   当前地址: ${this.ollamaUrlInput?.value || 'http://127.0.0.1:11434'}\n   默认端口: 11434\n\n4. 防火墙未阻止连接\n   检查防火墙是否允许端口 11434\n\n💡 提示: 您也可以使用远程API选项卡，无需本地安装`;
+            } else if (error.message.includes('404')) {
+                this.generatedPrompt = `❌ 模型未找到: ${model}\n\n请先下载模型:\nollama pull ${model}\n\n或选择已安装的模型:\nollama list`;
             } else {
-                this.generatedPrompt = `❌ Ollama请求失败 (${model}): ${error.message}`;
+                this.generatedPrompt = `❌ Ollama请求失败\n\n模型: ${model}\n错误: ${error.message}\n\n建议:\n1. 检查Ollama服务状态\n2. 尝试重启Ollama服务\n3. 或使用远程API选项卡`;
             }
             this.updateAllPreviewTextareas();
             this.isGeneratingOllama = false;
@@ -5277,14 +5364,46 @@ class KontextSuperPrompt {
 
     cleanApiResponse(response) {
         /**
-         * 清理API响应，提取纯净提示词
-         * 处理各种格式，提取单一提示词
+         * 清理API响应，确保输出英文提示词
          */
         if (!response) {
             console.warn('[API] 响应为空');
-            return response;
+            return 'Edit the selected area as requested';
         }
-
+        
+        // 检测是否包含中文
+        const hasChineseChar = /[\u4e00-\u9fa5]/.test(response);
+        
+        if (hasChineseChar) {
+            console.warn('[API] ⚠️ 检测到中文输出，强制转换为英文');
+            
+            // 尝试提取英文句子
+            const englishSentences = response.match(/[A-Z][a-zA-Z\s,\.\-;:]+[\.|!|?]/g);
+            if (englishSentences && englishSentences.length > 0) {
+                // 返回最长的英文句子
+                const longestSentence = englishSentences.reduce((a, b) => a.length > b.length ? a : b);
+                if (longestSentence.length > 30) {
+                    console.log('[API] 提取到英文句子:', longestSentence);
+                    return longestSentence.trim();
+                }
+            }
+            
+            // 尝试提取任何英文片段
+            const englishFragments = response.match(/[a-zA-Z][a-zA-Z\s,\.\-]+/g);
+            if (englishFragments) {
+                // 过滤太短的片段
+                const validFragments = englishFragments.filter(f => f.length > 15);
+                if (validFragments.length > 0) {
+                    const combined = validFragments.join(' ');
+                    console.log('[API] 组合英文片段:', combined);
+                    return combined.trim();
+                }
+            }
+            
+            // 如果完全无法提取英文，返回默认英文
+            console.error('[API] 无法从中文响应中提取英文，使用默认值');
+            return 'Transform the selected area with professional image editing techniques';
+        }
 
         // 如果响应包含多个Prompt编号，只提取第一个
         if (response.includes('### Prompt') || response.includes('Prompt 1:')) {
@@ -5333,8 +5452,14 @@ class KontextSuperPrompt {
 
         // 确保返回有意义的内容
         if (!cleaned || cleaned.length < 10) {
-            console.warn('[API] 清理后内容过短，返回原始响应');
-            return response.trim();
+            console.warn('[API] 清理后内容过短，返回默认英文');
+            return 'Edit the selected area with professional quality';
+        }
+        
+        // 最终检查：确保没有中文
+        if (/[\u4e00-\u9fa5]/.test(cleaned)) {
+            console.error('[API] 清理后仍包含中文，强制返回英文');
+            return 'Apply the requested editing transformation to the selected area';
         }
         
         return cleaned;

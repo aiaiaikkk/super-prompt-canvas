@@ -486,6 +486,7 @@ class LRPGCanvas {
             margin-bottom: 4px;
             cursor: pointer;
             transition: background 0.2s;
+            min-height: 48px;
         `;
         
         // 缩略图
@@ -499,6 +500,7 @@ class LRPGCanvas {
             margin-right: 8px;
             overflow: hidden;
             position: relative;
+            flex-shrink: 0;
         `;
         
         // 生成缩略图
@@ -532,13 +534,100 @@ class LRPGCanvas {
         info.appendChild(name);
         info.appendChild(type);
         
-        // 控制按钮组
+        // 控制按钮组 - 单行布局，透明度控件与可见性按钮并排
         const controls = document.createElement('div');
         controls.style.cssText = `
             display: flex;
+            align-items: center;
             gap: 4px;
             margin-left: 8px;
+            min-width: 140px;
         `;
+        
+        // 透明度滑块（放在最前面）
+        const opacitySlider = document.createElement('input');
+        opacitySlider.type = 'range';
+        opacitySlider.min = '0';
+        opacitySlider.max = '100';
+        opacitySlider.value = Math.round((obj.opacity || 1) * 100);
+        opacitySlider.style.cssText = `
+            width: 60px;
+            height: 14px;
+            background: #333;
+            outline: none;
+            border-radius: 7px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            margin-right: 4px;
+        `;
+        
+        // 滑块样式
+        const sliderStyle = document.createElement('style');
+        if (!document.querySelector('#opacity-slider-style')) {
+            sliderStyle.id = 'opacity-slider-style';
+            sliderStyle.textContent = `
+                input[type="range"]::-webkit-slider-track {
+                    width: 100%;
+                    height: 3px;
+                    background: #333;
+                    border-radius: 1.5px;
+                }
+                input[type="range"]::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 10px;
+                    height: 10px;
+                    background: #007bff;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                input[type="range"]::-webkit-slider-thumb:hover {
+                    background: #0056b3;
+                }
+                input[type="range"]::-moz-range-track {
+                    width: 100%;
+                    height: 3px;
+                    background: #333;
+                    border-radius: 1.5px;
+                    border: none;
+                }
+                input[type="range"]::-moz-range-thumb {
+                    width: 10px;
+                    height: 10px;
+                    background: #007bff;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    border: none;
+                }
+            `;
+            document.head.appendChild(sliderStyle);
+        }
+        
+        // 透明度值显示（紧凑显示）
+        const opacityValue = document.createElement('span');
+        opacityValue.textContent = `${Math.round((obj.opacity || 1) * 100)}%`;
+        opacityValue.style.cssText = `
+            font-size: 9px;
+            color: #888;
+            min-width: 24px;
+            text-align: center;
+            margin-right: 2px;
+        `;
+        
+        // 透明度滑块事件监听
+        opacitySlider.addEventListener('input', (e) => {
+            e.stopPropagation();
+            const newOpacity = parseInt(e.target.value) / 100;
+            obj.set('opacity', newOpacity);
+            opacityValue.textContent = `${e.target.value}%`;
+            this.canvas.renderAll();
+        });
+        
+        // 防止滑块点击时选中图层
+        opacitySlider.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
         
         // 可见性按钮
         const visibilityBtn = document.createElement('button');
@@ -613,6 +702,9 @@ class LRPGCanvas {
             this.updateLayerList();
         });
         
+        // 按顺序添加控件：透明度滑块 + 百分比 + 可见性 + 锁定 + 上移 + 下移
+        controls.appendChild(opacitySlider);
+        controls.appendChild(opacityValue);
         controls.appendChild(visibilityBtn);
         controls.appendChild(lockBtn);
         controls.appendChild(moveUpBtn);
@@ -1755,7 +1847,7 @@ class LRPGCanvas {
                 fill: 'transparent',
                 stroke: this.currentColor,
                 strokeWidth: 2,
-                opacity: 1
+                opacity: 1.0
             };
         } else {
             // 填充模式：纯色填充，无边框
@@ -1763,7 +1855,7 @@ class LRPGCanvas {
                 fill: this.currentColor,
                 stroke: null,
                 strokeWidth: 0,
-                opacity: 1
+                opacity: 1.0
             };
         }
     }
@@ -1843,7 +1935,8 @@ class LRPGCanvas {
             fontSize: 20,
             fontFamily: 'Arial, sans-serif',
             selectable: true,
-            evented: true
+            evented: true,
+            opacity: 1.0
         };
         
         // 文字只使用填充色，不需要描边
@@ -2176,7 +2269,8 @@ class LRPGCanvas {
                         originX: 'center',
                         originY: 'center',
                         isBackground: false,
-                        selectable: true
+                        selectable: true,
+                        opacity: 1.0
                     });
                     
                     // 添加到画布
@@ -2190,7 +2284,8 @@ class LRPGCanvas {
                         originX: 'left',
                         originY: 'top',
                         isBackground: false,
-                        selectable: true
+                        selectable: true,
+                        opacity: 1.0
                     });
                     
                     // 添加到画布

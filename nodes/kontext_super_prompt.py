@@ -340,22 +340,30 @@ class KontextSuperPrompt:
             api_config = api_configs.get(api_provider, api_configs['siliconflow'])
             model = api_model or api_config['default_model']
             
-            # 构建系统提示词 - 强制英文版 v1.3.4
-            system_prompt = """You are an English-only image editing specialist. 
+            # 构建超强化的英文系统提示词
+            system_prompt = """You are an ENGLISH-ONLY image editing AI.
 
-CRITICAL: You MUST output in ENGLISH ONLY. Never use Chinese, Japanese, Korean or any other language.
+⚠️ CRITICAL ENFORCEMENT ⚠️
+1. OUTPUT MUST BE 100% ENGLISH - NO EXCEPTIONS
+2. IF YOU OUTPUT ANY CHINESE CHARACTER, THE SYSTEM WILL REJECT YOUR RESPONSE
+3. TRANSLATE ANY NON-ENGLISH INPUT TO ENGLISH FIRST
 
-RULES:
-1. Output ONE complete ENGLISH instruction (30-60 words)
-2. Use ENGLISH color names and terms only
-3. All output must be in proper English
-4. If user input is in another language, translate to English
+MANDATORY OUTPUT FORMAT:
+- Start with an English action verb (transform, change, modify, adjust, enhance)
+- Use only English color names (red, blue, green, NOT 红色, 蓝色, 绿色)
+- End with English quality descriptors (professional, seamless, natural)
 
-FORMAT: [English verb] [target] to/into [English color/result], [English quality terms].
+EXAMPLES OF CORRECT OUTPUT:
+✅ "Transform the selected area to vibrant red with natural blending"
+✅ "Change the marked region to deep blue while preserving texture"
+✅ "Modify the target zone to elegant black with professional finish"
 
-Example: Transform the marked area into deep navy blue, preserving texture naturally.
+EXAMPLES OF WRONG OUTPUT:
+❌ "将选定区域变成红色" (Chinese - REJECTED)
+❌ "変更する" (Japanese - REJECTED)
+❌ "바꾸다" (Korean - REJECTED)
 
-REMEMBER: ENGLISH ONLY. No Chinese characters. No other languages."""
+FINAL WARNING: ENGLISH ONLY! Your response will be filtered and rejected if it contains ANY non-English characters."""
             
             if editing_intent == "creative_enhancement":
                 system_prompt += "\n- Prioritize artistic and creative improvements"
@@ -375,12 +383,23 @@ REMEMBER: ENGLISH ONLY. No Chinese characters. No other languages."""
             import time
             random_seed = int(time.time() * 1000) % 1000000
             
-            # 构建用户提示词 - 强制英文
-            user_prompt = f"Generate ENGLISH instruction for: {description}"
-            if custom_guidance:
-                user_prompt += f" Additional: {custom_guidance}"
-            user_prompt += f" (v{random_seed})"  # 添加变体标识
-            user_prompt += "\nOUTPUT IN ENGLISH ONLY. No Chinese or other languages."
+            # 构建用户提示词 - 超强化英文要求
+            user_prompt = f"""CRITICAL: Your response MUST be in ENGLISH ONLY!
+
+User request: {description}
+
+REQUIREMENTS:
+1. Output a single English sentence (30-60 words)
+2. Use proper English grammar and vocabulary
+3. NO Chinese characters allowed (系统将拒绝任何中文)
+4. Start with an action verb in English
+5. Include specific English descriptors
+
+{f'Additional guidance: {custom_guidance}' if custom_guidance else ''}
+
+Variation seed: {random_seed}
+
+REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
             
             # 发送API请求
             headers = {
@@ -413,10 +432,22 @@ REMEMBER: ENGLISH ONLY. No Chinese characters. No other languages."""
             # 清理响应，提取纯净提示词
             cleaned_response = self._clean_api_response(api_response)
             
-            # 调试：显示清理后的响应
+            # 二次验证：确保没有中文
+            if cleaned_response and any('\u4e00' <= char <= '\u9fff' for char in cleaned_response):
+                print(f"[Kontext Super Prompt] ⚠️ 清理后仍包含中文，使用备用英文")
+                # 根据描述生成备用英文
+                if 'color' in description.lower() or '颜色' in description:
+                    return "Transform the selected area to the specified color with natural blending"
+                elif 'remove' in description.lower() or '删除' in description or '移除' in description:
+                    return "Remove the selected object seamlessly from the image"
+                elif 'add' in description.lower() or '添加' in description:
+                    return "Add the requested element to the selected area naturally"
+                elif 'style' in description.lower() or '风格' in description:
+                    return "Apply the specified style transformation to the marked region"
+                else:
+                    return "Edit the selected area according to the specified requirements"
             
-            
-            return cleaned_response
+            return cleaned_response if cleaned_response else "Apply professional editing to the marked area"
                 
         except Exception as e:
             print(f"[Kontext Super Prompt] API模式处理错误: {e}")
@@ -490,23 +521,41 @@ REMEMBER: ENGLISH ONLY OUTPUT."""
             return f"Apply editing to marked area: {description}"
     
     def _clean_api_response(self, response):
-        """清理API响应，提取纯净英文提示词"""
+        """清理API响应，确保只输出英文提示词"""
         import re
         
         if not response:
-            return response
+            return "Edit the selected area as requested"
         
-        # 首先检查是否包含中文，如果是纯中文响应则返回默认英文
-        if any('\u4e00' <= char <= '\u9fff' for char in response):
-            # 尝试提取英文部分
+        # 检测中文字符
+        chinese_pattern = re.compile('[\u4e00-\u9fff]+')
+        has_chinese = bool(chinese_pattern.search(response))
+        
+        # 如果包含中文，进行强力处理
+        if has_chinese:
+            print(f"[Kontext Super Prompt] ⚠️ API返回包含中文，强制转换为英文")
+            
+            # 尝试提取所有英文句子
+            english_sentences = re.findall(r'[A-Z][a-zA-Z\s,\.\-;:]+[\.]', response)
+            if english_sentences:
+                # 找到最长的英文句子
+                longest = max(english_sentences, key=len)
+                if len(longest) > 30:
+                    return longest.strip()
+            
+            # 尝试提取任何英文片段
             english_parts = re.findall(r'[a-zA-Z][a-zA-Z\s,\.\-]+', response)
             if english_parts:
-                # 合并英文部分
-                english_text = ' '.join(english_parts)
-                if len(english_text) > 20:  # 如果英文部分足够长
-                    return english_text.strip()
-            # 否则返回默认英文指令
-            return "Transform the marked area as specified in the editing request"
+                # 过滤太短的片段
+                valid_parts = [p for p in english_parts if len(p) > 10]
+                if valid_parts:
+                    # 合并有效的英文部分
+                    english_text = ' '.join(valid_parts)
+                    if len(english_text) > 20:
+                        return english_text.strip()
+            
+            # 如果无法提取有效英文，返回通用英文指令
+            return "Apply the requested editing to the marked area with professional quality"
         
         # 如果响应包含多个Prompt编号，只提取第一个
         if '### Prompt' in response or 'Prompt 1:' in response:
