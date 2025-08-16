@@ -1,7 +1,3 @@
-# Claude Code configuration
-.claude/
-.claude
-
 # Python
 __pycache__/
 *.py[cod]
