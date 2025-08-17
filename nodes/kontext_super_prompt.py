@@ -22,6 +22,15 @@ from datetime import datetime
 # 添加节点目录到系统路径以导入其他节点
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 导入配置管理器
+try:
+    from config_manager import config_manager, get_api_key, save_api_key, get_api_settings, save_api_settings
+    CONFIG_AVAILABLE = True
+    print("[Kontext Super Prompt] Configuration manager loaded successfully")
+except ImportError as e:
+    CONFIG_AVAILABLE = False
+    print(f"[Kontext Super Prompt] Configuration manager not available: {e}")
+
 # 方案A专业引导词库
 GUIDANCE_LIBRARY_A = {
     "editing_intents": {
@@ -310,6 +319,19 @@ class KontextSuperPrompt:
     
     @classmethod
     def INPUT_TYPES(cls):
+        # 从配置管理器加载默认设置
+        api_settings = {}
+        ollama_settings = {}
+        ui_settings = {}
+        
+        if CONFIG_AVAILABLE:
+            try:
+                api_settings = get_api_settings()
+                ollama_settings = config_manager.get_ollama_settings()
+                ui_settings = config_manager.get_ui_settings()
+            except Exception as e:
+                print(f"[Kontext Super Prompt] Failed to load settings: {e}")
+        
         return {
             "required": {
                 "layer_info": ("LAYER_INFO",),
@@ -317,7 +339,7 @@ class KontextSuperPrompt:
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
-                "tab_mode": (["manual", "api", "ollama"], {"default": "manual"}),
+                "tab_mode": (["manual", "api", "ollama"], {"default": ui_settings.get("last_tab", "manual")}),
                 "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
                 "operation_type": ("STRING", {"default": "", "multiline": False}),
                 "description": ("STRING", {"default": "", "multiline": True}),
@@ -327,25 +349,25 @@ class KontextSuperPrompt:
                 "auto_generate": ("BOOLEAN", {"default": True}),
                 "generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 
-                # API选项卡参数
-                "api_provider": ("STRING", {"default": "siliconflow"}),
-                "api_key": ("STRING", {"default": ""}),
-                "api_model": ("STRING", {"default": "deepseek-ai/DeepSeek-V3"}),
-                "api_editing_intent": ("STRING", {"default": "general_editing"}),
-                "api_processing_style": ("STRING", {"default": "auto_smart"}),
+                # API选项卡参数 - 从配置加载默认值
+                "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
+                "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
+                "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
+                "api_editing_intent": ("STRING", {"default": api_settings.get("last_editing_intent", "general_editing")}),
+                "api_processing_style": ("STRING", {"default": api_settings.get("last_processing_style", "auto_smart")}),
                 "api_seed": ("INT", {"default": 0}),
                 "api_custom_guidance": ("STRING", {"default": "", "multiline": True}),
                 
-                # Ollama选项卡参数
-                "ollama_url": ("STRING", {"default": "http://127.0.0.1:11434"}),
-                "ollama_model": ("STRING", {"default": ""}),
-                "ollama_temperature": ("FLOAT", {"default": 0.7}),
-                "ollama_editing_intent": ("STRING", {"default": "general_editing"}),
-                "ollama_processing_style": ("STRING", {"default": "auto_smart"}),
+                # Ollama选项卡参数 - 从配置加载默认值
+                "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
+                "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
+                "ollama_temperature": ("FLOAT", {"default": ollama_settings.get("last_temperature", 0.7)}),
+                "ollama_editing_intent": ("STRING", {"default": ollama_settings.get("last_editing_intent", "general_editing")}),
+                "ollama_processing_style": ("STRING", {"default": ollama_settings.get("last_processing_style", "auto_smart")}),
                 "ollama_seed": ("INT", {"default": 42}),
                 "ollama_custom_guidance": ("STRING", {"default": "", "multiline": True}),
-                "ollama_enable_visual": ("BOOLEAN", {"default": False}),
-                "ollama_auto_unload": ("BOOLEAN", {"default": False}),
+                "ollama_enable_visual": ("BOOLEAN", {"default": ollama_settings.get("enable_visual", False)}),
+                "ollama_auto_unload": ("BOOLEAN", {"default": ollama_settings.get("auto_unload", False)}),
             },
         }
     
@@ -378,6 +400,37 @@ class KontextSuperPrompt:
         处理Kontext超级提示词生成
         """
         try:
+            # 保存用户设置到配置管理器
+            if CONFIG_AVAILABLE:
+                try:
+                    # 保存UI设置（当前选项卡）
+                    config_manager.save_ui_settings(tab_mode)
+                    
+                    # 如果是API模式，保存API设置和密钥
+                    if tab_mode == "api":
+                        if api_key and api_key.strip():
+                            save_api_key(api_provider, api_key.strip())
+                            print(f"[Kontext] API密钥已保存为 {api_provider}")
+                        
+                        save_api_settings(api_provider, api_model, api_editing_intent, api_processing_style)
+                        
+                        # 如果没有提供API密钥，尝试从配置加载
+                        if not api_key or not api_key.strip():
+                            saved_key = get_api_key(api_provider)
+                            if saved_key:
+                                api_key = saved_key
+                                print(f"[Kontext] 已加载 {api_provider} 的保存的API密钥")
+                    
+                    # 如果是Ollama模式，保存Ollama设置
+                    elif tab_mode == "ollama":
+                        config_manager.save_ollama_settings(
+                            ollama_url, ollama_model, ollama_temperature,
+                            ollama_editing_intent, ollama_processing_style,
+                            ollama_enable_visual, ollama_auto_unload
+                        )
+                        
+                except Exception as e:
+                    print(f"[Kontext] 保存设置失败: {e}")
             
             # 根据选项卡模式处理
             if tab_mode == "api" and generated_prompt and generated_prompt.strip():
