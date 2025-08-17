@@ -5250,6 +5250,15 @@ Please generate a professional English prompt that is creative and unique. Outpu
         }
     }
     
+    generateSmartFallback(description, editingIntent, processingStyle) {
+        // 基于用户选择的编辑意图和处理风格生成智能备用方案
+        const intentGuide = this.getIntentGuidance(editingIntent);
+        const styleGuide = this.getStyleGuidance(processingStyle);
+        
+        // 结合用户输入描述、编辑意图引导词和处理风格引导词
+        return `Execute the editing task: "${description}" using ${intentGuide}, optimized for ${styleGuide}`;
+    }
+    
     async waitForOllamaResult(model, description) {
         try {
             
@@ -5279,8 +5288,12 @@ Please generate a professional English prompt that is creative and unique. Outpu
             const isSmallModel = model && (model.includes('0.6b') || model.includes('0.5b') || model.includes('1b'));
             
             if (isSmallModel) {
-                // 极简提示词for小模型
-                finalPrompt = `Edit: ${description}\nOutput:`;
+                // 小模型也需要引导词，但格式更简单
+                finalPrompt = `Edit: ${description}
+Intent: ${intentGuide}
+Style: ${styleGuide}
+${customGuidance ? `Guide: ${customGuidance}` : ''}
+Result:`;
             } else {
                 // 正常提示词for较大模型
                 finalPrompt = `Task: ${description}
@@ -5330,8 +5343,10 @@ Create English editing prompt:`;
                 generatedContent = result.response.trim();
                 if (!generatedContent) {
                     console.log('[Ollama Debug] 模型返回空响应，启用智能备用方案');
-                    // 提供基于方案A的智能备用方案
-                    generatedContent = this.generateFallbackPrompt(description);
+                    // 提供基于方案A的智能备用方案，结合编辑意图和处理风格
+                    const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
+                    const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
+                    generatedContent = this.generateSmartFallback(description, editingIntent, processingStyle);
                     // 标记为备用生成
                     generatedContent = `🤖 智能备用生成 (模型 ${model} 无响应)\n\n${generatedContent}`;
                 }
@@ -5341,7 +5356,9 @@ Create English editing prompt:`;
                 generatedContent = result.content;
             } else {
                 console.log('[Ollama Debug] 无法解析响应，可用字段:', Object.keys(result));
-                generatedContent = this.generateFallbackPrompt(description);
+                const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
+                const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
+                generatedContent = this.generateSmartFallback(description, editingIntent, processingStyle);
                 // 标记为备用生成
                 generatedContent = `🤖 智能备用生成 (响应解析失败)\n\n${generatedContent}`;
             }
