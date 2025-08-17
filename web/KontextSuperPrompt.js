@@ -5169,6 +5169,27 @@ class KontextSuperPrompt {
         }
     }
     
+    generateFallbackPrompt(description) {
+        // 智能生成备用提示词
+        const desc = description.toLowerCase();
+        
+        if (desc.includes('红') || desc.includes('蓝') || desc.includes('黄') || desc.includes('绿') || desc.includes('颜色') || desc.includes('color')) {
+            return `Change the color of the selected area to the specified color with natural blending`;
+        } else if (desc.includes('删除') || desc.includes('移除') || desc.includes('去掉') || desc.includes('remove')) {
+            return `Remove the selected object from the image while maintaining natural background`;
+        } else if (desc.includes('添加') || desc.includes('加上') || desc.includes('增加') || desc.includes('add')) {
+            return `Add the requested element to the image with realistic placement and lighting`;
+        } else if (desc.includes('替换') || desc.includes('换成') || desc.includes('replace')) {
+            return `Replace the selected element with the specified object maintaining proper perspective`;
+        } else if (desc.includes('模糊') || desc.includes('blur')) {
+            return `Apply blur effect to the selected area with smooth transition`;
+        } else if (desc.includes('增强') || desc.includes('改善') || desc.includes('enhance')) {
+            return `Enhance the quality of the selected area with improved detail and clarity`;
+        } else {
+            return `Edit the selected area according to the user request: ${description}`;
+        }
+    }
+    
     async waitForOllamaResult(model, description) {
         try {
             
@@ -5187,18 +5208,19 @@ class KontextSuperPrompt {
             const randomSeed = Math.floor(Math.random() * 1000000);
             const finalTemperature = temperature + (Math.random() * 0.2); // 在原温度基础上增加一些随机性
             
-            // 构建Ollama API请求
+            // 构建Ollama API请求 - 简化提示词以兼容小模型
+            const simplePrompt = `Translate to English image editing prompt: "${description}"
+
+Output: `;
+
             const requestBody = {
                 model: model,
-                messages: [
-                    {
-                        role: 'user',
-                        content: `Generate an optimized image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nProvide a complete, detailed prompt in English. Be creative and vary your response each time.`
-                    }
-                ],
+                prompt: simplePrompt,
                 options: {
                     temperature: finalTemperature,
-                    seed: randomSeed  // Ollama支持seed参数
+                    seed: randomSeed,  // Ollama支持seed参数
+                    num_predict: 100,  // 输出长度
+                    stop: ['<think>', '</think>', '\n\n', 'User:', 'Input:']  // 防止多余内容
                 },
                 stream: false
             };
@@ -5207,8 +5229,8 @@ class KontextSuperPrompt {
             this.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
             this.updateAllPreviewTextareas();
             
-            // 调用本地Ollama API
-            const response = await fetch(`${ollamaUrl}/api/chat`, {
+            // 调用本地Ollama API - 使用generate端点
+            const response = await fetch(`${ollamaUrl}/api/generate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -5222,12 +5244,25 @@ class KontextSuperPrompt {
             
             const result = await response.json();
             
-            // 提取生成的内容
+            // 调试：打印完整响应结构
+            console.log('[Ollama Debug] 完整响应:', JSON.stringify(result, null, 2));
+            
+            // 提取生成的内容 - generate API使用result.response
             let generatedContent = '';
-            if (result.message && result.message.content) {
+            if (result.response !== undefined && result.response !== null) {
+                generatedContent = result.response.trim();
+                if (!generatedContent) {
+                    console.log('[Ollama Debug] 模型返回空响应，可能是提示词过于复杂或模型限制');
+                    // 提供fallback
+                    generatedContent = this.generateFallbackPrompt(description);
+                }
+            } else if (result.message && result.message.content) {
                 generatedContent = result.message.content;
+            } else if (result.content) {
+                generatedContent = result.content;
             } else {
-                generatedContent = '未能获取到有效响应';
+                console.log('[Ollama Debug] 无法解析响应，可用字段:', Object.keys(result));
+                generatedContent = this.generateFallbackPrompt(description);
             }
             
             // 显示最终结果并传递纯净提示词给后端
