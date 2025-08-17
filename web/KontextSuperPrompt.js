@@ -5292,12 +5292,8 @@ Please generate a professional English prompt that is creative and unique. Outpu
             const isSmallModel = model && (model.includes('0.6b') || model.includes('0.5b') || model.includes('1b'));
             
             if (isSmallModel) {
-                // 小模型也需要引导词，但格式更简单
-                finalPrompt = `Edit: ${description}
-Intent: ${intentGuide}
-Style: ${styleGuide}
-${customGuidance ? `Guide: ${customGuidance}` : ''}
-Result:`;
+                // 小模型需要极其简单的格式
+                finalPrompt = `Change ${description} to English editing command:`;
             } else {
                 // 正常提示词for较大模型
                 finalPrompt = `Task: ${description}
@@ -5310,11 +5306,12 @@ Create English editing prompt:`;
             const requestBody = {
                 model: model,
                 prompt: finalPrompt,
+                system: "Output English editing instruction only.",
                 options: {
                     temperature: isSmallModel ? 0.5 : finalTemperature,  // 小模型用更低温度
                     seed: randomSeed,
-                    num_predict: isSmallModel ? 50 : 150,  // 小模型限制更短
-                    stop: ['<think>', '</think>', '###']
+                    num_predict: 400,  // 给足够空间让模型完成思考和输出
+                    stop: ['###']
                 },
                 stream: false
             };
@@ -5345,6 +5342,16 @@ Create English editing prompt:`;
             let generatedContent = '';
             if (result.response !== undefined && result.response !== null) {
                 generatedContent = result.response.trim();
+                
+                // 清理响应 - 提取真正的指令，过滤掉<think>标签内容
+                if (generatedContent.includes('<think>')) {
+                    // 找到</think>标签后的内容
+                    const thinkEnd = generatedContent.indexOf('</think>');
+                    if (thinkEnd !== -1) {
+                        generatedContent = generatedContent.substring(thinkEnd + 8).trim();
+                    }
+                }
+                
                 if (!generatedContent) {
                     console.log('[Ollama Debug] 模型返回空响应，启用智能备用方案');
                     // 提供基于方案A的智能备用方案，结合编辑意图和处理风格
