@@ -2580,8 +2580,8 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const intents = [
-            // 编辑意图类型 - 具体的操作动作
-            { value: 'color_change', text: '颜色修改' },
+            // 编辑意图类型 - 与引导词库key保持一致
+            { value: 'color_adjustment', text: '颜色修改' },
             { value: 'object_removal', text: '物体移除' },
             { value: 'object_replacement', text: '物体替换' },
             { value: 'object_addition', text: '物体添加' },
@@ -2590,7 +2590,7 @@ class KontextSuperPrompt {
             { value: 'quality_enhancement', text: '质量增强' },
             { value: 'image_restoration', text: '图像修复' },
             { value: 'style_transfer', text: '风格转换' },
-            { value: 'text_edit', text: '文字编辑' },
+            { value: 'text_editing', text: '文字编辑' },
             { value: 'lighting_adjustment', text: '光线调整' },
             { value: 'perspective_correction', text: '透视校正' },
             { value: 'blur_sharpen', text: '模糊/锐化' },
@@ -5273,6 +5273,8 @@ Please generate a professional English prompt that is creative and unique. Outpu
             const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
             const customGuidance = this.ollamaGuidanceTextarea?.value || '';
             
+            console.log(`[Ollama Debug] 用户选择 - 编辑意图: ${editingIntent}, 处理风格: ${processingStyle}`);
+            
             // 添加随机性确保每次生成不同结果
             const randomSeed = Math.floor(Math.random() * 1000000);
             const finalTemperature = temperature + (Math.random() * 0.2); // 在原温度基础上增加一些随机性
@@ -5280,6 +5282,8 @@ Please generate a professional English prompt that is creative and unique. Outpu
             // 构建引导词基于编辑意图和处理风格
             const intentGuide = this.getIntentGuidance(editingIntent);
             const styleGuide = this.getStyleGuidance(processingStyle);
+            
+            console.log(`[Ollama Debug] 生成的引导词 - 意图: ${intentGuide}, 风格: ${styleGuide}`);
             
             // 尝试不同的提示词格式，根据模型大小调整复杂度
             let finalPrompt;
