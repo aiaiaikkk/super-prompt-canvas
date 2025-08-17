@@ -5208,8 +5208,46 @@ Please generate a professional English prompt that is creative and unique. Outpu
     }
     
     generateFallbackPrompt(description) {
-        // 诚实的错误处理 - 不再假装是AI生成
-        return `⚠️ Model Failed - Unable to generate prompt for: "${description}". Please use a larger model (qwen2.5:3b or deepseek-r1:1.5b) or switch to API mode.`;
+        // 基于方案A引导词库的智能备用方案
+        const desc_lower = description.toLowerCase();
+        
+        // 根据描述内容匹配相应的专业引导词
+        if (desc_lower.includes('color') || desc_lower.includes('颜色') || 
+            desc_lower.includes('red') || desc_lower.includes('blue') || desc_lower.includes('green') ||
+            desc_lower.includes('红') || desc_lower.includes('蓝') || desc_lower.includes('绿')) {
+            return "Transform the selected area to the specified color with precise color grading and tonal balance adjustment, maintaining natural transitions and professional quality finish";
+        } else if (desc_lower.includes('remove') || desc_lower.includes('移除') || 
+                   desc_lower.includes('delete') || desc_lower.includes('删除')) {
+            return "Remove the selected object with seamless object erasure using intelligent content-aware fill and contextual background regeneration";
+        } else if (desc_lower.includes('replace') || desc_lower.includes('替换') || 
+                   desc_lower.includes('change') || desc_lower.includes('更换') ||
+                   desc_lower.includes('swap') || desc_lower.includes('交换')) {
+            return "Replace the selected element with intelligent object substitution, maintaining matched lighting and perspective with realistic integration";
+        } else if (desc_lower.includes('add') || desc_lower.includes('添加') || 
+                   desc_lower.includes('insert') || desc_lower.includes('插入')) {
+            return "Add the described element with realistic object insertion using proper depth and occlusion, natural element placement with accurate shadows and lighting";
+        } else if (desc_lower.includes('enhance') || desc_lower.includes('增强') || 
+                   desc_lower.includes('improve') || desc_lower.includes('改善') ||
+                   desc_lower.includes('quality') || desc_lower.includes('质量')) {
+            return "Enhance the selected area with professional upscaling and detail enhancement, AI-powered quality improvement with texture preservation and noise reduction";
+        } else if (desc_lower.includes('background') || desc_lower.includes('背景') ||
+                   desc_lower.includes('backdrop') || desc_lower.includes('scene')) {
+            return "Modify the background with professional background replacement using edge refinement and matched lighting conditions for seamless integration";
+        } else if (desc_lower.includes('face') || desc_lower.includes('facial') || 
+                   desc_lower.includes('脸') || desc_lower.includes('面部')) {
+            return "Apply facial modifications with advanced facial replacement technology, preserving expression and ensuring natural blending with skin tone matching";
+        } else if (desc_lower.includes('style') || desc_lower.includes('风格') ||
+                   desc_lower.includes('artistic') || desc_lower.includes('艺术')) {
+            return "Apply artistic style transformation with content preservation, professional aesthetic transformation using selective stylization and balanced artistic expression";
+        } else if (desc_lower.includes('text') || desc_lower.includes('文字') ||
+                   desc_lower.includes('typography') || desc_lower.includes('字体')) {
+            return "Modify text elements with professional typography modification and text replacement, intelligent text editing with font matching and proper perspective";
+        } else if (desc_lower.includes('light') || desc_lower.includes('lighting') ||
+                   desc_lower.includes('光') || desc_lower.includes('照明')) {
+            return "Adjust lighting with professional lighting enhancement using natural shadows, studio lighting simulation with directional control and mood preservation";
+        } else {
+            return "Apply comprehensive image optimization with intelligent enhancement, multi-aspect improvement using balanced adjustments and professional post-processing workflow automation";
+        }
     }
     
     async waitForOllamaResult(model, description) {
@@ -5291,9 +5329,11 @@ Create English editing prompt:`;
             if (result.response !== undefined && result.response !== null) {
                 generatedContent = result.response.trim();
                 if (!generatedContent) {
-                    console.log('[Ollama Debug] 模型返回空响应，可能是提示词过于复杂或模型限制');
-                    // 提供fallback
+                    console.log('[Ollama Debug] 模型返回空响应，启用智能备用方案');
+                    // 提供基于方案A的智能备用方案
                     generatedContent = this.generateFallbackPrompt(description);
+                    // 标记为备用生成
+                    generatedContent = `🤖 智能备用生成 (模型 ${model} 无响应)\n\n${generatedContent}`;
                 }
             } else if (result.message && result.message.content) {
                 generatedContent = result.message.content;
@@ -5302,6 +5342,8 @@ Create English editing prompt:`;
             } else {
                 console.log('[Ollama Debug] 无法解析响应，可用字段:', Object.keys(result));
                 generatedContent = this.generateFallbackPrompt(description);
+                // 标记为备用生成
+                generatedContent = `🤖 智能备用生成 (响应解析失败)\n\n${generatedContent}`;
             }
             
             // 显示最终结果并传递纯净提示词给后端
