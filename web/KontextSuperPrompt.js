@@ -5267,7 +5267,17 @@ Please generate a professional English prompt that is creative and unique. Outpu
             this.updateAllPreviewTextareas();
             
             // 获取Ollama配置
-            const ollamaUrl = this.ollamaUrlInput?.value || 'http://127.0.0.1:11434';
+            // 智能检测Ollama地址
+            let ollamaUrl = this.ollamaUrlInput?.value || 'http://127.0.0.1:11434';
+            
+            // 如果是远程访问，尝试使用同域名的11434端口
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                const defaultRemoteUrl = `${window.location.protocol}//${window.location.hostname.replace('-80', '-11434')}`;
+                if (ollamaUrl === 'http://127.0.0.1:11434') {
+                    ollamaUrl = defaultRemoteUrl;
+                    console.log(`[Ollama Debug] 检测到远程环境，自动切换到: ${ollamaUrl}`);
+                }
+            }
             const temperature = parseFloat(this.ollamaTempInput?.value || '0.7');
             const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
             const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
@@ -5320,6 +5330,10 @@ Create English editing prompt:`;
             this.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
             this.updateAllPreviewTextareas();
             
+            // 调试日志 - 打印实际发送的请求
+            console.log('[Ollama Debug] 发送请求体:', JSON.stringify(requestBody, null, 2));
+            console.log('[Ollama Debug] 请求URL:', `${ollamaUrl}/api/generate`);
+            
             // 调用本地Ollama API - 使用generate端点
             const response = await fetch(`${ollamaUrl}/api/generate`, {
                 method: 'POST',
@@ -5330,7 +5344,11 @@ Create English editing prompt:`;
             });
             
             if (!response.ok) {
-                throw new Error(`Ollama API请求失败: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                console.error('[Ollama Debug] API错误响应:', errorText);
+                console.error('[Ollama Debug] HTTP状态码:', response.status);
+                console.error('[Ollama Debug] 使用的模型名:', model);
+                throw new Error(`Ollama API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
             }
             
             const result = await response.json();
@@ -5343,12 +5361,30 @@ Create English editing prompt:`;
             if (result.response !== undefined && result.response !== null) {
                 generatedContent = result.response.trim();
                 
-                // 清理响应 - 提取真正的指令，过滤掉<think>标签内容
+                // 清理响应 - 提取真正的指令
                 if (generatedContent.includes('<think>')) {
                     // 找到</think>标签后的内容
                     const thinkEnd = generatedContent.indexOf('</think>');
                     if (thinkEnd !== -1) {
                         generatedContent = generatedContent.substring(thinkEnd + 8).trim();
+                    }
+                }
+                
+                // 提取引号内的指令
+                const quoteMatch = generatedContent.match(/"([^"]+)"/);
+                if (quoteMatch) {
+                    generatedContent = quoteMatch[1];
+                } else {
+                    // 如果没有引号，尝试提取第一行
+                    const lines = generatedContent.split('\n');
+                    if (lines.length > 0) {
+                        // 查找包含编辑动词的行
+                        for (const line of lines) {
+                            if (line.match(/^(Make|Turn|Transform|Change|Convert|Add|Remove|Enhance)/i)) {
+                                generatedContent = line.replace(/[.\s]+$/, '').trim();
+                                break;
+                            }
+                        }
                     }
                 }
                 
