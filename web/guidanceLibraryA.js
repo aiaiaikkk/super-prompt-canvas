@@ -235,7 +235,7 @@ export const guidanceLibraryA = {
     }
 };
 
-// 获取随机引导词
+// 获取引导词（暂时禁用随机，用于测试）
 export function getRandomGuidance(category, key) {
     const guidances = category === 'intent' 
         ? guidanceLibraryA.editing_intents[key] 

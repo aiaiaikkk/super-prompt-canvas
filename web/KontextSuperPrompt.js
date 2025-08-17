@@ -2863,8 +2863,8 @@ class KontextSuperPrompt {
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
         `;
         const intents = [
-            // 编辑意图类型 - 与API模式保持一致
-            { value: 'color_change', label: '颜色修改' },
+            // 编辑意图类型 - 与引导词库key保持一致
+            { value: 'color_adjustment', label: '颜色修改' },
             { value: 'object_removal', label: '物体移除' },
             { value: 'object_replacement', label: '物体替换' },
             { value: 'object_addition', label: '物体添加' },
@@ -2873,7 +2873,7 @@ class KontextSuperPrompt {
             { value: 'quality_enhancement', label: '质量增强' },
             { value: 'image_restoration', label: '图像修复' },
             { value: 'style_transfer', label: '风格转换' },
-            { value: 'text_edit', label: '文字编辑' },
+            { value: 'text_editing', label: '文字编辑' },
             { value: 'lighting_adjustment', label: '光线调整' },
             { value: 'perspective_correction', label: '透视校正' },
             { value: 'blur_sharpen', label: '模糊/锐化' },

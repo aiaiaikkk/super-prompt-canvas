@@ -379,31 +379,17 @@ class OllamaKontextPromptGenerator:
             if not REQUESTS_AVAILABLE:
                 raise Exception("requests库未安装，无法调用Ollama API")
             
-            # 构建系统提示词
-            system_prompt = """You are an ENGLISH-ONLY image editing prompt generator.
-
-CRITICAL RULES:
-1. Output in ENGLISH ONLY - NO Chinese characters allowed
-2. Generate ONE clear, concise editing instruction (30-80 words)
-3. Use professional photography and editing terminology
-4. Focus on technical accuracy and visual quality
-5. Include specific details about lighting, composition, and quality
-
-FORMAT: Start with an action verb, describe the target and method, end with quality terms.
-EXAMPLE: "Transform the selected area to vibrant red color while maintaining natural lighting and seamless edge blending with professional quality finish"
-
-REMEMBER: ENGLISH ONLY OUTPUT - Any Chinese characters will be rejected."""
+            # 简化系统提示词 - 适合小模型
+            system_prompt = """You generate English image editing instructions. Output only the instruction, no explanation."""
             
-            # 构建用户提示词
-            user_prompt = f"""Based on this editing request: "{prompt}"
+            # 简化用户提示词 - 直接给出目标格式
+            user_prompt = f"""Task: {prompt}
 
-Generate a professional English editing instruction that:
-- Clearly describes the editing action
-- Includes technical details for quality results
-- Uses professional editing terminology
-- Focuses on achieving realistic, natural results
+Write one English sentence that describes how to edit the image. Start with an action word like "Transform", "Remove", "Add", or "Enhance". 
 
-Output format: Single paragraph, 30-80 words, English only."""
+Example format: "Transform the selected area to red color with natural blending and professional quality"
+
+Your instruction:"""
             
             # 调用Ollama API
             api_url = f"{ollama_url}/api/generate"
@@ -415,12 +401,15 @@ Output format: Single paragraph, 30-80 words, English only."""
                 "options": {
                     "temperature": temperature,
                     "seed": seed,
-                    "num_predict": 150,
-                    "top_k": 50,
-                    "top_p": 0.9,
-                    "repeat_penalty": 1.1
+                    "num_predict": 200,
+                    "top_k": 20,
+                    "top_p": 0.8,
+                    "repeat_penalty": 1.05
                 }
             }
+            
+            print(f"[Ollama Kontext] 发送请求到: {api_url}")
+            print(f"[Ollama Kontext] 完整提示词: {user_prompt[:100]}...")
             
             response = requests.post(api_url, json=payload, timeout=60)
             response.raise_for_status()
@@ -428,8 +417,16 @@ Output format: Single paragraph, 30-80 words, English only."""
             result = response.json()
             generated_text = result.get('response', '').strip()
             
+            print(f"[Ollama Kontext] 原始响应: '{generated_text}'")
+            print(f"[Ollama Kontext] 响应长度: {len(generated_text)}")
+            
+            if not generated_text:
+                print(f"[Ollama Kontext] 警告: 模型返回空响应，完整结果: {result}")
+                raise Exception(f"模型返回空响应: {result}")
+            
             # 清理响应
             cleaned_text = self._clean_response(generated_text)
+            print(f"[Ollama Kontext] 清理后响应: '{cleaned_text}'")
             
             return cleaned_text
             
@@ -439,31 +436,70 @@ Output format: Single paragraph, 30-80 words, English only."""
             return self._get_fallback_prompt(prompt)
     
     def _clean_response(self, response: str) -> str:
-        """清理Ollama响应，确保输出英文"""
+        """清理Ollama响应，提取实际的编辑指令"""
         import re
         
         if not response:
             return "Apply professional editing to the selected area with high quality results"
         
-        # 检测中文字符
-        chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
-        has_chinese = bool(chinese_pattern.search(response))
+        print(f"[Ollama Kontext] 清理前原始响应: {response[:200]}...")
         
-        if has_chinese:
-            print("[Ollama Kontext] 检测到中文输出，使用英文备用方案")
-            # 尝试提取英文部分
-            english_sentences = re.findall(r'[A-Z][a-zA-Z\s,\.;:\-!?]+[\.!?]', response)
-            if english_sentences:
-                longest = max(english_sentences, key=len)
-                if len(longest) > 20:
-                    return longest.strip()
+        # 1. 处理 <think> 标签 - 提取思考后的内容
+        if '<think>' in response:
+            # 查找 </think> 后的内容
+            think_end = response.find('</think>')
+            if think_end != -1:
+                after_think = response[think_end + 8:].strip()
+                if after_think:
+                    response = after_think
+                    print(f"[Ollama Kontext] 提取</think>后内容: {response[:100]}...")
+                else:
+                    # 如果 </think> 后没有内容，尝试提取 <think> 内的最后一句
+                    think_content = response[response.find('<think>') + 7:think_end]
+                    # 查找最后一个完整的英文句子
+                    sentences = re.findall(r'[A-Z][^.!?]*[.!?]', think_content)
+                    if sentences:
+                        response = sentences[-1].strip()
+                        print(f"[Ollama Kontext] 从<think>内提取: {response}")
         
-        # 清理格式
-        cleaned = re.sub(r'^[:\-\s]*', '', response)  # 移除开头的符号
-        cleaned = re.sub(r'\n+', ' ', cleaned)        # 替换换行符
-        cleaned = re.sub(r'\s+', ' ', cleaned)        # 合并多余空格
+        # 2. 提取英文编辑指令句子
+        # 查找以动词开头的完整英文句子
+        instruction_patterns = [
+            r'(Transform[^.!?]*[.!?])',
+            r'(Remove[^.!?]*[.!?])',
+            r'(Add[^.!?]*[.!?])',
+            r'(Enhance[^.!?]*[.!?])',
+            r'(Apply[^.!?]*[.!?])',
+            r'(Change[^.!?]*[.!?])',
+            r'(Convert[^.!?]*[.!?])',
+            r'([A-Z][a-z]+\s+the\s+selected[^.!?]*[.!?])'
+        ]
         
-        return cleaned.strip()
+        for pattern in instruction_patterns:
+            matches = re.findall(pattern, response, re.IGNORECASE)
+            if matches:
+                instruction = matches[0].strip()
+                print(f"[Ollama Kontext] 提取编辑指令: {instruction}")
+                return instruction
+        
+        # 3. fallback - 查找任何完整的英文句子
+        english_sentences = re.findall(r'[A-Z][a-zA-Z\s,\.;:\-!?()]+[\.!?]', response)
+        if english_sentences:
+            # 选择最长的句子
+            longest = max(english_sentences, key=len)
+            if len(longest) > 15:
+                print(f"[Ollama Kontext] 使用最长英文句子: {longest}")
+                return longest.strip()
+        
+        # 4. 最终清理
+        cleaned = re.sub(r'^[:\-\s<>]+', '', response)  # 移除开头的符号
+        cleaned = re.sub(r'[<>].*?[<>]', '', cleaned)   # 移除标签
+        cleaned = re.sub(r'\n+', ' ', cleaned)          # 替换换行符
+        cleaned = re.sub(r'\s+', ' ', cleaned)          # 合并多余空格
+        
+        result = cleaned.strip()
+        print(f"[Ollama Kontext] 最终清理结果: {result}")
+        return result if result else "Apply professional editing to the selected area with high quality results"
     
     def _get_fallback_prompt(self, description: str) -> str:
         """生成备用提示词"""
