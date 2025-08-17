@@ -103,6 +103,12 @@ class OllamaServiceManager:
             
             cls._service_status = "starting"
             
+            # 设置环境变量
+            env = os.environ.copy()
+            env['OLLAMA_HOST'] = '0.0.0.0:11434'  # 监听所有接口
+            env['OLLAMA_ORIGINS'] = '*'  # 允许所有来源
+            env['CUDA_VISIBLE_DEVICES'] = ''  # 使用CPU避免GPU冲突
+            
             # 确定操作系统和命令
             system = platform.system().lower()
             if system == "windows":
@@ -110,6 +116,7 @@ class OllamaServiceManager:
                 # Windows下创建新的控制台窗口
                 cls._ollama_process = subprocess.Popen(
                     cmd,
+                    env=env,
                     creationflags=subprocess.CREATE_NEW_CONSOLE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
@@ -118,6 +125,7 @@ class OllamaServiceManager:
                 cmd = ["ollama", "serve"]
                 cls._ollama_process = subprocess.Popen(
                     cmd,
+                    env=env,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
