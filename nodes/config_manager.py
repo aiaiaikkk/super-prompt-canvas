@@ -255,3 +255,66 @@ def get_api_settings() -> Dict[str, str]:
 def save_api_settings(provider: str, model: str, editing_intent: str, processing_style: str):
     """保存API设置的便捷函数"""
     config_manager.save_api_settings(provider, model, editing_intent, processing_style)
+
+# HTTP API端点
+try:
+    from aiohttp import web
+    from server import PromptServer
+    
+    @PromptServer.instance.routes.post("/kontext_api/get_api_key")
+    async def get_api_key_endpoint(request):
+        """获取API密钥的HTTP端点"""
+        try:
+            data = await request.json()
+            provider = data.get('provider', '')
+            
+            if not provider:
+                return web.json_response({"error": "Provider not specified"}, status=400)
+            
+            api_key = get_api_key(provider)
+            return web.json_response({"api_key": api_key})
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
+    @PromptServer.instance.routes.post("/kontext_api/save_api_key")
+    async def save_api_key_endpoint(request):
+        """保存API密钥的HTTP端点"""
+        try:
+            data = await request.json()
+            provider = data.get('provider', '')
+            api_key = data.get('api_key', '')
+            
+            if not provider:
+                return web.json_response({"error": "Provider not specified"}, status=400)
+            
+            save_api_key(provider, api_key)
+            return web.json_response({"success": True, "message": f"API key saved for {provider}"})
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
+    @PromptServer.instance.routes.post("/kontext_api/list_providers")
+    async def list_providers_endpoint(request):
+        """列出已保存密钥的提供商"""
+        try:
+            providers = config_manager.list_saved_providers()
+            return web.json_response({"providers": providers})
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
+    @PromptServer.instance.routes.post("/kontext_api/clear_all_keys")
+    async def clear_all_keys_endpoint(request):
+        """清除所有API密钥"""
+        try:
+            config_manager.clear_all_api_keys()
+            return web.json_response({"success": True, "message": "All API keys cleared"})
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
+    print("[Kontext Config] HTTP API endpoints registered successfully")
+    
+except ImportError:
+    print("[Kontext Config] Warning: HTTP API endpoints not available (server module not found)")

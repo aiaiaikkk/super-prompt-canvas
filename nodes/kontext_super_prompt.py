@@ -377,6 +377,37 @@ class KontextSuperPrompt:
     CATEGORY = CATEGORY_TYPE
     OUTPUT_NODE = False
     
+    def __init__(self):
+        """初始化节点并自动填充保存的设置"""
+        super().__init__()
+        
+        # 如果配置管理器可用，自动填充保存的API密钥
+        if CONFIG_AVAILABLE:
+            try:
+                self._auto_fill_saved_settings()
+            except Exception as e:
+                print(f"[Kontext] 自动填充设置失败: {e}")
+    
+    def _auto_fill_saved_settings(self):
+        """自动填充保存的设置"""
+        if not hasattr(self, 'widgets') or not self.widgets:
+            return
+            
+        # 获取保存的设置
+        api_settings = get_api_settings()
+        ollama_settings = config_manager.get_ollama_settings()
+        
+        # 自动填充API密钥
+        api_provider_widget = next((w for w in self.widgets if hasattr(w, 'name') and w.name == "api_provider"), None)
+        api_key_widget = next((w for w in self.widgets if hasattr(w, 'name') and w.name == "api_key"), None)
+        
+        if api_provider_widget and api_key_widget:
+            provider = api_provider_widget.value
+            saved_key = get_api_key(provider)
+            if saved_key and (not api_key_widget.value or api_key_widget.value.strip() == ""):
+                api_key_widget.value = saved_key
+                print(f"[Kontext] 自动填充 {provider} API密钥")
+    
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         # 强制每次都重新执行，同时强制刷新节点定义

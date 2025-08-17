@@ -53,12 +53,20 @@ class KontextConfigManager {
     enhanceKontextNode(node) {
         // 为API密钥输入框添加增强功能
         const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
-        if (apiKeyWidget) {
+        const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
+        
+        if (apiKeyWidget && apiProviderWidget) {
             this.enhanceApiKeyWidget(node, apiKeyWidget);
+            this.autoFillApiKey(node, apiKeyWidget, apiProviderWidget);
         }
 
         // 添加设置管理按钮
         this.addConfigButton(node);
+        
+        // 监听提供商变化，自动切换密钥
+        if (apiProviderWidget) {
+            this.setupProviderChangeListener(node, apiProviderWidget, apiKeyWidget);
+        }
     }
 
     enhanceApiKeyWidget(node, widget) {
@@ -196,9 +204,20 @@ class KontextConfigManager {
         const listContainer = dialog.querySelector("#saved-keys-list");
         
         try {
-            // 这里应该调用后端API获取保存的密钥列表
-            // 暂时使用模拟数据
-            const savedProviders = ["siliconflow", "openai", "anthropic"];
+            // 调用后端API获取保存的密钥列表
+            const response = await fetch('/kontext_api/list_providers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const savedProviders = data.providers || [];
             
             if (savedProviders.length === 0) {
                 listContainer.innerHTML = '<div style="color: #666;">暂无保存的API密钥</div>';
@@ -208,7 +227,7 @@ class KontextConfigManager {
             listContainer.innerHTML = savedProviders.map(provider => `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #333;">
                     <span style="color: #4CAF50;">🔑 ${provider}</span>
-                    <button onclick="this.parentElement.remove()" style="background: #f44336; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                    <button onclick="this.removeApiKey('${provider}', this.parentElement)" style="background: #f44336; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">
                         删除
                     </button>
                 </div>
@@ -221,12 +240,147 @@ class KontextConfigManager {
 
     async clearAllKeys() {
         try {
-            // 这里应该调用后端API清除所有密钥
-            console.log("清除所有API密钥");
-            this.savedKeys.clear();
+            // 调用后端API清除所有密钥
+            const response = await fetch('/kontext_api/clear_all_keys', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                console.log("所有API密钥已清除");
+                this.savedKeys.clear();
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
         } catch (error) {
             alert("清除失败: " + error.message);
         }
+    }
+
+    async removeApiKey(provider, element) {
+        try {
+            // 调用后端API删除特定提供商的密钥
+            const response = await fetch('/kontext_api/save_api_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    provider: provider,
+                    api_key: "" // 传空字符串表示删除
+                })
+            });
+            
+            if (response.ok) {
+                element.remove();
+                console.log(`${provider} API密钥已删除`);
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            alert(`删除${provider}密钥失败: ` + error.message);
+        }
+    }
+
+    async autoFillApiKey(node, apiKeyWidget, apiProviderWidget) {
+        // 如果API密钥为空，尝试从后端加载保存的密钥
+        if (!apiKeyWidget.value || apiKeyWidget.value.trim() === "") {
+            const provider = apiProviderWidget.value || "siliconflow";
+            const savedKey = await this.loadApiKey(provider);
+            
+            if (savedKey && savedKey.trim() !== "") {
+                apiKeyWidget.value = savedKey;
+                console.log(`[Kontext] 自动填充 ${provider} API密钥`);
+                
+                // 触发更新
+                if (apiKeyWidget.callback) {
+                    apiKeyWidget.callback(savedKey);
+                }
+                
+                // 标记为已保存
+                this.markKeyAsSaved(node, savedKey);
+            }
+        }
+    }
+
+    setupProviderChangeListener(node, apiProviderWidget, apiKeyWidget) {
+        const originalCallback = apiProviderWidget.callback;
+        
+        apiProviderWidget.callback = async (value) => {
+            // 调用原始回调
+            if (originalCallback) {
+                originalCallback.call(apiProviderWidget, value);
+            }
+            
+            // 当提供商变化时，自动加载对应的API密钥
+            const savedKey = await this.loadApiKey(value);
+            if (savedKey && savedKey.trim() !== "") {
+                apiKeyWidget.value = savedKey;
+                console.log(`[Kontext] 切换到 ${value}，自动填充API密钥`);
+                
+                // 触发API密钥的回调
+                if (apiKeyWidget.callback) {
+                    apiKeyWidget.callback(savedKey);
+                }
+                
+                this.markKeyAsSaved(node, savedKey);
+            } else {
+                // 清空密钥框，因为该提供商没有保存的密钥
+                apiKeyWidget.value = "";
+                if (apiKeyWidget.callback) {
+                    apiKeyWidget.callback("");
+                }
+            }
+        };
+    }
+
+    async loadApiKey(provider) {
+        // 调用后端API获取保存的密钥
+        try {
+            const response = await fetch('/kontext_api/get_api_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ provider: provider })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.api_key || "";
+            }
+        } catch (error) {
+            console.log(`[Kontext] 无法加载 ${provider} 的API密钥:`, error);
+        }
+        
+        return "";
+    }
+
+    async saveApiKey(provider, apiKey) {
+        // 调用后端API保存密钥
+        try {
+            const response = await fetch('/kontext_api/save_api_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    provider: provider,
+                    api_key: apiKey
+                })
+            });
+            
+            if (response.ok) {
+                console.log(`[Kontext] ${provider} API密钥已保存到服务器`);
+                return true;
+            }
+        } catch (error) {
+            console.log(`[Kontext] 保存 ${provider} API密钥失败:`, error);
+        }
+        
+        return false;
     }
 
     markKeyAsSaved(node, key) {
