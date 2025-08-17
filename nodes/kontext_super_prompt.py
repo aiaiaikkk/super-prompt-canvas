@@ -22,6 +22,248 @@ from datetime import datetime
 # 添加节点目录到系统路径以导入其他节点
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 方案A专业引导词库
+GUIDANCE_LIBRARY_A = {
+    "editing_intents": {
+        "color_adjustment": [
+            "precise color grading and tonal balance adjustment",
+            "selective color modification with natural transitions",
+            "hue, saturation and luminance fine-tuning",
+            "color harmony optimization and palette refinement",
+            "advanced color correction with preserved details"
+        ],
+        "object_removal": [
+            "seamless object erasure with intelligent content-aware fill",
+            "advanced inpainting with texture and pattern reconstruction",
+            "clean removal with contextual background regeneration",
+            "professional retouching with invisible object extraction",
+            "content-aware deletion with natural scene completion"
+        ],
+        "object_replacement": [
+            "intelligent object substitution with matched lighting and perspective",
+            "seamless element swapping with proper shadow and reflection",
+            "context-aware replacement maintaining scene coherence",
+            "professional object exchange with realistic integration",
+            "smart substitution with automatic color and scale matching"
+        ],
+        "object_addition": [
+            "realistic object insertion with proper depth and occlusion",
+            "natural element placement with accurate shadows and lighting",
+            "contextual object addition with scene-aware compositing",
+            "professional element integration with believable interactions",
+            "intelligent object placement with automatic perspective matching"
+        ],
+        "background_change": [
+            "professional background replacement with edge refinement",
+            "environmental substitution with matched lighting conditions",
+            "seamless backdrop swapping with hair and transparency handling",
+            "studio-quality background modification with depth preservation",
+            "intelligent scene replacement with automatic color grading"
+        ],
+        "face_swap": [
+            "advanced facial replacement with expression preservation",
+            "seamless face swapping with skin tone matching",
+            "professional identity transfer with natural blending",
+            "intelligent facial substitution with feature alignment",
+            "realistic face exchange with age and lighting adaptation"
+        ],
+        "quality_enhancement": [
+            "professional upscaling with detail enhancement and noise reduction",
+            "AI-powered quality improvement with texture preservation",
+            "advanced sharpening and clarity optimization",
+            "intelligent detail recovery with artifact removal",
+            "studio-grade enhancement with dynamic range expansion"
+        ],
+        "image_restoration": [
+            "professional damage repair and artifact removal",
+            "historical photo restoration with detail reconstruction",
+            "advanced scratch and tear healing with texture synthesis",
+            "intelligent restoration with color and contrast recovery",
+            "museum-quality preservation with authentic detail retention"
+        ],
+        "style_transfer": [
+            "artistic style application with content preservation",
+            "professional aesthetic transformation with selective stylization",
+            "intelligent style mapping with detail retention",
+            "creative interpretation with balanced artistic expression",
+            "advanced neural style transfer with customizable intensity"
+        ],
+        "text_editing": [
+            "professional typography modification and text replacement",
+            "intelligent text editing with font matching",
+            "seamless text overlay with proper perspective and distortion",
+            "advanced text manipulation with style preservation",
+            "clean text removal and insertion with background recovery"
+        ],
+        "lighting_adjustment": [
+            "professional lighting enhancement with natural shadows",
+            "studio lighting simulation with directional control",
+            "ambient light modification with mood preservation",
+            "advanced exposure correction with highlight and shadow recovery",
+            "cinematic lighting effects with realistic light propagation"
+        ],
+        "perspective_correction": [
+            "professional lens distortion and perspective correction",
+            "architectural straightening with proportion preservation",
+            "advanced geometric transformation with content awareness",
+            "keystone correction with automatic crop optimization",
+            "wide-angle distortion removal with natural field of view"
+        ],
+        "blur_sharpen": [
+            "selective focus adjustment with depth-aware processing",
+            "professional bokeh simulation with realistic blur circles",
+            "intelligent sharpening with edge preservation",
+            "motion blur addition or removal with directional control",
+            "tilt-shift effect with miniature scene simulation"
+        ],
+        "local_deformation": [
+            "precise mesh-based warping with smooth transitions",
+            "intelligent liquify with automatic proportion adjustment",
+            "professional shape modification with natural deformation",
+            "content-aware scaling with important feature preservation",
+            "advanced morphing with realistic tissue behavior"
+        ],
+        "composition_adjustment": [
+            "professional reframing with rule of thirds optimization",
+            "intelligent cropping with subject-aware composition",
+            "dynamic layout adjustment with visual balance enhancement",
+            "golden ratio composition with automatic guide alignment",
+            "cinematic aspect ratio conversion with content preservation"
+        ],
+        "general_editing": [
+            "comprehensive image optimization with intelligent enhancement",
+            "multi-aspect improvement with balanced adjustments",
+            "professional post-processing with workflow automation",
+            "adaptive editing with content-aware optimization",
+            "flexible enhancement pipeline with customizable parameters"
+        ]
+    },
+    "processing_styles": {
+        "ecommerce_product": [
+            "clean e-commerce presentation with pure white background and studio lighting",
+            "professional product showcase with shadow detail and color accuracy",
+            "commercial quality with floating product and reflection effects",
+            "marketplace-ready presentation with standardized lighting setup",
+            "retail-optimized display with crisp edges and neutral backdrop"
+        ],
+        "social_media": [
+            "Instagram-worthy aesthetic with vibrant colors and high engagement appeal",
+            "viral-ready content with thumb-stopping visual impact",
+            "influencer-style presentation with trendy filters and effects",
+            "platform-optimized format with mobile-first composition",
+            "shareable content with emotional resonance and visual storytelling"
+        ],
+        "marketing_campaign": [
+            "compelling campaign visual with strong brand message integration",
+            "conversion-focused design with clear call-to-action placement",
+            "professional advertising quality with psychological impact",
+            "multi-channel campaign asset with consistent brand identity",
+            "high-impact promotional material with memorable visual hook"
+        ],
+        "portrait_professional": [
+            "executive headshot quality with confident professional presence",
+            "LinkedIn-optimized portrait with approachable business aesthetic",
+            "corporate photography standard with formal lighting setup",
+            "professional profile image with personality and credibility",
+            "studio portrait quality with flattering light and composition"
+        ],
+        "lifestyle": [
+            "authentic lifestyle capture with natural, candid moments",
+            "aspirational living aesthetic with warm, inviting atmosphere",
+            "editorial lifestyle quality with storytelling elements",
+            "wellness-focused imagery with organic, mindful presentation",
+            "contemporary lifestyle documentation with relatable scenarios"
+        ],
+        "food_photography": [
+            "appetizing food presentation with steam and freshness indicators",
+            "culinary art photography with ingredient highlighting",
+            "restaurant menu quality with professional food styling",
+            "cookbook-worthy capture with recipe visualization",
+            "gourmet presentation with texture emphasis and garnish details"
+        ],
+        "real_estate": [
+            "MLS-ready property showcase with wide-angle room capture",
+            "architectural photography standard with vertical line correction",
+            "luxury real estate presentation with HDR processing",
+            "virtual tour quality with consistent exposure across rooms",
+            "property listing optimization with bright, spacious feel"
+        ],
+        "fashion_retail": [
+            "editorial fashion quality with dynamic pose and movement",
+            "lookbook presentation with outfit detail emphasis",
+            "runway-inspired capture with dramatic lighting",
+            "e-commerce fashion standard with consistent model positioning",
+            "luxury brand aesthetic with premium texture showcase"
+        ],
+        "automotive": [
+            "showroom quality presentation with paint reflection detail",
+            "automotive advertising standard with dynamic angle selection",
+            "dealership display quality with feature highlighting",
+            "car enthusiast photography with performance emphasis",
+            "luxury vehicle showcase with premium detailing focus"
+        ],
+        "beauty_cosmetics": [
+            "beauty campaign quality with flawless skin retouching",
+            "cosmetic product showcase with texture and color accuracy",
+            "makeup artistry documentation with before/after clarity",
+            "skincare photography with healthy glow emphasis",
+            "beauty editorial standard with artistic color grading"
+        ],
+        "corporate_branding": [
+            "brand guideline compliant with consistent visual identity",
+            "corporate communication standard with professional polish",
+            "annual report quality with data visualization clarity",
+            "company culture showcase with authentic employee moments",
+            "B2B presentation standard with trust-building imagery"
+        ],
+        "event_photography": [
+            "event documentation with decisive moment capture",
+            "conference photography standard with speaker and audience coverage",
+            "wedding photography quality with emotional storytelling",
+            "concert capture with stage lighting and crowd energy",
+            "corporate event coverage with networking moment emphasis"
+        ],
+        "product_catalog": [
+            "catalog-ready presentation with consistent angle and lighting",
+            "technical documentation quality with detail visibility",
+            "e-commerce grid compatibility with standardized framing",
+            "print catalog standard with color accuracy and sharpness",
+            "inventory photography with SKU identification clarity"
+        ],
+        "artistic_creation": [
+            "gallery-worthy artistic interpretation with conceptual depth",
+            "fine art photography standard with emotional expression",
+            "creative vision with experimental technique application",
+            "artistic portfolio quality with unique visual signature",
+            "contemporary art aesthetic with boundary-pushing composition"
+        ],
+        "documentary": [
+            "photojournalistic integrity with unaltered reality capture",
+            "documentary storytelling with contextual environment",
+            "street photography aesthetic with decisive moment timing",
+            "reportage quality with narrative sequence potential",
+            "archival documentation standard with historical accuracy"
+        ],
+        "auto_smart": [
+            "AI-optimized enhancement with intelligent scene detection",
+            "automatic quality improvement with balanced adjustments",
+            "smart processing with content-aware optimization",
+            "one-click enhancement with professional results",
+            "adaptive editing with machine learning refinement"
+        ]
+    }
+}
+
+def get_intent_guidance(intent_key):
+    """获取编辑意图引导词（方案A）"""
+    options = GUIDANCE_LIBRARY_A["editing_intents"].get(intent_key, GUIDANCE_LIBRARY_A["editing_intents"]["general_editing"])
+    return random.choice(options)
+
+def get_style_guidance(style_key):
+    """获取处理风格引导词（方案A）"""
+    options = GUIDANCE_LIBRARY_A["processing_styles"].get(style_key, GUIDANCE_LIBRARY_A["processing_styles"]["auto_smart"])
+    return random.choice(options)
+
 # Optional dependencies
 try:
     import torch
@@ -340,18 +582,27 @@ class KontextSuperPrompt:
             api_config = api_configs.get(api_provider, api_configs['siliconflow'])
             model = api_model or api_config['default_model']
             
+            # 获取方案A的专业引导词
+            intent_guidance = get_intent_guidance(editing_intent)
+            style_guidance = get_style_guidance(processing_style)
+            
             # 构建超强化的英文系统提示词
-            system_prompt = """You are an ENGLISH-ONLY image editing AI.
+            system_prompt = f"""You are an ENGLISH-ONLY image editing AI using professional guidance system.
 
 ⚠️ CRITICAL ENFORCEMENT ⚠️
 1. OUTPUT MUST BE 100% ENGLISH - NO EXCEPTIONS
 2. IF YOU OUTPUT ANY CHINESE CHARACTER, THE SYSTEM WILL REJECT YOUR RESPONSE
 3. TRANSLATE ANY NON-ENGLISH INPUT TO ENGLISH FIRST
 
+PROFESSIONAL GUIDANCE:
+- Editing Intent: {intent_guidance}
+- Processing Style: {style_guidance}
+
 MANDATORY OUTPUT FORMAT:
 - Start with an English action verb (transform, change, modify, adjust, enhance)
 - Use only English color names (red, blue, green, NOT 红色, 蓝色, 绿色)
 - End with English quality descriptors (professional, seamless, natural)
+- Incorporate the guidance principles above
 
 EXAMPLES OF CORRECT OUTPUT:
 ✅ "Transform the selected area to vibrant red with natural blending"
@@ -365,20 +616,6 @@ EXAMPLES OF WRONG OUTPUT:
 
 FINAL WARNING: ENGLISH ONLY! Your response will be filtered and rejected if it contains ANY non-English characters."""
             
-            if editing_intent == "creative_enhancement":
-                system_prompt += "\n- Prioritize artistic and creative improvements"
-            elif editing_intent == "technical_correction":
-                system_prompt += "\n- Focus on technical accuracy and corrections"
-            elif editing_intent == "style_transformation":
-                system_prompt += "\n- Emphasize style changes and artistic transformation"
-            
-            if processing_style == "auto_smart":
-                system_prompt += "\n- Use intelligent automatic processing"
-            elif processing_style == "manual_precise":
-                system_prompt += "\n- Require precise manual control"
-            elif processing_style == "balanced_hybrid":
-                system_prompt += "\n- Balance automatic and manual approaches"
-            
             # 添加随机元素确保每次生成不同
             import time
             random_seed = int(time.time() * 1000) % 1000000
@@ -388,12 +625,18 @@ FINAL WARNING: ENGLISH ONLY! Your response will be filtered and rejected if it c
 
 User request: {description}
 
+PROFESSIONAL GUIDANCE TO FOLLOW:
+- Intent guidance: {intent_guidance}
+- Style guidance: {style_guidance}
+
 REQUIREMENTS:
-1. Output a single English sentence (30-60 words)
+1. Output a detailed English prompt (60-120 words)
 2. Use proper English grammar and vocabulary
 3. NO Chinese characters allowed (系统将拒绝任何中文)
 4. Start with an action verb in English
-5. Include specific English descriptors
+5. Include specific English descriptors and professional terms
+6. Incorporate the professional guidance above
+7. Provide detailed technical specifications and quality requirements
 
 {f'Additional guidance: {custom_guidance}' if custom_guidance else ''}
 
@@ -414,7 +657,7 @@ REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
                     {'role': 'user', 'content': user_prompt}
                 ],
                 'temperature': 0.7 + (random_seed % 20) / 100,  # 0.7-0.89的随机温度
-                'max_tokens': 200,  # 设置为200，平衡质量和token消耗
+                'max_tokens': 350,  # 提高token限制以支持更详细的输出
                 'top_p': 0.9,
                 'presence_penalty': 0.1,  # 避免重复
                 'frequency_penalty': 0.1,  # 增加多样性

@@ -1,6 +1,7 @@
 // Kontext Super Prompt Node - 完整复现Visual Prompt Editor功能
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { getIntentGuidance, getStyleGuidance } from "./guidanceLibraryA.js";
 
 // Kontext Super Prompt 命名空间 - 资源隔离机制
 window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
@@ -4931,6 +4932,10 @@ class KontextSuperPrompt {
             // 根据提供商构建API请求
             let apiUrl, headers, requestBody;
             
+            // 获取引导词 - 所有API提供商统一使用
+            const intentGuide = this.getIntentGuidance(editingIntent);
+            const styleGuide = this.getStyleGuidance(processingStyle);
+            
             if (provider === 'zhipu') {
                 // 添加随机性确保每次生成不同结果
                 const randomSeed = Math.floor(Math.random() * 1000000);
@@ -4945,8 +4950,12 @@ class KontextSuperPrompt {
                     model: model,
                     messages: [
                         {
+                            role: 'system',
+                            content: 'You are a professional image editing prompt generator. Generate concise, creative prompts in English.'
+                        },
+                        {
                             role: 'user',
-                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
+                            content: `Generate an image editing prompt for: ${description}\nIntent: ${intentGuide}\nStyle: ${styleGuide}\n${customGuidance ? `Additional: ${customGuidance}` : ''}\n\nOutput a single creative prompt (no numbering or formatting).`
                         }
                     ],
                     temperature: temperature,
@@ -4967,8 +4976,12 @@ class KontextSuperPrompt {
                     model: model,
                     messages: [
                         {
+                            role: 'system',
+                            content: 'You are a professional image editing prompt generator. Generate concise, creative prompts in English.'
+                        },
+                        {
                             role: 'user',
-                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
+                            content: `Generate an image editing prompt for: ${description}\nIntent: ${intentGuide}\nStyle: ${styleGuide}\n${customGuidance ? `Additional: ${customGuidance}` : ''}\n\nOutput a single creative prompt (no numbering or formatting).`
                         }
                     ],
                     temperature: temperature,
@@ -4989,8 +5002,12 @@ class KontextSuperPrompt {
                     model: model,
                     messages: [
                         {
+                            role: 'system',
+                            content: 'You are a professional image editing prompt generator. Generate concise, creative prompts in English.'
+                        },
+                        {
                             role: 'user',
-                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
+                            content: `Generate an image editing prompt for: ${description}\nIntent: ${intentGuide}\nStyle: ${styleGuide}\n${customGuidance ? `Additional: ${customGuidance}` : ''}\n\nOutput a single creative prompt (no numbering or formatting).`
                         }
                     ],
                     temperature: temperature,
@@ -5011,8 +5028,12 @@ class KontextSuperPrompt {
                     model: model,
                     messages: [
                         {
+                            role: 'system',
+                            content: 'You are a professional image editing prompt generator. Generate concise, creative prompts in English.'
+                        },
+                        {
                             role: 'user',
-                            content: `Generate ONE single image editing prompt for: ${description}${customGuidance ? `\n\nAdditional guidance: ${customGuidance}` : ''}\n\nIMPORTANT: Output ONLY ONE prompt (not multiple variations). Make it unique and creative. Do not include any titles, numbers, or formatting - just the prompt text itself.`
+                            content: `Generate an image editing prompt for: ${description}\nIntent: ${intentGuide}\nStyle: ${styleGuide}\n${customGuidance ? `Additional: ${customGuidance}` : ''}\n\nOutput a single creative prompt (no numbering or formatting).`
                         }
                     ],
                     temperature: temperature,
@@ -5034,7 +5055,14 @@ class KontextSuperPrompt {
                         {
                             parts: [
                                 {
-                                    text: `请根据以下内容生成优化的图像编辑提示词：\n\n用户输入: ${description}\n编辑意图: ${editingIntent}\n处理风格: ${processingStyle}\n${customGuidance ? `自定义指引: ${customGuidance}` : ''}\n随机种子: ${randomSeed}\n\n请生成专业的英文提示词，每次都要有所不同，提供创新的表达方式。`
+                                    text: `Generate an optimized image editing prompt.
+                                    
+User input: ${description}
+Editing intent: ${intentGuide}
+Processing style: ${styleGuide}
+${customGuidance ? `Custom guidance: ${customGuidance}` : ''}
+
+Please generate a professional English prompt that is creative and unique. Output only the prompt text without any formatting or numbering.`
                                 }
                             ]
                         }
@@ -5169,25 +5197,19 @@ class KontextSuperPrompt {
         }
     }
     
+    getIntentGuidance(intent) {
+        // 使用方案A的AI生成专业引导词库
+        return getIntentGuidance(intent);
+    }
+    
+    getStyleGuidance(style) {
+        // 使用方案A的AI生成专业引导词库
+        return getStyleGuidance(style);
+    }
+    
     generateFallbackPrompt(description) {
-        // 智能生成备用提示词
-        const desc = description.toLowerCase();
-        
-        if (desc.includes('红') || desc.includes('蓝') || desc.includes('黄') || desc.includes('绿') || desc.includes('颜色') || desc.includes('color')) {
-            return `Change the color of the selected area to the specified color with natural blending`;
-        } else if (desc.includes('删除') || desc.includes('移除') || desc.includes('去掉') || desc.includes('remove')) {
-            return `Remove the selected object from the image while maintaining natural background`;
-        } else if (desc.includes('添加') || desc.includes('加上') || desc.includes('增加') || desc.includes('add')) {
-            return `Add the requested element to the image with realistic placement and lighting`;
-        } else if (desc.includes('替换') || desc.includes('换成') || desc.includes('replace')) {
-            return `Replace the selected element with the specified object maintaining proper perspective`;
-        } else if (desc.includes('模糊') || desc.includes('blur')) {
-            return `Apply blur effect to the selected area with smooth transition`;
-        } else if (desc.includes('增强') || desc.includes('改善') || desc.includes('enhance')) {
-            return `Enhance the quality of the selected area with improved detail and clarity`;
-        } else {
-            return `Edit the selected area according to the user request: ${description}`;
-        }
+        // 诚实的错误处理 - 不再假装是AI生成
+        return `⚠️ Model Failed - Unable to generate prompt for: "${description}". Please use a larger model (qwen2.5:3b or deepseek-r1:1.5b) or switch to API mode.`;
     }
     
     async waitForOllamaResult(model, description) {
@@ -5208,19 +5230,36 @@ class KontextSuperPrompt {
             const randomSeed = Math.floor(Math.random() * 1000000);
             const finalTemperature = temperature + (Math.random() * 0.2); // 在原温度基础上增加一些随机性
             
-            // 构建Ollama API请求 - 简化提示词以兼容小模型
-            const simplePrompt = `Translate to English image editing prompt: "${description}"
-
-Output: `;
+            // 构建引导词基于编辑意图和处理风格
+            const intentGuide = this.getIntentGuidance(editingIntent);
+            const styleGuide = this.getStyleGuidance(processingStyle);
+            
+            // 尝试不同的提示词格式，根据模型大小调整复杂度
+            let finalPrompt;
+            
+            // 检测模型大小
+            const isSmallModel = model && (model.includes('0.6b') || model.includes('0.5b') || model.includes('1b'));
+            
+            if (isSmallModel) {
+                // 极简提示词for小模型
+                finalPrompt = `Edit: ${description}\nOutput:`;
+            } else {
+                // 正常提示词for较大模型
+                finalPrompt = `Task: ${description}
+Type: ${intentGuide}
+Style: ${styleGuide}
+${customGuidance ? `Extra: ${customGuidance}` : ''}
+Create English editing prompt:`;
+            }
 
             const requestBody = {
                 model: model,
-                prompt: simplePrompt,
+                prompt: finalPrompt,
                 options: {
-                    temperature: finalTemperature,
-                    seed: randomSeed,  // Ollama支持seed参数
-                    num_predict: 100,  // 输出长度
-                    stop: ['<think>', '</think>', '\n\n', 'User:', 'Input:']  // 防止多余内容
+                    temperature: isSmallModel ? 0.5 : finalTemperature,  // 小模型用更低温度
+                    seed: randomSeed,
+                    num_predict: isSmallModel ? 50 : 150,  // 小模型限制更短
+                    stop: ['<think>', '</think>', '###']
                 },
                 stream: false
             };
