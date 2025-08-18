@@ -50,10 +50,24 @@ class KontextConfigManager {
         app.loadGraphData = (graphData) => {
             const result = originalLoadGraph.call(app, graphData);
             
-            // 工作流加载后，延迟恢复所有KontextSuperPrompt节点的设置
+            // 工作流加载后，多次尝试恢复设置（确保成功）
+            // 立即尝试
+            this.restoreAllNodeSettings();
+            
+            // 100ms后再试
+            setTimeout(() => {
+                this.restoreAllNodeSettings();
+            }, 100);
+            
+            // 500ms后再试
             setTimeout(() => {
                 this.restoreAllNodeSettings();
             }, 500);
+            
+            // 1秒后最后确认
+            setTimeout(() => {
+                this.restoreAllNodeSettings();
+            }, 1000);
             
             return result;
         };
@@ -77,6 +91,11 @@ class KontextConfigManager {
     }
 
     enhanceKontextNode(node) {
+        // 立即恢复保存的设置（工作流加载时的第一道防线）
+        setTimeout(async () => {
+            await this.forceRestoreNodeSettings(node);
+        }, 100);
+        
         // 为API密钥输入框添加增强功能
         const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
         const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
@@ -506,16 +525,16 @@ class KontextConfigManager {
     }
 
     startMonitoring() {
-        """启动持续监控，每2秒检查一次节点设置"""
+        """启动持续监控，每秒检查一次节点设置"""
         if (this.monitoringTimer) {
             clearInterval(this.monitoringTimer);
         }
         
         this.monitoringTimer = setInterval(async () => {
             await this.checkAndRestoreSettings();
-        }, 2000); // 每2秒检查一次
+        }, 1000); // 每1秒检查一次
         
-        console.log("[Kontext] 设置监控已启动");
+        console.log("[Kontext] 设置监控已启动（1秒间隔）");
     }
 
     async checkAndRestoreSettings() {
@@ -537,16 +556,17 @@ class KontextConfigManager {
             
             if (!apiProviderWidget || !apiKeyWidget) return;
             
-            // 如果设置被重置了，就恢复它们
+            // 获取保存的设置
+            const settings = await this.loadSavedSettings();
+            
+            // 检查是否需要恢复：
+            // 1. API密钥为空
+            // 2. 或者提供商与保存的不一致
             const needsRestore = 
-                !apiKeyWidget.value || 
-                apiKeyWidget.value.trim() === "" ||
-                apiProviderWidget.value === "siliconflow"; // 默认值说明被重置了
+                (!apiKeyWidget.value || apiKeyWidget.value.trim() === "") ||
+                (settings.last_provider && apiProviderWidget.value !== settings.last_provider);
             
             if (needsRestore) {
-                // 加载保存的设置
-                const settings = await this.loadSavedSettings();
-                
                 // 恢复API提供商
                 if (settings.last_provider && apiProviderWidget.value !== settings.last_provider) {
                     apiProviderWidget.value = settings.last_provider;
@@ -585,6 +605,57 @@ class KontextConfigManager {
             if (error.message && !error.message.includes('fetch')) {
                 console.log(`[Kontext] 检查节点设置时出错:`, error);
             }
+        }
+    }
+
+    async forceRestoreNodeSettings(node) {
+        """强制恢复节点设置（无条件）"""
+        try {
+            // 获取保存的设置
+            const settings = await this.loadSavedSettings();
+            
+            // 获取所有widget
+            const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
+            const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
+            
+            if (!apiProviderWidget || !apiKeyWidget) return;
+            
+            // 强制恢复API提供商（如果有保存的设置）
+            if (settings.last_provider) {
+                apiProviderWidget.value = settings.last_provider;
+                console.log(`[Kontext] 强制恢复API提供商: ${settings.last_provider}`);
+            }
+            
+            // 强制恢复API密钥
+            const provider = settings.last_provider || apiProviderWidget.value || "siliconflow";
+            const savedKey = await this.loadApiKey(provider);
+            
+            if (savedKey && savedKey.trim() !== "") {
+                apiKeyWidget.value = savedKey;
+                console.log(`[Kontext] 强制恢复 ${provider} API密钥`);
+            }
+            
+            // 强制恢复其他设置
+            const widgetMappings = {
+                'api_model': settings.last_model,
+                'api_editing_intent': settings.last_editing_intent,
+                'api_processing_style': settings.last_processing_style,
+                'tab_mode': settings.last_tab
+            };
+            
+            for (const [widgetName, savedValue] of Object.entries(widgetMappings)) {
+                if (savedValue) {
+                    const widget = node.widgets?.find(w => w.name === widgetName);
+                    if (widget) {
+                        widget.value = savedValue;
+                    }
+                }
+            }
+            
+            console.log(`[Kontext] ✅ 节点设置已强制恢复`);
+            
+        } catch (error) {
+            console.log(`[Kontext] 强制恢复失败:`, error);
         }
     }
 
