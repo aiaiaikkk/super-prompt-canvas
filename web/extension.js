@@ -8,6 +8,8 @@
 import { app } from "../../scripts/app.js";
 
 // 导入核心前端扩展
+import "./api_key_manager.js";  // API密钥localStorage持久化管理
+
 // 注意：以下文件已删除，如需要请重新创建
 // import "./ollama_flux_kontext_enhancer.js";   // Ollama增强节点扩展 (已删除)
 // import "./API_flux_kontext_enhancer.js";      // API增强节点扩展 (已删除)
