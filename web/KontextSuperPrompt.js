@@ -1353,12 +1353,64 @@ class KontextSuperPrompt {
         this.selectedLayers = [];
         this.currentEditMode = "局部编辑";
         this.currentCategory = 'local';
-        this.currentOperationType = '';
-        this.description = '';
-        this.selectedConstraints = [];
-        this.selectedDecoratives = [];
         this.autoGenerate = true;
-        this.generatedPrompt = '';
+        
+        // 为每个选项卡创建独立的数据存储
+        this.tabData = {
+            local: {
+                operationType: '',
+                description: '',
+                selectedConstraints: [],
+                selectedDecoratives: [],
+                generatedPrompt: ''
+            },
+            global: {
+                operationType: '',
+                description: '',
+                selectedConstraints: [],
+                selectedDecoratives: [],
+                generatedPrompt: ''
+            },
+            text: {
+                operationType: '',
+                description: '',
+                selectedConstraints: [],
+                selectedDecoratives: [],
+                generatedPrompt: ''
+            },
+            professional: {
+                operationType: '',
+                description: '',
+                selectedConstraints: [],
+                selectedDecoratives: [],
+                generatedPrompt: ''
+            },
+            api: {
+                description: '',
+                generatedPrompt: '',
+                apiProvider: 'siliconflow',
+                apiKey: '',
+                apiModel: 'deepseek-ai/DeepSeek-V3',
+                editingIntent: 'general_editing',
+                processingStyle: 'auto_smart',
+                customGuidance: ''
+            },
+            ollama: {
+                description: '',
+                generatedPrompt: '',
+                ollamaUrl: 'http://127.0.0.1:11434',
+                ollamaModel: '',
+                temperature: 0.7,
+                editingIntent: 'general_editing',
+                processingStyle: 'auto_smart',
+                customGuidance: '',
+                enableVisual: false,
+                autoUnload: false
+            }
+        };
+        
+        // 当前选项卡的便捷访问器（指向当前选项卡的数据）
+        this.currentTabData = this.tabData[this.currentCategory];
         
         // 事件监听器管理系统 - 防止堆积和内存泄漏
         this._eventListeners = [];
@@ -1491,8 +1543,11 @@ class KontextSuperPrompt {
         // 设置事件监听
         this.setupEventListeners();
         
-        // 初始化隐藏widget
-        this.createHiddenWidgets({
+        // 首先尝试从已存在的widget中恢复数据（这些是序列化后保存的）
+        this.restoreDataFromWidgets();
+        
+        // 初始化隐藏widget（从localStorage恢复API设置）
+        const initData = {
             edit_mode: this.currentEditMode,
             operation_type: this.currentOperationType,
             description: this.description,
@@ -1501,7 +1556,22 @@ class KontextSuperPrompt {
             selected_layers: JSON.stringify(this.selectedLayers),
             auto_generate: this.autoGenerate,
             generated_prompt: this.generatedPrompt
-        });
+        };
+        
+        // 尝试从localStorage恢复API设置
+        if (window.kontextAPIManager) {
+            const savedProvider = window.kontextAPIManager.getSavedProvider();
+            if (savedProvider) {
+                initData.api_provider = savedProvider;
+                const savedKey = window.kontextAPIManager.getKey(savedProvider);
+                if (savedKey) {
+                    initData.api_key = savedKey;
+                    console.log('[KontextSuperPrompt] 初始化时恢复API设置');
+                }
+            }
+        }
+        
+        this.createHiddenWidgets(initData);
         
         // 初始化显示（切换到默认标签页）
         this.switchTab('local');
@@ -1538,14 +1608,24 @@ class KontextSuperPrompt {
             
             // 强制再次尝试显示提示词
             setTimeout(() => {
-                
-                if (this.constraintContainer && this.constraintContainer.children.length === 0) {
-                    // 使用通用约束提示词强制填充
-                    this.updateConstraintContainer(KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control']);
-                }
-                if (this.decorativeContainer && this.decorativeContainer.children.length === 0) {
-                    // 使用通用修饰提示词强制填充
-                    this.updateDecorativeContainer(KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence']);
+                // 确保当前选项卡的提示词容器已填充
+                const currentPanel = this.tabContents[this.currentCategory];
+                if (currentPanel) {
+                    const constraintContainer = currentPanel.querySelector('.constraint-prompts-container');
+                    const decorativeContainer = currentPanel.querySelector('.decorative-prompts-container');
+                    
+                    if (constraintContainer && constraintContainer.children.length === 0) {
+                        // 更新全局引用
+                        this.constraintContainer = constraintContainer;
+                        // 使用通用约束提示词强制填充
+                        this.updateConstraintContainer(KSP_NS.constants.CONSTRAINT_PROMPTS.general || ['natural appearance', 'technical precision', 'visual coherence', 'quality control']);
+                    }
+                    if (decorativeContainer && decorativeContainer.children.length === 0) {
+                        // 更新全局引用
+                        this.decorativeContainer = decorativeContainer;
+                        // 使用通用修饰提示词强制填充
+                        this.updateDecorativeContainer(KSP_NS.constants.DECORATIVE_PROMPTS.general || ['enhanced quality', 'improved visual impact', 'professional finish', 'artistic excellence']);
+                    }
                 }
                 
                 // 再次强制检查
@@ -1813,7 +1893,7 @@ class KontextSuperPrompt {
         panel.appendChild(operationSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('local');
         panel.appendChild(descriptionSection);
 
         const constraintSection = this.createConstraintPromptsSection();
@@ -1824,7 +1904,7 @@ class KontextSuperPrompt {
         panel.appendChild(decorativeSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('local');
         panel.appendChild(generateSection);
 
         return panel;
@@ -1860,7 +1940,7 @@ class KontextSuperPrompt {
         panel.appendChild(operationSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('global');
         panel.appendChild(descriptionSection);
 
         const constraintSection = this.createConstraintPromptsSection();
@@ -1871,7 +1951,7 @@ class KontextSuperPrompt {
         panel.appendChild(decorativeSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('global');
         panel.appendChild(generateSection);
 
         return panel;
@@ -1907,7 +1987,7 @@ class KontextSuperPrompt {
         panel.appendChild(operationSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('text');
         panel.appendChild(descriptionSection);
 
         const constraintSection = this.createConstraintPromptsSection();
@@ -1918,7 +1998,7 @@ class KontextSuperPrompt {
         panel.appendChild(decorativeSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('text');
         panel.appendChild(generateSection);
 
         return panel;
@@ -1954,7 +2034,7 @@ class KontextSuperPrompt {
         panel.appendChild(operationSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('professional');
         panel.appendChild(descriptionSection);
 
         const constraintSection = this.createConstraintPromptsSection();
@@ -1965,7 +2045,7 @@ class KontextSuperPrompt {
         panel.appendChild(decorativeSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('professional');
         panel.appendChild(generateSection);
 
         return panel;
@@ -2001,11 +2081,11 @@ class KontextSuperPrompt {
         panel.appendChild(apiConfigSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('api');
         panel.appendChild(descriptionSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('api');
         panel.appendChild(generateSection);
 
         return panel;
@@ -2049,11 +2129,11 @@ class KontextSuperPrompt {
         panel.appendChild(ollamaConfigSection);
 
         // 描述输入
-        const descriptionSection = this.createDescriptionSection();
+        const descriptionSection = this.createDescriptionSection('ollama');
         panel.appendChild(descriptionSection);
 
         // 生成按钮
-        const generateSection = this.createGenerateSection();
+        const generateSection = this.createGenerateSection('ollama');
         panel.appendChild(generateSection);
 
         return panel;
@@ -2124,7 +2204,7 @@ class KontextSuperPrompt {
         return section;
     }
 
-    createDescriptionSection() {
+    createDescriptionSection(tabId) {
         const section = document.createElement('div');
         section.className = 'description-section';
         section.style.cssText = `
@@ -2158,32 +2238,32 @@ class KontextSuperPrompt {
             outline: none;
         `;
         
-        // 为每个描述输入框添加事件监听
+        // 设置选项卡特定的属性标识
+        descriptionTextarea.setAttribute('data-tab', tabId);
+        
+        // 为每个描述输入框添加事件监听 - 现在只更新当前选项卡的数据
         descriptionTextarea.addEventListener('input', (e) => {
             const newValue = e.target.value;
+            const currentTab = e.target.getAttribute('data-tab');
             
-            // 调试：检测是否有模板文本被意外写入
-            if (newValue && newValue.includes('transform') && newValue.includes('selected area')) {
-                console.warn('[Kontext Super Prompt] ⚠️ 警告：检测到模板文本被写入描述字段:', newValue);
-                console.trace('[Kontext Super Prompt] 调用堆栈：');
+            // 只更新当前选项卡的数据
+            if (this.tabData[currentTab]) {
+                this.tabData[currentTab].description = newValue;
+                // 更新当前选项卡访问器
+                if (currentTab === this.currentCategory) {
+                    this.currentTabData = this.tabData[currentTab];
+                }
+                this.notifyNodeUpdate();
             }
-            
-            this.description = newValue;
-            // 同步更新所有面板的描述输入框
-            this.updateAllDescriptionTextareas();
-            this.notifyNodeUpdate();
         });
         
-        // 设置初始值
-        if (this.description) {
-            descriptionTextarea.value = this.description;
+        // 设置初始值 - 从对应选项卡的数据中获取
+        if (this.tabData[tabId] && this.tabData[tabId].description) {
+            descriptionTextarea.value = this.tabData[tabId].description;
         }
 
         section.appendChild(title);
         section.appendChild(descriptionTextarea);
-        
-        // 保存引用以便后续更新
-        this.descriptionTextarea = descriptionTextarea;
 
         return section;
     }
@@ -2226,10 +2306,8 @@ class KontextSuperPrompt {
             border-radius: 4px;
         `;
         
-        // 设置全局引用（用于当前活动的容器）
-        if (!this.constraintContainer) {
-            this.constraintContainer = constraintContainer;
-        }
+        // 不设置全局引用，让每个选项卡独立管理
+        // this.constraintContainer 将在 switchTab 和 selectOperationType 中动态设置
 
         section.appendChild(title);
         section.appendChild(constraintContainer);
@@ -2278,10 +2356,8 @@ class KontextSuperPrompt {
             border-radius: 4px;
         `;
         
-        // 设置全局引用（用于当前活动的容器）
-        if (!this.decorativeContainer) {
-            this.decorativeContainer = decorativeContainer;
-        }
+        // 不设置全局引用，让每个选项卡独立管理
+        // this.decorativeContainer 将在 switchTab 和 selectOperationType 中动态设置
 
         section.appendChild(title);
         section.appendChild(decorativeContainer);
@@ -2291,7 +2367,7 @@ class KontextSuperPrompt {
         return section;
     }
 
-    createGenerateSection() {
+    createGenerateSection(tabId) {
         const section = document.createElement('div');
         section.className = 'generate-section';
         section.style.cssText = `
@@ -2310,7 +2386,7 @@ class KontextSuperPrompt {
         `;
         previewTitle.textContent = '📝 提示词预览';
         
-        // 创建预览文本框（每个panel都创建新的textarea，但共享数据）
+        // 创建预览文本框（每个选项卡独立的textarea）
         const promptPreviewTextarea = document.createElement('textarea');
         promptPreviewTextarea.placeholder = '生成的超级提示词将在此处显示，可编辑修改...';
         promptPreviewTextarea.style.cssText = `
@@ -2328,32 +2404,29 @@ class KontextSuperPrompt {
             box-sizing: border-box;
         `;
         
-        // 设置初始值（如果已经有生成的提示词）
-        if (this.generatedPrompt) {
-            promptPreviewTextarea.value = this.generatedPrompt;
+        // 设置选项卡特定的属性标识
+        promptPreviewTextarea.setAttribute('data-tab', tabId);
+        
+        // 设置初始值 - 从对应选项卡的数据中获取
+        if (this.tabData[tabId] && this.tabData[tabId].generatedPrompt) {
+            promptPreviewTextarea.value = this.tabData[tabId].generatedPrompt;
         }
         
-        // 添加事件监听器
+        // 添加事件监听器 - 只更新当前选项卡的数据
         promptPreviewTextarea.addEventListener('input', (e) => {
-            this.generatedPrompt = e.target.value;
-            this.updateAllPreviewTextareas();
-            this.updateNodeWidgets({
-                edit_mode: this.currentEditMode,
-                operation_type: this.currentOperationType,
-                description: this.description,
-                constraint_prompts: translatePromptsToEnglish(this.selectedConstraints).join('\n'),
-                decorative_prompts: translatePromptsToEnglish(this.selectedDecoratives).join('\n'),
-                selected_layers: JSON.stringify(this.selectedLayers),
-                auto_generate: this.autoGenerate,
-                generated_prompt: this.generatedPrompt
-            });
+            const newValue = e.target.value;
+            const currentTab = e.target.getAttribute('data-tab');
+            
+            // 只更新当前选项卡的数据
+            if (this.tabData[currentTab]) {
+                this.tabData[currentTab].generatedPrompt = newValue;
+                // 更新当前选项卡访问器
+                if (currentTab === this.currentCategory) {
+                    this.currentTabData = this.tabData[currentTab];
+                }
+                this.notifyNodeUpdate();
+            }
         });
-        
-        // 保存所有textarea的引用
-        if (!this.previewTextareas) {
-            this.previewTextareas = [];
-        }
-        this.previewTextareas.push(promptPreviewTextarea);
 
         const buttonGroup = document.createElement('div');
         buttonGroup.style.cssText = `
@@ -3268,6 +3341,10 @@ class KontextSuperPrompt {
             return;
         }
         
+        // 保存当前选项卡的数据到对应的tabData中
+        this.saveCurrentTabData();
+        
+        // 更新选项卡按钮样式
         const tabButtons = this.tabBar.querySelectorAll('.tab-button');
         tabButtons.forEach(btn => {
             if (btn.classList.contains(`tab-${tabId}`)) {
@@ -3285,112 +3362,207 @@ class KontextSuperPrompt {
         Object.entries(this.tabContents).forEach(([key, panel]) => {
             const shouldShow = key === tabId;
             panel.style.display = shouldShow ? 'flex' : 'none';
-            
-            if (shouldShow) {
-                // Debug panel state information removed during cleanup
-                
-                // 深度检查约束和修饰容器在每个标签页的状态
-                setTimeout(() => {
-                    
-                    // 查找约束容器
-                    const constraintSection = panel.querySelector('.constraint-prompts-section');
-                    const constraintContainer = panel.querySelector('.constraint-prompts-container');
-                    //     sectionExists: !!constraintSection,
-                    //     containerExists: !!constraintContainer,
-                    //     sectionDisplay: constraintSection ? window.getComputedStyle(constraintSection).display : 'N/A',
-                    //     containerDisplay: constraintContainer ? window.getComputedStyle(constraintContainer).display : 'N/A',
-                    //     containerChildren: constraintContainer ? constraintContainer.children.length : 0,
-                    //     sectionOffsetHeight: constraintSection ? constraintSection.offsetHeight : 0,
-                    //     containerOffsetHeight: constraintContainer ? constraintContainer.offsetHeight : 0
-                    // });
-                    
-                    // 查找修饰容器
-                    const decorativeSection = panel.querySelector('.decorative-prompts-section');
-                    const decorativeContainer = panel.querySelector('.decorative-prompts-container');
-                    //     sectionExists: !!decorativeSection,
-                    //     containerExists: !!decorativeContainer,
-                    //     sectionDisplay: decorativeSection ? window.getComputedStyle(decorativeSection).display : 'N/A',
-                    //     containerDisplay: decorativeContainer ? window.getComputedStyle(decorativeContainer).display : 'N/A',
-                    //     containerChildren: decorativeContainer ? decorativeContainer.children.length : 0,
-                    //     sectionOffsetHeight: decorativeSection ? decorativeSection.offsetHeight : 0,
-                    //     containerOffsetHeight: decorativeContainer ? decorativeContainer.offsetHeight : 0
-                    // });
-                    
-                    //     globalConstraintSame: this.constraintContainer === constraintContainer,
-                    //     globalDecorativeSame: this.decorativeContainer === decorativeContainer,
-                    //     globalConstraintInThisTab: panel.contains(this.constraintContainer),
-                    //     globalDecorativeInThisTab: panel.contains(this.decorativeContainer)
-                    // });
-                }, 100);
-            }
         });
 
+        // 更新当前选项卡信息
         this.currentCategory = tabId;
         this.currentEditMode = KSP_NS.constants.OPERATION_CATEGORIES[tabId].name.replace(/^\W+\s/, '');
+        this.currentTabData = this.tabData[tabId];
         
-        const currentPanel = this.tabContents[tabId];
-        if (currentPanel) {
-            const newConstraintContainer = currentPanel.querySelector('.constraint-prompts-container');
-            const newDecorativeContainer = currentPanel.querySelector('.decorative-prompts-container');
-            
-            if (newConstraintContainer) {
-                this.constraintContainer = newConstraintContainer;
-            }
-            
-            if (newDecorativeContainer) {
-                this.decorativeContainer = newDecorativeContainer;
-            }
-            
-            // 标签页切换后，根据新的操作类型重新加载提示词选项
-            setTimeout(() => {
-                if (this.constraintContainer && this.decorativeContainer && this.currentOperationType) {
-                    this.loadDefaultPrompts();
-                }
-            }, 150); // 延迟更长一些，确保操作类型已经设置
-        }
+        // 恢复新选项卡的数据
+        this.restoreTabData(tabId);
         
-        // 设置每个标签页的默认操作类型
-        const defaultOperations = {
-            'local': 'change_color',
-            'global': 'global_color_grade', 
-            'text': 'text_add',
-            'professional': 'geometric_warp',
-            'api': 'api_enhance',
-            'ollama': 'ollama_enhance'
-        };
-        
-        // 在API和Ollama模式下，清除任何可能导致模板生成的操作类型
-        if (tabId === 'api' || tabId === 'ollama') {
-            // API和Ollama模式专用操作类型，不会触发模板生成
-            this.currentOperationType = defaultOperations[tabId] || '';
-            // 额外保护：如果操作类型可能触发模板，立即清除
-            if (this.currentOperationType && this.currentOperationType.includes('change_color')) {
-                console.warn('[Kontext Super Prompt] API/Ollama模式下检测到模板操作类型，已清除');
-                this.currentOperationType = tabId === 'api' ? 'api_enhance' : 'ollama_enhance';
-            }
-        } else {
-            this.currentOperationType = defaultOperations[tabId] || '';
-        }
-        
-        // 延迟执行确保DOM完全更新
+        // 更新操作按钮
         setTimeout(() => {
             this.updateOperationButtons();
-            
-            // 自动生成已移除
-            if (this.currentOperationType) {
-            }
-        }, 100);
+        }, 50);
         
         this.updatePromptContainers();
+    }
+    
+    saveCurrentTabData() {
+        // 保存当前选项卡的数据
+        const currentData = this.tabData[this.currentCategory];
+        if (!currentData) return;
+        
+        // 获取当前显示的面板
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        // 保存描述输入框的内容
+        const descTextarea = currentPanel.querySelector('textarea[data-tab="' + this.currentCategory + '"]');
+        if (descTextarea) {
+            currentData.description = descTextarea.value;
+        }
+        
+        // 保存预览框的内容
+        const previewTextarea = currentPanel.querySelector('.generate-section textarea[data-tab="' + this.currentCategory + '"]');
+        if (previewTextarea) {
+            currentData.generatedPrompt = previewTextarea.value;
+        }
+        
+        // 保存操作类型
+        if (this.tabData[this.currentCategory].hasOwnProperty('operationType')) {
+            currentData.operationType = this.getCurrentOperationType();
+        }
+        
+        // 保存约束和修饰词选择（仅限前四个选项卡）
+        if (['local', 'global', 'text', 'professional'].includes(this.currentCategory)) {
+            const constraintCheckboxes = currentPanel.querySelectorAll('.constraint-prompts-container input[type="checkbox"]:checked');
+            currentData.selectedConstraints = Array.from(constraintCheckboxes).map(cb => cb.nextElementSibling.textContent);
+            
+            const decorativeCheckboxes = currentPanel.querySelectorAll('.decorative-prompts-container input[type="checkbox"]:checked');
+            currentData.selectedDecoratives = Array.from(decorativeCheckboxes).map(cb => cb.nextElementSibling.textContent);
+        }
+        
+        // 保存API特定设置
+        if (this.currentCategory === 'api') {
+            const apiPanel = currentPanel;
+            const providerSelect = apiPanel.querySelector('.api-provider-select');
+            const keyInput = apiPanel.querySelector('.api-key-input');
+            const modelSelect = apiPanel.querySelector('.api-model-select');
+            
+            if (providerSelect) currentData.apiProvider = providerSelect.value;
+            if (keyInput) currentData.apiKey = keyInput.value;
+            if (modelSelect) currentData.apiModel = modelSelect.value;
+        }
+        
+        // 保存Ollama特定设置
+        if (this.currentCategory === 'ollama') {
+            const ollamaPanel = currentPanel;
+            const urlInput = ollamaPanel.querySelector('input[type="text"]');
+            const modelSelect = ollamaPanel.querySelector('.ollama-model-select');
+            const tempInput = ollamaPanel.querySelector('input[type="range"]');
+            
+            if (urlInput) currentData.ollamaUrl = urlInput.value;
+            if (modelSelect) currentData.ollamaModel = modelSelect.value;
+            if (tempInput) currentData.temperature = parseFloat(tempInput.value);
+        }
+    }
+    
+    restoreTabData(tabId) {
+        // 恢复指定选项卡的数据
+        const tabData = this.tabData[tabId];
+        if (!tabData) return;
+        
+        // 获取目标面板
+        const targetPanel = this.tabContents[tabId];
+        if (!targetPanel) return;
+        
+        // 延迟恢复，确保DOM已经渲染
+        setTimeout(() => {
+            // 恢复描述输入框
+            const descTextarea = targetPanel.querySelector('textarea[data-tab="' + tabId + '"]');
+            if (descTextarea && tabData.description) {
+                descTextarea.value = tabData.description;
+            }
+            
+            // 恢复预览框
+            const previewTextarea = targetPanel.querySelector('.generate-section textarea[data-tab="' + tabId + '"]');
+            if (previewTextarea && tabData.generatedPrompt) {
+                previewTextarea.value = tabData.generatedPrompt;
+            }
+            
+            // 恢复约束和修饰词选择（仅限前四个选项卡）
+            if (['local', 'global', 'text', 'professional'].includes(tabId)) {
+                // 恢复约束词选择
+                if (tabData.selectedConstraints && tabData.selectedConstraints.length > 0) {
+                    const constraintCheckboxes = targetPanel.querySelectorAll('.constraint-prompts-container input[type="checkbox"]');
+                    constraintCheckboxes.forEach(checkbox => {
+                        const label = checkbox.nextElementSibling.textContent;
+                        checkbox.checked = tabData.selectedConstraints.includes(label);
+                    });
+                }
+                
+                // 恢复修饰词选择
+                if (tabData.selectedDecoratives && tabData.selectedDecoratives.length > 0) {
+                    const decorativeCheckboxes = targetPanel.querySelectorAll('.decorative-prompts-container input[type="checkbox"]');
+                    decorativeCheckboxes.forEach(checkbox => {
+                        const label = checkbox.nextElementSibling.textContent;
+                        checkbox.checked = tabData.selectedDecoratives.includes(label);
+                    });
+                }
+            }
+            
+            // 恢复API特定设置
+            if (tabId === 'api') {
+                const apiPanel = targetPanel;
+                const providerSelect = apiPanel.querySelector('.api-provider-select');
+                const keyInput = apiPanel.querySelector('.api-key-input');
+                const modelSelect = apiPanel.querySelector('.api-model-select');
+                
+                if (providerSelect && tabData.apiProvider) providerSelect.value = tabData.apiProvider;
+                if (keyInput && tabData.apiKey) keyInput.value = tabData.apiKey;
+                if (modelSelect && tabData.apiModel) modelSelect.value = tabData.apiModel;
+            }
+            
+            // 恢复Ollama特定设置
+            if (tabId === 'ollama') {
+                const ollamaPanel = targetPanel;
+                const urlInput = ollamaPanel.querySelector('input[type="text"]');
+                const modelSelect = ollamaPanel.querySelector('.ollama-model-select');
+                const tempInput = ollamaPanel.querySelector('input[type="range"]');
+                const tempValue = ollamaPanel.querySelector('.temp-value');
+                
+                if (urlInput && tabData.ollamaUrl) urlInput.value = tabData.ollamaUrl;
+                if (modelSelect && tabData.ollamaModel) modelSelect.value = tabData.ollamaModel;
+                if (tempInput && tabData.temperature) {
+                    tempInput.value = tabData.temperature;
+                    if (tempValue) tempValue.textContent = tabData.temperature;
+                }
+            }
+        }, 10);
+    }
+    
+    getCurrentOperationType() {
+        // 获取当前操作类型
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return '';
+        
+        const operationSelect = currentPanel.querySelector('.operation-select');
+        return operationSelect ? operationSelect.value : '';
+    }
+    
+    updateCurrentTabPreview() {
+        // 更新当前选项卡的预览框
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        const previewTextarea = currentPanel.querySelector('.generate-section textarea[data-tab="' + this.currentCategory + '"]');
+        if (previewTextarea && this.currentTabData) {
+            previewTextarea.value = this.currentTabData.generatedPrompt || '';
+        }
+    }
+    
+    updateCurrentTabDescription() {
+        // 更新当前选项卡的描述框
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        const descTextarea = currentPanel.querySelector('textarea[data-tab="' + this.currentCategory + '"]');
+        if (descTextarea && this.currentTabData) {
+            descTextarea.value = this.currentTabData.description || '';
+        }
     }
 
     selectOperationType(operationType) {
         this.currentOperationType = operationType;
         this.updateOperationButtons();
         
-        // 重新加载对应操作类型的提示词选项（不自动选中）
-        if (this.constraintContainer && this.decorativeContainer) {
-            this.loadDefaultPrompts();
+        // 获取当前选项卡的容器
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (currentPanel) {
+            const constraintContainer = currentPanel.querySelector('.constraint-prompts-container');
+            const decorativeContainer = currentPanel.querySelector('.decorative-prompts-container');
+            
+            // 更新全局引用
+            this.constraintContainer = constraintContainer;
+            this.decorativeContainer = decorativeContainer;
+            
+            // 重新加载对应操作类型的提示词选项（不自动选中）
+            if (this.constraintContainer && this.decorativeContainer) {
+                this.loadDefaultPrompts();
+            }
         }
         
         this.notifyNodeUpdate();
@@ -3680,12 +3852,29 @@ class KontextSuperPrompt {
     }
 
     updatePromptContainers() {
+        // 获取当前选项卡的容器
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        // 查找当前选项卡的约束和修饰容器
+        const constraintContainer = currentPanel.querySelector('.constraint-prompts-container');
+        const decorativeContainer = currentPanel.querySelector('.decorative-prompts-container');
+        
         // 清空约束和修饰词容器
-        if (this.constraintContainer) {
-            this.constraintContainer.innerHTML = '';
+        if (constraintContainer) {
+            constraintContainer.innerHTML = '';
         }
-        if (this.decorativeContainer) {
-            this.decorativeContainer.innerHTML = '';
+        if (decorativeContainer) {
+            decorativeContainer.innerHTML = '';
+        }
+        
+        // 更新全局引用为当前选项卡的容器
+        this.constraintContainer = constraintContainer;
+        this.decorativeContainer = decorativeContainer;
+        
+        // 重新加载当前操作类型的提示词
+        if (['local', 'global', 'text', 'professional'].includes(this.currentCategory)) {
+            this.loadDefaultPrompts();
         }
     }
 
@@ -3702,6 +3891,53 @@ class KontextSuperPrompt {
         
         // 结束性能监控
         KSP_NS.performance.endTimer(`node_${this.node.id}_init`);
+    }
+    
+    restoreDataFromWidgets() {
+        // 从已序列化的widget中恢复数据
+        if (!this.node.widgets) return;
+        
+        const descWidget = this.node.widgets.find(w => w.name === 'description');
+        const genWidget = this.node.widgets.find(w => w.name === 'generated_prompt');
+        const constrWidget = this.node.widgets.find(w => w.name === 'constraint_prompts');
+        const decorWidget = this.node.widgets.find(w => w.name === 'decorative_prompts');
+        const editModeWidget = this.node.widgets.find(w => w.name === 'edit_mode');
+        const opTypeWidget = this.node.widgets.find(w => w.name === 'operation_type');
+        
+        // 恢复数据
+        if (descWidget && descWidget.value) {
+            this.description = descWidget.value;
+        }
+        
+        if (genWidget && genWidget.value) {
+            this.generatedPrompt = genWidget.value;
+        }
+        
+        if (constrWidget && constrWidget.value) {
+            try {
+                this.selectedConstraints = constrWidget.value.split('\n').filter(s => s.trim());
+            } catch (e) {
+                console.warn('[Kontext Super Prompt] 恢复约束提示词失败:', e);
+            }
+        }
+        
+        if (decorWidget && decorWidget.value) {
+            try {
+                this.selectedDecoratives = decorWidget.value.split('\n').filter(s => s.trim());
+            } catch (e) {
+                console.warn('[Kontext Super Prompt] 恢复修饰提示词失败:', e);
+            }
+        }
+        
+        if (editModeWidget && editModeWidget.value) {
+            this.currentEditMode = editModeWidget.value;
+        }
+        
+        if (opTypeWidget && opTypeWidget.value) {
+            this.currentOperationType = opTypeWidget.value;
+        }
+        
+        console.log('[Kontext Super Prompt] 已从widget恢复数据');
     }
 
     updateLayerInfo(layerInfo) {
@@ -4512,9 +4748,9 @@ class KontextSuperPrompt {
         // 设置标志位，防止在生成期间重新加载提示词
         this.isGeneratingPrompt = true;
         
-        // 收集所有数据，将中文提示词转换为英文
-        const constraintPromptsEnglish = translatePromptsToEnglish(this.selectedConstraints || []);
-        const decorativePromptsEnglish = translatePromptsToEnglish(this.selectedDecoratives || []);
+        // 收集当前选项卡的数据，将中文提示词转换为英文
+        const constraintPromptsEnglish = translatePromptsToEnglish(this.currentTabData.selectedConstraints || []);
+        const decorativePromptsEnglish = translatePromptsToEnglish(this.currentTabData.selectedDecoratives || []);
         
         // 生成综合提示词
         let generatedPromptParts = [];
@@ -4540,9 +4776,9 @@ class KontextSuperPrompt {
                     generatedPromptParts.push(defaultTemplate);
                 }
             }
-        } else if (this.description && this.description.trim()) {
+        } else if (this.currentTabData.description && this.currentTabData.description.trim()) {
             // 如果没有模板但有描述，翻译后添加
-            let englishDescription = this.translateToEnglish(this.description.trim());
+            let englishDescription = this.translateToEnglish(this.currentTabData.description.trim());
             generatedPromptParts.push(englishDescription);
         } else {
         }
@@ -4560,25 +4796,25 @@ class KontextSuperPrompt {
         }
         
         // 生成最终提示词
-        this.generatedPrompt = generatedPromptParts.join(', ');
+        this.currentTabData.generatedPrompt = generatedPromptParts.join(', ');
         
         
         // 如果没有生成任何内容，提供一个默认提示
-        if (!this.generatedPrompt || this.generatedPrompt.trim() === '') {
-            this.generatedPrompt = 'Please describe the changes you want to make or select some options above';
+        if (!this.currentTabData.generatedPrompt || this.currentTabData.generatedPrompt.trim() === '') {
+            this.currentTabData.generatedPrompt = 'Please describe the changes you want to make or select some options above';
         }
         
-        this.updateAllPreviewTextareas();
+        this.updateCurrentTabPreview();
         
         const promptData = {
             edit_mode: this.currentEditMode,
-            operation_type: this.currentOperationType,
-            description: this.description,
+            operation_type: this.currentTabData.operationType || '',
+            description: this.currentTabData.description || '',
             constraint_prompts: constraintPromptsEnglish.join('\n'),
             decorative_prompts: decorativePromptsEnglish.join('\n'),
             selected_layers: JSON.stringify(this.selectedLayers),
             auto_generate: this.autoGenerate,
-            generated_prompt: this.generatedPrompt
+            generated_prompt: this.currentTabData.generatedPrompt
         };
 
         this.updateNodeWidgets(promptData);
@@ -4600,11 +4836,36 @@ class KontextSuperPrompt {
     }
 
     updateNodeWidgets(data) {
+        // ⚠️ 关键修复：保留现有的widget值，不要用不完整的data覆盖
+        // 获取当前所有widget的值
+        const currentValues = {};
+        if (this.node.widgets) {
+            this.node.widgets.forEach(widget => {
+                if (widget.name && widget.value !== undefined) {
+                    currentValues[widget.name] = widget.value;
+                }
+            });
+        }
+        
+        // 合并：只更新data中提供的字段，保留其他现有值
+        const mergedData = {
+            // 首先使用现有值
+            ...currentValues,
+            // 然后用新数据覆盖（只覆盖提供的字段）
+            ...data
+        };
+        
+        console.log('[KontextSuperPrompt] 合并数据:', {
+            提供的新数据: Object.keys(data),
+            保留的现有数据: Object.keys(currentValues),
+            最终数据: Object.keys(mergedData)
+        });
+        
         // 创建或更新隐藏的widget来传递数据给后端
-        this.createHiddenWidgets(data);
+        this.createHiddenWidgets(mergedData);
         
         // 将数据存储到节点属性中，供serialize方法使用
-        this.node._kontextData = data;
+        this.node._kontextData = mergedData;
         
         this.notifyNodeUpdate();
     }
@@ -4646,19 +4907,24 @@ class KontextSuperPrompt {
             { name: 'ollama_auto_unload', value: data.ollama_auto_unload || false }
         ];
         
-        // 创建或更新widget
-        widgetFields.forEach((field, index) => {
-            if (!this.node.widgets[index]) {
-                // 创建新的widget
-                this.node.widgets[index] = {
-                    name: field.name,
-                    value: field.value,
-                    type: typeof field.value === 'boolean' ? 'toggle' : 'text',
-                    options: {},
-                    callback: () => {}
-                };
+        // 创建或更新widget - 使用ComfyUI的widget系统
+        widgetFields.forEach((field) => {
+            let widget = this.node.widgets.find(w => w.name === field.name);
+            
+            if (!widget) {
+                // 使用ComfyUI的addWidget方法创建可序列化的widget
+                if (typeof field.value === 'boolean') {
+                    widget = this.node.addWidget('toggle', field.name, field.value, () => {}, 
+                        { on: field.name, off: field.name });
+                } else {
+                    widget = this.node.addWidget('text', field.name, field.value, () => {});
+                }
+                
+                // 隐藏widget从UI
+                widget.computeSize = () => [0, -4]; // 隐藏widget
             } else {
-                this.node.widgets[index].value = field.value;
+                // 更新现有widget的值
+                widget.value = field.value;
             }
         });
         
@@ -4738,9 +5004,10 @@ class KontextSuperPrompt {
                     // 特殊处理remove_object模板
                     description = '';
                 }
-                // 更新组件的description属性为清理后的值
-                this.description = description;
-                // 不要将清理后的值写回输入框，保持用户原始输入
+                // 更新当前选项卡的description属性为清理后的值
+                this.currentTabData.description = description;
+                // ⭐ 关键修复：恢复UI显示，与Ollama方法保持一致
+                this.updateCurrentTabDescription();
                 break;
             }
         }
@@ -4752,8 +5019,8 @@ class KontextSuperPrompt {
         
         // 设置生成中状态 - 添加时间戳确保用户看到新的生成过程
         const timestamp = new Date().toLocaleTimeString();
-        this.generatedPrompt = `🔄 正在使用API生成提示词... (${timestamp})`;
-        this.updateAllPreviewTextareas();
+        this.tabData.api.generatedPrompt = `🔄 正在使用API生成提示词... (${timestamp})`;
+        this.updateCurrentTabPreview();
         
         // 设置标志位防止切换选项卡
         this.isUpdatingFromAPI = true;
@@ -4860,10 +5127,10 @@ class KontextSuperPrompt {
                     // 特殊处理remove_object模板
                     description = '';
                 }
-                // 更新组件的description属性
-                this.description = description;
-                // 更新所有描述输入框
-                this.updateAllDescriptionTextareas();
+                // 更新当前选项卡的description属性
+                this.currentTabData.description = description;
+                // 更新当前选项卡的描述输入框
+                this.updateCurrentTabDescription();
                 break;
             }
         }
@@ -4875,8 +5142,8 @@ class KontextSuperPrompt {
         
         // 设置生成中状态 - 添加时间戳确保用户看到新的生成过程  
         const timestamp = new Date().toLocaleTimeString();
-        this.generatedPrompt = `🔄 正在使用Ollama生成提示词... (${timestamp})`;
-        this.updateAllPreviewTextareas();
+        this.tabData.ollama.generatedPrompt = `🔄 正在使用Ollama生成提示词... (${timestamp})`;
+        this.updateCurrentTabPreview();
         
         // 设置标志位防止切换选项卡
         this.isUpdatingFromOllama = true;
@@ -4920,8 +5187,8 @@ class KontextSuperPrompt {
         try {
             
             // 显示连接状态
-            this.generatedPrompt = `🔄 正在连接 ${provider} (${model})...`;
-            this.updateAllPreviewTextareas();
+            this.tabData.api.generatedPrompt = `🔄 正在连接 ${provider} (${model})...`;
+            this.updateCurrentTabPreview();
             
             // 获取API配置
             const apiKey = this.apiConfig?.keyInput?.value || '';
@@ -5074,16 +5341,16 @@ Please generate a professional English prompt that is creative and unique. Outpu
                 };
             } else {
                 // 对于不支持直接调用的提供商，显示说明
-                this.generatedPrompt = `ℹ️ ${provider} 提供商暂不支持前端直接调用\n\n由于浏览器CORS限制，某些API提供商无法直接从前端调用。\n\n请使用支持的提供商：\n- 智谱AI (zhipu)\n- Moonshot (moonshot) 
+                this.tabData.api.generatedPrompt = `ℹ️ ${provider} 提供商暂不支持前端直接调用\n\n由于浏览器CORS限制，某些API提供商无法直接从前端调用。\n\n请使用支持的提供商：\n- 智谱AI (zhipu)\n- Moonshot (moonshot) 
 - SiliconFlow (siliconflow)\n- DeepSeek (deepseek)\n- Google Gemini (gemini)\n\n或者联系开发者添加对 ${provider} 的支持。`;
-                this.updateAllPreviewTextareas();
+                this.updateCurrentTabPreview();
                 this.isGeneratingAPI = false;
                 return;
             }
             
             const callTimestamp = new Date().toLocaleTimeString();
-            this.generatedPrompt = `⚡ 正在调用 ${provider} API... (${callTimestamp})`;
-            this.updateAllPreviewTextareas();
+            this.tabData.api.generatedPrompt = `⚡ 正在调用 ${provider} API... (${callTimestamp})`;
+            this.updateCurrentTabPreview();
             
             // 调用远程API
             const response = await fetch(apiUrl, {
@@ -5157,8 +5424,8 @@ Please generate a professional English prompt that is creative and unique. Outpu
             }
             
             // 显示最终结果并传递纯净提示词给后端
-            this.generatedPrompt = `✅ ${provider} API生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
-            this.updateAllPreviewTextareas();
+            this.tabData.api.generatedPrompt = `✅ ${provider} API生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
+            this.updateCurrentTabPreview();
             
             // 将纯净的提示词传递给后端，同时保持API模式设置
             this.updateNodeWidgets({
@@ -5190,7 +5457,7 @@ Please generate a professional English prompt that is creative and unique. Outpu
                 this.generatedPrompt = `❌ API请求失败 (${provider}/${model}): ${error.message}`;
             }
             
-            this.updateAllPreviewTextareas();
+            this.updateCurrentTabPreview();
             this.isGeneratingAPI = false;
             // 确保选项卡不会被切换
             this.currentCategory = 'api';
@@ -5263,8 +5530,8 @@ Please generate a professional English prompt that is creative and unique. Outpu
         try {
             
             // 显示连接状态
-            this.generatedPrompt = `🔄 正在连接本地 Ollama (${model})...`;
-            this.updateAllPreviewTextareas();
+            this.tabData.ollama.generatedPrompt = `🔄 正在连接本地 Ollama (${model})...`;
+            this.updateCurrentTabPreview();
             
             // 获取Ollama配置
             // 智能检测Ollama地址
@@ -5327,8 +5594,8 @@ Create English editing prompt:`;
             };
             
             const callTimestamp = new Date().toLocaleTimeString();
-            this.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
-            this.updateAllPreviewTextareas();
+            this.tabData.ollama.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
+            this.updateCurrentTabPreview();
             
             // 调试日志 - 打印实际发送的请求
             console.log('[Ollama Debug] 发送请求体:', JSON.stringify(requestBody, null, 2));
@@ -5411,8 +5678,8 @@ Create English editing prompt:`;
             }
             
             // 显示最终结果并传递纯净提示词给后端
-            this.generatedPrompt = `✅ 本地 Ollama 生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
-            this.updateAllPreviewTextareas();
+            this.tabData.ollama.generatedPrompt = `✅ 本地 Ollama 生成完成！\n\n模型: ${model}\n输入: "${description}"\n\n生成的提示词:\n${generatedContent}`;
+            this.updateCurrentTabPreview();
             
             // 将纯净的提示词传递给后端，同时保持Ollama模式设置
             this.updateNodeWidgets({
@@ -5442,7 +5709,7 @@ Create English editing prompt:`;
             } else {
                 this.generatedPrompt = `❌ Ollama请求失败\n\n模型: ${model}\n错误: ${error.message}\n\n建议:\n1. 检查Ollama服务状态\n2. 尝试重启Ollama服务\n3. 或使用远程API选项卡`;
             }
-            this.updateAllPreviewTextareas();
+            this.updateCurrentTabPreview();
             this.isGeneratingOllama = false;
             // 确保选项卡不会被切换
             this.currentCategory = 'ollama';
@@ -5526,15 +5793,39 @@ Create English editing prompt:`;
         const previousCategory = this.currentCategory;
         const isGenerating = this.isGeneratingAPI || this.isGeneratingOllama;
         
+        // 首先尝试从widget中获取保存的数据（这些数据会被序列化）
+        const descWidget = this.node.widgets?.find(w => w.name === 'description');
+        const genWidget = this.node.widgets?.find(w => w.name === 'generated_prompt');
+        const constrWidget = this.node.widgets?.find(w => w.name === 'constraint_prompts');
+        const decorWidget = this.node.widgets?.find(w => w.name === 'decorative_prompts');
+        
+        // 优先使用widget中的值（这些会被序列化保存）
         this.currentEditMode = data.currentEditMode || "局部编辑";
-        this.currentCategory = data.currentCategory || previousCategory || 'local';  // 优先保持当前选项卡
+        this.currentCategory = data.currentCategory || previousCategory || 'local';
         this.currentOperationType = data.currentOperationType || '';
-        this.description = data.description || '';
+        this.description = descWidget?.value || data.description || '';
         this.selectedConstraints = data.selectedConstraints || [];
         this.selectedDecoratives = data.selectedDecoratives || [];
         this.selectedLayers = data.selectedLayers || [];
         this.autoGenerate = data.autoGenerate !== false;
-        this.generatedPrompt = data.generatedPrompt || '';  // 添加生成的提示词
+        this.generatedPrompt = genWidget?.value || data.generatedPrompt || '';
+        
+        // 如果有约束性和修饰性提示词的widget值，也恢复它们
+        if (constrWidget?.value) {
+            try {
+                this.selectedConstraints = constrWidget.value.split('\n').filter(s => s.trim());
+            } catch (e) {
+                console.warn('[Kontext Super Prompt] 恢复约束提示词失败:', e);
+            }
+        }
+        
+        if (decorWidget?.value) {
+            try {
+                this.selectedDecoratives = decorWidget.value.split('\n').filter(s => s.trim());
+            } catch (e) {
+                console.warn('[Kontext Super Prompt] 恢复修饰提示词失败:', e);
+            }
+        }
         
         // 如果正在生成中，不要更新UI（防止切换选项卡）
         if (!isGenerating) {
@@ -5668,29 +5959,9 @@ Create English editing prompt:`;
         this.updateLayerCountDisplay();
     }
 
-    updateAllPreviewTextareas() {
-        if (this.previewTextareas && this.previewTextareas.length > 0) {
-            this.previewTextareas.forEach(textarea => {
-                if (textarea && textarea.value !== this.generatedPrompt) {
-                    textarea.value = this.generatedPrompt || '';
-                }
-            });
-        }
-    }
+    // 已移除 updateAllPreviewTextareas - 现在每个选项卡独立管理预览框
     
-    updateAllDescriptionTextareas() {
-        // 如果正在API生成中，不更新输入框（防止模板污染）
-        if (this.isGeneratingAPI || this.isGeneratingOllama) {
-            return;
-        }
-        
-        const allDescriptionTextareas = this.editorContainer.querySelectorAll('.description-section textarea');
-        allDescriptionTextareas.forEach(textarea => {
-            if (textarea && textarea.value !== this.description) {
-                textarea.value = this.description || '';
-            }
-        });
-    }
+    // 已移除 updateAllDescriptionTextareas - 现在每个选项卡独立管理描述框
 
     showNotification(message, type = "info") {
         const notification = document.createElement('div');

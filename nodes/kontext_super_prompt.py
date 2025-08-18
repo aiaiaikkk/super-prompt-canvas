@@ -337,30 +337,33 @@ class KontextSuperPrompt:
                 "layer_info": ("LAYER_INFO",),
                 "image": ("IMAGE",),
             },
+            "optional": {
+                # 关键参数移到optional以支持序列化
+                "description": ("STRING", {"default": "", "multiline": True}),
+                "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
+                "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
+                "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
+                "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
+                "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
+                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
+            },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
                 "tab_mode": (["manual", "api", "ollama"], {"default": ui_settings.get("last_tab", "manual")}),
                 "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
                 "operation_type": ("STRING", {"default": "", "multiline": False}),
-                "description": ("STRING", {"default": "", "multiline": True}),
                 "constraint_prompts": ("STRING", {"default": "", "multiline": True}),
                 "decorative_prompts": ("STRING", {"default": "", "multiline": True}),
                 "selected_layers": ("STRING", {"default": "", "multiline": True}),
                 "auto_generate": ("BOOLEAN", {"default": True}),
-                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 
                 # API选项卡参数 - 从配置加载默认值
-                "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
-                "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
-                "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
                 "api_editing_intent": ("STRING", {"default": api_settings.get("last_editing_intent", "general_editing")}),
                 "api_processing_style": ("STRING", {"default": api_settings.get("last_processing_style", "auto_smart")}),
                 "api_seed": ("INT", {"default": 0}),
                 "api_custom_guidance": ("STRING", {"default": "", "multiline": True}),
                 
                 # Ollama选项卡参数 - 从配置加载默认值
-                "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
-                "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
                 "ollama_temperature": ("FLOAT", {"default": ollama_settings.get("last_temperature", 0.7)}),
                 "ollama_editing_intent": ("STRING", {"default": ollama_settings.get("last_editing_intent", "general_editing")}),
                 "ollama_processing_style": ("STRING", {"default": ollama_settings.get("last_processing_style", "auto_smart")}),
@@ -434,18 +437,22 @@ class KontextSuperPrompt:
         change_string = "|".join(change_factors)
         return change_string
     
-    def process_super_prompt(self, layer_info, image, tab_mode="manual", unique_id="", edit_mode="局部编辑", 
-                           operation_type="", description="", constraint_prompts="", 
+    def process_super_prompt(self, layer_info, image, 
+                           # Optional参数（会被序列化）
+                           description="", api_provider="siliconflow", api_key="", 
+                           api_model="deepseek-ai/DeepSeek-V3", ollama_url="http://127.0.0.1:11434", 
+                           ollama_model="", generated_prompt="",
+                           # Hidden参数
+                           tab_mode="manual", unique_id="", edit_mode="局部编辑", 
+                           operation_type="", constraint_prompts="", 
                            decorative_prompts="", selected_layers="", auto_generate=True, 
-                           generated_prompt="", 
                            # API选项卡参数
-                           api_provider="siliconflow", api_key="", api_model="deepseek-ai/DeepSeek-V3",
                            api_editing_intent="general_editing", api_processing_style="auto_smart",
                            api_seed=0, api_custom_guidance="",
                            # Ollama选项卡参数  
-                           ollama_url="http://127.0.0.1:11434", ollama_model="", ollama_temperature=0.7,
-                           ollama_editing_intent="general_editing", ollama_processing_style="auto_smart",
-                           ollama_seed=42, ollama_custom_guidance="", ollama_enable_visual=False,
+                           ollama_temperature=0.7, ollama_editing_intent="general_editing", 
+                           ollama_processing_style="auto_smart", ollama_seed=42, 
+                           ollama_custom_guidance="", ollama_enable_visual=False,
                            ollama_auto_unload=False):
         """
         处理Kontext超级提示词生成
