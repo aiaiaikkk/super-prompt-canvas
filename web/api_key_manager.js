@@ -13,6 +13,8 @@ class APIKeyManager {
     }
 
     init() {
+        const self = this; // 保存this引用
+        
         // 注册ComfyUI扩展
         app.registerExtension({
             name: "Kontext.APIKeyManager",
@@ -20,9 +22,10 @@ class APIKeyManager {
             // 节点创建时
             async nodeCreated(node) {
                 if (node.type === "KontextSuperPrompt" || node.comfyClass === "KontextSuperPrompt") {
+                    console.log("[APIKeyManager] KontextSuperPrompt节点已创建，准备增强...");
                     // 延迟处理，确保widgets已创建
                     setTimeout(() => {
-                        this.enhanceNode(node);
+                        self.enhanceNode(node);
                     }, 0);
                 }
             },
@@ -40,8 +43,8 @@ class APIKeyManager {
                         const apiProviderWidget = this.widgets?.find(w => w.name === "api_provider");
                         
                         if (apiKeyWidget && apiKeyWidget.value) {
-                            const manager = window.kontextAPIManager || new APIKeyManager();
-                            manager.saveKey(
+                            console.log("[APIKeyManager] 序列化时保存密钥:", apiProviderWidget?.value);
+                            self.saveKey(
                                 apiProviderWidget?.value || "siliconflow",
                                 apiKeyWidget.value
                             );
@@ -68,8 +71,8 @@ class APIKeyManager {
                         
                         // 从localStorage恢复API密钥
                         setTimeout(() => {
-                            const manager = window.kontextAPIManager || new APIKeyManager();
-                            manager.restoreNodeKeys(this);
+                            console.log("[APIKeyManager] 尝试从localStorage恢复密钥...");
+                            self.restoreNodeKeys(this);
                         }, 100);
                     };
                 }
@@ -78,12 +81,23 @@ class APIKeyManager {
     }
     
     enhanceNode(node) {
+        console.log("[APIKeyManager] 开始增强节点...", node);
+        
         // 找到相关widgets
         const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
         const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
         const tabModeWidget = node.widgets?.find(w => w.name === "tab_mode");
         
-        if (!apiKeyWidget || !apiProviderWidget) return;
+        console.log("[APIKeyManager] 找到的widgets:", {
+            apiKey: !!apiKeyWidget,
+            apiProvider: !!apiProviderWidget,
+            tabMode: !!tabModeWidget
+        });
+        
+        if (!apiKeyWidget || !apiProviderWidget) {
+            console.log("[APIKeyManager] 缺少必要的widgets，跳过增强");
+            return;
+        }
         
         // 立即尝试恢复
         this.restoreNodeKeys(node);
@@ -163,17 +177,34 @@ class APIKeyManager {
     }
     
     restoreNodeKeys(node) {
+        console.log("[APIKeyManager] 开始恢复节点密钥...");
+        
         const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
         const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
         
-        if (!apiProviderWidget || !apiKeyWidget) return;
+        if (!apiProviderWidget || !apiKeyWidget) {
+            console.log("[APIKeyManager] 恢复失败：缺少必要的widgets");
+            return;
+        }
         
         const provider = apiProviderWidget.value || "siliconflow";
         const savedKey = this.getKey(provider);
+        const currentKey = apiKeyWidget.value;
         
-        if (savedKey && (!apiKeyWidget.value || apiKeyWidget.value === "")) {
+        console.log("[APIKeyManager] 恢复状态:", {
+            provider: provider,
+            hasSavedKey: !!savedKey,
+            currentKey: currentKey ? "有值" : "空",
+            savedKeyLength: savedKey ? savedKey.length : 0
+        });
+        
+        if (savedKey && (!currentKey || currentKey === "")) {
             apiKeyWidget.value = savedKey;
-            console.log(`[APIKeyManager] 恢复 ${provider} 密钥`);
+            console.log(`[APIKeyManager] ✅ 已恢复 ${provider} 密钥 (${savedKey.length}字符)`);
+        } else if (savedKey && currentKey) {
+            console.log(`[APIKeyManager] 跳过恢复：当前已有密钥`);
+        } else {
+            console.log(`[APIKeyManager] 跳过恢复：没有保存的密钥`);
         }
     }
     
@@ -183,6 +214,7 @@ class APIKeyManager {
             const keys = this.getAllKeys();
             keys[provider] = key;
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(keys));
+            console.log(`[APIKeyManager] ✅ 已保存 ${provider} 密钥到localStorage (${key.length}字符)`);
         } catch (e) {
             console.error("[APIKeyManager] 保存失败:", e);
         }
