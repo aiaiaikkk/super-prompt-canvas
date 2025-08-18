@@ -117,8 +117,34 @@ class APIKeyManager {
             const savedKey = this.getKey(value);
             if (savedKey) {
                 apiKeyWidget.value = savedKey;
+                
+                // 触发UI更新
+                if (apiKeyWidget.callback) {
+                    apiKeyWidget.callback(savedKey);
+                }
+                
+                // 触发change事件确保UI更新
+                if (apiKeyWidget.element) {
+                    const event = new Event('input', { bubbles: true });
+                    apiKeyWidget.element.dispatchEvent(event);
+                }
+                
+                console.log(`[APIKeyManager] 切换到 ${value}，自动填充并更新UI`);
             } else {
                 apiKeyWidget.value = "";
+                
+                // 触发UI更新
+                if (apiKeyWidget.callback) {
+                    apiKeyWidget.callback("");
+                }
+                
+                // 触发change事件确保UI更新
+                if (apiKeyWidget.element) {
+                    const event = new Event('input', { bubbles: true });
+                    apiKeyWidget.element.dispatchEvent(event);
+                }
+                
+                console.log(`[APIKeyManager] 切换到 ${value}，清空密钥框`);
             }
         };
         
@@ -207,7 +233,24 @@ class APIKeyManager {
         
         if (savedKey && (!currentKey || currentKey === "")) {
             apiKeyWidget.value = savedKey;
-            console.log(`[APIKeyManager] ✅ 已恢复 ${provider} 密钥 (${savedKey.length}字符)`);
+            
+            // 触发UI更新和回调
+            if (apiKeyWidget.callback) {
+                apiKeyWidget.callback(savedKey);
+            }
+            
+            // 强制重绘节点
+            if (node.setDirtyCanvas) {
+                node.setDirtyCanvas(true, true);
+            }
+            
+            // 触发change事件确保UI更新
+            if (apiKeyWidget.element) {
+                const event = new Event('input', { bubbles: true });
+                apiKeyWidget.element.dispatchEvent(event);
+            }
+            
+            console.log(`[APIKeyManager] ✅ 已恢复并更新UI ${provider} 密钥 (${savedKey.length}字符)`);
         } else if (savedKey && currentKey) {
             console.log(`[APIKeyManager] 跳过恢复：当前已有密钥`);
         } else {
