@@ -8,6 +8,7 @@ import { app } from "../../scripts/app.js";
 class APIKeyManager {
     constructor() {
         this.STORAGE_KEY = "kontext_api_keys";
+        this.PROVIDER_KEY = "kontext_api_provider";
         this.NODE_TYPE = "KontextSuperPrompt";
         this.init();
     }
@@ -38,9 +39,20 @@ class APIKeyManager {
                     nodeType.prototype.serialize = function() {
                         const data = originalSerialize ? originalSerialize.call(this) : {};
                         
-                        // 保存API密钥到localStorage而不是工作流
+                        // 保存API密钥和提供商到localStorage而不是工作流
                         const apiKeyWidget = this.widgets?.find(w => w.name === "api_key");
                         const apiProviderWidget = this.widgets?.find(w => w.name === "api_provider");
+                        
+                        if (apiProviderWidget && apiProviderWidget.value) {
+                            const currentProvider = apiProviderWidget.value;
+                            const savedProvider = self.getSavedProvider();
+                            
+                            // 保存provider（如果改变了）
+                            if (currentProvider !== savedProvider) {
+                                console.log("[APIKeyManager] 序列化时保存提供商:", currentProvider);
+                                self.saveProvider(currentProvider);
+                            }
+                        }
                         
                         if (apiKeyWidget && apiKeyWidget.value) {
                             const provider = apiProviderWidget?.value || "siliconflow";
@@ -112,6 +124,9 @@ class APIKeyManager {
             if (originalProviderCallback) {
                 originalProviderCallback.call(apiProviderWidget, value);
             }
+            
+            // 保存当前选择的provider
+            this.saveProvider(value);
             
             // 切换provider时加载对应的密钥
             const savedKey = this.getKey(value);
@@ -220,6 +235,22 @@ class APIKeyManager {
             return;
         }
         
+        // 首先恢复保存的provider
+        const savedProvider = this.getSavedProvider();
+        if (savedProvider && apiProviderWidget.value !== savedProvider) {
+            console.log(`[APIKeyManager] 恢复API提供商: ${apiProviderWidget.value} -> ${savedProvider}`);
+            apiProviderWidget.value = savedProvider;
+            
+            // 触发provider的UI更新
+            if (apiProviderWidget.callback) {
+                apiProviderWidget.callback(savedProvider);
+            }
+            if (apiProviderWidget.element) {
+                const event = new Event('change', { bubbles: true });
+                apiProviderWidget.element.dispatchEvent(event);
+            }
+        }
+        
         const provider = apiProviderWidget.value || "siliconflow";
         const savedKey = this.getKey(provider);
         const currentKey = apiKeyWidget.value;
@@ -296,6 +327,25 @@ class APIKeyManager {
             return stored ? JSON.parse(stored) : {};
         } catch (e) {
             return {};
+        }
+    }
+    
+    // API提供商持久化方法
+    saveProvider(provider) {
+        try {
+            localStorage.setItem(this.PROVIDER_KEY, provider);
+            console.log(`[APIKeyManager] ✅ 已保存API提供商: ${provider}`);
+        } catch (e) {
+            console.error("[APIKeyManager] 保存提供商失败:", e);
+        }
+    }
+    
+    getSavedProvider() {
+        try {
+            return localStorage.getItem(this.PROVIDER_KEY) || "";
+        } catch (e) {
+            console.error("[APIKeyManager] 读取提供商失败:", e);
+            return "";
         }
     }
 }
