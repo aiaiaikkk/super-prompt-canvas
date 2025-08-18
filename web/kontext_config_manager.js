@@ -429,7 +429,7 @@ class KontextConfigManager {
     }
 
     async restoreAllNodeSettings() {
-        """恢复所有KontextSuperPrompt节点的保存设置"""
+        // 恢复所有KontextSuperPrompt节点的保存设置
         if (!app.graph || !app.graph._nodes) return;
         
         for (const node of app.graph._nodes) {
@@ -440,7 +440,7 @@ class KontextConfigManager {
     }
 
     async restoreNodeSettings(node) {
-        """恢复单个节点的保存设置"""
+        // 恢复单个节点的保存设置
         try {
             // 获取保存的设置
             const apiSettings = await this.loadSavedSettings();
@@ -504,7 +504,7 @@ class KontextConfigManager {
     }
 
     async loadSavedSettings() {
-        """加载保存的设置"""
+        // 加载保存的设置
         try {
             const response = await fetch('/kontext_api/get_settings', {
                 method: 'POST',
@@ -525,7 +525,7 @@ class KontextConfigManager {
     }
 
     startMonitoring() {
-        """启动持续监控，每秒检查一次节点设置"""
+        // 启动持续监控，每秒检查一次节点设置
         if (this.monitoringTimer) {
             clearInterval(this.monitoringTimer);
         }
@@ -538,7 +538,7 @@ class KontextConfigManager {
     }
 
     async checkAndRestoreSettings() {
-        """检查并恢复所有节点的设置"""
+        // 检查并恢复所有节点的设置
         if (!app.graph || !app.graph._nodes) return;
         
         for (const node of app.graph._nodes) {
@@ -549,7 +549,7 @@ class KontextConfigManager {
     }
 
     async checkAndRestoreNodeSettings(node) {
-        """检查并恢复单个节点的设置"""
+        // 检查并恢复单个节点的设置
         try {
             const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
             const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
@@ -609,7 +609,7 @@ class KontextConfigManager {
     }
 
     async forceRestoreNodeSettings(node) {
-        """强制恢复节点设置（无条件）"""
+        // 强制恢复节点设置（无条件）
         try {
             // 获取保存的设置
             const settings = await this.loadSavedSettings();
