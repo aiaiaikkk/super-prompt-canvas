@@ -104,10 +104,19 @@ class APIKeyManager {
         const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
         const tabModeWidget = node.widgets?.find(w => w.name === "tab_mode");
         
+        // 调试：打印所有widget名称
+        console.log("[APIKeyManager] 所有widgets:", node.widgets?.map(w => ({name: w.name, type: w.type, value: w.value})));
+        
         console.log("[APIKeyManager] 找到的widgets:", {
             apiKey: !!apiKeyWidget,
             apiProvider: !!apiProviderWidget,
             tabMode: !!tabModeWidget
+        });
+        
+        // 调试：检查localStorage当前状态
+        console.log("[APIKeyManager] localStorage状态:", {
+            keys: this.getAllKeys(),
+            savedProvider: this.getSavedProvider()
         });
         
         if (!apiKeyWidget || !apiProviderWidget) {

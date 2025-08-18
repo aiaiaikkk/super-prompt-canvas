@@ -410,9 +410,29 @@ class KontextSuperPrompt:
     
     @classmethod
     def IS_CHANGED(cls, **kwargs):
-        # 强制每次都重新执行，同时强制刷新节点定义
-        import time
-        return str(time.time()) + "_force_refresh"
+        # 智能变化检测：只在关键参数改变时触发重新执行
+        # 这样既保持widget状态，又支持随机性和配置更新
+        
+        # 提取关键参数用于变化检测
+        api_seed = kwargs.get("api_seed", 0)
+        ollama_seed = kwargs.get("ollama_seed", 42)
+        tab_mode = kwargs.get("tab_mode", "manual")
+        api_provider = kwargs.get("api_provider", "siliconflow")
+        api_model = kwargs.get("api_model", "")
+        ollama_model = kwargs.get("ollama_model", "")
+        
+        # 构建变化检测字符串（不包含时间戳）
+        change_factors = [
+            f"api_seed:{api_seed}",
+            f"ollama_seed:{ollama_seed}",
+            f"tab_mode:{tab_mode}",
+            f"api_provider:{api_provider}",
+            f"api_model:{api_model}",
+            f"ollama_model:{ollama_model}",
+        ]
+        
+        change_string = "|".join(change_factors)
+        return change_string
     
     def process_super_prompt(self, layer_info, image, tab_mode="manual", unique_id="", edit_mode="局部编辑", 
                            operation_type="", description="", constraint_prompts="", 
