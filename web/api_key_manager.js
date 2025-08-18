@@ -43,11 +43,15 @@ class APIKeyManager {
                         const apiProviderWidget = this.widgets?.find(w => w.name === "api_provider");
                         
                         if (apiKeyWidget && apiKeyWidget.value) {
-                            console.log("[APIKeyManager] 序列化时保存密钥:", apiProviderWidget?.value);
-                            self.saveKey(
-                                apiProviderWidget?.value || "siliconflow",
-                                apiKeyWidget.value
-                            );
+                            const provider = apiProviderWidget?.value || "siliconflow";
+                            const currentKey = apiKeyWidget.value;
+                            const savedKey = self.getKey(provider);
+                            
+                            // 只有当密钥改变时才保存（避免频繁保存）
+                            if (currentKey !== savedKey) {
+                                console.log("[APIKeyManager] 序列化时保存密钥:", provider);
+                                self.saveKey(provider, currentKey);
+                            }
                         }
                         
                         // 不将API密钥保存到工作流JSON中
@@ -125,11 +129,14 @@ class APIKeyManager {
                 originalKeyCallback.call(apiKeyWidget, value);
             }
             
-            // 自动保存到localStorage
+            // 自动保存到localStorage（避免重复保存）
             if (value && value.trim()) {
                 const provider = apiProviderWidget.value || "siliconflow";
-                this.saveKey(provider, value);
-                console.log(`[APIKeyManager] 自动保存 ${provider} 密钥`);
+                const savedKey = this.getKey(provider);
+                if (value !== savedKey) {
+                    this.saveKey(provider, value);
+                    console.log(`[APIKeyManager] 自动保存 ${provider} 密钥`);
+                }
             }
         };
         
