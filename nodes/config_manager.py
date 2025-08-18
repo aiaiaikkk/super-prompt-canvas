@@ -314,6 +314,26 @@ try:
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
     
+    @PromptServer.instance.routes.post("/kontext_api/get_settings")
+    async def get_settings_endpoint(request):
+        """获取所有保存的设置"""
+        try:
+            api_settings = config_manager.get_api_settings()
+            ollama_settings = config_manager.get_ollama_settings()
+            ui_settings = config_manager.get_ui_settings()
+            
+            # 合并所有设置
+            all_settings = {
+                **api_settings,
+                **ollama_settings,
+                **ui_settings
+            }
+            
+            return web.json_response({"settings": all_settings})
+            
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+    
     print("[Kontext Config] HTTP API endpoints registered successfully")
     
 except ImportError:

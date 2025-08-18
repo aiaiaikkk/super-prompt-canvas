@@ -10,6 +10,8 @@ import { ComfyWidgets } from "../../scripts/widgets.js";
 class KontextConfigManager {
     constructor() {
         this.savedKeys = new Set();
+        this.monitoringTimer = null;
+        this.lastKnownSettings = {};
         this.init();
     }
 
@@ -24,6 +26,9 @@ class KontextConfigManager {
         });
 
         this.setupNodeExtensions();
+        
+        // 启动持续监控
+        this.startMonitoring();
     }
 
     setupNodeExtensions() {
@@ -38,6 +43,27 @@ class KontextConfigManager {
             if (node.comfyClass === "KontextSuperPrompt") {
                 this.enhanceKontextNode(node);
             }
+        };
+
+        // 监听工作流加载事件
+        const originalLoadGraph = app.loadGraphData;
+        app.loadGraphData = (graphData) => {
+            const result = originalLoadGraph.call(app, graphData);
+            
+            // 工作流加载后，延迟恢复所有KontextSuperPrompt节点的设置
+            setTimeout(() => {
+                this.restoreAllNodeSettings();
+            }, 500);
+            
+            return result;
+        };
+
+        // 监听图形变化事件
+        app.graph.onGraphChanged = () => {
+            // 每次图形变化时检查和恢复设置
+            setTimeout(() => {
+                this.restoreAllNodeSettings();
+            }, 100);
         };
 
         // 处理现有节点
@@ -381,6 +407,185 @@ class KontextConfigManager {
         }
         
         return false;
+    }
+
+    async restoreAllNodeSettings() {
+        """恢复所有KontextSuperPrompt节点的保存设置"""
+        if (!app.graph || !app.graph._nodes) return;
+        
+        for (const node of app.graph._nodes) {
+            if (node.comfyClass === "KontextSuperPrompt") {
+                await this.restoreNodeSettings(node);
+            }
+        }
+    }
+
+    async restoreNodeSettings(node) {
+        """恢复单个节点的保存设置"""
+        try {
+            // 获取保存的设置
+            const apiSettings = await this.loadSavedSettings();
+            
+            // 恢复API提供商
+            const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
+            if (apiProviderWidget && apiSettings.last_provider) {
+                if (apiProviderWidget.value !== apiSettings.last_provider) {
+                    apiProviderWidget.value = apiSettings.last_provider;
+                    console.log(`[Kontext] 恢复API提供商: ${apiSettings.last_provider}`);
+                }
+            }
+            
+            // 恢复API密钥
+            const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
+            if (apiKeyWidget && apiProviderWidget) {
+                const provider = apiProviderWidget.value || "siliconflow";
+                const savedKey = await this.loadApiKey(provider);
+                
+                if (savedKey && savedKey.trim() !== "") {
+                    if (apiKeyWidget.value !== savedKey) {
+                        apiKeyWidget.value = savedKey;
+                        console.log(`[Kontext] 恢复 ${provider} API密钥`);
+                    }
+                }
+            }
+            
+            // 恢复其他API设置
+            const apiModelWidget = node.widgets?.find(w => w.name === "api_model");
+            if (apiModelWidget && apiSettings.last_model) {
+                if (apiModelWidget.value !== apiSettings.last_model) {
+                    apiModelWidget.value = apiSettings.last_model;
+                }
+            }
+            
+            const apiEditingIntentWidget = node.widgets?.find(w => w.name === "api_editing_intent");
+            if (apiEditingIntentWidget && apiSettings.last_editing_intent) {
+                if (apiEditingIntentWidget.value !== apiSettings.last_editing_intent) {
+                    apiEditingIntentWidget.value = apiSettings.last_editing_intent;
+                }
+            }
+            
+            const apiProcessingStyleWidget = node.widgets?.find(w => w.name === "api_processing_style");
+            if (apiProcessingStyleWidget && apiSettings.last_processing_style) {
+                if (apiProcessingStyleWidget.value !== apiSettings.last_processing_style) {
+                    apiProcessingStyleWidget.value = apiSettings.last_processing_style;
+                }
+            }
+            
+            // 恢复选项卡模式
+            const tabModeWidget = node.widgets?.find(w => w.name === "tab_mode");
+            if (tabModeWidget && apiSettings.last_tab) {
+                if (tabModeWidget.value !== apiSettings.last_tab) {
+                    tabModeWidget.value = apiSettings.last_tab;
+                }
+            }
+            
+        } catch (error) {
+            console.log(`[Kontext] 恢复节点设置失败:`, error);
+        }
+    }
+
+    async loadSavedSettings() {
+        """加载保存的设置"""
+        try {
+            const response = await fetch('/kontext_api/get_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.settings || {};
+            }
+        } catch (error) {
+            console.log('[Kontext] 无法加载保存的设置:', error);
+        }
+        
+        return {};
+    }
+
+    startMonitoring() {
+        """启动持续监控，每2秒检查一次节点设置"""
+        if (this.monitoringTimer) {
+            clearInterval(this.monitoringTimer);
+        }
+        
+        this.monitoringTimer = setInterval(async () => {
+            await this.checkAndRestoreSettings();
+        }, 2000); // 每2秒检查一次
+        
+        console.log("[Kontext] 设置监控已启动");
+    }
+
+    async checkAndRestoreSettings() {
+        """检查并恢复所有节点的设置"""
+        if (!app.graph || !app.graph._nodes) return;
+        
+        for (const node of app.graph._nodes) {
+            if (node.comfyClass === "KontextSuperPrompt") {
+                await this.checkAndRestoreNodeSettings(node);
+            }
+        }
+    }
+
+    async checkAndRestoreNodeSettings(node) {
+        """检查并恢复单个节点的设置"""
+        try {
+            const apiProviderWidget = node.widgets?.find(w => w.name === "api_provider");
+            const apiKeyWidget = node.widgets?.find(w => w.name === "api_key");
+            
+            if (!apiProviderWidget || !apiKeyWidget) return;
+            
+            // 如果设置被重置了，就恢复它们
+            const needsRestore = 
+                !apiKeyWidget.value || 
+                apiKeyWidget.value.trim() === "" ||
+                apiProviderWidget.value === "siliconflow"; // 默认值说明被重置了
+            
+            if (needsRestore) {
+                // 加载保存的设置
+                const settings = await this.loadSavedSettings();
+                
+                // 恢复API提供商
+                if (settings.last_provider && apiProviderWidget.value !== settings.last_provider) {
+                    apiProviderWidget.value = settings.last_provider;
+                    console.log(`[Kontext] 自动恢复API提供商: ${settings.last_provider}`);
+                }
+                
+                // 恢复API密钥
+                const provider = apiProviderWidget.value || settings.last_provider || "siliconflow";
+                const savedKey = await this.loadApiKey(provider);
+                
+                if (savedKey && savedKey.trim() !== "" && apiKeyWidget.value !== savedKey) {
+                    apiKeyWidget.value = savedKey;
+                    console.log(`[Kontext] 自动恢复 ${provider} API密钥`);
+                }
+                
+                // 恢复其他设置
+                const widgets = {
+                    'api_model': settings.last_model,
+                    'api_editing_intent': settings.last_editing_intent,
+                    'api_processing_style': settings.last_processing_style,
+                    'tab_mode': settings.last_tab
+                };
+                
+                for (const [widgetName, savedValue] of Object.entries(widgets)) {
+                    if (savedValue) {
+                        const widget = node.widgets?.find(w => w.name === widgetName);
+                        if (widget && widget.value !== savedValue) {
+                            widget.value = savedValue;
+                        }
+                    }
+                }
+            }
+            
+        } catch (error) {
+            // 静默处理错误，避免控制台刷屏
+            if (error.message && !error.message.includes('fetch')) {
+                console.log(`[Kontext] 检查节点设置时出错:`, error);
+            }
+        }
     }
 
     markKeyAsSaved(node, key) {
