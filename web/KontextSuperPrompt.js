@@ -2523,6 +2523,7 @@ class KontextSuperPrompt {
             { value: 'zhipu', text: '智谱AI (GLM)' },
             { value: 'moonshot', text: 'Moonshot (Kimi)' },
             { value: 'gemini', text: 'Google Gemini' },
+            { value: 'claude', text: 'Claude (Anthropic)' },
             { value: 'openai', text: 'OpenAI' }
         ];
         providerOptions.forEach(provider => {
@@ -2571,6 +2572,7 @@ class KontextSuperPrompt {
             'zhipu': ['glm-4', 'glm-4-flash', 'glm-4-plus', 'glm-4v', 'glm-4v-plus'],
             'moonshot': ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
             'gemini': ['gemini-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+            'claude': ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
             'openai': ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o1-preview']
         };
         
@@ -2621,6 +2623,12 @@ class KontextSuperPrompt {
         // 监听提供商变化
         providerSelect.addEventListener('change', () => {
             updateModelList(providerSelect.value);
+            // 保存到当前标签页数据
+            if (this.currentTabData) {
+                this.currentTabData.apiProvider = providerSelect.value;
+                this.saveCurrentDataToWidgets();
+                this.notifyNodeUpdate();
+            }
         });
 
         // 监听API key变化，自动更新模型列表
@@ -2635,6 +2643,22 @@ class KontextSuperPrompt {
                     updateModelList(provider);
                 }
             }, 1000); // 1秒延迟
+            
+            // 立即保存到当前标签页数据
+            if (this.currentTabData) {
+                this.currentTabData.apiKey = keyInput.value;
+                this.saveCurrentDataToWidgets();
+                this.notifyNodeUpdate();
+            }
+        });
+        
+        // 监听模型选择变化
+        modelSelect.addEventListener('change', () => {
+            if (this.currentTabData) {
+                this.currentTabData.apiModel = modelSelect.value;
+                this.saveCurrentDataToWidgets();
+                this.notifyNodeUpdate();
+            }
         });
 
         // 编辑意图选择
@@ -2737,6 +2761,24 @@ class KontextSuperPrompt {
         section.appendChild(intentRow);
         section.appendChild(styleRow);
 
+        // 添加编辑意图选择事件监听
+        intentSelect.addEventListener('change', () => {
+            if (this.currentTabData) {
+                this.currentTabData.apiIntent = intentSelect.value;
+                this.saveCurrentDataToWidgets();
+                this.notifyNodeUpdate();
+            }
+        });
+
+        // 添加处理风格选择事件监听
+        styleSelect.addEventListener('change', () => {
+            if (this.currentTabData) {
+                this.currentTabData.apiStyle = styleSelect.value;
+                this.saveCurrentDataToWidgets();
+                this.notifyNodeUpdate();
+            }
+        });
+
         // 保存配置到实例
         this.apiConfig = {
             providerSelect,
@@ -2745,6 +2787,13 @@ class KontextSuperPrompt {
             intentSelect,
             styleSelect
         };
+
+        // 存储为类属性，以便恢复数据时访问
+        this.apiProviderSelect = providerSelect;
+        this.apiKeyInput = keyInput;
+        this.apiModelSelect = modelSelect;
+        this.apiIntentSelect = intentSelect;
+        this.apiStyleSelect = styleSelect;
 
         return section;
     }
@@ -3911,7 +3960,6 @@ class KontextSuperPrompt {
     restoreDataFromWidgets() {
         // 从已序列化的widget中恢复数据
         if (!this.node.widgets) {
-            console.log('[KontextSuperPrompt] 没有找到widgets，跳过数据恢复');
             return;
         }
         
@@ -3961,6 +4009,57 @@ class KontextSuperPrompt {
                     } catch (e) {
                         console.warn(`[Kontext Super Prompt] 恢复${tab}修饰提示词失败:`, e);
                     }
+                }
+            }
+            
+            // 恢复API选项卡的特殊字段
+            if (tab === 'api') {
+                const providerWidget = this.node.widgets.find(w => w.name === 'api_provider');
+                const keyWidget = this.node.widgets.find(w => w.name === 'api_key');
+                const modelWidget = this.node.widgets.find(w => w.name === 'api_model');
+                
+                if (providerWidget && providerWidget.value) {
+                    this.tabData.api.apiProvider = providerWidget.value;
+                    restoredCount++;
+                }
+                
+                if (keyWidget && keyWidget.value) {
+                    this.tabData.api.apiKey = keyWidget.value;
+                    restoredCount++;
+                }
+                
+                if (modelWidget && modelWidget.value) {
+                    this.tabData.api.apiModel = modelWidget.value;
+                    restoredCount++;
+                }
+                
+                const intentWidget = this.node.widgets.find(w => w.name === 'api_intent');
+                const styleWidget = this.node.widgets.find(w => w.name === 'api_style');
+                
+                if (intentWidget && intentWidget.value) {
+                    this.tabData.api.apiIntent = intentWidget.value;
+                    restoredCount++;
+                }
+                
+                if (styleWidget && styleWidget.value) {
+                    this.tabData.api.apiStyle = styleWidget.value;
+                    restoredCount++;
+                }
+            }
+            
+            // 恢复Ollama选项卡的特殊字段
+            if (tab === 'ollama') {
+                const urlWidget = this.node.widgets.find(w => w.name === 'ollama_url');
+                const modelWidget = this.node.widgets.find(w => w.name === 'ollama_model');
+                
+                if (urlWidget && urlWidget.value) {
+                    this.tabData.ollama.ollamaUrl = urlWidget.value;
+                    restoredCount++;
+                }
+                
+                if (modelWidget && modelWidget.value) {
+                    this.tabData.ollama.ollamaModel = modelWidget.value;
+                    restoredCount++;
                 }
             }
         });
@@ -4055,6 +4154,47 @@ class KontextSuperPrompt {
                         }
                     });
                 }, 50);
+            }
+        }
+        
+        // 恢复API选项卡的特殊UI
+        if (this.currentCategory === 'api') {
+            // 恢复API提供商选择
+            if (this.currentTabData.apiProvider && this.apiProviderSelect) {
+                this.apiProviderSelect.value = this.currentTabData.apiProvider;
+            }
+            
+            // 恢复API密钥
+            if (this.currentTabData.apiKey && this.apiKeyInput) {
+                this.apiKeyInput.value = this.currentTabData.apiKey;
+            }
+            
+            // 恢复API模型选择
+            if (this.currentTabData.apiModel && this.apiModelSelect) {
+                this.apiModelSelect.value = this.currentTabData.apiModel;
+            }
+            
+            // 恢复API编辑意图选择
+            if (this.currentTabData.apiIntent && this.apiIntentSelect) {
+                this.apiIntentSelect.value = this.currentTabData.apiIntent;
+            }
+            
+            // 恢复API处理风格选择
+            if (this.currentTabData.apiStyle && this.apiStyleSelect) {
+                this.apiStyleSelect.value = this.currentTabData.apiStyle;
+            }
+        }
+        
+        // 恢复Ollama选项卡的特殊UI
+        if (this.currentCategory === 'ollama') {
+            // 恢复Ollama URL
+            if (this.currentTabData.ollamaUrl && this.ollamaUrlInput) {
+                this.ollamaUrlInput.value = this.currentTabData.ollamaUrl;
+            }
+            
+            // 恢复Ollama模型选择
+            if (this.currentTabData.ollamaModel && this.ollamaModelSelect) {
+                this.ollamaModelSelect.value = this.currentTabData.ollamaModel;
             }
         }
     }
@@ -5035,6 +5175,11 @@ class KontextSuperPrompt {
             // API选项卡
             { name: 'api_description', value: this.tabData.api.description || '' },
             { name: 'api_generated_prompt', value: this.tabData.api.generatedPrompt || '' },
+            { name: 'api_provider', value: this.tabData.api.apiProvider || 'siliconflow' },
+            { name: 'api_key', value: this.tabData.api.apiKey || '' },
+            { name: 'api_model', value: this.tabData.api.apiModel || 'deepseek-ai/DeepSeek-V3' },
+            { name: 'api_intent', value: this.tabData.api.apiIntent || 'general_editing' },
+            { name: 'api_style', value: this.tabData.api.apiStyle || 'auto_smart' },
             
             // Ollama选项卡
             { name: 'ollama_description', value: this.tabData.ollama.description || '' },
@@ -6206,7 +6351,7 @@ Create English editing prompt:`;
 
     // 检查API提供商是否支持动态模型获取
     supportsDynamicModels(provider) {
-        const dynamicProviders = ['openai', 'gemini', 'siliconflow', 'deepseek', 'qianwen', 'zhipu', 'moonshot'];
+        const dynamicProviders = ['openai', 'gemini', 'siliconflow', 'deepseek', 'qianwen', 'zhipu', 'moonshot', 'claude'];
         return dynamicProviders.includes(provider);
     }
 
@@ -6227,6 +6372,25 @@ Create English editing prompt:`;
                         models.push(modelName);
                     }
                 }
+                
+                return models.length > 0 ? models : null;
+                
+            } else if (provider === 'claude') {
+                // Claude API特殊处理
+                const response = await fetch('https://api.anthropic.com/v1/models', {
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                // Claude API返回的格式可能是 { data: [models] } 或直接是模型数组
+                const modelList = data.data || data;
+                const models = modelList?.map(model => model.id || model.name) || [];
                 
                 return models.length > 0 ? models : null;
                 

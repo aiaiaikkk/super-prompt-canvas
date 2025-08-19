@@ -1,7 +1,7 @@
 """
 kontext-super-prompt - ComfyUI Custom Nodes
 
-Version: 1.3.5
+Version: 1.4.0
 Author: aiaiaikkk
 Repository: https://github.com/aiaiaikkk/kontext-super-prompt
 License: MIT
@@ -20,7 +20,7 @@ except ImportError as e:
     print("[Kontext-Super-Prompt] 💡 请通过ComfyUI Manager重新安装")
 
 # Version information
-__version__ = "1.3.5"
+__version__ = "1.4.0"
 __author__ = "aiaiaikkk"
 __description__ = "ComfyUI Custom Nodes for Image Editing Prompt Generation"
 

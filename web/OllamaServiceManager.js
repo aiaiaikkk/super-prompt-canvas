@@ -344,4 +344,4 @@ app.registerExtension({
     }
 });
 
-console.log("[Ollama Service Manager] 🦙 UI扩展已注册");
+// Ollama Service Manager UI extension loaded
