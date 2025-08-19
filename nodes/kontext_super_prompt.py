@@ -22,14 +22,8 @@ from datetime import datetime
 # 添加节点目录到系统路径以导入其他节点
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 导入配置管理器
-try:
-    from config_manager import config_manager, get_api_key, save_api_key, get_api_settings, save_api_settings
-    CONFIG_AVAILABLE = True
-    print("[Kontext Super Prompt] Configuration manager loaded successfully")
-except ImportError as e:
-    CONFIG_AVAILABLE = False
-    print(f"[Kontext Super Prompt] Configuration manager not available: {e}")
+# 配置管理器已移除，API密钥需要每次手动输入
+CONFIG_AVAILABLE = False
 
 # 方案A专业引导词库
 GUIDANCE_LIBRARY_A = {
@@ -338,13 +332,50 @@ class KontextSuperPrompt:
                 "image": ("IMAGE",),
             },
             "optional": {
-                # 关键参数移到optional以支持序列化
-                "description": ("STRING", {"default": "", "multiline": True}),
+                # 为每个选项卡创建独立的数据字段以支持持久化
+                # 局部编辑选项卡
+                "local_description": ("STRING", {"default": "", "multiline": True}),
+                "local_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "local_operation_type": ("STRING", {"default": "add_object"}),
+                "local_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "local_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 全局编辑选项卡
+                "global_description": ("STRING", {"default": "", "multiline": True}),
+                "global_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "global_operation_type": ("STRING", {"default": "global_color_grade"}),
+                "global_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "global_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 文字编辑选项卡
+                "text_description": ("STRING", {"default": "", "multiline": True}),
+                "text_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "text_operation_type": ("STRING", {"default": "text_add"}),
+                "text_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "text_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 专业操作选项卡
+                "professional_description": ("STRING", {"default": "", "multiline": True}),
+                "professional_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "professional_operation_type": ("STRING", {"default": "geometric_warp"}),
+                "professional_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "professional_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # API选项卡
+                "api_description": ("STRING", {"default": "", "multiline": True}),
+                "api_generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
                 "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
                 "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
+                
+                # Ollama选项卡
+                "ollama_description": ("STRING", {"default": "", "multiline": True}),
+                "ollama_generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
                 "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
+                
+                # 兼容旧版本 - 保留原始字段
+                "description": ("STRING", {"default": "", "multiline": True}),
                 "generated_prompt": ("STRING", {"default": "", "multiline": True}),
             },
             "hidden": {
@@ -438,10 +469,27 @@ class KontextSuperPrompt:
         return change_string
     
     def process_super_prompt(self, layer_info, image, 
-                           # Optional参数（会被序列化）
-                           description="", api_provider="siliconflow", api_key="", 
-                           api_model="deepseek-ai/DeepSeek-V3", ollama_url="http://127.0.0.1:11434", 
-                           ollama_model="", generated_prompt="",
+                           # Optional参数 - 每个选项卡的独立数据
+                           # 局部编辑
+                           local_description="", local_generated_prompt="", local_operation_type="add_object",
+                           local_selected_constraints="", local_selected_decoratives="",
+                           # 全局编辑
+                           global_description="", global_generated_prompt="", global_operation_type="global_color_grade",
+                           global_selected_constraints="", global_selected_decoratives="",
+                           # 文字编辑
+                           text_description="", text_generated_prompt="", text_operation_type="text_add",
+                           text_selected_constraints="", text_selected_decoratives="",
+                           # 专业操作
+                           professional_description="", professional_generated_prompt="", professional_operation_type="geometric_warp",
+                           professional_selected_constraints="", professional_selected_decoratives="",
+                           # API选项卡
+                           api_description="", api_generated_prompt="",
+                           api_provider="siliconflow", api_key="", api_model="deepseek-ai/DeepSeek-V3",
+                           # Ollama选项卡
+                           ollama_description="", ollama_generated_prompt="",
+                           ollama_url="http://127.0.0.1:11434", ollama_model="",
+                           # 兼容旧版本
+                           description="", generated_prompt="",
                            # Hidden参数
                            tab_mode="manual", unique_id="", edit_mode="局部编辑", 
                            operation_type="", constraint_prompts="", 

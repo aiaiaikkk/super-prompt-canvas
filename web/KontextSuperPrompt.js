@@ -1543,8 +1543,8 @@ class KontextSuperPrompt {
         // 设置事件监听
         this.setupEventListeners();
         
-        // 首先尝试从已存在的widget中恢复数据（这些是序列化后保存的）
-        this.restoreDataFromWidgets();
+        // 注意：不在这里调用 restoreDataFromWidgets，因为UI组件还没创建
+        // 数据恢复将在 onConfigure 中处理
         
         // 初始化隐藏widget（从localStorage恢复API设置）
         const initData = {
@@ -1566,7 +1566,6 @@ class KontextSuperPrompt {
                 const savedKey = window.kontextAPIManager.getKey(savedProvider);
                 if (savedKey) {
                     initData.api_key = savedKey;
-                    console.log('[KontextSuperPrompt] 初始化时恢复API设置');
                 }
             }
         }
@@ -3547,6 +3546,10 @@ class KontextSuperPrompt {
 
     selectOperationType(operationType) {
         this.currentOperationType = operationType;
+        // 同时保存到当前选项卡的数据中
+        if (this.currentTabData) {
+            this.currentTabData.operationType = operationType;
+        }
         this.updateOperationButtons();
         
         // 获取当前选项卡的容器
@@ -3789,6 +3792,10 @@ class KontextSuperPrompt {
         this.selectedConstraints = Array.from(checkboxes).map(cb => 
             cb.nextElementSibling.textContent
         );
+        // 同时更新到当前选项卡数据中
+        if (this.currentTabData) {
+            this.currentTabData.selectedConstraints = this.selectedConstraints;
+        }
         this.notifyNodeUpdate();
     }
 
@@ -3797,6 +3804,10 @@ class KontextSuperPrompt {
         this.selectedDecoratives = Array.from(checkboxes).map(cb => 
             cb.nextElementSibling.textContent
         );
+        // 同时更新到当前选项卡数据中
+        if (this.currentTabData) {
+            this.currentTabData.selectedDecoratives = this.selectedDecoratives;
+        }
         this.notifyNodeUpdate();
     }
     
@@ -3837,6 +3848,8 @@ class KontextSuperPrompt {
             const constraintCheckboxes = this.constraintContainer.querySelectorAll('input[type="checkbox"]:checked');
             const newConstraints = Array.from(constraintCheckboxes).map(cb => cb.nextElementSibling.textContent);
             this.selectedConstraints = newConstraints;
+            // 同时更新到当前选项卡数据中
+            this.currentTabData.selectedConstraints = newConstraints;
         } else {
             console.warn("[Kontext Super Prompt] 约束容器不存在");
         }
@@ -3846,6 +3859,8 @@ class KontextSuperPrompt {
             const decorativeCheckboxes = this.decorativeContainer.querySelectorAll('input[type="checkbox"]:checked');
             const newDecoratives = Array.from(decorativeCheckboxes).map(cb => cb.nextElementSibling.textContent);
             this.selectedDecoratives = newDecoratives;
+            // 同时更新到当前选项卡数据中
+            this.currentTabData.selectedDecoratives = newDecoratives;
         } else {
             console.warn("[Kontext Super Prompt] 修饰容器不存在");
         }
@@ -3895,39 +3910,64 @@ class KontextSuperPrompt {
     
     restoreDataFromWidgets() {
         // 从已序列化的widget中恢复数据
-        if (!this.node.widgets) return;
+        if (!this.node.widgets) {
+            console.log('[KontextSuperPrompt] 没有找到widgets，跳过数据恢复');
+            return;
+        }
         
-        const descWidget = this.node.widgets.find(w => w.name === 'description');
-        const genWidget = this.node.widgets.find(w => w.name === 'generated_prompt');
-        const constrWidget = this.node.widgets.find(w => w.name === 'constraint_prompts');
-        const decorWidget = this.node.widgets.find(w => w.name === 'decorative_prompts');
+        // 恢复每个选项卡的数据
+        const tabs = ['local', 'global', 'text', 'professional', 'api', 'ollama'];
+        let restoredCount = 0;
+        
+        tabs.forEach(tab => {
+            // 恢复描述和生成的提示词
+            const descWidget = this.node.widgets.find(w => w.name === `${tab}_description`);
+            const genWidget = this.node.widgets.find(w => w.name === `${tab}_generated_prompt`);
+            
+            if (descWidget && descWidget.value) {
+                this.tabData[tab].description = descWidget.value;
+                restoredCount++;
+            }
+            
+            if (genWidget && genWidget.value) {
+                this.tabData[tab].generatedPrompt = genWidget.value;
+                restoredCount++;
+            }
+            
+            // 恢复操作类型（前四个选项卡）
+            if (['local', 'global', 'text', 'professional'].includes(tab)) {
+                const opTypeWidget = this.node.widgets.find(w => w.name === `${tab}_operation_type`);
+                const constrWidget = this.node.widgets.find(w => w.name === `${tab}_selected_constraints`);
+                const decorWidget = this.node.widgets.find(w => w.name === `${tab}_selected_decoratives`);
+                
+                if (opTypeWidget && opTypeWidget.value) {
+                    this.tabData[tab].operationType = opTypeWidget.value;
+                    restoredCount++;
+                }
+                
+                if (constrWidget && constrWidget.value) {
+                    try {
+                        this.tabData[tab].selectedConstraints = constrWidget.value.split('\n').filter(s => s.trim());
+                        restoredCount++;
+                    } catch (e) {
+                        console.warn(`[Kontext Super Prompt] 恢复${tab}约束提示词失败:`, e);
+                    }
+                }
+                
+                if (decorWidget && decorWidget.value) {
+                    try {
+                        this.tabData[tab].selectedDecoratives = decorWidget.value.split('\n').filter(s => s.trim());
+                        restoredCount++;
+                    } catch (e) {
+                        console.warn(`[Kontext Super Prompt] 恢复${tab}修饰提示词失败:`, e);
+                    }
+                }
+            }
+        });
+        
+        // 恢复系统字段
         const editModeWidget = this.node.widgets.find(w => w.name === 'edit_mode');
         const opTypeWidget = this.node.widgets.find(w => w.name === 'operation_type');
-        
-        // 恢复数据
-        if (descWidget && descWidget.value) {
-            this.description = descWidget.value;
-        }
-        
-        if (genWidget && genWidget.value) {
-            this.generatedPrompt = genWidget.value;
-        }
-        
-        if (constrWidget && constrWidget.value) {
-            try {
-                this.selectedConstraints = constrWidget.value.split('\n').filter(s => s.trim());
-            } catch (e) {
-                console.warn('[Kontext Super Prompt] 恢复约束提示词失败:', e);
-            }
-        }
-        
-        if (decorWidget && decorWidget.value) {
-            try {
-                this.selectedDecoratives = decorWidget.value.split('\n').filter(s => s.trim());
-            } catch (e) {
-                console.warn('[Kontext Super Prompt] 恢复修饰提示词失败:', e);
-            }
-        }
         
         if (editModeWidget && editModeWidget.value) {
             this.currentEditMode = editModeWidget.value;
@@ -3937,7 +3977,86 @@ class KontextSuperPrompt {
             this.currentOperationType = opTypeWidget.value;
         }
         
-        console.log('[Kontext Super Prompt] 已从widget恢复数据');
+        // 兼容旧版本：如果没有新字段，从旧字段恢复
+        const oldDescWidget = this.node.widgets.find(w => w.name === 'description');
+        const oldGenWidget = this.node.widgets.find(w => w.name === 'generated_prompt');
+        
+        if (oldDescWidget && oldDescWidget.value && !this.tabData.local.description) {
+            // 如果旧字段有值但新字段没有，恢复到当前选项卡
+            this.tabData[this.currentCategory].description = oldDescWidget.value;
+            restoredCount++;
+        }
+        
+        if (oldGenWidget && oldGenWidget.value && !this.tabData.local.generatedPrompt) {
+            this.tabData[this.currentCategory].generatedPrompt = oldGenWidget.value;
+            restoredCount++;
+        }
+        
+        // 恢复到UI中
+        this.restoreDataToUI();
+    }
+    
+    restoreDataToUI() {
+        // 将恢复的数据同步到UI组件中
+        
+        // 更新当前选项卡的数据访问器
+        this.currentTabData = this.tabData[this.currentCategory];
+        
+        // 恢复当前选项卡的输入框内容
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        // 恢复描述输入框
+        const descTextarea = currentPanel.querySelector('textarea[data-tab="' + this.currentCategory + '"]');
+        if (descTextarea && this.currentTabData.description) {
+            descTextarea.value = this.currentTabData.description;
+        }
+        
+        // 恢复预览框
+        const previewTextarea = currentPanel.querySelector('.generate-section textarea[data-tab="' + this.currentCategory + '"]');
+        if (previewTextarea && this.currentTabData.generatedPrompt) {
+            previewTextarea.value = this.currentTabData.generatedPrompt;
+        }
+        
+        // 恢复操作类型选择
+        if (this.currentTabData.operationType) {
+            const operationSelect = currentPanel.querySelector('.operation-select');
+            if (operationSelect) {
+                operationSelect.value = this.currentTabData.operationType;
+                this.currentOperationType = this.currentTabData.operationType;
+            }
+        }
+        
+        // 恢复约束和修饰提示词选择
+        if (['local', 'global', 'text', 'professional'].includes(this.currentCategory)) {
+            this.updatePromptContainers();
+            
+            // 重新显示选中的约束提示词
+            if (this.currentTabData.selectedConstraints && this.currentTabData.selectedConstraints.length > 0) {
+                this.loadDefaultPrompts(); // 先加载默认提示词
+                // 然后标记已选择的
+                setTimeout(() => {
+                    this.currentTabData.selectedConstraints.forEach(prompt => {
+                        const button = this.constraintContainer?.querySelector(`button[data-prompt="${prompt}"]`);
+                        if (button) {
+                            button.classList.add('selected');
+                        }
+                    });
+                }, 50);
+            }
+            
+            // 重新显示选中的修饰提示词
+            if (this.currentTabData.selectedDecoratives && this.currentTabData.selectedDecoratives.length > 0) {
+                setTimeout(() => {
+                    this.currentTabData.selectedDecoratives.forEach(prompt => {
+                        const button = this.decorativeContainer?.querySelector(`button[data-prompt="${prompt}"]`);
+                        if (button) {
+                            button.classList.add('selected');
+                        }
+                    });
+                }, 50);
+            }
+        }
     }
 
     updateLayerInfo(layerInfo) {
@@ -4755,19 +4874,24 @@ class KontextSuperPrompt {
         // 生成综合提示词
         let generatedPromptParts = [];
         
-        
         // 添加操作类型模板（如果有模板，则使用模板并集成描述；否则只使用描述）
-        if (this.currentOperationType && KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType]) {
-            const template = KSP_NS.constants.OPERATION_TEMPLATES[this.currentOperationType];
+        const operationType = this.currentTabData.operationType || this.currentOperationType;
+        if (operationType && KSP_NS.constants.OPERATION_TEMPLATES[operationType]) {
+            const template = KSP_NS.constants.OPERATION_TEMPLATES[operationType];
             
             if (template.template) {
                 // 如果有描述，先翻译成英文再整合到模板中
-                if (this.description && this.description.trim()) {
+                if (this.currentTabData.description && this.currentTabData.description.trim()) {
                     // 翻译中文描述为英文
-                    let englishDescription = this.translateToEnglish(this.description.trim());
+                    let englishDescription = this.translateToEnglish(this.currentTabData.description.trim());
                     
-                    // 不使用模板，直接使用翻译后的描述
-                    generatedPromptParts.push(englishDescription);
+                    // 使用模板并整合描述
+                    let templateWithDescription = template.template
+                        .replace('{target}', englishDescription)
+                        .replace('{object}', 'image')
+                        .replace('{new_color}', 'desired color')
+                        .replace('{style}', 'desired style');
+                    generatedPromptParts.push(templateWithDescription);
                 } else {
                     // 如果没有描述，使用默认值
                     let defaultTemplate = template.template
@@ -4855,11 +4979,6 @@ class KontextSuperPrompt {
             ...data
         };
         
-        console.log('[KontextSuperPrompt] 合并数据:', {
-            提供的新数据: Object.keys(data),
-            保留的现有数据: Object.keys(currentValues),
-            最终数据: Object.keys(mergedData)
-        });
         
         // 创建或更新隐藏的widget来传递数据给后端
         this.createHiddenWidgets(mergedData);
@@ -4876,16 +4995,55 @@ class KontextSuperPrompt {
             this.node.widgets = [];
         }
         
-        // 定义要传递的数据字段
+        // 为每个选项卡创建独立的widgets
         const widgetFields = [
+            // 系统字段
             { name: 'tab_mode', value: data.tab_mode || 'manual' },
             { name: 'edit_mode', value: data.edit_mode || '局部编辑' },
             { name: 'operation_type', value: data.operation_type || '' },
+            { name: 'selected_layers', value: data.selected_layers || '' },
+            { name: 'auto_generate', value: data.auto_generate !== false },
+            
+            // 局部编辑选项卡
+            { name: 'local_description', value: this.tabData.local.description || '' },
+            { name: 'local_generated_prompt', value: this.tabData.local.generatedPrompt || '' },
+            { name: 'local_operation_type', value: this.tabData.local.operationType || 'add_object' },
+            { name: 'local_selected_constraints', value: this.tabData.local.selectedConstraints.join('\n') || '' },
+            { name: 'local_selected_decoratives', value: this.tabData.local.selectedDecoratives.join('\n') || '' },
+            
+            // 全局编辑选项卡
+            { name: 'global_description', value: this.tabData.global.description || '' },
+            { name: 'global_generated_prompt', value: this.tabData.global.generatedPrompt || '' },
+            { name: 'global_operation_type', value: this.tabData.global.operationType || 'global_color_grade' },
+            { name: 'global_selected_constraints', value: this.tabData.global.selectedConstraints.join('\n') || '' },
+            { name: 'global_selected_decoratives', value: this.tabData.global.selectedDecoratives.join('\n') || '' },
+            
+            // 文字编辑选项卡
+            { name: 'text_description', value: this.tabData.text.description || '' },
+            { name: 'text_generated_prompt', value: this.tabData.text.generatedPrompt || '' },
+            { name: 'text_operation_type', value: this.tabData.text.operationType || 'text_add' },
+            { name: 'text_selected_constraints', value: this.tabData.text.selectedConstraints.join('\n') || '' },
+            { name: 'text_selected_decoratives', value: this.tabData.text.selectedDecoratives.join('\n') || '' },
+            
+            // 专业操作选项卡
+            { name: 'professional_description', value: this.tabData.professional.description || '' },
+            { name: 'professional_generated_prompt', value: this.tabData.professional.generatedPrompt || '' },
+            { name: 'professional_operation_type', value: this.tabData.professional.operationType || 'geometric_warp' },
+            { name: 'professional_selected_constraints', value: this.tabData.professional.selectedConstraints.join('\n') || '' },
+            { name: 'professional_selected_decoratives', value: this.tabData.professional.selectedDecoratives.join('\n') || '' },
+            
+            // API选项卡
+            { name: 'api_description', value: this.tabData.api.description || '' },
+            { name: 'api_generated_prompt', value: this.tabData.api.generatedPrompt || '' },
+            
+            // Ollama选项卡
+            { name: 'ollama_description', value: this.tabData.ollama.description || '' },
+            { name: 'ollama_generated_prompt', value: this.tabData.ollama.generatedPrompt || '' },
+            
+            // 兼容旧版本
             { name: 'description', value: data.description || '' },
             { name: 'constraint_prompts', value: data.constraint_prompts || '' },
             { name: 'decorative_prompts', value: data.decorative_prompts || '' },
-            { name: 'selected_layers', value: data.selected_layers || '' },
-            { name: 'auto_generate', value: data.auto_generate !== false },
             { name: 'generated_prompt', value: data.generated_prompt || '' },
             // API参数
             { name: 'api_provider', value: data.api_provider || 'siliconflow' },
@@ -5542,7 +5700,6 @@ Please generate a professional English prompt that is creative and unique. Outpu
                 const defaultRemoteUrl = `${window.location.protocol}//${window.location.hostname.replace('-80', '-11434')}`;
                 if (ollamaUrl === 'http://127.0.0.1:11434') {
                     ollamaUrl = defaultRemoteUrl;
-                    console.log(`[Ollama Debug] 检测到远程环境，自动切换到: ${ollamaUrl}`);
                 }
             }
             const temperature = parseFloat(this.ollamaTempInput?.value || '0.7');
@@ -5550,7 +5707,6 @@ Please generate a professional English prompt that is creative and unique. Outpu
             const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
             const customGuidance = this.ollamaGuidanceTextarea?.value || '';
             
-            console.log(`[Ollama Debug] 用户选择 - 编辑意图: ${editingIntent}, 处理风格: ${processingStyle}`);
             
             // 添加随机性确保每次生成不同结果
             const randomSeed = Math.floor(Math.random() * 1000000);
@@ -5560,7 +5716,6 @@ Please generate a professional English prompt that is creative and unique. Outpu
             const intentGuide = this.getIntentGuidance(editingIntent);
             const styleGuide = this.getStyleGuidance(processingStyle);
             
-            console.log(`[Ollama Debug] 生成的引导词 - 意图: ${intentGuide}, 风格: ${styleGuide}`);
             
             // 尝试不同的提示词格式，根据模型大小调整复杂度
             let finalPrompt;
@@ -5597,9 +5752,6 @@ Create English editing prompt:`;
             this.tabData.ollama.generatedPrompt = `⚡ 正在调用本地 Ollama API... (${callTimestamp})`;
             this.updateCurrentTabPreview();
             
-            // 调试日志 - 打印实际发送的请求
-            console.log('[Ollama Debug] 发送请求体:', JSON.stringify(requestBody, null, 2));
-            console.log('[Ollama Debug] 请求URL:', `${ollamaUrl}/api/generate`);
             
             // 调用本地Ollama API - 使用generate端点
             const response = await fetch(`${ollamaUrl}/api/generate`, {
@@ -5620,8 +5772,6 @@ Create English editing prompt:`;
             
             const result = await response.json();
             
-            // 调试：打印完整响应结构
-            console.log('[Ollama Debug] 完整响应:', JSON.stringify(result, null, 2));
             
             // 提取生成的内容 - generate API使用result.response
             let generatedContent = '';
@@ -5656,7 +5806,6 @@ Create English editing prompt:`;
                 }
                 
                 if (!generatedContent) {
-                    console.log('[Ollama Debug] 模型返回空响应，启用智能备用方案');
                     // 提供基于方案A的智能备用方案，结合编辑意图和处理风格
                     const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
                     const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
@@ -5669,7 +5818,6 @@ Create English editing prompt:`;
             } else if (result.content) {
                 generatedContent = result.content;
             } else {
-                console.log('[Ollama Debug] 无法解析响应，可用字段:', Object.keys(result));
                 const editingIntent = this.ollamaIntentSelect?.value || 'general_editing';
                 const processingStyle = this.ollamaStyleSelect?.value || 'auto_smart';
                 generatedContent = this.generateSmartFallback(description, editingIntent, processingStyle);
@@ -5737,12 +5885,80 @@ Create English editing prompt:`;
     }
 
     notifyNodeUpdate() {
+        // 保存所有选项卡的数据到widgets以支持持久化
+        this.saveAllTabDataToWidgets();
+        
         // 通知ComfyUI节点需要更新
         if (this.node.onResize) {
             this.node.onResize();
         }
         
         app.graph.change();
+    }
+    
+    saveAllTabDataToWidgets() {
+        // 构建完整的数据对象，包含所有选项卡的数据
+        const allData = {
+            // 系统字段
+            tab_mode: 'manual',
+            edit_mode: this.currentEditMode,
+            operation_type: this.currentOperationType || '',
+            selected_layers: JSON.stringify(this.selectedLayers),
+            auto_generate: this.autoGenerate,
+            
+            // 局部编辑选项卡
+            local_description: this.tabData.local.description || '',
+            local_generated_prompt: this.tabData.local.generatedPrompt || '',
+            local_operation_type: this.tabData.local.operationType || 'add_object',
+            local_selected_constraints: this.tabData.local.selectedConstraints.join('\n') || '',
+            local_selected_decoratives: this.tabData.local.selectedDecoratives.join('\n') || '',
+            
+            // 全局编辑选项卡
+            global_description: this.tabData.global.description || '',
+            global_generated_prompt: this.tabData.global.generatedPrompt || '',
+            global_operation_type: this.tabData.global.operationType || 'global_color_grade',
+            global_selected_constraints: this.tabData.global.selectedConstraints.join('\n') || '',
+            global_selected_decoratives: this.tabData.global.selectedDecoratives.join('\n') || '',
+            
+            // 文字编辑选项卡
+            text_description: this.tabData.text.description || '',
+            text_generated_prompt: this.tabData.text.generatedPrompt || '',
+            text_operation_type: this.tabData.text.operationType || 'text_add',
+            text_selected_constraints: this.tabData.text.selectedConstraints.join('\n') || '',
+            text_selected_decoratives: this.tabData.text.selectedDecoratives.join('\n') || '',
+            
+            // 专业操作选项卡
+            professional_description: this.tabData.professional.description || '',
+            professional_generated_prompt: this.tabData.professional.generatedPrompt || '',
+            professional_operation_type: this.tabData.professional.operationType || 'geometric_warp',
+            professional_selected_constraints: this.tabData.professional.selectedConstraints.join('\n') || '',
+            professional_selected_decoratives: this.tabData.professional.selectedDecoratives.join('\n') || '',
+            
+            // API选项卡
+            api_description: this.tabData.api.description || '',
+            api_generated_prompt: this.tabData.api.generatedPrompt || '',
+            api_provider: this.tabData.api.apiProvider || 'siliconflow',
+            api_key: this.tabData.api.apiKey || '',
+            api_model: this.tabData.api.apiModel || 'deepseek-ai/DeepSeek-V3',
+            
+            // Ollama选项卡
+            ollama_description: this.tabData.ollama.description || '',
+            ollama_generated_prompt: this.tabData.ollama.generatedPrompt || '',
+            ollama_url: this.tabData.ollama.ollamaUrl || 'http://127.0.0.1:11434',
+            ollama_model: this.tabData.ollama.ollamaModel || '',
+            
+            // 兼容旧版本（使用当前选项卡的数据）
+            description: this.currentTabData.description || '',
+            generated_prompt: this.currentTabData.generatedPrompt || '',
+            constraint_prompts: this.currentTabData.selectedConstraints ? this.currentTabData.selectedConstraints.join('\n') : '',
+            decorative_prompts: this.currentTabData.selectedDecoratives ? this.currentTabData.selectedDecoratives.join('\n') : ''
+        };
+        
+        // 创建或更新widgets
+        this.createHiddenWidgets(allData);
+        
+        // 将数据存储到节点属性中，供serialize方法使用
+        this.node._kontextData = allData;
     }
 
     updateNodeSize() {
@@ -5854,7 +6070,6 @@ Create English editing prompt:`;
                 // 返回最长的英文句子
                 const longestSentence = englishSentences.reduce((a, b) => a.length > b.length ? a : b);
                 if (longestSentence.length > 30) {
-                    console.log('[API] 提取到英文句子:', longestSentence);
                     return longestSentence.trim();
                 }
             }
@@ -5866,7 +6081,6 @@ Create English editing prompt:`;
                 const validFragments = englishFragments.filter(f => f.length > 15);
                 if (validFragments.length > 0) {
                     const combined = validFragments.join(' ');
-                    console.log('[API] 组合英文片段:', combined);
                     return combined.trim();
                 }
             }
@@ -6258,6 +6472,28 @@ app.registerExtension({
                 
                 // 创建超级提示词编辑器实例
                 this.kontextSuperPrompt = new KontextSuperPrompt(this);
+                
+                // 添加配置恢复方法 - 这是关键的数据持久化机制
+                const originalOnConfigure = this.onConfigure;
+                this.onConfigure = function(info) {
+                    if (originalOnConfigure) {
+                        originalOnConfigure.apply(this, arguments);
+                    }
+                    
+                    // 恢复widget数据到UI
+                    if (this.kontextSuperPrompt && this.widgets && this.widgets.length > 0) {
+                        
+                        // 延迟恢复，确保UI已初始化
+                        setTimeout(() => {
+                            this.kontextSuperPrompt.restoreDataFromWidgets();
+                            
+                            // 恢复当前选项卡显示
+                            const currentTab = this.kontextSuperPrompt.currentCategory || 'local';
+                            this.kontextSuperPrompt.switchTab(currentTab);
+                            
+                        }, 100);
+                    }
+                };
                 
                 // 重写computeSize方法确保正确的节点大小
                 this.computeSize = function() {
