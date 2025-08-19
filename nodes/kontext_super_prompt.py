@@ -374,14 +374,14 @@ class KontextSuperPrompt:
                 "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
                 "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
                 
-                # 兼容旧版本 - 保留原始字段
+                # 兼容旧版本 - 保留描述字段
                 "description": ("STRING", {"default": "", "multiline": True}),
-                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
                 "tab_mode": (["manual", "api", "ollama"], {"default": ui_settings.get("last_tab", "manual")}),
                 "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
+                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 "operation_type": ("STRING", {"default": "", "multiline": False}),
                 "constraint_prompts": ("STRING", {"default": "", "multiline": True}),
                 "decorative_prompts": ("STRING", {"default": "", "multiline": True}),
