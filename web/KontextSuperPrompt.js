@@ -4006,7 +4006,6 @@ class KontextSuperPrompt {
             });
         }
 
-        // 描述输入事件监听已移到createDescriptionSection中，确保每个面板的输入框都有监听
         
         // 结束性能监控
         KSP_NS.performance.endTimer(`node_${this.node.id}_init`);
@@ -4131,15 +4130,6 @@ class KontextSuperPrompt {
             this.currentOperationType = opTypeWidget.value;
         }
         
-        // 兼容旧版本：如果没有新字段，从旧字段恢复
-        const oldDescWidget = this.node.widgets.find(w => w.name === 'description');
-        const oldGenWidget = this.node.widgets.find(w => w.name === 'generated_prompt');
-        
-        if (oldDescWidget && oldDescWidget.value && !this.tabData.local.description) {
-            // 如果旧字段有值但新字段没有，恢复到当前选项卡
-            this.tabData[this.currentCategory].description = oldDescWidget.value;
-            restoredCount++;
-        }
         
         if (oldGenWidget && oldGenWidget.value && !this.tabData.local.generatedPrompt) {
             this.tabData[this.currentCategory].generatedPrompt = oldGenWidget.value;
@@ -5218,7 +5208,6 @@ class KontextSuperPrompt {
             { name: 'ollama_generated_prompt', value: this.tabData.ollama.generatedPrompt || '' },
             
             // 兼容旧版本
-            { name: 'description', value: data.description || '' },
             { name: 'constraint_prompts', value: data.constraint_prompts || '' },
             { name: 'decorative_prompts', value: data.decorative_prompts || '' },
             { name: 'generated_prompt', value: data.generated_prompt || '' },
@@ -6187,7 +6176,6 @@ Create English editing prompt:`;
         const isGenerating = this.isGeneratingAPI || this.isGeneratingOllama;
         
         // 首先尝试从widget中获取保存的数据（这些数据会被序列化）
-        const descWidget = this.node.widgets?.find(w => w.name === 'description');
         const genWidget = this.node.widgets?.find(w => w.name === 'generated_prompt');
         const constrWidget = this.node.widgets?.find(w => w.name === 'constraint_prompts');
         const decorWidget = this.node.widgets?.find(w => w.name === 'decorative_prompts');
@@ -6196,7 +6184,7 @@ Create English editing prompt:`;
         this.currentEditMode = data.currentEditMode || "局部编辑";
         this.currentCategory = data.currentCategory || previousCategory || 'local';
         this.currentOperationType = data.currentOperationType || '';
-        this.description = descWidget?.value || data.description || '';
+        this.description = data.description || '';
         this.selectedConstraints = data.selectedConstraints || [];
         this.selectedDecoratives = data.selectedDecoratives || [];
         this.selectedLayers = data.selectedLayers || [];
