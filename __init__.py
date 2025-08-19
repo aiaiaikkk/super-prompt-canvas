@@ -1,9 +1,9 @@
 """
-kontext-super-prompt - ComfyUI Custom Nodes
+super-prompt-canvas - ComfyUI Custom Nodes
 
 Version: 1.4.0
 Author: aiaiaikkk
-Repository: https://github.com/aiaiaikkk/kontext-super-prompt
+Repository: https://github.com/aiaiaikkk/super-prompt-canvas
 License: MIT
 """
 
@@ -22,7 +22,7 @@ except ImportError as e:
 # Version information
 __version__ = "1.4.0"
 __author__ = "aiaiaikkk"
-__description__ = "ComfyUI Custom Nodes for Image Editing Prompt Generation"
+__description__ = "ComfyUI Custom Nodes for Visual Canvas Image Editing with Multi-Model AI Prompt Generation"
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
@@ -62,7 +62,7 @@ if os.path.exists(nodes_dir):
             traceback.print_exc()
 
 # 输出加载信息
-print(f"[Kontext-Super-Prompt] v{__version__} 加载完成")
-print(f"[Kontext-Super-Prompt] 已注册节点: {list(NODE_CLASS_MAPPINGS.keys())}")
+print(f"[Super-Prompt-Canvas] v{__version__} 加载完成")
+print(f"[Super-Prompt-Canvas] 已注册节点: {list(NODE_CLASS_MAPPINGS.keys())}")
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

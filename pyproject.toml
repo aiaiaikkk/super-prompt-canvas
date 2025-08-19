@@ -1,6 +1,6 @@
 [project]
-name = "kontext-super-prompt"
-description = "ComfyUI nodes for image editing prompt generation with visual annotation and AI assistance"
+name = "super-prompt-canvas"
+description = "ComfyUI nodes for image editing prompt generation with visual canvas annotation and multi-model AI assistance"
 version = "1.4.0"
 license = { text = "MIT License" }
 dependencies = [
@@ -15,9 +15,9 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/aiaiaikkk/kontext-super-prompt"
+Repository = "https://github.com/aiaiaikkk/super-prompt-canvas"
 
 [tool.comfy]
 PublisherId = "aiaiaikkk"
-DisplayName = "kontext-super-prompt"
+DisplayName = "super-prompt-canvas"
 Icon = ""
