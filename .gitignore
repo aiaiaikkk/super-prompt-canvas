@@ -1,7 +1,3 @@
-# Claude Code configuration
-.claude/
-.claude
-
 # Python
 __pycache__/
 *.py[cod]
@@ -48,3 +44,22 @@ Thumbs.db
 *.tmp
 *.bak
 *.log
+
+# Project specific - only temporary/debug files
+*_test.json
+debug_*.txt
+debug_*.png
+temp_*.png
+test_*.png
+BACKUP_*.md
+FIX_*.md
+DATA_*.md
+
+# Model files (too large)
+*.gguf
+*.bin
+*.safetensors
+
+# User data cache
+user_data/temp/
+user_data/cache/
