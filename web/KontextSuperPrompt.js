@@ -2617,8 +2617,7 @@ class KontextSuperPrompt {
             });
         };
         
-        // 初始化模型列表
-        updateModelList('siliconflow');
+        // 不在这里初始化模型列表，等待数据恢复时再初始化
         
         // 监听提供商变化
         providerSelect.addEventListener('change', () => {
@@ -2794,8 +2793,64 @@ class KontextSuperPrompt {
         this.apiModelSelect = modelSelect;
         this.apiIntentSelect = intentSelect;
         this.apiStyleSelect = styleSelect;
+        
+        // 存储updateModelList函数以便后续调用
+        this.updateAPIModelList = updateModelList;
+        
+        // 延迟初始化，确保在数据恢复后再设置默认值
+        setTimeout(() => {
+            // 如果没有已保存的提供商，使用默认提供商初始化模型列表
+            if (!this.currentTabData?.apiProvider) {
+                updateModelList('siliconflow');
+            }
+        }, 50);
 
         return section;
+    }
+
+    // 异步恢复API配置，确保正确的恢复顺序
+    async restoreAPIConfiguration() {
+        if (!this.currentTabData || !this.apiProviderSelect) return;
+        
+        // 1. 先恢复API提供商
+        if (this.currentTabData.apiProvider) {
+            this.apiProviderSelect.value = this.currentTabData.apiProvider;
+        }
+        
+        // 2. 恢复API密钥
+        if (this.currentTabData.apiKey && this.apiKeyInput) {
+            this.apiKeyInput.value = this.currentTabData.apiKey;
+        }
+        
+        // 3. 根据提供商更新模型列表，然后恢复模型选择
+        if (this.updateAPIModelList && this.currentTabData.apiProvider) {
+            try {
+                await this.updateAPIModelList(this.currentTabData.apiProvider);
+                
+                // 等待模型列表更新完成后，恢复用户选择的模型
+                if (this.currentTabData.apiModel && this.apiModelSelect) {
+                    // 稍等一下确保DOM更新完成
+                    setTimeout(() => {
+                        this.apiModelSelect.value = this.currentTabData.apiModel;
+                    }, 100);
+                }
+            } catch (error) {
+                console.warn('恢复API模型列表失败:', error);
+                // 如果动态获取失败，直接恢复模型选择
+                if (this.currentTabData.apiModel && this.apiModelSelect) {
+                    this.apiModelSelect.value = this.currentTabData.apiModel;
+                }
+            }
+        }
+        
+        // 4. 恢复其他配置
+        if (this.currentTabData.apiIntent && this.apiIntentSelect) {
+            this.apiIntentSelect.value = this.currentTabData.apiIntent;
+        }
+        
+        if (this.currentTabData.apiStyle && this.apiStyleSelect) {
+            this.apiStyleSelect.value = this.currentTabData.apiStyle;
+        }
     }
 
     createOllamaServiceManagementSection() {
@@ -4159,30 +4214,7 @@ class KontextSuperPrompt {
         
         // 恢复API选项卡的特殊UI
         if (this.currentCategory === 'api') {
-            // 恢复API提供商选择
-            if (this.currentTabData.apiProvider && this.apiProviderSelect) {
-                this.apiProviderSelect.value = this.currentTabData.apiProvider;
-            }
-            
-            // 恢复API密钥
-            if (this.currentTabData.apiKey && this.apiKeyInput) {
-                this.apiKeyInput.value = this.currentTabData.apiKey;
-            }
-            
-            // 恢复API模型选择
-            if (this.currentTabData.apiModel && this.apiModelSelect) {
-                this.apiModelSelect.value = this.currentTabData.apiModel;
-            }
-            
-            // 恢复API编辑意图选择
-            if (this.currentTabData.apiIntent && this.apiIntentSelect) {
-                this.apiIntentSelect.value = this.currentTabData.apiIntent;
-            }
-            
-            // 恢复API处理风格选择
-            if (this.currentTabData.apiStyle && this.apiStyleSelect) {
-                this.apiStyleSelect.value = this.currentTabData.apiStyle;
-            }
+            this.restoreAPIConfiguration();
         }
         
         // 恢复Ollama选项卡的特殊UI
