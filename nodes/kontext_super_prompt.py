@@ -332,51 +332,6 @@ class KontextSuperPrompt:
                 "image": ("IMAGE",),
             },
             "optional": {
-                # 为每个选项卡创建独立的数据字段以支持持久化
-                # 局部编辑选项卡
-                "local_description": ("STRING", {"default": "", "multiline": True}),
-                "local_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "local_operation_type": ("STRING", {"default": "add_object"}),
-                "local_selected_constraints": ("STRING", {"default": "", "multiline": True}),
-                "local_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
-                
-                # 全局编辑选项卡
-                "global_description": ("STRING", {"default": "", "multiline": True}),
-                "global_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "global_operation_type": ("STRING", {"default": "global_color_grade"}),
-                "global_selected_constraints": ("STRING", {"default": "", "multiline": True}),
-                "global_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
-                
-                # 文字编辑选项卡
-                "text_description": ("STRING", {"default": "", "multiline": True}),
-                "text_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "text_operation_type": ("STRING", {"default": "text_add"}),
-                "text_selected_constraints": ("STRING", {"default": "", "multiline": True}),
-                "text_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
-                
-                # 专业操作选项卡
-                "professional_description": ("STRING", {"default": "", "multiline": True}),
-                "professional_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "professional_operation_type": ("STRING", {"default": "geometric_warp"}),
-                "professional_selected_constraints": ("STRING", {"default": "", "multiline": True}),
-                "professional_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
-                
-                # API选项卡
-                "api_description": ("STRING", {"default": "", "multiline": True}),
-                "api_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
-                "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
-                "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
-                
-                # Ollama选项卡
-                "ollama_description": ("STRING", {"default": "", "multiline": True}),
-                "ollama_generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
-                "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
-                
-                # 兼容旧版本 - 保留原始字段
-                "description": ("STRING", {"default": "", "multiline": True}),
-                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -388,13 +343,50 @@ class KontextSuperPrompt:
                 "selected_layers": ("STRING", {"default": "", "multiline": True}),
                 "auto_generate": ("BOOLEAN", {"default": True}),
                 
-                # API选项卡参数 - 从配置加载默认值
+                # 局部编辑选项卡 - 持久化数据
+                "local_description": ("STRING", {"default": "", "multiline": True}),
+                "local_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "local_operation_type": ("STRING", {"default": "add_object"}),
+                "local_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "local_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 全局编辑选项卡 - 持久化数据
+                "global_description": ("STRING", {"default": "", "multiline": True}),
+                "global_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "global_operation_type": ("STRING", {"default": "global_color_grade"}),
+                "global_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "global_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 文字编辑选项卡 - 持久化数据
+                "text_description": ("STRING", {"default": "", "multiline": True}),
+                "text_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "text_operation_type": ("STRING", {"default": "text_add"}),
+                "text_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "text_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # 专业操作选项卡 - 持久化数据
+                "professional_description": ("STRING", {"default": "", "multiline": True}),
+                "professional_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "professional_operation_type": ("STRING", {"default": "geometric_warp"}),
+                "professional_selected_constraints": ("STRING", {"default": "", "multiline": True}),
+                "professional_selected_decoratives": ("STRING", {"default": "", "multiline": True}),
+                
+                # API选项卡 - 持久化数据
+                "api_description": ("STRING", {"default": "", "multiline": True}),
+                "api_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "api_provider": ("STRING", {"default": api_settings.get("last_provider", "siliconflow")}),
+                "api_key": ("STRING", {"default": "", "placeholder": "API密钥将自动保存和加载"}),
+                "api_model": ("STRING", {"default": api_settings.get("last_model", "deepseek-ai/DeepSeek-V3")}),
                 "api_editing_intent": ("STRING", {"default": api_settings.get("last_editing_intent", "general_editing")}),
                 "api_processing_style": ("STRING", {"default": api_settings.get("last_processing_style", "auto_smart")}),
                 "api_seed": ("INT", {"default": 0}),
                 "api_custom_guidance": ("STRING", {"default": "", "multiline": True}),
                 
-                # Ollama选项卡参数 - 从配置加载默认值
+                # Ollama选项卡 - 持久化数据
+                "ollama_description": ("STRING", {"default": "", "multiline": True}),
+                "ollama_generated_prompt": ("STRING", {"default": "", "multiline": True}),
+                "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
+                "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
                 "ollama_temperature": ("FLOAT", {"default": ollama_settings.get("last_temperature", 0.7)}),
                 "ollama_editing_intent": ("STRING", {"default": ollama_settings.get("last_editing_intent", "general_editing")}),
                 "ollama_processing_style": ("STRING", {"default": ollama_settings.get("last_processing_style", "auto_smart")}),
@@ -402,6 +394,10 @@ class KontextSuperPrompt:
                 "ollama_custom_guidance": ("STRING", {"default": "", "multiline": True}),
                 "ollama_enable_visual": ("BOOLEAN", {"default": ollama_settings.get("enable_visual", False)}),
                 "ollama_auto_unload": ("BOOLEAN", {"default": ollama_settings.get("auto_unload", False)}),
+                
+                # 兼容旧版本 - 保留原始字段
+                "description": ("STRING", {"default": "", "multiline": True}),
+                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
             },
         }
     

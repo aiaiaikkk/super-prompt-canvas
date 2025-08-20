@@ -1572,6 +1572,9 @@ class KontextSuperPrompt {
         
         this.createHiddenWidgets(initData);
         
+        // 隐藏所有持久化相关的widget
+        this.hideAllPersistenceWidgets();
+        
         // 初始化显示（切换到默认标签页）
         this.switchTab('local');
         
@@ -4014,7 +4017,7 @@ class KontextSuperPrompt {
     
     restoreDataFromWidgets() {
         // 从已序列化的widget中恢复数据
-        if (!this.node.widgets) {
+        if (!this.node.widgets || this.node.widgets.length === 0) {
             return;
         }
         
@@ -5262,7 +5265,40 @@ class KontextSuperPrompt {
                 widget.value = field.value;
             }
         });
-        
+    }
+
+    hideAllPersistenceWidgets() {
+        // 隐藏所有用于数据持久化的widget
+        if (this.node && this.node.widgets) {
+            this.node.widgets.forEach(widget => {
+                // 隐藏所有持久化相关的widget
+                if (widget.name && (
+                    widget.name.includes('_description') ||
+                    widget.name.includes('_generated_prompt') ||
+                    widget.name.includes('_selected_constraints') ||
+                    widget.name.includes('_selected_decoratives') ||
+                    widget.name.includes('_operation_type') ||
+                    widget.name.includes('api_') ||
+                    widget.name.includes('ollama_') ||
+                    widget.name === 'description' ||
+                    widget.name === 'constraint_prompts' ||
+                    widget.name === 'decorative_prompts' ||
+                    widget.name === 'generated_prompt' ||
+                    widget.name === 'edit_mode' ||
+                    widget.name === 'operation_type' ||
+                    widget.name === 'selected_layers' ||
+                    widget.name === 'auto_generate'
+                )) {
+                    // 简单的隐藏widget
+                    widget.computeSize = () => [0, -4];
+                }
+            });
+            
+            // 强制节点重新计算大小
+            if (this.node.setSize) {
+                this.node.setSize(this.node.size);
+            }
+        }
     }
 
     generateWithAPI() {
@@ -6659,12 +6695,106 @@ app.registerExtension({
                     onNodeCreated.apply(this, arguments);
                 }
                 
-                this.widgets = [];
+                // 定义隐藏widget的函数
+                const hideWidget = (widget) => {
+                    if (!widget) return;
+                    // 设置widget不占用任何空间
+                    widget.computeSize = () => [0, -4];
+                    // 标记为隐藏
+                    widget.hidden = true;
+                    // 移除绘制功能
+                    widget.draw = () => {};
+                    widget.onDrawBackground = () => {};
+                    widget.onDrawForeground = () => {};
+                    
+                    // 隐藏DOM元素
+                    if (widget.element) {
+                        widget.element.style.display = 'none';
+                    }
+                    if (widget.inputEl) {
+                        widget.inputEl.style.display = 'none';
+                    }
+                    
+                    // 直接修改widget的y坐标，让它在节点外部（不可见）
+                    if (widget.y !== undefined) {
+                        widget.y = -1000;
+                    }
+                };
+                
+                // 处理现有的widgets
+                if (this.widgets && this.widgets.length > 0) {
+                    this.widgets.forEach(hideWidget);
+                }
+                
+                // 重写addWidget方法，自动隐藏新添加的widget
+                const originalAddWidget = this.addWidget;
+                this.addWidget = function(type, name, value, callback, options) {
+                    const widget = originalAddWidget.call(this, type, name, value, callback, options);
+                    
+                    // 检查是否是需要隐藏的widget
+                    if (name && (
+                        name.includes('_description') ||
+                        name.includes('_generated_prompt') ||
+                        name.includes('_selected_constraints') ||
+                        name.includes('_selected_decoratives') ||
+                        name.includes('_operation_type') ||
+                        name.includes('api_') ||
+                        name.includes('ollama_') ||
+                        name === 'description' ||
+                        name === 'constraint_prompts' ||
+                        name === 'decorative_prompts' ||
+                        name === 'generated_prompt' ||
+                        name === 'edit_mode' ||
+                        name === 'operation_type' ||
+                        name === 'selected_layers' ||
+                        name === 'auto_generate' ||
+                        name === 'tab_mode' ||
+                        name === 'unique_id'
+                    )) {
+                        hideWidget(widget);
+                    }
+                    
+                    return widget;
+                };
                 
                 // 设置节点初始大小
                 const nodeWidth = 816; // 1020 * 0.8 - 减小20%
                 const nodeHeight = 750; // KSP_NS.constants.EDITOR_SIZE.HEIGHT + 50
                 this.size = [nodeWidth, nodeHeight];
+                
+                // 不清空widgets，而是隐藏它们
+                if (this.widgets && this.widgets.length > 0) {
+                    this.widgets.forEach(widget => {
+                        hideWidget(widget);
+                        // 额外设置：让widget完全不占用空间
+                        widget.computedHeight = -4;
+                        widget.computedWidth = 0;
+                        // 确保widget不会被绘制
+                        Object.defineProperty(widget, 'computeSize', {
+                            value: () => [0, -4],
+                            writable: false,
+                            configurable: false
+                        });
+                    });
+                }
+                
+                // 重写节点的computeSize方法，始终返回固定大小
+                const originalComputeSize = this.computeSize;
+                this.computeSize = function() {
+                    // 忽略所有widgets，直接返回固定大小
+                    return [nodeWidth, nodeHeight];
+                };
+                
+                // 重写节点的size getter/setter
+                Object.defineProperty(this, 'size', {
+                    get: function() {
+                        return this._size || [nodeWidth, nodeHeight];
+                    },
+                    set: function(value) {
+                        this._size = [nodeWidth, nodeHeight]; // 强制固定大小
+                    },
+                    configurable: true
+                });
                 
                 // 创建超级提示词编辑器实例
                 this.kontextSuperPrompt = new KontextSuperPrompt(this);
@@ -6678,7 +6808,6 @@ app.registerExtension({
                     
                     // 恢复widget数据到UI
                     if (this.kontextSuperPrompt && this.widgets && this.widgets.length > 0) {
-                        
                         // 延迟恢复，确保UI已初始化
                         setTimeout(() => {
                             this.kontextSuperPrompt.restoreDataFromWidgets();
@@ -6686,15 +6815,11 @@ app.registerExtension({
                             // 恢复当前选项卡显示
                             const currentTab = this.kontextSuperPrompt.currentCategory || 'local';
                             this.kontextSuperPrompt.switchTab(currentTab);
-                            
                         }, 100);
                     }
                 };
                 
-                // 重写computeSize方法确保正确的节点大小
-                this.computeSize = function() {
-                    return [nodeWidth, nodeHeight];
-                };
+                
                 
                 // 重写onResize方法
                 const originalOnResize = this.onResize;
@@ -6719,6 +6844,8 @@ app.registerExtension({
                 if (this.setSize) {
                     this.setSize([nodeWidth, nodeHeight]);
                 }
+                
+                // 不需要重写serialize方法，因为widgets数组保留了
                 
                 // 初始化默认界面，确保即使没有Canvas连接也能正常显示
                 setTimeout(() => {
