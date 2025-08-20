@@ -288,7 +288,7 @@ try:
 except ImportError:
     COMFY_AVAILABLE = False
 
-CATEGORY_TYPE = "🎨 Super Canvas"
+CATEGORY_TYPE = "🎨 LRPG Canvas"
 
 class KontextSuperPrompt:
     """
@@ -332,20 +332,7 @@ class KontextSuperPrompt:
                 "image": ("IMAGE",),
             },
             "optional": {
-                # 这里只保留真正需要用户直接输入的字段，其他字段移到hidden
-            },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-                "tab_mode": (["manual", "api", "ollama"], {"default": ui_settings.get("last_tab", "manual")}),
-                "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
-                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
-                "operation_type": ("STRING", {"default": "", "multiline": False}),
-                "constraint_prompts": ("STRING", {"default": "", "multiline": True}),
-                "decorative_prompts": ("STRING", {"default": "", "multiline": True}),
-                "selected_layers": ("STRING", {"default": "", "multiline": True}),
-                "auto_generate": ("BOOLEAN", {"default": True}),
-                
-                # 为每个选项卡创建独立的数据字段以支持持久化（移到hidden避免显示为输入框）
+                # 为每个选项卡创建独立的数据字段以支持持久化
                 # 局部编辑选项卡
                 "local_description": ("STRING", {"default": "", "multiline": True}),
                 "local_generated_prompt": ("STRING", {"default": "", "multiline": True}),
@@ -386,6 +373,20 @@ class KontextSuperPrompt:
                 "ollama_generated_prompt": ("STRING", {"default": "", "multiline": True}),
                 "ollama_url": ("STRING", {"default": ollama_settings.get("last_url", "http://127.0.0.1:11434")}),
                 "ollama_model": ("STRING", {"default": ollama_settings.get("last_model", "")}),
+                
+                # 兼容旧版本 - 保留原始字段
+                "description": ("STRING", {"default": "", "multiline": True}),
+                "generated_prompt": ("STRING", {"default": "", "multiline": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "tab_mode": (["manual", "api", "ollama"], {"default": ui_settings.get("last_tab", "manual")}),
+                "edit_mode": (["局部编辑", "全局编辑", "文字编辑", "专业操作"], {"default": "局部编辑"}),
+                "operation_type": ("STRING", {"default": "", "multiline": False}),
+                "constraint_prompts": ("STRING", {"default": "", "multiline": True}),
+                "decorative_prompts": ("STRING", {"default": "", "multiline": True}),
+                "selected_layers": ("STRING", {"default": "", "multiline": True}),
+                "auto_generate": ("BOOLEAN", {"default": True}),
                 
                 # API选项卡参数 - 从配置加载默认值
                 "api_editing_intent": ("STRING", {"default": api_settings.get("last_editing_intent", "general_editing")}),
@@ -1011,6 +1012,6 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "KontextSuperPrompt": "🎯 Super Prompt",
+    "KontextSuperPrompt": "🎯 Kontext Super Prompt",
 }
 

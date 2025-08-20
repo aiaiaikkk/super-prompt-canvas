@@ -20,7 +20,7 @@ try:
 except ImportError:
     WEB_AVAILABLE = False
 
-CATEGORY_TYPE = "🎨 Super Canvas"
+CATEGORY_TYPE = "🎨 LRPG Canvas"
 
 class OllamaServiceManager:
     """

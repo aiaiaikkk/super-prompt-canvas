@@ -804,15 +804,9 @@ class LRPGCanvas {
     deleteSelectedLayer() {
         const activeObject = this.canvas.getActiveObject();
         if (activeObject) {
-            console.log('[LRPG Canvas] 删除选中图层:', activeObject.type);
             this.canvas.remove(activeObject);
             this.canvas.renderAll();
             this.updateLayerList();
-            
-            // 标记画布已改变，触发保存状态
-            this.markCanvasChanged();
-        } else {
-            console.log('[LRPG Canvas] 没有选中的图层可删除');
         }
     }
     
@@ -2238,48 +2232,6 @@ class LRPGCanvas {
                 this.updateLayerList();
             }
         });
-        
-        // 添加Delete键删除选中图层的功能
-        this.setupKeyboardEvents();
-    }
-    
-    setupKeyboardEvents() {
-        // 创建键盘事件处理器
-        this._keyboardHandler = (e) => {
-            // 只在画布容器获得焦点时处理键盘事件
-            if (!this.isCanvasFocused) return;
-            
-            // 如果用户正在编辑文字，不处理Delete键
-            const activeObject = this.canvas.getActiveObject();
-            if (activeObject && activeObject.type === 'i-text' && activeObject.isEditing) {
-                return;
-            }
-            
-            // 处理Delete键和Backspace键
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                console.log('[LRPG Canvas] 键盘删除事件触发:', e.key);
-                e.preventDefault();
-                this.deleteSelectedLayer();
-            }
-        };
-        
-        // 添加键盘事件监听
-        document.addEventListener('keydown', this._keyboardHandler);
-        
-        // 设置画布焦点管理
-        this.isCanvasFocused = false;
-        
-        // 画布容器获得焦点时标记状态
-        this.canvasContainer.addEventListener('mousedown', () => {
-            this.isCanvasFocused = true;
-        });
-        
-        // 点击其他地方时失去焦点
-        document.addEventListener('mousedown', (e) => {
-            if (!this.canvasContainer.contains(e.target)) {
-                this.isCanvasFocused = false;
-            }
-        });
     }
 
     async handleImageUpload(file, options = { center: true, autoScale: true }) {
@@ -3144,9 +3096,6 @@ class LRPGCanvas {
         }
         if (this._pasteHandler) {
             document.removeEventListener('paste', this._pasteHandler, true);
-        }
-        if (this._keyboardHandler) {
-            document.removeEventListener('keydown', this._keyboardHandler);
         }
     }
 }

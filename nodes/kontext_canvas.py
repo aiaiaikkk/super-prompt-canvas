@@ -18,7 +18,7 @@ try:
 except ImportError as e:
     print(f"[LRPG Canvas] ❌ Failed to import server: {e}")
 
-CATEGORY_TYPE = "🎨 Super Canvas"
+CATEGORY_TYPE = "🎨 LRPG Canvas"
 
 def get_canvas_storage():
     """获取LRPG Canvas节点的数据存储"""
@@ -448,7 +448,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LRPGCanvas": "🎨 Super Canvas",
+    "LRPGCanvas": "🎨 LRPG Canvas",
 }
 
 print("[LRPG Canvas] 🎨 LRPG Canvas节点已注册")
