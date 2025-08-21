@@ -2,7 +2,7 @@
 TextGenWebUIFluxKontextEnhancer Node
 Text Generation WebUI-integrated Flux Kontext prompt enhancement node
 
-Converts LRPG Canvas layer data through Text Generation WebUI models to
+Converts Super Canvas layer data through Text Generation WebUI models to
 Flux Kontext-optimized structured editing instructions
 """
 
@@ -34,7 +34,7 @@ class TextGenWebUIFluxKontextEnhancer:
     """
     🌐 Text Generation WebUI Flux Kontext Enhancer
     
-    Converts annotation data from LRPG Canvas into structured editing instructions
+    Converts annotation data from Super Canvas into structured editing instructions
     optimized for Flux Kontext, using Text Generation WebUI models.
     """
     
@@ -297,7 +297,7 @@ For more examples, please check guidance_template options."""
                 "layer_info": ("STRING", {
                     "forceInput": True,
                     "default": "",
-                    "tooltip": "Annotation JSON data from LRPG Canvas. Can be left empty if only using Edit Description."
+                    "tooltip": "Annotation JSON data from Super Canvas. Can be left empty if only using Edit Description."
                 }),
                 "edit_description": ("STRING", {
                     "multiline": True,

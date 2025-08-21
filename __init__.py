@@ -3,7 +3,7 @@ kontext-super-prompt - ComfyUI Custom Nodes
 
 Version: 1.4.0
 Author: aiaiaikkk
-Repository: https://github.com/aiaiaikkk/kontext-super-prompt
+Repository: https://github.com/aiaiaikkk/super-prompt-canvas
 License: MIT
 """
 

@@ -20,7 +20,7 @@ try:
 except ImportError:
     WEB_AVAILABLE = False
 
-CATEGORY_TYPE = "🎨 LRPG Canvas"
+CATEGORY_TYPE = "🎨 Super Canvas"
 
 class OllamaServiceManager:
     """
@@ -107,7 +107,7 @@ class OllamaServiceManager:
             env = os.environ.copy()
             env['OLLAMA_HOST'] = '0.0.0.0:11434'  # 监听所有接口
             env['OLLAMA_ORIGINS'] = '*'  # 允许所有来源
-            env['CUDA_VISIBLE_DEVICES'] = ''  # 使用CPU避免GPU冲突
+            env['CUDA_VISIBLE_DEVICES'] = '0'  # 使用GPU0进行推理
             
             # 确定操作系统和命令
             system = platform.system().lower()
@@ -196,7 +196,38 @@ class OllamaServiceManager:
             if cls.check_ollama_status() != "运行中":
                 return {"success": False, "message": "Ollama服务未运行"}
             
-            # 方法1: 通过API释放所有模型
+            # 方法1: 获取当前加载的模型列表并逐一卸载
+            try:
+                # 获取当前运行的模型
+                ps_response = requests.get("http://localhost:11434/api/ps", timeout=5)
+                if ps_response.status_code == 200:
+                    models_data = ps_response.json()
+                    if 'models' in models_data and models_data['models']:
+                        unloaded_models = []
+                        for model in models_data['models']:
+                            model_name = model.get('name', '')
+                            if model_name:
+                                # 使用keep_alive=0卸载特定模型
+                                unload_response = requests.post(
+                                    "http://localhost:11434/api/generate",
+                                    json={
+                                        "model": model_name,
+                                        "prompt": "",
+                                        "keep_alive": 0
+                                    },
+                                    timeout=10
+                                )
+                                if unload_response.status_code in [200, 404]:
+                                    unloaded_models.append(model_name)
+                        
+                        if unloaded_models:
+                            return {"success": True, "message": f"已卸载模型: {', '.join(unloaded_models)}"}
+                    else:
+                        return {"success": True, "message": "当前没有加载的模型"}
+            except Exception as api_error:
+                print(f"[Ollama Manager] API卸载失败: {api_error}")
+            
+            # 方法2: 通用卸载API
             try:
                 response = requests.post(
                     "http://localhost:11434/api/generate",
@@ -206,10 +237,10 @@ class OllamaServiceManager:
                 if response.status_code == 200:
                     return {"success": True, "message": "所有模型内存已释放"}
             except Exception as api_error:
-                print(f"[Ollama Manager] API释放失败: {api_error}")
+                print(f"[Ollama Manager] 通用API释放失败: {api_error}")
             
-            # 方法2: 重启服务来释放内存
-            print("[Ollama Manager] 尝试通过重启服务释放内存...")
+            # 方法3: 仅在前两种方法都失败时才重启服务
+            print("[Ollama Manager] API方法失败，尝试通过重启服务释放内存...")
             stop_result = cls.stop_ollama_service()
             if not stop_result["success"]:
                 return {"success": False, "message": f"停止服务失败: {stop_result['message']}"}

@@ -6,7 +6,7 @@
 
 ## 🎯 主要功能
 
-### 🎨 LRPG Canvas  
+### 🎨 Super Canvas  
 可视化画布标注工具，支持图层管理和绘制功能
 - 多种绘制工具：画笔、形状、文字、裁切等
 - 画笔羽化效果：支持1-20像素可调羽化半径
@@ -14,9 +14,9 @@
 - 实时预览：画布状态实时同步
 - 输出结构化图层数据供下游节点使用
 
-![LRPG Canvas](images/LRPG_Canvas.png)
+![Super Canvas](images/LRPG_Canvas.png)
 
-### 🎯 Kontext Super Prompt
+### Super Prompt
 提示词生成器，将图层信息转换为编辑指令
 - **六种编辑模式**：
   - 局部编辑：针对特定区域的精确编辑
@@ -70,15 +70,15 @@
 ## 📋 使用方法
 
 ### 基础工作流
-1. 添加`🎨 LRPG Canvas`节点，连接图像输入
+1. 添加`🎨 Super Canvas`节点，连接图像输入
 2. 在画布上标注需要编辑的区域
-3. 添加`🎯 Kontext Super Prompt`节点
+3. 添加`Super Prompt`节点
 4. 选择编辑模式和操作类型
 5. 生成编辑指令或使用AI增强功能
 
 ### 节点连接
 ```
-[图像输入] → [LRPG Canvas] → [Kontext Super Prompt] → [输出提示词]
+[图像输入] → [Super Canvas] → [Super Prompt] → [输出提示词]
                     ↓                    ↓
                 [标注图像]          [图层信息]
 ```

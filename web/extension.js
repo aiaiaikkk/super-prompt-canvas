@@ -115,7 +115,7 @@ app.registerExtension({
     },
     
     openQuickEditor() {
-        // 查找LRPG Canvas节点
+        // 查找Super Canvas节点
         const canvasNode = app.graph._nodes.find(node => 
             node.type === "KontextCanvas"
         );
@@ -127,7 +127,7 @@ app.registerExtension({
                 widget.callback();
             }
         } else {
-            app.ui.dialog.show("⚠️ No LRPG Canvas node found in the current workflow.");
+            app.ui.dialog.show("⚠️ No Super Canvas node found in the current workflow.");
         }
     },
     

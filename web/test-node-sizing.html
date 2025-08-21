@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>节点高度测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .status {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status h2 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .info-item {
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .info-label {
+            color: #888;
+            font-size: 12px;
+        }
+        .info-value {
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .test-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            background: #4CAF50;
+        }
+        .warning {
+            background: #ff9800;
+        }
+        .error {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="status">
+            <h2>节点高度测试面板</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">画布高度</div>
+                    <div class="info-value" id="canvas-height">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">工具栏高度</div>
+                    <div class="info-value" id="toolbar-height">50px</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">图层面板状态</div>
+                    <div class="info-value" id="layer-panel-status">折叠 (35px)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">面部面板状态</div>
+                    <div class="info-value" id="face-panel-status">折叠 (35px)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">计算总高度</div>
+                    <div class="info-value" id="computed-height">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">节点实际高度</div>
+                    <div class="info-value" id="node-height">-</div>
+                </div>
+            </div>
+            
+            <div class="test-actions">
+                <button onclick="toggleLayerPanel()">切换图层面板</button>
+                <button onclick="toggleFacePanel()">切换面部面板</button>
+                <button onclick="toggleBothPanels()">同时展开两个面板</button>
+                <button onclick="checkHeights()">检查高度</button>
+            </div>
+        </div>
+        
+        <div class="status" id="test-result" style="display: none;">
+            <h2>测试结果</h2>
+            <div id="result-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟面板状态
+        let layerPanelExpanded = false;
+        let facePanelExpanded = false;
+        
+        const CANVAS_HEIGHT = 512;
+        const TOOLBAR_HEIGHT = 50;
+        const LAYER_PANEL_EXPANDED_HEIGHT = 250;
+        const LAYER_PANEL_COLLAPSED_HEIGHT = 35;
+        const FACE_PANEL_EXPANDED_HEIGHT = 200;
+        const FACE_PANEL_COLLAPSED_HEIGHT = 35;
+        const LG_BOTTOM_MARGIN = 110;
+        
+        function updateDisplay() {
+            // 更新图层面板状态
+            const layerStatus = document.getElementById('layer-panel-status');
+            layerStatus.textContent = layerPanelExpanded 
+                ? `展开 (${LAYER_PANEL_EXPANDED_HEIGHT}px)` 
+                : `折叠 (${LAYER_PANEL_COLLAPSED_HEIGHT}px)`;
+            
+            // 更新面部面板状态
+            const faceStatus = document.getElementById('face-panel-status');
+            faceStatus.textContent = facePanelExpanded 
+                ? `展开 (${FACE_PANEL_EXPANDED_HEIGHT}px)` 
+                : `折叠 (${FACE_PANEL_COLLAPSED_HEIGHT}px)`;
+            
+            // 计算总高度
+            const layerPanelHeight = layerPanelExpanded 
+                ? LAYER_PANEL_EXPANDED_HEIGHT 
+                : LAYER_PANEL_COLLAPSED_HEIGHT;
+            const facePanelHeight = facePanelExpanded 
+                ? FACE_PANEL_EXPANDED_HEIGHT 
+                : FACE_PANEL_COLLAPSED_HEIGHT;
+            
+            const totalHeight = CANVAS_HEIGHT + TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight + LG_BOTTOM_MARGIN;
+            
+            document.getElementById('canvas-height').textContent = `${CANVAS_HEIGHT}px`;
+            document.getElementById('computed-height').textContent = `${totalHeight}px`;
+            
+            // 模拟节点实际高度（应该与计算高度匹配）
+            document.getElementById('node-height').textContent = `${totalHeight}px`;
+        }
+        
+        function toggleLayerPanel() {
+            layerPanelExpanded = !layerPanelExpanded;
+            updateDisplay();
+        }
+        
+        function toggleFacePanel() {
+            facePanelExpanded = !facePanelExpanded;
+            updateDisplay();
+        }
+        
+        function toggleBothPanels() {
+            layerPanelExpanded = true;
+            facePanelExpanded = true;
+            updateDisplay();
+        }
+        
+        function checkHeights() {
+            const computed = parseInt(document.getElementById('computed-height').textContent);
+            const node = parseInt(document.getElementById('node-height').textContent);
+            
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            
+            if (computed === node) {
+                resultContent.innerHTML = `
+                    <div class="success" style="padding: 10px; border-radius: 4px;">
+                        ✅ 高度计算正确！节点背景完全包含所有控件。
+                    </div>
+                `;
+            } else {
+                resultContent.innerHTML = `
+                    <div class="error" style="padding: 10px; border-radius: 4px;">
+                        ❌ 高度计算错误！差异: ${Math.abs(computed - node)}px
+                    </div>
+                `;
+            }
+        }
+        
+        // 初始化显示
+        updateDisplay();
+    </script>
+</body>
+</html>

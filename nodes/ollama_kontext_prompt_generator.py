@@ -31,7 +31,7 @@ except ImportError:
     TORCH_AVAILABLE = False
     torch = None
 
-CATEGORY_TYPE = "🎨 LRPG Canvas"
+CATEGORY_TYPE = "🎨 Super Canvas"
 
 class OllamaKontextPromptGenerator:
     """
@@ -47,17 +47,17 @@ class OllamaKontextPromptGenerator:
         # 获取可用的Ollama模型
         available_models = cls._get_available_models()
         
-        # 编辑意图选项 - 16种操作
+        # 编辑意图选项 - 17种操作（添加"无"选项）
         editing_intents = [
-            "颜色修改", "物体移除", "物体替换", "物体添加",
+            "无", "颜色修改", "物体移除", "物体替换", "物体添加",
             "背景更换", "换脸", "质量增强", "图像修复",
             "风格转换", "文字编辑", "光线调整", "透视校正",
             "模糊/锐化", "局部变形", "构图调整", "通用编辑"
         ]
         
-        # 应用场景选项 - 16种场景
+        # 应用场景选项 - 17种场景（添加"无"选项）
         application_scenarios = [
-            "电商产品", "社交媒体", "营销活动", "人像摄影",
+            "无", "电商产品", "社交媒体", "营销活动", "人像摄影",
             "生活方式", "美食摄影", "房地产", "时尚零售",
             "汽车展示", "美妆化妆品", "企业品牌", "活动摄影",
             "产品目录", "艺术创作", "纪实摄影", "自动选择"
@@ -71,10 +71,10 @@ class OllamaKontextPromptGenerator:
                     "placeholder": "请描述您想要进行的编辑..."
                 }),
                 "editing_intent": (editing_intents, {
-                    "default": "颜色修改"
+                    "default": "无"
                 }),
                 "application_scenario": (application_scenarios, {
-                    "default": "电商产品"
+                    "default": "无"
                 }),
                 "ollama_model": (available_models, {
                     "default": available_models[0] if available_models else "deepseek-r1:1.5b"
@@ -530,6 +530,16 @@ Your instruction:"""
             # 构建完整的提示词
             if custom_guidance:
                 full_prompt = f"{description}\n\n自定义引导: {custom_guidance}"
+            elif editing_intent == "无" and application_scenario == "无":
+                # 当编辑意图和处理风格都为"无"时，直接使用用户描述，不添加引导词
+                full_prompt = description
+            elif editing_intent == "无" or application_scenario == "无":
+                # 当其中一个为"无"时，只使用另一个生成引导词
+                if editing_intent != "无":
+                    guidance_template = self._get_guidance_template(editing_intent, "自动选择")
+                else:
+                    guidance_template = self._get_guidance_template("通用编辑", application_scenario)
+                full_prompt = f"{description}\n\n引导模板: {guidance_template}"
             else:
                 guidance_template = self._get_guidance_template(editing_intent, application_scenario)
                 full_prompt = f"{description}\n\n引导模板: {guidance_template}"

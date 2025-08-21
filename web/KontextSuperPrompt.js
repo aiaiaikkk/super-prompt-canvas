@@ -1658,7 +1658,7 @@ class KontextSuperPrompt {
             font-size: 14px;
             font-weight: bold;
         `;
-        title.textContent = '🎯 Kontext Super Prompt 生成器';
+        title.textContent = 'Super Prompt 生成器';
 
         // 自动生成开关
         const autoGenLabel = document.createElement('label');
@@ -2679,6 +2679,7 @@ class KontextSuperPrompt {
         `;
         const intents = [
             // 编辑意图类型 - 与引导词库key保持一致
+            { value: 'none', text: '无' },
             { value: 'color_adjustment', text: '颜色修改' },
             { value: 'object_removal', text: '物体移除' },
             { value: 'object_replacement', text: '物体替换' },
@@ -2720,6 +2721,7 @@ class KontextSuperPrompt {
         `;
         const styles = [
             // 应用场景/风格 - 用于什么场景
+            { value: 'none', text: '无' },
             { value: 'ecommerce_product', text: '电商产品' },
             { value: 'social_media', text: '社交媒体' },
             { value: 'marketing_campaign', text: '营销活动' },
@@ -3043,6 +3045,7 @@ class KontextSuperPrompt {
         `;
         const intents = [
             // 编辑意图类型 - 与引导词库key保持一致
+            { value: 'none', label: '无' },
             { value: 'color_adjustment', label: '颜色修改' },
             { value: 'object_removal', label: '物体移除' },
             { value: 'object_replacement', label: '物体替换' },
@@ -3084,6 +3087,7 @@ class KontextSuperPrompt {
         `;
         const styles = [
             // 应用场景/风格 - 与API模式保持一致
+            { value: 'none', label: '无' },
             { value: 'ecommerce_product', label: '电商产品' },
             { value: 'social_media', label: '社交媒体' },
             { value: 'marketing_campaign', label: '营销活动' },

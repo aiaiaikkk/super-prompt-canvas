@@ -1,7 +1,8 @@
-// LRPG Canvas Node - 专业画布标注工具  
+// Super Canvas Node - 专业画布标注工具  
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { fabric } from "./libs/fabric.js";
+import FaceToolsUI from "./face-tools.js";
 
 // 定义常量 - 重新设计的更优雅的布局
 const CANVAS_SIZE = {
@@ -91,9 +92,16 @@ class LRPGCanvas {
             ? LAYER_PANEL_EXPANDED_HEIGHT 
             : LAYER_PANEL_COLLAPSED_HEIGHT;
         
-        // // console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px`);
+        // 计算面部面板高度
+        const FACE_PANEL_EXPANDED_HEIGHT = 380; // 面板展开时的高度（包含手动微调部分）
+        const FACE_PANEL_COLLAPSED_HEIGHT = 35;  // 面板折叠时只有标题栏
+        const facePanelHeight = (this.faceToolsUI && this.faceToolsUI.isPanelExpanded)
+            ? FACE_PANEL_EXPANDED_HEIGHT
+            : FACE_PANEL_COLLAPSED_HEIGHT;
         
-        const totalContainerHeight = canvasHeight + TOOLBAR_HEIGHT + layerPanelHeight;
+        // console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px`);
+        
+        const totalContainerHeight = canvasHeight + TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight;
         
         if (this.canvasContainer) {
             this.canvasContainer.style.width = `${canvasWidth}px`;
@@ -272,9 +280,13 @@ class LRPGCanvas {
             
             this.updateCanvasSize(initialScaledSize.width, initialScaledSize.height);
 
+            // 初始化面部工具
+            this.initializeFaceTools();
+
             // // console.log('[LRPG Canvas] Canvas initialized successfully');
         } catch (error) {
             console.error('[LRPG Canvas] Failed to initialize canvas:', error);
+            this.destroyFaceTools(); // 清理面部工具
             this.showError(error.message);
         }
     }
@@ -810,6 +822,90 @@ class LRPGCanvas {
         }
     }
     
+    /**
+     * 设置键盘事件监听器
+     */
+    setupKeyboardListeners() {
+        // 存储键盘事件处理器的引用，以便后续清理
+        if (!this._keydownHandler) {
+            this._keydownHandler = (e) => {
+                // 检查是否在输入框中（避免在输入时删除）
+                const activeElement = document.activeElement;
+                const isInputting = activeElement && (
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.tagName === 'TEXTAREA' ||
+                    activeElement.contentEditable === 'true'
+                );
+                
+                if (isInputting) {
+                    return;
+                }
+                
+                // 检查画布是否有焦点
+                const canvasHasFocus = this.canvasContainer && 
+                    (this.canvasContainer.contains(document.activeElement) || 
+                     document.activeElement === document.body);
+                
+                if (!canvasHasFocus) {
+                    return;
+                }
+                
+                // Delete键或Backspace键删除选中对象
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    const activeObject = this.canvas.getActiveObject();
+                    if (activeObject) {
+                        // 阻止默认行为
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // 如果是多选
+                        if (activeObject.type === 'activeSelection') {
+                            activeObject.forEachObject((obj) => {
+                                this.canvas.remove(obj);
+                            });
+                            this.canvas.discardActiveObject();
+                        } else {
+                            // 单个对象
+                            this.canvas.remove(activeObject);
+                        }
+                        
+                        this.canvas.renderAll();
+                        this.updateLayerList();
+                        
+                        console.log('[Canvas] 已删除选中的图层');
+                    }
+                }
+                
+                // Ctrl+A 全选
+                if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const objects = this.canvas.getObjects();
+                    if (objects.length > 0) {
+                        const selection = new fabric.ActiveSelection(objects, {
+                            canvas: this.canvas
+                        });
+                        this.canvas.setActiveObject(selection);
+                        this.canvas.renderAll();
+                    }
+                }
+                
+                // Ctrl+D 取消选择
+                if (e.ctrlKey && e.key === 'd') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    this.canvas.discardActiveObject();
+                    this.canvas.renderAll();
+                }
+            };
+            
+            // 添加事件监听器
+            document.addEventListener('keydown', this._keydownHandler);
+            console.log('[Canvas] 键盘快捷键已启用: Delete删除, Ctrl+A全选, Ctrl+D取消选择');
+        }
+    }
     
     toggleLayerLock() {
         const activeObject = this.canvas.getActiveObject();
@@ -851,6 +947,38 @@ class LRPGCanvas {
         }
         
         // // console.log(`[LRPG Canvas] 图层面板${isExpanded ? '展开' : '折叠'}，节点尺寸已更新`);
+    }
+
+    updateNodeSizeForFacePanel(isExpanded) {
+        if (!this.node) return;
+        
+        // 获取当前显示尺寸
+        const scaledSize = this.calculateScaledSize(
+            this.originalSize.width,
+            this.originalSize.height,
+            this.maxDisplaySize
+        );
+        
+        // 调用updateContainerSize来更新所有尺寸，它会自动考虑面部面板状态
+        this.updateContainerSize(scaledSize.width, scaledSize.height);
+        
+        // 强制更新节点的size属性
+        if (this.node.computeSize) {
+            const newSize = this.node.computeSize();
+            this.node.size = newSize;
+            // console.log(`[Face Tools] 强制更新节点size: [${newSize[0]}, ${newSize[1]}]`);
+        }
+        
+        // 确保节点立即刷新
+        if (this.node.graph) {
+            this.node.graph.setDirtyCanvas(true, true);
+            // 触发图形重新布局
+            if (this.node.graph.change) {
+                this.node.graph.change();
+            }
+        }
+        
+        // console.log(`[Face Tools] 面部面板${isExpanded ? '展开' : '折叠'}，节点尺寸已更新`);
     }
     
     createModernToolbar() {
@@ -2173,7 +2301,34 @@ class LRPGCanvas {
         });
     }
 
+    /**
+     * 初始化面部工具
+     */
+    initializeFaceTools() {
+        try {
+            // 创建面部工具UI实例，传入canvas实例引用
+            this.faceToolsUI = new FaceToolsUI(this.canvas, this.canvasContainer, this);
+            console.log('[LRPG Canvas] Face tools initialized successfully');
+        } catch (error) {
+            console.warn('[LRPG Canvas] Failed to initialize face tools:', error);
+            // 面部工具初始化失败不应影响主要功能
+        }
+    }
+
+    /**
+     * 销毁面部工具
+     */
+    destroyFaceTools() {
+        if (this.faceToolsUI) {
+            this.faceToolsUI.destroy();
+            this.faceToolsUI = null;
+        }
+    }
+
     setupEventListeners() {
+        // 添加键盘事件监听器
+        this.setupKeyboardListeners();
+        
         // 添加滚轮缩放
         this.canvas.on('mouse:wheel', (opt) => {
             const delta = opt.e.deltaY;
@@ -3097,6 +3252,9 @@ class LRPGCanvas {
         if (this._pasteHandler) {
             document.removeEventListener('paste', this._pasteHandler, true);
         }
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler);
+        }
     }
 }
 
@@ -3165,16 +3323,23 @@ app.registerExtension({
                             ? LAYER_PANEL_EXPANDED_HEIGHT 
                             : LAYER_PANEL_COLLAPSED_HEIGHT;
                         
+                        // 计算面部工具面板高度
+                        const FACE_PANEL_EXPANDED_HEIGHT = 380; // 面板展开时的高度（包含手动微调部分）
+                        const FACE_PANEL_COLLAPSED_HEIGHT = 35;  // 面板折叠时只有标题栏
+                        const facePanelHeight = (this.canvasInstance && this.canvasInstance.faceToolsUI && this.canvasInstance.faceToolsUI.isPanelExpanded)
+                            ? FACE_PANEL_EXPANDED_HEIGHT
+                            : FACE_PANEL_COLLAPSED_HEIGHT;
+                        
                         // 使用与updateContainerSize相同的补偿逻辑
                         const ADJUSTED_RIGHT_MARGIN = 70;
                         const LG_BOTTOM_MARGIN = 110;
-                        const totalHeight = currentScaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT + layerPanelHeight;
+                        const totalHeight = currentScaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight;
                         
                         const result = [
                             currentScaledSize.width + ADJUSTED_RIGHT_MARGIN,
                             totalHeight + LG_BOTTOM_MARGIN
                         ];
-                        // // console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px): ${result[0]}x${result[1]}`);
+                        // // console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px): ${result[0]}x${result[1]}`);
                         return result;
                     };
                     

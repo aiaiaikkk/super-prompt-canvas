@@ -161,7 +161,7 @@ class CustomModelPromptGenerator:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("enhanced_prompt", "raw_output")
     FUNCTION = "generate_prompt"
-    CATEGORY = "🎨 LRPG Canvas"
+    CATEGORY = "🎨 Super Canvas"
     
     def load_model(self, model_file: str) -> bool:
         """加载量化模型"""
@@ -265,7 +265,7 @@ class CustomModelPromptGenerator:
             enhanced_request = editing_request
             if layers_info:
                 print(f"[Custom Model Prompt Generator] 接收到图层信息: {type(layers_info)}")
-                # 处理LRPG Canvas的图层信息
+                # 处理Super Canvas的图层信息
                 if isinstance(layers_info, dict):
                     layer_count = len(layers_info.get('layers', [])) if 'layers' in layers_info else 0
                     if layer_count > 0:

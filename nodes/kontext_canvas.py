@@ -1,4 +1,4 @@
-# LRPG Canvas - 专业画布标注工具
+# Super Canvas - 专业画布标注工具
 import torch
 import numpy as np
 import base64
@@ -14,20 +14,20 @@ from aiohttp import web
 try:
     from server import PromptServer
     routes = PromptServer.instance.routes
-    print("[LRPG Canvas] 🎨 Server imports successful")
+    print("[Super Canvas] 🎨 Server imports successful")
 except ImportError as e:
-    print(f"[LRPG Canvas] ❌ Failed to import server: {e}")
+    print(f"[Super Canvas] ❌ Failed to import server: {e}")
 
-CATEGORY_TYPE = "🎨 LRPG Canvas"
+CATEGORY_TYPE = "🎨 Super Canvas"
 
 def get_canvas_storage():
-    """获取LRPG Canvas节点的数据存储"""
+    """获取Super Canvas节点的数据存储"""
     if not hasattr(PromptServer.instance, '_kontext_canvas_node_data'):
         PromptServer.instance._kontext_canvas_node_data = {}
     return PromptServer.instance._kontext_canvas_node_data
 
 def get_canvas_cache():
-    """获取LRPG Canvas节点的缓存存储"""
+    """获取Super Canvas节点的缓存存储"""
     if not hasattr(PromptServer.instance, '_kontext_canvas_node_cache'):
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache

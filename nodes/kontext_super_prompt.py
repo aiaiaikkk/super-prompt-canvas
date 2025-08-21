@@ -288,7 +288,7 @@ try:
 except ImportError:
     COMFY_AVAILABLE = False
 
-CATEGORY_TYPE = "🎨 LRPG Canvas"
+CATEGORY_TYPE = "🎨 Super Canvas"
 
 class KontextSuperPrompt:
     """
@@ -1008,6 +1008,6 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "KontextSuperPrompt": "🎯 Kontext Super Prompt",
+    "KontextSuperPrompt": "Super Prompt",
 }
 

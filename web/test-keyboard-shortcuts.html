@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>键盘快捷键测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .shortcuts-info {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .shortcuts-info h2 {
+            margin: 0 0 15px 0;
+            color: #4CAF50;
+        }
+        .shortcut-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+        }
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #444;
+        }
+        .shortcut-key {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-instructions {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-instructions h3 {
+            margin: 0 0 10px 0;
+            color: #ff9800;
+        }
+        .test-steps {
+            list-style: none;
+            padding: 0;
+        }
+        .test-steps li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .test-steps li::before {
+            content: counter(step-counter);
+            counter-increment: step-counter;
+            position: absolute;
+            left: 0;
+            background: #007bff;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .test-steps {
+            counter-reset: step-counter;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #4CAF50; }
+        .status-warning { background: #ff9800; }
+        .status-info { background: #2196F3; }
+        
+        .mock-canvas {
+            width: 600px;
+            height: 400px;
+            border: 2px solid #444;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 14px;
+            margin: 20px 0;
+            user-select: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .test-result {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .warning { border-left: 4px solid #ff9800; }
+        
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="shortcuts-info">
+            <h2>🎹 键盘快捷键功能列表</h2>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-success"></span>删除选中图层</span>
+                    <span class="shortcut-key">Delete / Backspace</span>
+                </div>
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-success"></span>全选所有图层</span>
+                    <span class="shortcut-key">Ctrl + A</span>
+                </div>
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-success"></span>取消选择</span>
+                    <span class="shortcut-key">Ctrl + D</span>
+                </div>
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-info"></span>滚轮缩放对象</span>
+                    <span class="shortcut-key">鼠标滚轮</span>
+                </div>
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-warning"></span>复制粘贴（预留）</span>
+                    <span class="shortcut-key">Ctrl + C/V</span>
+                </div>
+                <div class="shortcut-item">
+                    <span><span class="status-indicator status-warning"></span>撤销重做（预留）</span>
+                    <span class="shortcut-key">Ctrl + Z/Y</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-instructions">
+            <h3>🧪 测试说明</h3>
+            <p>以下是键盘快捷键的使用注意事项和测试步骤：</p>
+            <ol class="test-steps">
+                <li><strong>智能上下文检测</strong>：快捷键只在画布有焦点时生效，在输入框中输入时不会误触发</li>
+                <li><strong>多选支持</strong>：Delete键支持删除单个对象和多选对象</li>
+                <li><strong>防冲突设计</strong>：在输入文本时（INPUT、TEXTAREA等）自动禁用删除键</li>
+                <li><strong>即时反馈</strong>：删除操作会立即更新图层列表和画布显示</li>
+                <li><strong>控制台日志</strong>：每次操作都会在控制台输出确认信息</li>
+            </ol>
+        </div>
+
+        <div class="mock-canvas" onclick="showTestResult()">
+            点击这里模拟测试画布焦点<br>
+            <small>（实际使用时，键盘快捷键在真实的Fabric.js画布上生效）</small>
+        </div>
+
+        <div class="test-controls">
+            <button onclick="simulateDelete()">模拟Delete键</button>
+            <button onclick="simulateSelectAll()">模拟Ctrl+A</button>
+            <button onclick="simulateDeselect()">模拟Ctrl+D</button>
+            <button onclick="checkImplementation()">检查实现</button>
+        </div>
+
+        <div id="test-result" class="test-result">
+            <h4>测试结果</h4>
+            <div id="result-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟测试功能
+        function showTestResult() {
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result info';
+            resultContent.innerHTML = `
+                <p><strong>✅ 画布焦点测试</strong></p>
+                <p>在真实环境中，键盘快捷键的工作流程：</p>
+                <ol>
+                    <li>用户点击画布区域获得焦点</li>
+                    <li>系统检测当前焦点元素是否为画布或相关容器</li>
+                    <li>如果焦点正确且不在输入状态，响应键盘事件</li>
+                    <li>执行相应操作并更新界面</li>
+                </ol>
+            `;
+        }
+        
+        function simulateDelete() {
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result success';
+            resultContent.innerHTML = `
+                <p><strong>🗑️ Delete键功能模拟</strong></p>
+                <p><strong>预期行为：</strong></p>
+                <ul>
+                    <li>检测当前选中的Fabric.js对象</li>
+                    <li>如果是单个对象：直接删除</li>
+                    <li>如果是多选（ActiveSelection）：遍历删除所有对象</li>
+                    <li>更新画布渲染和图层列表</li>
+                    <li>输出控制台日志: "[Canvas] 已删除选中的图层"</li>
+                </ul>
+                <p><strong>安全机制：</strong>只在非输入状态下生效，防止误删除。</p>
+            `;
+        }
+        
+        function simulateSelectAll() {
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result success';
+            resultContent.innerHTML = `
+                <p><strong>🎯 Ctrl+A全选功能模拟</strong></p>
+                <p><strong>预期行为：</strong></p>
+                <ul>
+                    <li>获取画布上的所有对象</li>
+                    <li>创建ActiveSelection多选对象</li>
+                    <li>设置为当前活动选择</li>
+                    <li>所有对象显示选中状态</li>
+                </ul>
+                <p><strong>应用场景：</strong>批量操作、整体移动、统一删除等。</p>
+            `;
+        }
+        
+        function simulateDeselect() {
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result success';
+            resultContent.innerHTML = `
+                <p><strong>❌ Ctrl+D取消选择功能模拟</strong></p>
+                <p><strong>预期行为：</strong></p>
+                <ul>
+                    <li>调用canvas.discardActiveObject()</li>
+                    <li>清除所有对象的选中状态</li>
+                    <li>隐藏选择框和控制手柄</li>
+                    <li>重新渲染画布</li>
+                </ul>
+                <p><strong>使用场景：</strong>快速清除选择状态，方便下一步操作。</p>
+            `;
+        }
+        
+        function checkImplementation() {
+            const resultDiv = document.getElementById('test-result');
+            const resultContent = document.getElementById('result-content');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'test-result warning';
+            resultContent.innerHTML = `
+                <p><strong>🔧 实现检查</strong></p>
+                <p><strong>关键代码位置：</strong></p>
+                <ul>
+                    <li><code>KontextCanvasNode.js:828</code> - setupKeyboardListeners方法</li>
+                    <li><code>KontextCanvasNode.js:854</code> - Delete/Backspace处理</li>
+                    <li><code>KontextCanvasNode.js:880</code> - Ctrl+A处理</li>
+                    <li><code>KontextCanvasNode.js:895</code> - Ctrl+D处理</li>
+                    <li><code>KontextCanvasNode.js:3255</code> - 清理事件监听器</li>
+                </ul>
+                <p><strong>测试方法：</strong></p>
+                <ol>
+                    <li>在ComfyUI中打开Super Prompt Canvas节点</li>
+                    <li>上传几张图片到画布</li>
+                    <li>选中图片后按Delete键测试删除</li>
+                    <li>使用Ctrl+A测试全选</li>
+                    <li>使用Ctrl+D测试取消选择</li>
+                    <li>检查控制台日志确认功能执行</li>
+                </ol>
+            `;
+        }
+        
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            console.log('🎹 键盘快捷键测试页面已加载');
+            console.log('实际功能需要在ComfyUI的Super Prompt Canvas节点中测试');
+        });
+    </script>
+</body>
+</html>
