@@ -172,5 +172,5 @@ git clone https://github.com/aiaiaikkk/super-prompt-canvas.git
 
 ---
 
-**Version**: 1.4.3
+**Version**: 1.4.4
 **Author**: aiaiaikkk

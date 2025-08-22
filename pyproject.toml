@@ -1,7 +1,7 @@
 [project]
 name = "super-prompt-canvas"
 description = "ComfyUI nodes for image editing prompt generation with visual canvas annotation and multi-model AI assistance"
-version = "1.4.3"
+version = "1.4.4"
 license = { text = "MIT License" }
 dependencies = [
     "torch>=1.13.0",
