@@ -47,7 +47,6 @@ class MediaPipeFaceDetector {
                     minDetectionConfidence: options.minDetectionConfidence || 0.5,
                 });
                 
-                console.log('MediaPipe Face Detection initialized successfully');
             } else {
                 console.warn('FaceDetection not available, using fallback');
                 this.useFallbackDetection = true;
@@ -66,7 +65,6 @@ class MediaPipeFaceDetector {
                     minTrackingConfidence: options.minTrackingConfidence || 0.5
                 });
                 
-                console.log('MediaPipe Face Mesh initialized successfully');
             }
 
             if (!this.faceDetection && !this.faceMesh) {
@@ -109,7 +107,6 @@ class MediaPipeFaceDetector {
         const existingFaceMeshScript = document.querySelector('script[src*="face_mesh"]');
         
         if (existingFaceDetectionScript && existingFaceMeshScript) {
-            console.log('MediaPipe scripts already present');
             return;
         }
 
@@ -172,7 +169,6 @@ class MediaPipeFaceDetector {
             script.type = 'text/javascript';
             script.crossOrigin = 'anonymous';
             script.onload = () => {
-                console.log(`Loaded script: ${src}`);
                 resolve();
             };
             script.onerror = () => {
@@ -184,39 +180,262 @@ class MediaPipeFaceDetector {
     }
 
     /**
-     * 检测图像中的人脸（降级方案）
+     * 检测图像中的人脸（改进的降级方案）
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} input 输入图像
      * @return {Promise<Array>} 检测结果数组
      */
     async detectFacesFallback(input) {
-        // 简单的降级方案：返回整个图像作为一个面部区域
         const width = input.width || input.videoWidth || input.naturalWidth;
         const height = input.height || input.videoHeight || input.naturalHeight;
         
-        // 假设面部在图像中心，占图像的30-40%
-        const faceSize = Math.min(width, height) * 0.35;
+        
+        // 尝试基于图像内容的简单启发式检测
+        const faces = await this._heuristicFaceDetection(input);
+        
+        if (faces.length > 0) {
+            return faces;
+        }
+        
+        // 如果启发式检测失败，使用改进的中心估计
+        const aspectRatio = width / height;
+        let faceWidth, faceHeight;
+        
+        // 根据图像宽高比调整面部区域估计
+        if (aspectRatio > 1.5) {
+            // 宽图像，可能是横向肖像
+            faceWidth = Math.min(width, height) * 0.3;
+            faceHeight = faceWidth * 1.2; // 面部通常略高
+        } else if (aspectRatio < 0.7) {
+            // 高图像，可能是竖向肖像
+            faceHeight = Math.min(width, height) * 0.4;
+            faceWidth = faceHeight * 0.85; // 面部宽度略小于高度
+        } else {
+            // 接近正方形的图像
+            const faceSize = Math.min(width, height) * 0.35;
+            faceWidth = faceSize;
+            faceHeight = faceSize * 1.1;
+        }
+        
+        // 面部中心点（稍微偏上）
         const centerX = width / 2;
-        const centerY = height / 2;
+        const centerY = height * 0.45; // 面部通常在图像上半部分
+        
+        // 计算更准确的面部特征点位置
+        const eyeY = centerY - faceHeight * 0.15;
+        const eyeDistance = faceWidth * 0.25;
+        const noseY = centerY - faceHeight * 0.05;
+        const mouthY = centerY + faceHeight * 0.2;
         
         return [{
             id: 0,
             boundingBox: {
-                x: centerX - faceSize / 2,
-                y: centerY - faceSize / 2,
-                width: faceSize,
-                height: faceSize
+                x: centerX - faceWidth / 2,
+                y: centerY - faceHeight / 2,
+                width: faceWidth,
+                height: faceHeight
             },
             landmarks: [],
-            confidence: 0.5,
+            confidence: 0.3, // 降低置信度，表明这是估计值
             keypoints: {
-                leftEye: { x: centerX - faceSize * 0.15, y: centerY - faceSize * 0.1 },
-                rightEye: { x: centerX + faceSize * 0.15, y: centerY - faceSize * 0.1 },
-                nose: { x: centerX, y: centerY },
-                mouth: { x: centerX, y: centerY + faceSize * 0.15 },
-                leftEar: { x: centerX - faceSize * 0.35, y: centerY },
-                rightEar: { x: centerX + faceSize * 0.35, y: centerY }
+                leftEye: { x: centerX - eyeDistance, y: eyeY },
+                rightEye: { x: centerX + eyeDistance, y: eyeY },
+                nose: { x: centerX, y: noseY },
+                mouth: { x: centerX, y: mouthY },
+                leftEar: { x: centerX - faceWidth * 0.4, y: centerY },
+                rightEar: { x: centerX + faceWidth * 0.4, y: centerY }
             }
         }];
+    }
+    
+    /**
+     * 基于简单图像分析的启发式人脸检测
+     * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} input 输入图像
+     * @return {Promise<Array>} 检测结果数组
+     * @private
+     */
+    async _heuristicFaceDetection(input) {
+        try {
+            // 创建canvas分析图像
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 缩小图像进行快速分析
+            const analysisSize = 64;
+            canvas.width = analysisSize;
+            canvas.height = analysisSize;
+            
+            ctx.drawImage(input, 0, 0, analysisSize, analysisSize);
+            const imageData = ctx.getImageData(0, 0, analysisSize, analysisSize);
+            const data = imageData.data;
+            
+            // 寻找肤色区域（简单的颜色空间分析）
+            const skinRegions = this._findSkinColorRegions(data, analysisSize, analysisSize);
+            
+            if (skinRegions.length > 0) {
+                // 选择最大的肤色区域作为面部
+                const largestRegion = skinRegions.reduce((max, region) => 
+                    region.area > max.area ? region : max
+                );
+                
+                // 将分析结果缩放回原始图像尺寸
+                const width = input.width || input.videoWidth || input.naturalWidth;
+                const height = input.height || input.videoHeight || input.naturalHeight;
+                
+                const scaleX = width / analysisSize;
+                const scaleY = height / analysisSize;
+                
+                const faceX = largestRegion.centerX * scaleX;
+                const faceY = largestRegion.centerY * scaleY;
+                const faceWidth = Math.sqrt(largestRegion.area) * scaleX * 2;
+                const faceHeight = faceWidth * 1.2;
+                
+                return [{
+                    id: 0,
+                    boundingBox: {
+                        x: faceX - faceWidth / 2,
+                        y: faceY - faceHeight / 2,
+                        width: faceWidth,
+                        height: faceHeight
+                    },
+                    landmarks: [],
+                    confidence: 0.4,
+                    keypoints: {
+                        leftEye: { x: faceX - faceWidth * 0.2, y: faceY - faceHeight * 0.15 },
+                        rightEye: { x: faceX + faceWidth * 0.2, y: faceY - faceHeight * 0.15 },
+                        nose: { x: faceX, y: faceY },
+                        mouth: { x: faceX, y: faceY + faceHeight * 0.2 },
+                        leftEar: { x: faceX - faceWidth * 0.4, y: faceY },
+                        rightEar: { x: faceX + faceWidth * 0.4, y: faceY }
+                    }
+                }];
+            }
+        } catch (error) {
+            console.warn('启发式人脸检测失败:', error);
+        }
+        
+        return [];
+    }
+    
+    /**
+     * 简单的肤色检测
+     * @param {Uint8ClampedArray} data 图像数据
+     * @param {number} width 图像宽度
+     * @param {number} height 图像高度
+     * @return {Array} 肤色区域数组
+     * @private
+     */
+    _findSkinColorRegions(data, width, height) {
+        const skinPixels = [];
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const index = (y * width + x) * 4;
+                const r = data[index];
+                const g = data[index + 1];
+                const b = data[index + 2];
+                
+                // 简单的肤色检测（改进的RGB范围）
+                if (this._isSkinColor(r, g, b)) {
+                    skinPixels.push({ x, y });
+                }
+            }
+        }
+        
+        // 聚类肤色像素形成区域
+        return this._clusterSkinPixels(skinPixels);
+    }
+    
+    /**
+     * 判断是否为肤色
+     * @param {number} r 红色值
+     * @param {number} g 绿色值
+     * @param {number} b 蓝色值
+     * @return {boolean} 是否为肤色
+     * @private
+     */
+    _isSkinColor(r, g, b) {
+        // 改进的肤色检测算法
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        
+        // 排除过暗或过亮的像素
+        if (max < 50 || min > 230) return false;
+        
+        // 肤色通常满足以下条件
+        return (r > 95 && g > 40 && b > 20 && 
+                max - min > 15 && 
+                Math.abs(r - g) > 15 && 
+                r > g && r > b);
+    }
+    
+    /**
+     * 聚类肤色像素
+     * @param {Array} pixels 像素数组
+     * @return {Array} 区域数组
+     * @private
+     */
+    _clusterSkinPixels(pixels) {
+        if (pixels.length < 5) return [];
+        
+        // 简单的连通组件分析
+        const regions = [];
+        const visited = new Set();
+        
+        for (const pixel of pixels) {
+            const key = `${pixel.x},${pixel.y}`;
+            if (visited.has(key)) continue;
+            
+            const region = this._floodFill(pixels, pixel, visited);
+            if (region.length > 3) { // 至少3个像素才算一个区域
+                const centerX = region.reduce((sum, p) => sum + p.x, 0) / region.length;
+                const centerY = region.reduce((sum, p) => sum + p.y, 0) / region.length;
+                
+                regions.push({
+                    centerX,
+                    centerY,
+                    area: region.length,
+                    pixels: region
+                });
+            }
+        }
+        
+        return regions.sort((a, b) => b.area - a.area);
+    }
+    
+    /**
+     * 泛洪填充算法
+     * @param {Array} allPixels 所有像素
+     * @param {Object} startPixel 起始像素
+     * @param {Set} visited 已访问集合
+     * @return {Array} 连通区域
+     * @private
+     */
+    _floodFill(allPixels, startPixel, visited) {
+        const region = [];
+        const stack = [startPixel];
+        const pixelSet = new Set(allPixels.map(p => `${p.x},${p.y}`));
+        
+        while (stack.length > 0) {
+            const pixel = stack.pop();
+            const key = `${pixel.x},${pixel.y}`;
+            
+            if (visited.has(key)) continue;
+            visited.add(key);
+            region.push(pixel);
+            
+            // 检查邻近像素
+            for (const [dx, dy] of [[-1,0], [1,0], [0,-1], [0,1]]) {
+                const nx = pixel.x + dx;
+                const ny = pixel.y + dy;
+                const nkey = `${nx},${ny}`;
+                
+                if (!visited.has(nkey) && pixelSet.has(nkey)) {
+                    stack.push({ x: nx, y: ny });
+                }
+            }
+        }
+        
+        return region;
     }
 
     /**
