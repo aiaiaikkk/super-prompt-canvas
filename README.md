@@ -126,7 +126,7 @@
 ### 方法2：Git克隆
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
+git clone https://github.com/aiaiaikkk/super-prompt-canvas.git
 ```
 
 ### 方法3：手动安装
@@ -172,5 +172,5 @@ git clone https://github.com/aiaiaikkk/kontext-super-prompt.git
 
 ---
 
-**Version**: 1.4.2
+**Version**: 1.4.3
 **Author**: aiaiaikkk
