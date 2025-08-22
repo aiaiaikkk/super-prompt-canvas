@@ -448,7 +448,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LRPGCanvas": "🎨 LRPG Canvas",
+    "LRPGCanvas": "🎨 Super Canvas",
 }
 
 print("[LRPG Canvas] 🎨 LRPG Canvas节点已注册")
