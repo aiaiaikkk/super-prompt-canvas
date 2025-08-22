@@ -1,5 +1,5 @@
 """
-kontext-super-prompt - ComfyUI Custom Nodes
+super-prompt-canvas - ComfyUI Custom Nodes
 
 Version: 1.4.0
 Author: aiaiaikkk

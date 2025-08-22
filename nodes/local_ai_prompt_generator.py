@@ -28,11 +28,11 @@ except ImportError:
 def get_custom_model_directory():
     """获取自定义模型目录路径"""
     # ComfyUI/models/custom_prompt_models/
-    # __file__ = /path/to/ComfyUI/custom_nodes/kontext-super-prompt/nodes/local_ai_prompt_generator.py
-    # 需要向上4级: nodes -> kontext-super-prompt -> custom_nodes -> ComfyUI
+    # __file__ = /path/to/ComfyUI/custom_nodes/super-prompt-canvas/nodes/local_ai_prompt_generator.py
+    # 需要向上4级: nodes -> super-prompt-canvas -> custom_nodes -> ComfyUI
     current_file = os.path.abspath(__file__)
     nodes_dir = os.path.dirname(current_file)  # .../nodes/
-    plugin_dir = os.path.dirname(nodes_dir)   # .../kontext-super-prompt/
+    plugin_dir = os.path.dirname(nodes_dir)   # .../super-prompt-canvas/
     custom_nodes_dir = os.path.dirname(plugin_dir)  # .../custom_nodes/
     comfyui_root = os.path.dirname(custom_nodes_dir)  # .../ComfyUI/
     
