@@ -14,7 +14,6 @@ from aiohttp import web
 try:
     from server import PromptServer
     routes = PromptServer.instance.routes
-    print("[Super Canvas] 🎨 Server imports successful")
 except ImportError as e:
     print(f"[Super Canvas] ❌ Failed to import server: {e}")
 
@@ -31,7 +30,6 @@ def get_canvas_cache():
     if not hasattr(PromptServer.instance, '_kontext_canvas_node_cache'):
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
-
 
 def base64_to_tensor(base64_string):
     """将 base64 图像数据转换为 tensor"""
@@ -239,8 +237,7 @@ class LRPGCanvas:
         # 清理已有节点并添加自己 - 完全复制lg_tools的做法
         LRPGCanvas.clean_nodes()
         LRPGCanvas.active_nodes.append(self)
-        print(f"[LRPG Canvas] 新节点已创建，当前活动节点数: {len(LRPGCanvas.active_nodes)}")
-
+        # 新节点已创建
 
     @classmethod
     def clean_nodes(cls):
@@ -451,4 +448,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LRPGCanvas": "🖼️ Super Canvas",
 }
 
-print("[LRPG Canvas] 🎨 LRPG Canvas节点已注册")
+# Debug log removed

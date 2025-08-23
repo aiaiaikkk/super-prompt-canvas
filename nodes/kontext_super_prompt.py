@@ -535,14 +535,18 @@ class KontextSuperPrompt:
                     print(f"[Kontext] 保存设置失败: {e}")
             
             # 根据选项卡模式处理
-            if tab_mode == "api" and generated_prompt and generated_prompt.strip():
-                final_generated_prompt = generated_prompt.strip()
+            if tab_mode == "api" and api_generated_prompt and api_generated_prompt.strip():
+                # 从archive API选项卡的前端生成提示词中提取纯净内容
+                final_generated_prompt = self._extract_pure_prompt(api_generated_prompt)
             elif tab_mode == "api" and api_key:
                 final_generated_prompt = self.process_api_mode(
                     layer_info, description, api_provider, api_key, api_model,
                     api_editing_intent, api_processing_style, api_seed, 
                     api_custom_guidance, image
                 )
+            elif tab_mode == "ollama" and ollama_generated_prompt and ollama_generated_prompt.strip():
+                # 从 Ollama选项卡的前端生成提示词中提取纯净内容
+                final_generated_prompt = self._extract_pure_prompt(ollama_generated_prompt)
             elif tab_mode == "ollama" and ollama_model:
                 final_generated_prompt = self.process_ollama_mode(
                     layer_info, description, ollama_url, ollama_model, ollama_temperature,
@@ -550,29 +554,45 @@ class KontextSuperPrompt:
                     ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
                 )
             elif generated_prompt and generated_prompt.strip():
-                final_generated_prompt = generated_prompt.strip()
+                # 从前端生成的提示词中提取纯净内容
+                final_generated_prompt = self._extract_pure_prompt(generated_prompt)
             else:
-                # 解析图层信息
-                parsed_layer_info = self.parse_layer_info(layer_info)
+                # 手动模式：根据编辑模式选择对应的generated_prompt
+                manual_prompt = None
+                if edit_mode == "局部编辑" and local_generated_prompt:
+                    manual_prompt = local_generated_prompt
+                elif edit_mode == "全局编辑" and global_generated_prompt:
+                    manual_prompt = global_generated_prompt
+                elif edit_mode == "文字编辑" and text_generated_prompt:
+                    manual_prompt = text_generated_prompt
+                elif edit_mode == "专业操作" and professional_generated_prompt:
+                    manual_prompt = professional_generated_prompt
                 
-                # 解析选中的图层
-                selected_layer_ids = self.parse_selected_layers(selected_layers)
-                
-                # 解析约束性和修饰性提示词
-                constraint_list = self.parse_prompt_list(constraint_prompts)
-                decorative_list = self.parse_prompt_list(decorative_prompts)
-                
-                # 生成基础fallback提示词
-                positive_prompt, negative_prompt, full_description = self.generate_basic_fallback_prompts(
-                    edit_mode=edit_mode,
-                    operation_type=operation_type,
-                    description=description,
-                    constraint_prompts=constraint_list,
-                    decorative_prompts=decorative_list
-                )
-                
-                # 合并所有提示词信息为一个完整的生成提示词
-                final_generated_prompt = f"{positive_prompt}\n\nNegative: {negative_prompt}\n\n{full_description}"
+                # 如果有手动模式的提示词，提取纯净内容
+                if manual_prompt and manual_prompt.strip():
+                    final_generated_prompt = self._extract_pure_prompt(manual_prompt)
+                else:
+                    # 解析图层信息
+                    parsed_layer_info = self.parse_layer_info(layer_info)
+                    
+                    # 解析选中的图层
+                    selected_layer_ids = self.parse_selected_layers(selected_layers)
+                    
+                    # 解析约束性和修饰性提示词
+                    constraint_list = self.parse_prompt_list(constraint_prompts)
+                    decorative_list = self.parse_prompt_list(decorative_prompts)
+                    
+                    # 生成基础fallback提示词
+                    positive_prompt, negative_prompt, full_description = self.generate_basic_fallback_prompts(
+                        edit_mode=edit_mode,
+                        operation_type=operation_type,
+                        description=description,
+                        constraint_prompts=constraint_list,
+                        decorative_prompts=decorative_list
+                    )
+                    
+                    # 合并所有提示词信息为一个完整的生成提示词
+                    final_generated_prompt = f"{positive_prompt}\n\nNegative: {negative_prompt}\n\n{full_description}"
             
             # 构建编辑数据（用于调试和扩展）
             edit_data = {
@@ -917,6 +937,32 @@ REMEMBER: ENGLISH ONLY OUTPUT."""
             print(f"[Kontext Super Prompt] Ollama模式处理错误: {e}")
             # 返回英文fallback
             return f"Apply editing to marked area: {description}"
+    
+    def _extract_pure_prompt(self, text):
+        """从前端传来的文本中提取纯净的提示词"""
+        import re
+        
+        if not text:
+            return ""
+        
+        # 检查是否包含前端添加的格式标记
+        if "生成的提示词:" in text or "生成的提示词：" in text:
+            # 提取"生成的提示词:"之后的内容
+            parts = re.split(r'生成的提示词[:：]\s*', text)
+            if len(parts) > 1:
+                # 获取最后一部分（提示词内容）
+                pure_prompt = parts[-1].strip()
+                return pure_prompt
+        
+        # 检查英文版本的标记
+        if "Generated prompt:" in text or "generated prompt:" in text:
+            parts = re.split(r'[Gg]enerated prompt[:：]\s*', text)
+            if len(parts) > 1:
+                pure_prompt = parts[-1].strip()
+                return pure_prompt
+        
+        # 如果没有找到标记，返回原文本（兼容旧版本）
+        return text.strip()
     
     def _clean_api_response(self, response):
         """清理API响应，确保只输出英文提示词"""

@@ -46,13 +46,37 @@ class OllamaModelConverter:
         print(f"[Ollama Converter] Modelfile目录: {self.modelfiles_dir}")
     
     def scan_gguf_models(self) -> List[Dict]:
-        """扫描目录中的GGUF模型文件"""
+        """扫描目录中的GGUF模型文件（支持文件夹形式）"""
         models = []
         
         try:
+            # 扫描所有子文件夹
+            for folder_path in self.import_dir.iterdir():
+                if folder_path.is_dir():
+                    # 在文件夹中查找GGUF文件和Modelfile
+                    gguf_files = list(folder_path.glob("*.gguf"))
+                    modelfile_path = folder_path / "Modelfile"
+                    
+                    if gguf_files:
+                        # 使用第一个找到的GGUF文件
+                        gguf_file = gguf_files[0]
+                        model_name = folder_path.name
+                        is_converted = self.check_if_converted(model_name)
+                        
+                        model_info = {
+                            'name': model_name,
+                            'file_path': str(gguf_file),
+                            'file_size': gguf_file.stat().st_size,
+                            'is_converted': is_converted,
+                            'ollama_name': f"custom-{model_name}",
+                            'modelfile_path': str(modelfile_path),
+                            'has_modelfile': modelfile_path.exists()
+                        }
+                        models.append(model_info)
+            
+            # 也支持直接放在根目录的GGUF文件（向后兼容）
             for file_path in self.import_dir.glob("*.gguf"):
                 if file_path.is_file():
-                    # 检查是否已经转换
                     model_name = file_path.stem
                     is_converted = self.check_if_converted(model_name)
                     
@@ -62,7 +86,8 @@ class OllamaModelConverter:
                         'file_size': file_path.stat().st_size,
                         'is_converted': is_converted,
                         'ollama_name': f"custom-{model_name}",
-                        'modelfile_path': str(self.modelfiles_dir / f"{model_name}.modelfile")
+                        'modelfile_path': str(self.modelfiles_dir / f"{model_name}.modelfile"),
+                        'has_modelfile': False
                     }
                     models.append(model_info)
             
@@ -158,12 +183,18 @@ Assistant: {{{{ .Response }}}}
     def convert_model(self, model_info: Dict) -> Tuple[bool, str]:
         """转换模型到Ollama格式"""
         try:
-            # 首先创建Modelfile
-            if not self.create_modelfile(model_info):
-                return False, "Modelfile创建失败"
+            # 检查是否有现有的Modelfile
+            if model_info.get('has_modelfile', False):
+                # 使用现有的Modelfile
+                modelfile_path = model_info['modelfile_path']
+                print(f"[Ollama Converter] 使用现有Modelfile: {modelfile_path}")
+            else:
+                # 创建新的Modelfile
+                if not self.create_modelfile(model_info):
+                    return False, "Modelfile创建失败"
+                modelfile_path = model_info['modelfile_path']
             
             # 执行ollama create命令
-            modelfile_path = model_info['modelfile_path']
             ollama_name = model_info['ollama_name']
             
             print(f"[Ollama Converter] 开始转换模型: {ollama_name}")
@@ -203,10 +234,8 @@ Assistant: {{{{ .Response }}}}
         
         return False, f"未找到模型: {model_name}"
 
-
 # 全局转换器实例
 model_converter = OllamaModelConverter()
-
 
 # API端点
 if WEB_AVAILABLE:
