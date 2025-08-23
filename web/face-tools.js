@@ -5,6 +5,7 @@
 
 import FaceProcessor, { FaceProcessorPresets } from './face-processor.js';
 import DualFaceAlignment, { AlignmentPresets } from './dual-face-alignment.js';
+import { globalBackgroundRemoval } from './libs/background-removal.js';
 
 class FaceToolsUI {
     constructor(canvas, container, canvasInstance = null) {
@@ -14,6 +15,7 @@ class FaceToolsUI {
         this.node = canvasInstance ? canvasInstance.node : null; // ComfyUI节点引用
         this.faceProcessor = new FaceProcessor();
         this.dualFaceAlignment = new DualFaceAlignment();
+        this.backgroundRemoval = globalBackgroundRemoval;
         this.isProcessing = false;
         this.currentPreset = 'avatar';
         this.alignmentMode = 'single'; // 'single' or 'dual'
@@ -50,6 +52,7 @@ class FaceToolsUI {
         this.createToolbar();
         this.bindEvents();
         this.loadPreferences();
+        this.preloadBackgroundRemoval();
     }
 
     /**
@@ -167,8 +170,8 @@ class FaceToolsUI {
                         <button id="auto-face-align" class="mini-btn" title="面部对齐" style="flex: 1; padding: 4px; font-size: 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">
                             对齐
                         </button>
-                        <button id="face-analyze" class="mini-btn" title="分析" style="flex: 1; padding: 4px; font-size: 10px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                            分析
+                        <button id="background-removal" class="mini-btn" title="移除背景" style="flex: 1; padding: 4px; font-size: 10px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                            去背景
                         </button>
                     </div>
                 </div>
@@ -275,19 +278,11 @@ class FaceToolsUI {
                     <div style="display: flex; gap: 6px; margin-bottom: 3px; align-items: center;">
                         <div style="flex: 1; display: flex; align-items: center; gap: 3px;">
                             <span style="font-size: 8px; color: #6c757d; min-width: 28px;">面部尺寸</span>
-                            <input type="range" id="min-face-size" min="100" max="500" value="150" step="10" style="flex: 1; height: 3px;">
-                            <span id="size-value" style="font-size: 8px; color: #6c757d; min-width: 32px;">150px</span>
+                            <input type="range" id="min-face-size" min="100" max="500" value="300" step="10" style="flex: 1; height: 3px;">
+                            <span id="size-value" style="font-size: 8px; color: #6c757d; min-width: 32px;">300px</span>
                         </div>
                     </div>
                     
-                    <!-- 输出质量行 -->
-                    <div style="display: flex; gap: 6px; margin-bottom: 4px; align-items: center;">
-                        <div style="flex: 1; display: flex; align-items: center; gap: 3px;">
-                            <span style="font-size: 8px; color: #6c757d; min-width: 28px;">输出质量</span>
-                            <input type="range" id="output-quality" min="50" max="100" value="90" step="5" style="flex: 1; height: 3px;">
-                            <span id="quality-value" style="font-size: 8px; color: #6c757d; min-width: 24px;">90%</span>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 批量处理和高级设置 -->
@@ -352,7 +347,6 @@ class FaceToolsUI {
         if (this.node.computeSize) {
             const newSize = this.node.computeSize();
             this.node.size = newSize;
-            console.log(`[Face Tools] 更新节点大小: [${newSize[0]}, ${newSize[1]}]`);
         }
         
         // 确保节点立即刷新
@@ -405,8 +399,8 @@ class FaceToolsUI {
             this.performFaceAlign();
         });
 
-        toolbar.querySelector('#face-analyze').addEventListener('click', () => {
-            this.performFaceAnalysis();
+        toolbar.querySelector('#background-removal').addEventListener('click', () => {
+            this.performBackgroundRemoval();
         });
 
         // 批量处理
@@ -435,8 +429,7 @@ class FaceToolsUI {
     bindSliderEvents(toolbar) {
         const sliders = [
             { id: 'crop-padding', display: 'padding-value', suffix: '%' },
-            { id: 'min-face-size', display: 'size-value', suffix: 'px' },
-            { id: 'output-quality', display: 'quality-value', suffix: '%' }
+            { id: 'min-face-size', display: 'size-value', suffix: 'px' }
         ];
 
         sliders.forEach(({ id, display, suffix }) => {
@@ -465,9 +458,9 @@ class FaceToolsUI {
                         e.preventDefault();
                         this.performFaceAlign();
                         break;
-                    case 'i': // Ctrl+I 面部分析
+                    case 'i': // Ctrl+I 背景移除
                         e.preventDefault();
-                        this.performFaceAnalysis();
+                        this.performBackgroundRemoval();
                         break;
                 }
             }
@@ -507,7 +500,6 @@ class FaceToolsUI {
         // 更新UI控件值
         this.updateSliderValue('crop-padding', preset.cropPadding * 100);
         this.updateSliderValue('min-face-size', preset.minFaceSize);
-        this.updateSliderValue('output-quality', preset.quality * 100);
 
         this.savePreferences();
     }
@@ -517,7 +509,7 @@ class FaceToolsUI {
      */
     updateSliderValue(id, value) {
         const slider = this.toolbar.querySelector(`#${id}`);
-        const suffix = id === 'crop-padding' || id === 'output-quality' ? '%' : 'px';
+        const suffix = id === 'crop-padding' ? '%' : 'px';
         
         slider.value = value;
         slider.dispatchEvent(new Event('input'));
@@ -586,9 +578,9 @@ class FaceToolsUI {
     }
 
     /**
-     * 执行面部分析
+     * 执行背景移除
      */
-    async performFaceAnalysis() {
+    async performBackgroundRemoval() {
         if (this.isProcessing) return;
 
         const activeObject = this.canvas.getActiveObject();
@@ -598,16 +590,22 @@ class FaceToolsUI {
         }
 
         try {
-            this.setProcessingState(true, '正在分析面部特征...');
+            this.setProcessingState(true, '正在移除背景...');
             
             const imageUrl = this.getImageUrl(activeObject);
-            const analysis = await this.faceProcessor.analyzeFace(imageUrl);
+            const resultBlob = await this.backgroundRemoval.removeBackground(imageUrl);
             
-            this.showAnalysisResults(analysis);
+            // 创建新的图像URL
+            const newImageUrl = URL.createObjectURL(resultBlob);
+            
+            // 更新图像对象
+            await this.replaceCanvasImage(activeObject, newImageUrl);
+            
+            this.showMessage('背景移除完成', 'success');
             
         } catch (error) {
-            console.error('Face analysis error:', error);
-            this.showMessage(`分析失败: ${error.message}`, 'error');
+            console.error('Background removal error:', error);
+            this.showMessage(`背景移除失败: ${error.message}`, 'error');
         } finally {
             this.setProcessingState(false);
         }
@@ -675,9 +673,14 @@ class FaceToolsUI {
         });
 
         // 获取匹配度
-        toolbar.querySelector('#get-matching-score').addEventListener('click', () => {
-            this.showMatchingScore();
-        });
+        const matchingScoreBtn = toolbar.querySelector('#get-matching-score');
+        if (matchingScoreBtn) {
+            matchingScoreBtn.addEventListener('click', (e) => {
+                if (!matchingScoreBtn.disabled) {
+                    this.showMatchingScore();
+                }
+            });
+        }
 
         // 重置对齐
         toolbar.querySelector('#reset-alignment').addEventListener('click', () => {
@@ -768,7 +771,6 @@ class FaceToolsUI {
         // 更新面板状态指示器
         this.updatePanelState();
         
-        console.log(`切换到${mode === 'single' ? '单图处理' : '双脸对齐'}模式`);
     }
 
     /**
@@ -874,11 +876,51 @@ class FaceToolsUI {
             
             const modal = this.createScoreModal(score);
             document.body.appendChild(modal);
-            modal.style.display = 'block';
             
-            modal.querySelector('.close-btn').onclick = () => {
-                modal.remove();
-            };
+            // 强制设置显示样式 - 使用!important确保优先级
+            modal.style.cssText = `
+                display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                z-index: 99999 !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
+            
+            
+            // 确保模态框内容也可见
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.cssText = `
+                    position: absolute !important;
+                    top: 20% !important;
+                    left: 50% !important;
+                    transform: translate(-50%, 0) !important;
+                    background: #2c2c2c !important;
+                    color: #e9ecef !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+                    border: 1px solid #444 !important;
+                    max-width: 400px !important;
+                    width: 85% !important;
+                    max-height: 70% !important;
+                    overflow: hidden !important;
+                    z-index: 100000 !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                `;
+            }
+            
+            const closeBtn = modal.querySelector('.close-btn');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    modal.remove();
+                };
+            }
             
         } catch (error) {
             console.error('获取匹配度失败:', error);
@@ -1012,7 +1054,8 @@ class FaceToolsUI {
     createScoreModal(score) {
         const modal = document.createElement('div');
         modal.className = 'face-analysis-modal';
-        modal.innerHTML = `
+        
+        const htmlContent = `
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>人脸匹配度评分</h3>
@@ -1029,8 +1072,8 @@ class FaceToolsUI {
                             <span>${score.angle}/100</span>
                         </div>
                         <div class="analysis-item">
-                            <label>尺寸匹配:</label>
-                            <span>${score.size}/100</span>
+                            <label>双眼距离:</label>
+                            <span>${score.eyeDistance}/100</span>
                         </div>
                         <div class="analysis-item full-width">
                             <label>建议:</label>
@@ -1040,6 +1083,9 @@ class FaceToolsUI {
                 </div>
             </div>
         `;
+        
+        modal.innerHTML = htmlContent;
+        
         return modal;
     }
 
@@ -1061,7 +1107,7 @@ class FaceToolsUI {
         return {
             cropPadding: this.toolbar.querySelector('#crop-padding').value / 100,
             minFaceSize: parseInt(this.toolbar.querySelector('#min-face-size').value),
-            quality: this.toolbar.querySelector('#output-quality').value / 100,
+            quality: 1.0, // 固定最高质量
             outputFormat: 'dataurl'
         };
     }
@@ -1149,80 +1195,6 @@ class FaceToolsUI {
         }, 3000);
     }
 
-    /**
-     * 显示分析结果
-     */
-    showAnalysisResults(analysis) {
-        const modal = this.createAnalysisModal(analysis);
-        document.body.appendChild(modal);
-        
-        // 简单的模态框显示
-        modal.style.display = 'block';
-        
-        // 点击关闭
-        modal.querySelector('.close-btn').onclick = () => {
-            modal.remove();
-        };
-    }
-
-    /**
-     * 创建分析结果模态框
-     */
-    createAnalysisModal(analysis) {
-        const modal = document.createElement('div');
-        modal.className = 'face-analysis-modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>面部分析结果</h3>
-                    <button class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    ${this.formatAnalysisData(analysis)}
-                </div>
-            </div>
-        `;
-        return modal;
-    }
-
-    /**
-     * 格式化分析数据
-     */
-    formatAnalysisData(analysis) {
-        if (!analysis.hasFace) {
-            return '<p>未检测到人脸</p>';
-        }
-
-        const { analysis: data, confidence } = analysis;
-        return `
-            <div class="analysis-grid">
-                <div class="analysis-item">
-                    <label>检测置信度:</label>
-                    <span>${Math.round(confidence * 100)}%</span>
-                </div>
-                <div class="analysis-item">
-                    <label>人脸尺寸:</label>
-                    <span>${data.faceSize.width} × ${data.faceSize.height}px</span>
-                </div>
-                <div class="analysis-item">
-                    <label>面部角度:</label>
-                    <span>${Math.round(data.faceAngle)}°</span>
-                </div>
-                <div class="analysis-item">
-                    <label>双眼距离:</label>
-                    <span>${Math.round(data.eyeDistance)}px</span>
-                </div>
-                <div class="analysis-item">
-                    <label>质量评分:</label>
-                    <span>${data.qualityScore.score}/100</span>
-                </div>
-                <div class="analysis-item full-width">
-                    <label>建议:</label>
-                    <span>${data.recommendedCrop.reason}</span>
-                </div>
-            </div>
-        `;
-    }
 
     /**
      * 显示批量处理对话框
@@ -1302,8 +1274,7 @@ class FaceToolsUI {
         const preferences = {
             preset: this.currentPreset,
             cropPadding: this.toolbar.querySelector('#crop-padding').value,
-            minFaceSize: this.toolbar.querySelector('#min-face-size').value,
-            outputQuality: this.toolbar.querySelector('#output-quality').value
+            minFaceSize: this.toolbar.querySelector('#min-face-size').value
         };
         
         localStorage.setItem('faceToolsPreferences', JSON.stringify(preferences));
@@ -1322,6 +1293,17 @@ class FaceToolsUI {
             }
         } catch (error) {
             console.warn('Failed to load face tools preferences:', error);
+        }
+    }
+
+    /**
+     * 预加载背景移除库
+     */
+    async preloadBackgroundRemoval() {
+        try {
+            await this.backgroundRemoval.loadLibrary();
+        } catch (error) {
+            console.warn('⚠️ 背景移除库预加载失败:', error);
         }
     }
 

@@ -567,71 +567,531 @@ class BackgroundRemovalLibrary {
     }
     
     /**
-     * 智能背景分析
+     * 超级智能背景分析 - 更精确的背景检测
      * @private
      */
     _intelligentBackgroundAnalysis(data, width, height) {
-        // 多区域采样策略
-        const regions = [
-            // 边缘区域
-            { x: 0, y: 0, w: width, h: Math.floor(height * 0.1), weight: 3.0 },
-            { x: 0, y: Math.floor(height * 0.9), w: width, h: Math.floor(height * 0.1), weight: 3.0 },
-            { x: 0, y: 0, w: Math.floor(width * 0.1), h: height, weight: 3.0 },
-            { x: Math.floor(width * 0.9), y: 0, w: Math.floor(width * 0.1), h: height, weight: 3.0 },
-            
-            // 角落区域（高权重）
-            { x: 0, y: 0, w: Math.floor(width * 0.15), h: Math.floor(height * 0.15), weight: 5.0 },
-            { x: Math.floor(width * 0.85), y: 0, w: Math.floor(width * 0.15), h: Math.floor(height * 0.15), weight: 5.0 },
-            { x: 0, y: Math.floor(height * 0.85), w: Math.floor(width * 0.15), h: Math.floor(height * 0.15), weight: 5.0 },
-            { x: Math.floor(width * 0.85), y: Math.floor(height * 0.85), w: Math.floor(width * 0.15), h: Math.floor(height * 0.15), weight: 5.0 },
-        ];
+        console.log('🔍 执行超级智能背景分析...');
         
-        const backgroundColors = [];
-        const backgroundStats = {
-            avgBrightness: 0,
-            avgSaturation: 0,
-            dominantColors: [],
-            textureComplexity: 0
-        };
+        // 1. 多层次区域采样
+        const backgroundAnalysis = this._multiTierBackgroundSampling(data, width, height);
         
-        for (const region of regions) {
-            const regionColors = [];
-            const regionStats = { brightness: 0, saturation: 0, complexity: 0 };
-            
-            for (let y = region.y; y < region.y + region.h && y < height; y++) {
-                for (let x = region.x; x < region.x + region.w && x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const r = data[idx];
-                    const g = data[idx + 1];
-                    const b = data[idx + 2];
-                    
-                    regionColors.push([r, g, b]);
-                    
-                    // 计算亮度和饱和度
-                    const brightness = (r + g + b) / 3;
-                    const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-                    
-                    regionStats.brightness += brightness;
-                    regionStats.saturation += saturation;
-                }
-            }
-            
-            // 聚类区域颜色
-            const regionClusters = this._clusterColors(regionColors, 3);
-            
-            // 根据权重添加到背景色列表
-            for (let i = 0; i < region.weight; i++) {
-                backgroundColors.push(...regionClusters);
-            }
-        }
+        // 2. 纹理一致性分析
+        const textureAnalysis = this._analyzeBackgroundTexture(data, width, height);
         
-        // 全局聚类得到最终背景色
-        const finalBackgroundColors = this._clusterColors(backgroundColors, 6);
+        // 3. 颜色连续性分析
+        const continuityAnalysis = this._analyzeColorContinuity(data, width, height);
+        
+        // 4. 融合分析结果
+        const finalBackgroundColors = this._fuseBackgroundAnalysis(
+            backgroundAnalysis, textureAnalysis, continuityAnalysis
+        );
+        
+        console.log('✅ 检测到背景色:', finalBackgroundColors.length, '组');
         
         return {
             colors: finalBackgroundColors,
-            stats: backgroundStats
+            texturePatterns: textureAnalysis.patterns,
+            continuityMap: continuityAnalysis.map,
+            confidence: backgroundAnalysis.confidence
         };
+    }
+    
+    /**
+     * 多层次区域采样
+     * @private
+     */
+    _multiTierBackgroundSampling(data, width, height) {
+        const samplingRegions = [
+            // 第一层：边缘采样（最高权重）
+            { type: 'edge', regions: this._generateEdgeRegions(width, height), weight: 8.0 },
+            // 第二层：角落采样（高权重）
+            { type: 'corner', regions: this._generateCornerRegions(width, height), weight: 6.0 },
+            // 第三层：中心外围采样（中等权重）
+            { type: 'periphery', regions: this._generatePeripheryRegions(width, height), weight: 4.0 },
+            // 第四层：连通区域采样（验证权重）
+            { type: 'connected', regions: this._generateConnectedRegions(data, width, height), weight: 2.0 }
+        ];
+        
+        const allBackgroundColors = [];
+        let totalConfidence = 0;
+        
+        for (const tier of samplingRegions) {
+            for (const region of tier.regions) {
+                const regionColors = this._sampleRegionColors(data, region, width, height);
+                const regionClusters = this._clusterColors(regionColors, 2);
+                const regionConfidence = this._calculateRegionConfidence(regionColors, regionClusters);
+                
+                // 根据权重和置信度添加颜色
+                const effectiveWeight = tier.weight * regionConfidence;
+                for (let i = 0; i < Math.ceil(effectiveWeight); i++) {
+                    allBackgroundColors.push(...regionClusters);
+                }
+                
+                totalConfidence += regionConfidence;
+            }
+        }
+        
+        // 最终聚类
+        const finalColors = this._advancedColorClustering(allBackgroundColors, 8);
+        const avgConfidence = totalConfidence / samplingRegions.reduce((sum, tier) => sum + tier.regions.length, 0);
+        
+        return {
+            colors: finalColors,
+            confidence: avgConfidence
+        };
+    }
+    
+    /**
+     * 生成边缘区域
+     * @private
+     */
+    _generateEdgeRegions(width, height) {
+        const borderSize = Math.min(Math.floor(width * 0.08), Math.floor(height * 0.08), 20);
+        
+        return [
+            // 上边缘
+            { x: 0, y: 0, w: width, h: borderSize },
+            // 下边缘
+            { x: 0, y: height - borderSize, w: width, h: borderSize },
+            // 左边缘
+            { x: 0, y: 0, w: borderSize, h: height },
+            // 右边缘
+            { x: width - borderSize, y: 0, w: borderSize, h: height }
+        ];
+    }
+    
+    /**
+     * 生成角落区域
+     * @private
+     */
+    _generateCornerRegions(width, height) {
+        const cornerSize = Math.min(Math.floor(width * 0.12), Math.floor(height * 0.12), 30);
+        
+        return [
+            // 四个角落
+            { x: 0, y: 0, w: cornerSize, h: cornerSize },
+            { x: width - cornerSize, y: 0, w: cornerSize, h: cornerSize },
+            { x: 0, y: height - cornerSize, w: cornerSize, h: cornerSize },
+            { x: width - cornerSize, y: height - cornerSize, w: cornerSize, h: cornerSize }
+        ];
+    }
+    
+    /**
+     * 生成外围区域
+     * @private
+     */
+    _generatePeripheryRegions(width, height) {
+        const margin = Math.floor(Math.min(width, height) * 0.25);
+        const stripWidth = Math.floor(Math.min(width, height) * 0.15);
+        
+        return [
+            // 外围条带
+            { x: margin, y: 0, w: width - 2 * margin, h: stripWidth },
+            { x: margin, y: height - stripWidth, w: width - 2 * margin, h: stripWidth },
+            { x: 0, y: margin, w: stripWidth, h: height - 2 * margin },
+            { x: width - stripWidth, y: margin, w: stripWidth, h: height - 2 * margin }
+        ];
+    }
+    
+    /**
+     * 生成连通区域
+     * @private
+     */
+    _generateConnectedRegions(data, width, height) {
+        const regions = [];
+        const visited = new Array(width * height).fill(false);
+        const minRegionSize = Math.floor(width * height * 0.05); // 至少5%的像素
+        
+        // 从边缘开始flood fill，找到大的连通背景区域
+        const edgePoints = [
+            ...Array.from({length: width}, (_, x) => ({x, y: 0})), // 上边
+            ...Array.from({length: width}, (_, x) => ({x, y: height - 1})), // 下边
+            ...Array.from({length: height}, (_, y) => ({x: 0, y})), // 左边
+            ...Array.from({length: height}, (_, y) => ({x: width - 1, y})) // 右边
+        ];
+        
+        for (const point of edgePoints) {
+            const pixelIndex = point.y * width + point.x;
+            if (!visited[pixelIndex]) {
+                const region = this._floodFillBackground(data, point.x, point.y, width, height, visited);
+                if (region.pixels.length > minRegionSize) {
+                    regions.push({
+                        x: region.bounds.minX,
+                        y: region.bounds.minY,
+                        w: region.bounds.maxX - region.bounds.minX + 1,
+                        h: region.bounds.maxY - region.bounds.minY + 1,
+                        pixels: region.pixels
+                    });
+                }
+            }
+        }
+        
+        return regions.slice(0, 5); // 最多返回5个最大的连通区域
+    }
+    
+    /**
+     * 背景洪水填充
+     * @private
+     */
+    _floodFillBackground(data, startX, startY, width, height, visited) {
+        const stack = [{x: startX, y: startY}];
+        const region = {
+            pixels: [],
+            bounds: {minX: startX, maxX: startX, minY: startY, maxY: startY}
+        };
+        
+        const startIdx = startY * width + startX;
+        const startColor = [
+            data[startIdx * 4],
+            data[startIdx * 4 + 1],
+            data[startIdx * 4 + 2]
+        ];
+        
+        while (stack.length > 0) {
+            const {x, y} = stack.pop();
+            const pixelIndex = y * width + x;
+            
+            if (x < 0 || x >= width || y < 0 || y >= height || visited[pixelIndex]) {
+                continue;
+            }
+            
+            const currentColor = [
+                data[pixelIndex * 4],
+                data[pixelIndex * 4 + 1],
+                data[pixelIndex * 4 + 2]
+            ];
+            
+            // 更严格的颜色相似性判断
+            if (this._colorDistance(currentColor, startColor) > 25) {
+                continue;
+            }
+            
+            visited[pixelIndex] = true;
+            region.pixels.push(pixelIndex);
+            
+            // 更新边界
+            region.bounds.minX = Math.min(region.bounds.minX, x);
+            region.bounds.maxX = Math.max(region.bounds.maxX, x);
+            region.bounds.minY = Math.min(region.bounds.minY, y);
+            region.bounds.maxY = Math.max(region.bounds.maxY, y);
+            
+            // 添加4邻域
+            stack.push({x: x-1, y}, {x: x+1, y}, {x, y: y-1}, {x, y: y+1});
+            
+            // 防止区域过大
+            if (region.pixels.length > width * height * 0.3) break;
+        }
+        
+        return region;
+    }
+    
+    /**
+     * 采样区域颜色
+     * @private
+     */
+    _sampleRegionColors(data, region, width, height) {
+        const colors = [];
+        const sampleStep = Math.max(1, Math.floor(Math.sqrt(region.w * region.h) / 20)); // 自适应采样步长
+        
+        for (let y = region.y; y < region.y + region.h && y < height; y += sampleStep) {
+            for (let x = region.x; x < region.x + region.w && x < width; x += sampleStep) {
+                const idx = (y * width + x) * 4;
+                colors.push([data[idx], data[idx + 1], data[idx + 2]]);
+            }
+        }
+        
+        return colors;
+    }
+    
+    /**
+     * 计算区域置信度
+     * @private
+     */
+    _calculateRegionConfidence(regionColors, clusters) {
+        if (regionColors.length === 0 || clusters.length === 0) return 0;
+        
+        // 计算颜色一致性
+        let totalDistance = 0;
+        for (const color of regionColors) {
+            let minDistance = Infinity;
+            for (const cluster of clusters) {
+                const distance = this._colorDistance(color, cluster);
+                minDistance = Math.min(minDistance, distance);
+            }
+            totalDistance += minDistance;
+        }
+        
+        const avgDistance = totalDistance / regionColors.length;
+        const consistency = Math.max(0, 1 - avgDistance / 100); // 归一化到0-1
+        
+        return consistency;
+    }
+    
+    /**
+     * 高级颜色聚类
+     * @private
+     */
+    _advancedColorClustering(colors, maxClusters) {
+        if (colors.length === 0) return [[255, 255, 255]];
+        
+        // 使用改进的K-means++初始化
+        const clusters = this._kmeansPlusPlusInit(colors, Math.min(maxClusters, colors.length));
+        
+        // 迭代优化
+        for (let iter = 0; iter < 15; iter++) {
+            const assignments = colors.map(color => {
+                let minDist = Infinity;
+                let bestCluster = 0;
+                
+                for (let c = 0; c < clusters.length; c++) {
+                    const dist = this._perceptualColorDistance(color, clusters[c]);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestCluster = c;
+                    }
+                }
+                return bestCluster;
+            });
+            
+            // 更新聚类中心
+            const oldClusters = clusters.map(c => [...c]);
+            for (let c = 0; c < clusters.length; c++) {
+                const clusterColors = colors.filter((_, i) => assignments[i] === c);
+                if (clusterColors.length > 0) {
+                    clusters[c] = this._averageColor(clusterColors);
+                }
+            }
+            
+            // 检查收敛
+            let converged = true;
+            for (let c = 0; c < clusters.length; c++) {
+                if (this._colorDistance(clusters[c], oldClusters[c]) > 5) {
+                    converged = false;
+                    break;
+                }
+            }
+            if (converged) break;
+        }
+        
+        // 按出现频率排序
+        const clusterSizes = new Array(clusters.length).fill(0);
+        colors.forEach(color => {
+            let bestCluster = 0;
+            let minDist = Infinity;
+            for (let c = 0; c < clusters.length; c++) {
+                const dist = this._perceptualColorDistance(color, clusters[c]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestCluster = c;
+                }
+            }
+            clusterSizes[bestCluster]++;
+        });
+        
+        // 按大小排序返回
+        const sortedIndices = clusterSizes
+            .map((size, index) => ({size, index}))
+            .sort((a, b) => b.size - a.size)
+            .map(item => item.index);
+        
+        return sortedIndices.map(i => clusters[i]);
+    }
+    
+    /**
+     * K-means++初始化
+     * @private
+     */
+    _kmeansPlusPlusInit(colors, k) {
+        if (k <= 0 || colors.length === 0) return [];
+        
+        const clusters = [];
+        
+        // 随机选择第一个中心
+        clusters.push([...colors[Math.floor(Math.random() * colors.length)]]);
+        
+        // 选择剩余的中心
+        for (let i = 1; i < k; i++) {
+            const distances = colors.map(color => {
+                let minDist = Infinity;
+                for (const center of clusters) {
+                    const dist = this._perceptualColorDistance(color, center);
+                    minDist = Math.min(minDist, dist);
+                }
+                return minDist * minDist; // 距离的平方
+            });
+            
+            const totalDist = distances.reduce((sum, d) => sum + d, 0);
+            if (totalDist === 0) break;
+            
+            let random = Math.random() * totalDist;
+            let selectedIndex = 0;
+            
+            for (let j = 0; j < distances.length; j++) {
+                random -= distances[j];
+                if (random <= 0) {
+                    selectedIndex = j;
+                    break;
+                }
+            }
+            
+            clusters.push([...colors[selectedIndex]]);
+        }
+        
+        return clusters;
+    }
+    
+    /**
+     * 感知颜色距离（更接近人眼感知）
+     * @private
+     */
+    _perceptualColorDistance(color1, color2) {
+        const [r1, g1, b1] = color1;
+        const [r2, g2, b2] = color2;
+        
+        // 使用改进的欧几里得距离，考虑人眼对绿色更敏感
+        const dr = r1 - r2;
+        const dg = g1 - g2;
+        const db = b1 - b2;
+        
+        // 权重：红2，绿4，蓝3
+        return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
+    }
+    
+    /**
+     * 分析背景纹理
+     * @private
+     */
+    _analyzeBackgroundTexture(data, width, height) {
+        const patterns = [];
+        const blockSize = 16; // 16x16块进行纹理分析
+        
+        for (let y = 0; y < height - blockSize; y += blockSize) {
+            for (let x = 0; x < width - blockSize; x += blockSize) {
+                // 只分析边缘区域的纹理
+                const isEdgeBlock = x < blockSize * 2 || x > width - blockSize * 3 ||
+                                  y < blockSize * 2 || y > height - blockSize * 3;
+                
+                if (isEdgeBlock) {
+                    const textureInfo = this._analyzeBlockTexture(data, x, y, blockSize, width);
+                    if (textureInfo.isBackground) {
+                        patterns.push(textureInfo);
+                    }
+                }
+            }
+        }
+        
+        return { patterns };
+    }
+    
+    /**
+     * 分析块纹理
+     * @private
+     */
+    _analyzeBlockTexture(data, startX, startY, blockSize, width) {
+        const colors = [];
+        let totalVariance = 0;
+        
+        // 采集块内颜色
+        for (let y = startY; y < startY + blockSize; y++) {
+            for (let x = startX; x < startX + blockSize; x++) {
+                const idx = (y * width + x) * 4;
+                colors.push([data[idx], data[idx + 1], data[idx + 2]]);
+            }
+        }
+        
+        // 计算颜色方差
+        const avgColor = this._averageColor(colors);
+        for (const color of colors) {
+            totalVariance += this._colorDistance(color, avgColor);
+        }
+        const variance = totalVariance / colors.length;
+        
+        // 判断是否为背景纹理（低方差通常是背景）
+        const isBackground = variance < 30;
+        
+        return {
+            x: startX,
+            y: startY,
+            size: blockSize,
+            avgColor,
+            variance,
+            isBackground,
+            colors: colors.slice(0, 10) // 保存少量代表色
+        };
+    }
+    
+    /**
+     * 分析颜色连续性
+     * @private
+     */
+    _analyzeColorContinuity(data, width, height) {
+        const continuityMap = new Array(width * height).fill(0);
+        const windowSize = 5;
+        
+        for (let y = windowSize; y < height - windowSize; y++) {
+            for (let x = windowSize; x < width - windowSize; x++) {
+                const centerIdx = (y * width + x) * 4;
+                const centerColor = [data[centerIdx], data[centerIdx + 1], data[centerIdx + 2]];
+                
+                // 计算窗口内的颜色连续性
+                let continuity = this._calculateLocalContinuity(data, x, y, windowSize, width, centerColor);
+                
+                const pixelIdx = y * width + x;
+                continuityMap[pixelIdx] = continuity;
+            }
+        }
+        
+        return { map: continuityMap };
+    }
+    
+    /**
+     * 计算局部连续性
+     * @private
+     */
+    _calculateLocalContinuity(data, centerX, centerY, windowSize, width, centerColor) {
+        let totalSimilarity = 0;
+        let count = 0;
+        
+        for (let dy = -windowSize; dy <= windowSize; dy++) {
+            for (let dx = -windowSize; dx <= windowSize; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const x = centerX + dx;
+                const y = centerY + dy;
+                const idx = (y * width + x) * 4;
+                const neighborColor = [data[idx], data[idx + 1], data[idx + 2]];
+                
+                const distance = this._perceptualColorDistance(centerColor, neighborColor);
+                const similarity = Math.max(0, 1 - distance / 100);
+                
+                totalSimilarity += similarity;
+                count++;
+            }
+        }
+        
+        return count > 0 ? totalSimilarity / count : 0;
+    }
+    
+    /**
+     * 融合背景分析结果
+     * @private
+     */
+    _fuseBackgroundAnalysis(backgroundAnalysis, textureAnalysis, continuityAnalysis) {
+        const baseColors = backgroundAnalysis.colors;
+        const textureColors = textureAnalysis.patterns
+            .filter(p => p.isBackground)
+            .map(p => p.avgColor);
+        
+        // 合并所有背景色候选
+        const allColors = [...baseColors, ...textureColors];
+        
+        if (allColors.length === 0) {
+            return [[255, 255, 255]]; // 默认白色背景
+        }
+        
+        // 最终聚类，减少颜色数量
+        return this._advancedColorClustering(allColors, 6);
     }
     
     /**
@@ -844,18 +1304,483 @@ class BackgroundRemovalLibrary {
     }
     
     /**
-     * 高级后处理
+     * 超级高级后处理 - 针对锯齿和细节优化
      * @private
      */
     _advancedPostProcessing(data, width, height, mask) {
-        // 1. 双边滤波保持边缘的同时平滑
-        this._bilateralFilterAlpha(data, width, height, 2, 50, 50);
+        console.log('🔄 开始超级后处理优化...');
         
-        // 2. 边缘锐化
-        this._sharpenEdges(data, width, height, mask);
+        // 1. 多级抗锯齿处理
+        this._multiLevelAntiAliasing(data, width, height, mask);
         
-        // 3. 最终平滑
-        this._finalSmoothing(data, width, height);
+        // 2. 边缘细节增强
+        this._edgeDetailEnhancement(data, width, height, mask);
+        
+        // 3. 自适应羽化
+        this._smartFeathering(data, width, height, mask);
+        
+        // 4. 细节恢复
+        this._detailRecovery(data, width, height, mask);
+        
+        // 5. 最终优化
+        this._finalOptimization(data, width, height);
+        
+        console.log('✅ 超级后处理完成');
+    }
+    
+    /**
+     * 多级抗锯齿处理
+     * @private
+     */
+    _multiLevelAntiAliasing(data, width, height, mask) {
+        const tempAlpha = new Array(width * height);
+        
+        // 提取alpha通道
+        for (let i = 0; i < width * height; i++) {
+            tempAlpha[i] = data[i * 4 + 3];
+        }
+        
+        // 检测并处理锯齿
+        for (let y = 2; y < height - 2; y++) {
+            for (let x = 2; x < width - 2; x++) {
+                const idx = y * width + x;
+                const jaggedLevel = this._detectJaggedLevel(tempAlpha, x, y, width);
+                
+                if (jaggedLevel > 0.3) {
+                    const smoothed = this._applyAdaptiveSmoothing(
+                        tempAlpha, x, y, width, height, jaggedLevel, mask[idx]
+                    );
+                    data[idx * 4 + 3] = smoothed;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 检测锯齿程度
+     * @private
+     */
+    _detectJaggedLevel(alphaData, x, y, width) {
+        const centerIdx = y * width + x;
+        const center = alphaData[centerIdx];
+        
+        // 检查周围像素的急剧变化
+        let totalVariation = 0;
+        let count = 0;
+        
+        // 3x3邻域
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nIdx = (y + dy) * width + (x + dx);
+                const neighbor = alphaData[nIdx];
+                const variation = Math.abs(center - neighbor);
+                
+                totalVariation += variation;
+                count++;
+            }
+        }
+        
+        const avgVariation = totalVariation / count;
+        
+        // 检查方向性锯齿
+        const horizontalVar = Math.abs(alphaData[centerIdx - 1] - alphaData[centerIdx + 1]);
+        const verticalVar = Math.abs(alphaData[centerIdx - width] - alphaData[centerIdx + width]);
+        const maxDirectionalVar = Math.max(horizontalVar, verticalVar);
+        
+        // 锯齿指数：平均变化 + 方向性变化
+        const jaggedIndex = (avgVariation + maxDirectionalVar * 0.5) / 255;
+        
+        return Math.min(1, jaggedIndex);
+    }
+    
+    /**
+     * 应用自适应平滑
+     * @private
+     */
+    _applyAdaptiveSmoothing(alphaData, centerX, centerY, width, height, jaggedLevel, confidence) {
+        const centerIdx = centerY * width + centerX;
+        const centerAlpha = alphaData[centerIdx];
+        
+        // 根据锯齿程度和置信度决定平滑强度
+        const smoothingRadius = Math.ceil(jaggedLevel * 2 + (1 - confidence));
+        const maxRadius = Math.min(3, smoothingRadius);
+        
+        let weightedSum = 0;
+        let totalWeight = 0;
+        
+        // 自适应核大小
+        for (let dy = -maxRadius; dy <= maxRadius; dy++) {
+            for (let dx = -maxRadius; dx <= maxRadius; dx++) {
+                const x = centerX + dx;
+                const y = centerY + dy;
+                
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    const idx = y * width + x;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance <= maxRadius) {
+                        // 空间权重
+                        const spatialWeight = Math.exp(-distance * distance / (2 * maxRadius * maxRadius));
+                        
+                        // 颜色相似性权重
+                        const alphaDiff = Math.abs(alphaData[idx] - centerAlpha);
+                        const colorWeight = Math.exp(-alphaDiff * alphaDiff / (2 * 40 * 40));
+                        
+                        // 边缘保护权重
+                        const edgeProtection = 1 - jaggedLevel * 0.3;
+                        
+                        const finalWeight = spatialWeight * colorWeight * edgeProtection;
+                        weightedSum += alphaData[idx] * finalWeight;
+                        totalWeight += finalWeight;
+                    }
+                }
+            }
+        }
+        
+        const smoothed = totalWeight > 0 ? weightedSum / totalWeight : centerAlpha;
+        
+        // 与原值混合，保持一定的锐度
+        const blendRatio = Math.min(0.8, jaggedLevel + (1 - confidence) * 0.3);
+        return Math.round(centerAlpha * (1 - blendRatio) + smoothed * blendRatio);
+    }
+    
+    /**
+     * 边缘细节增强
+     * @private
+     */
+    _edgeDetailEnhancement(data, width, height, mask) {
+        // 创建细节增强滤波器
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = (y * width + x) * 4 + 3;
+                const pixelIdx = y * width + x;
+                const confidence = mask[pixelIdx];
+                
+                if (confidence > 0.6) {
+                    // 只对高置信度区域进行细节增强
+                    const enhanced = this._enhanceEdgeDetail(data, x, y, width, height, confidence);
+                    data[idx] = enhanced;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 增强边缘细节
+     * @private
+     */
+    _enhanceEdgeDetail(data, x, y, width, height, confidence) {
+        const centerIdx = (y * width + x) * 4 + 3;
+        const center = data[centerIdx];
+        
+        // 计算拉普拉斯算子
+        const laplacian = 
+            -data[((y-1) * width + (x-1)) * 4 + 3] - data[((y-1) * width + x) * 4 + 3] - data[((y-1) * width + (x+1)) * 4 + 3] +
+            -data[(y * width + (x-1)) * 4 + 3] + 8 * center - data[(y * width + (x+1)) * 4 + 3] +
+            -data[((y+1) * width + (x-1)) * 4 + 3] - data[((y+1) * width + x) * 4 + 3] - data[((y+1) * width + (x+1)) * 4 + 3];
+        
+        // 根据置信度调整增强强度
+        const enhanceStrength = confidence * 0.15;
+        const enhanced = center + laplacian * enhanceStrength;
+        
+        return Math.max(0, Math.min(255, Math.round(enhanced)));
+    }
+    
+    /**
+     * 智能羽化
+     * @private
+     */
+    _smartFeathering(data, width, height, mask) {
+        const tempAlpha = new Array(width * height);
+        
+        // 提取alpha通道
+        for (let i = 0; i < width * height; i++) {
+            tempAlpha[i] = data[i * 4 + 3];
+        }
+        
+        // 对边缘区域应用智能羽化
+        for (let y = 3; y < height - 3; y++) {
+            for (let x = 3; x < width - 3; x++) {
+                const idx = y * width + x;
+                const isEdge = this._isEdgePixel(tempAlpha, x, y, width);
+                const confidence = mask[idx];
+                
+                if (isEdge && confidence < 0.8) {
+                    // 边缘像素且置信度不高，需要羽化
+                    const featherRadius = this._calculateSmartFeatherRadius(tempAlpha, x, y, width, confidence);
+                    const feathered = this._applySmartFeather(tempAlpha, x, y, width, height, featherRadius);
+                    data[idx * 4 + 3] = feathered;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 判断是否为边缘像素
+     * @private
+     */
+    _isEdgePixel(alphaData, x, y, width) {
+        const centerIdx = y * width + x;
+        const center = alphaData[centerIdx];
+        
+        // 检查4邻域的alpha变化
+        const neighbors = [
+            alphaData[centerIdx - 1],     // 左
+            alphaData[centerIdx + 1],     // 右
+            alphaData[centerIdx - width], // 上
+            alphaData[centerIdx + width]  // 下
+        ];
+        
+        let maxDiff = 0;
+        for (const neighbor of neighbors) {
+            maxDiff = Math.max(maxDiff, Math.abs(center - neighbor));
+        }
+        
+        return maxDiff > 30; // 阈值可调
+    }
+    
+    /**
+     * 计算智能羽化半径
+     * @private
+     */
+    _calculateSmartFeatherRadius(alphaData, x, y, width, confidence) {
+        const centerIdx = y * width + x;
+        const center = alphaData[centerIdx];
+        
+        // 检查周围的梯度强度
+        let maxGradient = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nIdx = (y + dy) * width + (x + dx);
+                const gradient = Math.abs(center - alphaData[nIdx]);
+                maxGradient = Math.max(maxGradient, gradient);
+            }
+        }
+        
+        // 根据梯度和置信度计算羽化半径
+        const gradientFactor = Math.min(1, maxGradient / 100);
+        const confidenceFactor = 1 - confidence;
+        
+        return Math.ceil((gradientFactor + confidenceFactor) * 2);
+    }
+    
+    /**
+     * 应用智能羽化
+     * @private
+     */
+    _applySmartFeather(alphaData, centerX, centerY, width, height, radius) {
+        const centerIdx = centerY * width + centerX;
+        const centerAlpha = alphaData[centerIdx];
+        
+        let weightedSum = 0;
+        let totalWeight = 0;
+        
+        // 应用高斯权重，但考虑alpha相似性
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const x = centerX + dx;
+                const y = centerY + dy;
+                
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    const idx = y * width + x;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance <= radius) {
+                        // 空间高斯权重
+                        const spatialWeight = Math.exp(-distance * distance / (2 * radius * radius));
+                        
+                        // alpha相似性权重
+                        const alphaDiff = Math.abs(alphaData[idx] - centerAlpha);
+                        const similarityWeight = Math.exp(-alphaDiff * alphaDiff / (2 * 50 * 50));
+                        
+                        const finalWeight = spatialWeight * similarityWeight;
+                        weightedSum += alphaData[idx] * finalWeight;
+                        totalWeight += finalWeight;
+                    }
+                }
+            }
+        }
+        
+        return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : centerAlpha;
+    }
+    
+    /**
+     * 细节恢复
+     * @private
+     */
+    _detailRecovery(data, width, height, mask) {
+        // 使用非锐化掩膜技术恢复丢失的细节
+        const originalAlpha = new Array(width * height);
+        for (let i = 0; i < width * height; i++) {
+            originalAlpha[i] = data[i * 4 + 3];
+        }
+        
+        // 创建轻微模糊版本
+        const blurred = this._createGaussianBlur(originalAlpha, width, height, 1.0);
+        
+        // 计算细节差异并恢复
+        for (let i = 0; i < width * height; i++) {
+            const confidence = mask[i];
+            
+            if (confidence > 0.7) {
+                const original = originalAlpha[i];
+                const blur = blurred[i];
+                const detail = original - blur;
+                
+                // 增强细节
+                const enhancementStrength = confidence * 0.4;
+                const recovered = original + detail * enhancementStrength;
+                
+                data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(recovered)));
+            }
+        }
+    }
+    
+    /**
+     * 创建高斯模糊
+     * @private
+     */
+    _createGaussianBlur(data, width, height, sigma) {
+        const radius = Math.ceil(sigma * 2);
+        const kernel = [];
+        let sum = 0;
+        
+        // 生成1D高斯核
+        for (let i = -radius; i <= radius; i++) {
+            const value = Math.exp(-(i * i) / (2 * sigma * sigma));
+            kernel.push(value);
+            sum += value;
+        }
+        
+        // 归一化
+        for (let i = 0; i < kernel.length; i++) {
+            kernel[i] /= sum;
+        }
+        
+        // 水平模糊
+        const temp = new Array(data.length);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let blurredValue = 0;
+                let weightSum = 0;
+                
+                for (let i = -radius; i <= radius; i++) {
+                    const nx = x + i;
+                    if (nx >= 0 && nx < width) {
+                        blurredValue += data[y * width + nx] * kernel[i + radius];
+                        weightSum += kernel[i + radius];
+                    }
+                }
+                
+                temp[y * width + x] = blurredValue / weightSum;
+            }
+        }
+        
+        // 垂直模糊
+        const result = new Array(data.length);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let blurredValue = 0;
+                let weightSum = 0;
+                
+                for (let i = -radius; i <= radius; i++) {
+                    const ny = y + i;
+                    if (ny >= 0 && ny < height) {
+                        blurredValue += temp[ny * width + x] * kernel[i + radius];
+                        weightSum += kernel[i + radius];
+                    }
+                }
+                
+                result[y * width + x] = Math.round(blurredValue / weightSum);
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 最终优化
+     * @private
+     */
+    _finalOptimization(data, width, height) {
+        // 最后一遍优化，确保整体质量
+        const tempData = new Uint8ClampedArray(data);
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = (y * width + x) * 4 + 3;
+                
+                // 检查局部一致性
+                const consistency = this._calculateLocalConsistency(tempData, x, y, width);
+                
+                if (consistency < 0.6) {
+                    // 应用最终平滑
+                    const optimized = this._applyFinalSmooth(tempData, x, y, width);
+                    data[idx] = optimized;
+                }
+            }
+        }
+    }
+    
+    /**
+     * 计算局部一致性
+     * @private
+     */
+    _calculateLocalConsistency(data, x, y, width) {
+        const centerIdx = (y * width + x) * 4 + 3;
+        const center = data[centerIdx];
+        
+        let similaritySum = 0;
+        let count = 0;
+        
+        // 检查3x3邻域
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nIdx = ((y + dy) * width + (x + dx)) * 4 + 3;
+                const neighbor = data[nIdx];
+                const similarity = 1 - Math.abs(center - neighbor) / 255;
+                
+                similaritySum += similarity;
+                count++;
+            }
+        }
+        
+        return similaritySum / count;
+    }
+    
+    /**
+     * 应用最终平滑
+     * @private
+     */
+    _applyFinalSmooth(data, x, y, width) {
+        const centerIdx = (y * width + x) * 4 + 3;
+        const current = data[centerIdx];
+        
+        let weightedSum = current * 0.6; // 保留较多原值
+        let totalWeight = 0.6;
+        
+        // 3x3邻域加权平均
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nIdx = ((y + dy) * width + (x + dx)) * 4 + 3;
+                const neighbor = data[nIdx];
+                const similarity = 1 - Math.abs(current - neighbor) / 255;
+                const weight = similarity * 0.4;
+                
+                weightedSum += neighbor * weight;
+                totalWeight += weight;
+            }
+        }
+        
+        return Math.round(weightedSum / totalWeight);
     }
     
     /**

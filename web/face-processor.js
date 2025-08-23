@@ -10,10 +10,10 @@ class FaceProcessor {
         this.detector = globalFaceDetector;
         this.defaultOptions = {
             cropPadding: 0.2,
-            minFaceSize: 150,
+            minFaceSize: 300,
             alignmentMode: 'eyes', // 'eyes', 'face', 'nose'
             outputFormat: 'dataurl', // 'dataurl', 'canvas', 'blob'
-            quality: 0.9
+            quality: 1.0
         };
         this.options = { ...this.defaultOptions, ...options };
         this.canvas = document.createElement('canvas');
@@ -142,7 +142,7 @@ class FaceProcessor {
             }
 
             const primaryFace = faces[0];
-            const primaryMesh = meshes[0];
+            const primaryMesh = meshes.length > 0 ? meshes[0] : null;
             
             return {
                 hasFace: true,
@@ -151,8 +151,8 @@ class FaceProcessor {
                 boundingBox: primaryFace.boundingBox,
                 analysis: {
                     faceSize: this._calculateFaceSize(primaryFace.boundingBox),
-                    faceAngle: this._calculateFaceAngle(primaryMesh),
-                    eyeDistance: this._calculateEyeDistance(primaryMesh),
+                    faceAngle: primaryMesh ? this._calculateFaceAngle(primaryMesh) : 0,
+                    eyeDistance: primaryMesh ? this._calculateEyeDistance(primaryMesh) : 0,
                     facePosition: this._calculateFacePosition(primaryFace.boundingBox, image),
                     recommendedCrop: this._recommendCropSettings(primaryFace, image),
                     qualityScore: this._assessImageQuality(image, primaryFace)
@@ -320,6 +320,19 @@ class FaceProcessor {
      * @private
      */
     _getAveragePoint(points) {
+        // 处理单个点的情况
+        if (!Array.isArray(points)) {
+            if (points && typeof points.x === 'number' && typeof points.y === 'number') {
+                return { x: points.x, y: points.y };
+            }
+            return { x: 0, y: 0 };
+        }
+        
+        // 处理点数组的情况
+        if (points.length === 0) {
+            return { x: 0, y: 0 };
+        }
+        
         const sum = points.reduce(
             (acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }),
             { x: 0, y: 0 }
@@ -362,18 +375,29 @@ class FaceProcessor {
      * @private
      */
     _calculateFaceAngle(mesh) {
-        if (!mesh || !mesh.keypoints) return 0;
-        
-        const { leftEye, rightEye } = mesh.keypoints;
-        if (!leftEye || !rightEye) return 0;
-        
-        const leftEyeCenter = this._getAveragePoint(leftEye);
-        const rightEyeCenter = this._getAveragePoint(rightEye);
-        
-        return Math.atan2(
-            rightEyeCenter.y - leftEyeCenter.y,
-            rightEyeCenter.x - leftEyeCenter.x
-        ) * 180 / Math.PI;
+        try {
+            if (!mesh || !mesh.keypoints) return 0;
+            
+            const { leftEye, rightEye } = mesh.keypoints;
+            if (!leftEye || !rightEye) return 0;
+            
+            const leftEyeCenter = this._getAveragePoint(leftEye);
+            const rightEyeCenter = this._getAveragePoint(rightEye);
+            
+            // 检查点是否有效
+            if (!leftEyeCenter || !rightEyeCenter || 
+                typeof leftEyeCenter.x !== 'number' || typeof rightEyeCenter.x !== 'number') {
+                return 0;
+            }
+            
+            return Math.atan2(
+                rightEyeCenter.y - leftEyeCenter.y,
+                rightEyeCenter.x - leftEyeCenter.x
+            ) * 180 / Math.PI;
+        } catch (error) {
+            console.warn('计算人脸角度失败:', error);
+            return 0;
+        }
     }
 
     /**
@@ -381,18 +405,29 @@ class FaceProcessor {
      * @private
      */
     _calculateEyeDistance(mesh) {
-        if (!mesh || !mesh.keypoints) return 0;
-        
-        const { leftEye, rightEye } = mesh.keypoints;
-        if (!leftEye || !rightEye) return 0;
-        
-        const leftEyeCenter = this._getAveragePoint(leftEye);
-        const rightEyeCenter = this._getAveragePoint(rightEye);
-        
-        return Math.sqrt(
-            Math.pow(rightEyeCenter.x - leftEyeCenter.x, 2) +
-            Math.pow(rightEyeCenter.y - leftEyeCenter.y, 2)
-        );
+        try {
+            if (!mesh || !mesh.keypoints) return 0;
+            
+            const { leftEye, rightEye } = mesh.keypoints;
+            if (!leftEye || !rightEye) return 0;
+            
+            const leftEyeCenter = this._getAveragePoint(leftEye);
+            const rightEyeCenter = this._getAveragePoint(rightEye);
+            
+            // 检查点是否有效
+            if (!leftEyeCenter || !rightEyeCenter || 
+                typeof leftEyeCenter.x !== 'number' || typeof rightEyeCenter.x !== 'number') {
+                return 0;
+            }
+            
+            return Math.sqrt(
+                Math.pow(rightEyeCenter.x - leftEyeCenter.x, 2) +
+                Math.pow(rightEyeCenter.y - leftEyeCenter.y, 2)
+            );
+        } catch (error) {
+            console.warn('计算双眼距离失败:', error);
+            return 0;
+        }
     }
 
     /**
@@ -459,9 +494,9 @@ export const FaceProcessorPresets = {
     
     avatar: {
         cropPadding: 0.2,
-        minFaceSize: 150,
+        minFaceSize: 300,
         alignmentMode: 'eyes',
-        quality: 0.9
+        quality: 1.0
     },
     
     idPhoto: {

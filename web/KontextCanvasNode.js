@@ -99,9 +99,12 @@ class LRPGCanvas {
             ? FACE_PANEL_EXPANDED_HEIGHT
             : FACE_PANEL_COLLAPSED_HEIGHT;
         
-        // console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px`);
+        // 背景移除功能已集成到主工具栏，无需额外高度
+        const bgRemovalPanelHeight = 0;
         
-        const totalContainerHeight = canvasHeight + TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight;
+        // console.log(`[LRPG Canvas] updateContainerSize called: ${canvasWidth}x${canvasHeight}, layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px, bgRemoval: ${bgRemovalPanelHeight}px`);
+        
+        const totalContainerHeight = canvasHeight + TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight + bgRemovalPanelHeight;
         
         if (this.canvasContainer) {
             this.canvasContainer.style.width = `${canvasWidth}px`;
@@ -1103,6 +1106,8 @@ class LRPGCanvas {
         fileInput.onchange = (e) => {
             if (e.target.files[0]) {
                 this.handleImageUpload(e.target.files[0]);
+                // 重置文件输入框，允许重新上传同一文件
+                e.target.value = '';
             }
         };
         
@@ -2308,10 +2313,9 @@ class LRPGCanvas {
         try {
             // 创建面部工具UI实例，传入canvas实例引用
             this.faceToolsUI = new FaceToolsUI(this.canvas, this.canvasContainer, this);
-            console.log('[LRPG Canvas] Face tools initialized successfully');
         } catch (error) {
             console.warn('[LRPG Canvas] Failed to initialize face tools:', error);
-            // 面部工具初始化失败不应影响主要功能
+            // 工具初始化失败不应影响主要功能
         }
     }
 
@@ -3137,7 +3141,7 @@ class LRPGCanvas {
                 // // console.log(`[LRPG Canvas] 从LoadImage节点的DOM元素加载图像: ${domImg.src.substring(0, 50)}...`);
                 
                 fabric.Image.fromURL(domImg.src, (fabricImg) => {
-                    // 设置为背景图像，使用原始canvas尺寸（实际分辨率）
+                    // 设置为可选中编辑的普通图层
                     fabricImg.set({
                         left: 0,
                         top: 0,
@@ -3145,19 +3149,23 @@ class LRPGCanvas {
                         scaleY: this.originalSize.height / fabricImg.height,
                         originX: 'left',
                         originY: 'top',
-                        isBackground: true,
-                        stretchToFit: true,
-                        selectable: false,  // 背景图像不可选择
-                        evented: false     // 背景图像不响应事件
+                        // isBackground: false, // 移除背景标记
+                        // stretchToFit: false, // 移除强制拉伸
+                        selectable: true,   // 改为可选择
+                        evented: true,     // 改为响应事件
+                        name: 'InputImage' // 给图层命名
                     });
                     
-                    // 清空画布并添加背景图像
+                    // 清空画布并添加为普通图层
                     this.canvas.clear();
                     this.canvas.add(fabricImg);
-                    this.canvas.sendToBack(fabricImg);
+                    // 不再强制置于底层，让它作为普通图层
                     this.canvas.renderAll();
                     
-                    // // console.log(`[LRPG Canvas] 背景图像已加载并填满画布（原始分辨率: ${this.originalSize.width}x${this.originalSize.height}）`);
+                    // 更新图层列表
+                    this.updateLayerList();
+                    
+                    console.log(`[Canvas] 输入图像已加载为可编辑图层（尺寸: ${this.originalSize.width}x${this.originalSize.height}）`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -3175,7 +3183,7 @@ class LRPGCanvas {
                 const imageUrl = `/view?filename=${encodeURIComponent(imageWidget.value)}&subfolder=&type=input`;
                 
                 fabric.Image.fromURL(imageUrl, (fabricImg) => {
-                    // 设置为背景图像，完全填满画布
+                    // 设置为可选中编辑的普通图层
                     fabricImg.set({
                         left: 0,
                         top: 0,
@@ -3183,19 +3191,23 @@ class LRPGCanvas {
                         scaleY: this.originalSize.height / fabricImg.height,
                         originX: 'left',
                         originY: 'top',
-                        isBackground: true,
-                        stretchToFit: true,
-                        selectable: false,
-                        evented: false
+                        // isBackground: false, // 移除背景标记
+                        // stretchToFit: false, // 移除强制拉伸
+                        selectable: true,   // 改为可选择
+                        evented: true,     // 改为响应事件
+                        name: 'InputImage' // 给图层命名
                     });
                     
-                    // 清空画布并添加背景图像
+                    // 清空画布并添加为普通图层
                     this.canvas.clear();
                     this.canvas.add(fabricImg);
-                    this.canvas.sendToBack(fabricImg);
+                    // 不再强制置于底层
                     this.canvas.renderAll();
                     
-                    // // console.log(`[LRPG Canvas] 背景图像已从文件加载并填满画布: ${imageWidget.value}`);
+                    // 更新图层列表
+                    this.updateLayerList();
+                    
+                    console.log(`[Canvas] 输入图像已从文件加载为可编辑图层: ${imageWidget.value}`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -3215,7 +3227,7 @@ class LRPGCanvas {
                 // // console.log(`[LRPG Canvas] 从通用节点的DOM元素加载图像`);
                 
                 fabric.Image.fromURL(domImg.src, (fabricImg) => {
-                    // 设置为背景图像，完全填满画布
+                    // 设置为可选中编辑的普通图层
                     fabricImg.set({
                         left: 0,
                         top: 0,
@@ -3223,18 +3235,22 @@ class LRPGCanvas {
                         scaleY: this.originalSize.height / fabricImg.height,
                         originX: 'left',
                         originY: 'top',
-                        isBackground: true,
-                        stretchToFit: true,
-                        selectable: false,
-                        evented: false
+                        // isBackground: false, // 移除背景标记
+                        // stretchToFit: false, // 移除强制拉伸
+                        selectable: true,   // 改为可选择
+                        evented: true,     // 改为响应事件
+                        name: 'InputImage' // 给图层命名
                     });
                     
                     this.canvas.clear();
                     this.canvas.add(fabricImg);
-                    this.canvas.sendToBack(fabricImg);
+                    // 不再强制置于底层
                     this.canvas.renderAll();
                     
-                    // // console.log(`[LRPG Canvas] 通用节点图像已加载并填满画布`);
+                    // 更新图层列表
+                    this.updateLayerList();
+                    
+                    console.log(`[Canvas] 通用节点图像已加载为可编辑图层`);
                 }, {
                     crossOrigin: 'anonymous'
                 });
@@ -3330,16 +3346,19 @@ app.registerExtension({
                             ? FACE_PANEL_EXPANDED_HEIGHT
                             : FACE_PANEL_COLLAPSED_HEIGHT;
                         
+                        // 背景移除功能已集成到主工具栏，无需额外高度
+                        const bgRemovalPanelHeight = 0;
+                        
                         // 使用与updateContainerSize相同的补偿逻辑
                         const ADJUSTED_RIGHT_MARGIN = 70;
                         const LG_BOTTOM_MARGIN = 110;
-                        const totalHeight = currentScaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight;
+                        const totalHeight = currentScaledSize.height + CANVAS_SIZE.TOOLBAR_HEIGHT + layerPanelHeight + facePanelHeight + bgRemovalPanelHeight;
                         
                         const result = [
                             currentScaledSize.width + ADJUSTED_RIGHT_MARGIN,
                             totalHeight + LG_BOTTOM_MARGIN
                         ];
-                        // // console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px): ${result[0]}x${result[1]}`);
+                        // // console.log(`[LRPG Canvas] computeSize (layerPanel: ${layerPanelHeight}px, facePanel: ${facePanelHeight}px, bgRemoval: ${bgRemovalPanelHeight}px): ${result[0]}x${result[1]}`);
                         return result;
                     };
                     
