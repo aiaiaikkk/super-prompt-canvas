@@ -346,4 +346,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OllamaServiceManager": "🦙 Ollama Service Manager",
 }
 
-# Debug log removed
+print("[Ollama Service Manager] Ollama Service Manager node registered")

@@ -46,39 +46,13 @@ class OllamaModelConverter:
         print(f"[Ollama Converter] Modelfile目录: {self.modelfiles_dir}")
     
     def scan_gguf_models(self) -> List[Dict]:
-        """扫描目录中的GGUF模型文件（支持文件夹形式）"""
+        """扫描目录中的GGUF模型文件"""
         models = []
         
         try:
-            # 扫描所有子文件夹
-            for folder_path in self.import_dir.iterdir():
-                if folder_path.is_dir():
-                    # 在文件夹中查找GGUF文件和Modelfile
-                    gguf_files = list(folder_path.glob("*.gguf"))
-                    modelfile_path = folder_path / "Modelfile"
-                    
-                    if gguf_files:
-                        # 使用第一个找到的GGUF文件
-                        gguf_file = gguf_files[0]
-                        # 使用GGUF文件名（不含扩展名）作为模型名
-                        model_name = gguf_file.stem
-                        is_converted = self.check_if_converted(model_name)
-                        
-                        model_info = {
-                            'name': model_name,
-                            'file_path': str(gguf_file),
-                            'file_size': gguf_file.stat().st_size,
-                            'is_converted': is_converted,
-                            'ollama_name': model_name,
-                            'modelfile_path': str(modelfile_path),
-                            'has_modelfile': modelfile_path.exists(),
-                            'folder_name': folder_path.name
-                        }
-                        models.append(model_info)
-            
-            # 也支持直接放在根目录的GGUF文件（向后兼容）
             for file_path in self.import_dir.glob("*.gguf"):
                 if file_path.is_file():
+                    # 检查是否已经转换
                     model_name = file_path.stem
                     is_converted = self.check_if_converted(model_name)
                     
@@ -87,9 +61,8 @@ class OllamaModelConverter:
                         'file_path': str(file_path),
                         'file_size': file_path.stat().st_size,
                         'is_converted': is_converted,
-                        'ollama_name': model_name,
-                        'modelfile_path': str(self.modelfiles_dir / f"{model_name}.modelfile"),
-                        'has_modelfile': False
+                        'ollama_name': f"custom-{model_name}",
+                        'modelfile_path': str(self.modelfiles_dir / f"{model_name}.modelfile")
                     }
                     models.append(model_info)
             
@@ -112,7 +85,8 @@ class OllamaModelConverter:
             )
             
             if result.returncode == 0:
-                return model_name in result.stdout
+                ollama_name = f"custom-{model_name}"
+                return ollama_name in result.stdout
             
         except Exception as e:
             print(f"[Ollama Converter] 检查转换状态失败: {e}")
@@ -120,43 +94,47 @@ class OllamaModelConverter:
         return False
     
     def generate_modelfile(self, model_info: Dict) -> str:
-        """根据模型类型生成相应的Modelfile配置"""
+        """生成Modelfile配置"""
         model_name = model_info['name']
-        # 使用相对路径
-        model_filename = Path(model_info['file_path']).name
-        model_path = f"./{model_filename}"
+        model_path = model_info['file_path']
         
-        # 根据模型类型生成不同的配置
-        if 'qwen' in model_name.lower():
-            modelfile_content = f'''FROM {model_path}
+        # 智能识别模型类型并生成相应的系统提示
+        system_prompts = {
+            'qwen': "You are Qwen, created by Alibaba Cloud. You are a helpful assistant.",
+            'deepseek': "You are DeepSeek Chat, an AI assistant developed by DeepSeek. You are helpful, harmless, and honest.",
+            'llama': "You are a helpful, respectful and honest assistant.",
+            'mistral': "You are Mistral AI, a helpful assistant.",
+            'yi': "You are Yi, an AI assistant created by 01.AI. You are helpful and harmless."
+        }
+        
+        # 根据模型名称选择合适的系统提示
+        system_prompt = "You are a helpful AI assistant."
+        for key, prompt in system_prompts.items():
+            if key.lower() in model_name.lower():
+                system_prompt = prompt
+                break
+        
+        # 生成Modelfile内容
+        modelfile_content = f'''FROM {model_path}
 
-TEMPLATE """{{{{ if .System }}}}<|im_start|>system
-{{{{ .System }}}}<|im_end|>
-{{{{ end }}}}{{{{ range .Messages }}}}{{{{ if eq .Role "user" }}}}<|im_start|>user
-{{{{ .Content }}}}<|im_end|>
-<|im_start|>assistant
-{{{{ else if eq .Role "assistant" }}}}{{{{ .Content }}}}<|im_end|>
-{{{{ end }}}}{{{{ end }}}}"""
-
-SYSTEM """You are Qwen, created by Alibaba Cloud. You are a helpful assistant."""
-
+# 模型基本信息
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
 PARAMETER stop "<|im_end|>"
-PARAMETER num_ctx 4096
-PARAMETER temperature 0.7'''
-        
-        elif 'deepseek' in model_name.lower():
-            modelfile_content = f'''FROM {model_path}
+PARAMETER stop "<|endoftext|>"
 
-PARAMETER stop "<|end_of_sentence|>"
-PARAMETER num_ctx 4096
-PARAMETER temperature 0.7'''
-        
-        else:
-            # 默认配置
-            modelfile_content = f'''FROM {model_path}
+# 系统提示词
+SYSTEM """{system_prompt}"""
 
-PARAMETER num_ctx 4096
-PARAMETER temperature 0.7'''
+# 模板设置
+TEMPLATE """{{{{ if .System }}}}{{{{ .System }}}}
+
+{{{{ end }}}}{{{{ if .Prompt }}}}User: {{{{ .Prompt }}}}
+
+Assistant: {{{{ .Response }}}}
+{{{{ end }}}}"""
+'''
         
         return modelfile_content
     
@@ -180,30 +158,20 @@ PARAMETER temperature 0.7'''
     def convert_model(self, model_info: Dict) -> Tuple[bool, str]:
         """转换模型到Ollama格式"""
         try:
-            modelfile_path = Path(model_info['modelfile_path'])
-            
-            # 检查是否有现有的Modelfile
-            if model_info.get('has_modelfile', False):
-                # 使用现有的Modelfile，不创建新的
-                print(f"[Ollama Converter] 使用现有Modelfile: {modelfile_path}")
-                working_dir = modelfile_path.parent
-            else:
-                # 没有Modelfile时，根据模型类型创建对应的Modelfile
-                print(f"[Ollama Converter] 创建新的Modelfile: {modelfile_path}")
-                if not self.create_modelfile(model_info):
-                    return False, "Modelfile创建失败"
-                working_dir = modelfile_path.parent
+            # 首先创建Modelfile
+            if not self.create_modelfile(model_info):
+                return False, "Modelfile创建失败"
             
             # 执行ollama create命令
+            modelfile_path = model_info['modelfile_path']
             ollama_name = model_info['ollama_name']
             
             print(f"[Ollama Converter] 开始转换模型: {ollama_name}")
             
             result = subprocess.run(
-                ["ollama", "create", ollama_name, "-f", "Modelfile"],
+                ["ollama", "create", ollama_name, "-f", modelfile_path],
                 capture_output=True,
                 text=True,
-                cwd=str(working_dir),
                 timeout=300  # 5分钟超时
             )
             
@@ -235,8 +203,10 @@ PARAMETER temperature 0.7'''
         
         return False, f"未找到模型: {model_name}"
 
+
 # 全局转换器实例
 model_converter = OllamaModelConverter()
+
 
 # API端点
 if WEB_AVAILABLE:

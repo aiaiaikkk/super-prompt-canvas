@@ -4,8 +4,6 @@ import numpy as np
 import base64
 import cv2
 import time
-import json
-import os
 from PIL import Image, ImageOps
 from io import BytesIO
 from threading import Event
@@ -16,6 +14,7 @@ from aiohttp import web
 try:
     from server import PromptServer
     routes = PromptServer.instance.routes
+    print("[Super Canvas] 🎨 Server imports successful")
 except ImportError as e:
     print(f"[Super Canvas] ❌ Failed to import server: {e}")
 
@@ -33,47 +32,6 @@ def get_canvas_cache():
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
 
-def get_canvas_storage_dir():
-    """获取画布数据存储目录"""
-    storage_dir = os.path.join(os.path.dirname(__file__), "..", "user_data", "canvas_states")
-    os.makedirs(storage_dir, exist_ok=True)
-    return storage_dir
-
-def save_canvas_data_to_disk(node_id, data):
-    """将画布数据保存到磁盘"""
-    try:
-        storage_dir = get_canvas_storage_dir()
-        file_path = os.path.join(storage_dir, f"{node_id}.json")
-        
-        # 添加时间戳
-        data['saved_at'] = time.time()
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
-        print(f"[LRPG Canvas] 画布数据已保存到磁盘: {file_path}")
-        return True
-    except Exception as e:
-        print(f"[LRPG Canvas] 保存画布数据到磁盘失败: {str(e)}")
-        return False
-
-def load_canvas_data_from_disk(node_id):
-    """从磁盘加载画布数据"""
-    try:
-        storage_dir = get_canvas_storage_dir()
-        file_path = os.path.join(storage_dir, f"{node_id}.json")
-        
-        if not os.path.exists(file_path):
-            return None
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        print(f"[LRPG Canvas] 从磁盘加载画布数据: {file_path}")
-        return data
-    except Exception as e:
-        print(f"[LRPG Canvas] 从磁盘加载画布数据失败: {str(e)}")
-        return None
 
 def base64_to_tensor(base64_string):
     """将 base64 图像数据转换为 tensor"""
@@ -147,11 +105,16 @@ async def handle_canvas_data(request):
     try:
         data = await request.json()
         node_id = data.get('node_id')
+        
+        print(f"[Super Canvas] 📤 接收到画布数据上传请求 - 节点ID: {node_id}")
+        print(f"[Super Canvas] 📊 数据内容: 主图像={data.get('main_image') is not None}, 遮罩={data.get('main_mask') is not None}")
+        print(f"[Super Canvas] 🔄 Transform数据: {data.get('layer_transforms', {})}")
+        
         if not node_id:
-            print("[LRPG Canvas] Missing node_id")
+            print("[Super Canvas] ❌ Missing node_id")
             return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
 
-        print(f"[LRPG Canvas] 当前活动节点总数: {len(LRPGCanvas.active_nodes)}")
+        print(f"[Super Canvas] 📝 当前活动节点总数: {len(LRPGCanvas.active_nodes)}")
         
         waiting_node = None
         print(f"[LRPG Canvas] 开始查找节点 {node_id} 的等待状态")
@@ -159,23 +122,41 @@ async def handle_canvas_data(request):
         for i, node in enumerate(LRPGCanvas.active_nodes):
             event_status = "等待中" if node.waiting_for_response else "已响应"
             node_id_str = getattr(node, 'node_id', '未知')
-            print(f"[LRPG Canvas] 节点[{i}] - ID: {node_id_str}, 状态: {event_status}")
+            print(f"[Super Canvas] 🔍 节点[{i}] - ID: {node_id_str}, 状态: {event_status}")
             
             if node.waiting_for_response and node.node_id == node_id:
                 waiting_node = node
-                print(f"[LRPG Canvas] 找到等待响应的节点: {node_id_str}")
+                print(f"[Super Canvas] ✅ 找到等待响应的节点: {node_id_str}")
                 break
 
         if not waiting_node:
-            print(f"[LRPG Canvas] 没有找到等待响应的节点")
-            print(f"[LRPG Canvas] 请求的节点ID: {node_id}")
-            print(f"[LRPG Canvas] 活动节点列表: {[getattr(node, 'node_id', '未知') for node in LRPGCanvas.active_nodes]}")
+            print(f"[Super Canvas] ⚠️ 没有找到等待响应的节点")
+            print(f"[Super Canvas] 📌 请求的节点ID: {node_id}")
+            print(f"[Super Canvas] 📋 活动节点列表: {[getattr(node, 'node_id', '未知') for node in LRPGCanvas.active_nodes]}")
+            
+            # 即使没有等待的节点，也保存数据到存储中
+            transform_data = data.get('layer_transforms', {})
+            canvas_storage = get_canvas_storage()
+            canvas_storage[node_id] = {
+                'transform_data': transform_data,
+                'canvas_size': {
+                    'width': transform_data.get('background', {}).get('width', 500),
+                    'height': transform_data.get('background', {}).get('height', 500)
+                },
+                'timestamp': time.time()
+            }
+            print(f"[Super Canvas] 💾 数据已保存到持久化存储（节点不在等待状态）")
             return web.Response(status=200)
             
-        print(f"[LRPG Canvas] 成功找到等待节点，准备处理数据")
+        print(f"[Super Canvas] ✅ 成功找到等待节点，准备处理数据")
         transform_data = data.get('layer_transforms', {})
         main_image = array_to_tensor(data.get('main_image'), "image")
         main_mask = array_to_tensor(data.get('main_mask'), "mask")
+        
+        if main_image is not None:
+            print(f"[Super Canvas] 🖼️ 主图像处理完成: {main_image.shape}")
+        if main_mask is not None:
+            print(f"[Super Canvas] 🎭 遮罩处理完成: {main_mask.shape}")
 
         processed_data = {
             'image': main_image,
@@ -185,7 +166,7 @@ async def handle_canvas_data(request):
 
         # 存储到缓存中，供其他节点使用
         canvas_cache = get_canvas_cache()
-        canvas_data = {
+        canvas_cache[node_id] = {
             'transform_data': transform_data,
             'canvas_size': {
                 'width': transform_data.get('background', {}).get('width', 500),
@@ -193,21 +174,21 @@ async def handle_canvas_data(request):
             },
             'timestamp': time.time()
         }
-        canvas_cache[node_id] = canvas_data
-        print(f"[LRPG Canvas] 已将节点 {node_id} 的数据存储到缓存")
+        print(f"[Super Canvas] 🗂️ 已将节点 {node_id} 的数据存储到缓存")
         
-        # 同时保存到磁盘进行持久化
-        save_canvas_data_to_disk(node_id, canvas_data)
-        print(f"[LRPG Canvas] 节点 {node_id} 的数据已持久化到磁盘")
+        # 同时保存到持久化存储
+        canvas_storage = get_canvas_storage()
+        canvas_storage[node_id] = canvas_cache[node_id]
+        print(f"[Super Canvas] 💾 已将节点 {node_id} 的数据存储到持久化存储")
 
         waiting_node.processed_data = processed_data
         waiting_node.response_event.set()
-        print(f"[LRPG Canvas] 已完成数据处理并通知节点 {node_id}")
+        print(f"[Super Canvas] ✅ 已完成数据处理并通知节点 {node_id}")
 
         return web.json_response({"status": "success"})
 
     except Exception as e:
-        print(f"[LRPG Canvas] 处理失败: {str(e)}")
+        print(f"[Super Canvas] ❌ 处理失败: {str(e)}")
         import traceback
         traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
@@ -218,10 +199,12 @@ async def clear_canvas_cache(request):
     try:
         data = await request.json()
         node_id = data.get('node_id')
+        print(f"[Super Canvas] 🔄 收到画布内容变化通知 - 节点ID: {node_id}")
+        
         if not node_id:
             return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
         
-        print(f"[LRPG Canvas] 节点 {node_id} 画布内容已变化")
+        print(f"[Super Canvas] 📝 节点 {node_id} 画布内容已变化")
         return web.json_response({"status": "success"})
         
     except Exception as e:
@@ -234,10 +217,14 @@ async def get_canvas_data(request):
     try:
         data = await request.json()
         node_id = data.get('node_id')
+        
+        print(f"[Super Canvas] 🔍 获取画布数据请求 - 节点ID: {node_id}")
+        
         if not node_id:
+            print(f"[Super Canvas] ❌ Missing node_id")
             return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
         
-        print(f"[LRPG Canvas] 尝试获取节点 {node_id} 的画布数据")
+        print(f"[Super Canvas] 📂 尝试获取节点 {node_id} 的画布数据")
         
         # 从节点数据存储中获取
         canvas_storage = get_canvas_storage()
@@ -246,7 +233,8 @@ async def get_canvas_data(request):
         # 检查缓存中是否有数据
         if node_id in canvas_cache:
             cached_data = canvas_cache[node_id]
-            print(f"[LRPG Canvas] 从缓存获取到节点 {node_id} 的数据")
+            print(f"[Super Canvas] ✅ 从缓存获取到节点 {node_id} 的数据")
+            print(f"[Super Canvas] 📊 缓存数据: {cached_data}")
             return web.json_response({
                 "status": "success",
                 "transform_data": cached_data.get('transform_data', {}),
@@ -256,34 +244,26 @@ async def get_canvas_data(request):
         # 检查存储中是否有数据
         if node_id in canvas_storage:
             stored_data = canvas_storage[node_id]
-            print(f"[LRPG Canvas] 从存储获取到节点 {node_id} 的数据")
+            print(f"[Super Canvas] ✅ 从持久化存储获取到节点 {node_id} 的数据")
+            print(f"[Super Canvas] 📊 存储数据: {stored_data}")
             return web.json_response({
                 "status": "success",
                 "transform_data": stored_data.get('transform_data', {}),
                 "canvas_size": stored_data.get('canvas_size', {'width': 500, 'height': 500})
             })
         
-        # 尝试从磁盘加载数据
-        disk_data = load_canvas_data_from_disk(node_id)
-        if disk_data:
-            print(f"[LRPG Canvas] 从磁盘获取到节点 {node_id} 的数据")
-            # 将磁盘数据加载到内存缓存中
-            canvas_cache[node_id] = disk_data
-            canvas_storage[node_id] = disk_data
-            return web.json_response({
-                "status": "success",
-                "transform_data": disk_data.get('transform_data', {}),
-                "canvas_size": disk_data.get('canvas_size', {'width': 500, 'height': 500})
-            })
-        
-        print(f"[LRPG Canvas] 未找到节点 {node_id} 的数据（内存和磁盘都没有）")
+        print(f"[Super Canvas] ⚠️ 未找到节点 {node_id} 的数据")
+        print(f"[Super Canvas] 📋 缓存键列表: {list(canvas_cache.keys())}")
+        print(f"[Super Canvas] 📋 存储键列表: {list(canvas_storage.keys())}")
         return web.json_response({
             "status": "not_found",
             "message": "No data found for the specified node"
         })
         
     except Exception as e:
-        print(f"[LRPG Canvas] 获取画布数据失败: {str(e)}")
+        print(f"[Super Canvas] ❌ 获取画布数据失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 class LRPGCanvas:
@@ -299,7 +279,8 @@ class LRPGCanvas:
         # 清理已有节点并添加自己 - 完全复制lg_tools的做法
         LRPGCanvas.clean_nodes()
         LRPGCanvas.active_nodes.append(self)
-        # 新节点已创建
+        print(f"[Super Canvas] 🎆 新节点已创建，当前活动节点数: {len(LRPGCanvas.active_nodes)}")
+
 
     @classmethod
     def clean_nodes(cls):
@@ -342,10 +323,11 @@ class LRPGCanvas:
             if self not in LRPGCanvas.active_nodes:
                 LRPGCanvas.active_nodes.append(self)
             
-            print(f"[LRPG Canvas] 节点 {unique_id} 开始等待响应")
+            print(f"[Super Canvas] 🕐 节点 {unique_id} 开始等待响应")
+            print(f"[Super Canvas] 📝 当前活动节点数: {len(LRPGCanvas.active_nodes)}")
 
             # 移除lrpg_data逻辑，直接获取画布状态
-            print(f"[LRPG Canvas] 直接获取画布状态，节点ID: {unique_id}")
+            print(f"[Super Canvas] 📡 发送获取画布状态请求，节点ID: {unique_id}")
             PromptServer.instance.send_sync(
                 "lrpg_canvas_get_state", {
                     "node_id": unique_id
@@ -353,7 +335,8 @@ class LRPGCanvas:
             )
 
             if not self.response_event.wait(timeout=30):
-                print(f"[LRPG Canvas] 等待前端响应超时")
+                print(f"[Super Canvas] ⏱️ 等待前端响应超时")
+                print(f"[Super Canvas] 📝 活动节点列表: {[getattr(node, 'node_id', '未知') for node in LRPGCanvas.active_nodes]}")
                 self.waiting_for_response = False
                 LRPGCanvas.clean_nodes()
                 # 返回默认值而不是None
@@ -442,7 +425,9 @@ class LRPGCanvas:
                 return (empty_image, empty_layer_info)
 
         except Exception as e:
-            print(f"[LRPG Canvas] 处理过程发生异常: {str(e)}")
+            print(f"[Super Canvas] ❌ 处理过程发生异常: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.waiting_for_response = False
             LRPGCanvas.clean_nodes()
             # 异常时也返回默认值
@@ -510,4 +495,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LRPGCanvas": "🖼️ Super Canvas",
 }
 
-# Debug log removed
+print("[Super Canvas] 🎨 Super Canvas节点已注册")
+print("[Super Canvas] 📌 API路由: /lrpg_canvas, /lrpg_canvas_clear_cache, /lrpg_canvas_get_data")

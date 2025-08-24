@@ -572,4 +572,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OllamaKontextPromptGenerator": "🦙 Ollama Kontext Prompt Generator",
 }
 
-# Debug log removed
+print("[Ollama Kontext] Ollama Kontext Prompt Generator node registered")

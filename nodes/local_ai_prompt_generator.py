@@ -38,7 +38,9 @@ def get_custom_model_directory():
     
     models_dir = os.path.join(comfyui_root, "models", "custom_prompt_models")
     
-    # Debug info removed
+    print(f"[Custom Model Debug] 当前文件: {current_file}")
+    print(f"[Custom Model Debug] ComfyUI根目录: {comfyui_root}")
+    print(f"[Custom Model Debug] 目标模型目录: {models_dir}")
     
     # 确保目录存在
     os.makedirs(models_dir, exist_ok=True)
@@ -49,16 +51,18 @@ def scan_model_files():
     model_dir = get_custom_model_directory()
     gguf_files = glob.glob(os.path.join(model_dir, "*.gguf"))
     
-    # Scan directory
+    # 调试信息
+    print(f"[Custom Model Prompt Generator] 扫描目录: {model_dir}")
+    print(f"[Custom Model Prompt Generator] 找到的GGUF文件: {gguf_files}")
     
     # 返回文件名（不含路径）
     model_names = [os.path.basename(f) for f in gguf_files]
     
     if not model_names:
         model_names = ["请将.gguf模型文件放入models/custom_prompt_models目录"]
-        pass
+        print(f"[Custom Model Prompt Generator] 未找到模型文件，返回提示信息")
     else:
-        pass
+        print(f"[Custom Model Prompt Generator] 检测到模型: {model_names}")
     
     return model_names
 
@@ -176,7 +180,7 @@ class CustomModelPromptGenerator:
             return True
         
         try:
-            # Loading model
+            print(f"[Custom Model Prompt Generator] 正在加载模型: {model_path}")
             
             # 根据模型类型设置参数
             model_params = {
@@ -190,17 +194,17 @@ class CustomModelPromptGenerator:
             # 检查是否有GPU支持
             if torch.cuda.is_available():
                 model_params["n_gpu_layers"] = -1  # 使用所有GPU层
-                pass  # GPU acceleration enabled
+                print(f"[Custom Model Prompt Generator] 检测到GPU，启用GPU加速")
             
             self.model = Llama(**model_params)
             self.current_model_path = model_path
             
-            # Model loaded successfully
+            print(f"[Custom Model Prompt Generator] 模型加载成功: {os.path.basename(model_path)}")
             return True
             
         except Exception as e:
-            # Model loading failed
-            pass
+            print(f"[Custom Model Prompt Generator] 模型加载失败: {str(e)}")
+            traceback.print_exc()
             self.model = None
             self.current_model_path = None
             return False
@@ -260,7 +264,7 @@ class CustomModelPromptGenerator:
             # 处理输入数据
             enhanced_request = editing_request
             if layers_info:
-                pass  # Received layer info
+                print(f"[Custom Model Prompt Generator] 接收到图层信息: {type(layers_info)}")
                 # 处理Super Canvas的图层信息
                 if isinstance(layers_info, dict):
                     layer_count = len(layers_info.get('layers', [])) if 'layers' in layers_info else 0
@@ -281,7 +285,8 @@ class CustomModelPromptGenerator:
             # 构建提示词
             full_prompt = self.build_prompt(enhanced_request, model_name, custom_system_prompt)
             
-            # Generating prompt
+            print(f"[Custom Model Prompt Generator] 开始生成提示词...")
+            print(f"[Custom Model Prompt Generator] 输入: {editing_request[:100]}...")
             
             # 生成参数
             generation_params = {
@@ -302,14 +307,15 @@ class CustomModelPromptGenerator:
             # 后处理：提取有效的提示词部分
             enhanced_prompt = self.post_process_output(raw_output)
             
-            # Generation completed
+            print(f"[Custom Model Prompt Generator] 生成完成")
+            print(f"[Custom Model Prompt Generator] 输出: {enhanced_prompt[:100]}...")
             
             return (enhanced_prompt, raw_output)
             
         except Exception as e:
             error_msg = f"提示词生成失败: {str(e)}"
-            # Generation failed
-            pass
+            print(f"[Custom Model Prompt Generator] {error_msg}")
+            traceback.print_exc()
             return (error_msg, str(e))
     
     def post_process_output(self, raw_output: str) -> str:
@@ -363,7 +369,9 @@ if WEB_API_AVAILABLE:
             model_files = scan_model_files()
             model_names = detect_model_names()
             
-            # Model list refreshed
+            print(f"[Custom Model API] 刷新模型列表完成")
+            print(f"[Custom Model API] 发现 {len(model_files)} 个模型文件: {model_files}")
+            print(f"[Custom Model API] 提取 {len(model_names)} 个模型名称: {model_names}")
             
             return web.json_response({
                 "success": True,
@@ -373,7 +381,7 @@ if WEB_API_AVAILABLE:
             })
             
         except Exception as e:
-            # Refresh failed
+            print(f"[Custom Model API] 刷新失败: {str(e)}")
             return web.json_response({
                 "success": False,
                 "error": str(e)

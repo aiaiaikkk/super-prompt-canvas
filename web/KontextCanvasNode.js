@@ -160,6 +160,7 @@ class LRPGCanvas {
 
     async initCanvas() {
         try {
+            console.log('[Super Canvas] 🎨 开始初始化画布，节点ID:', this.node.id);
             // // console.log('[LRPG Canvas] Starting canvas initialization with Fabric.js:', fabric.version);
             
             this.canvasContainer = document.createElement('div');
@@ -285,13 +286,13 @@ class LRPGCanvas {
 
             // 初始化面部工具
             this.initializeFaceTools();
-
+            
             // 尝试恢复之前保存的画布状态
             await this.restoreCanvasState();
 
-            // // console.log('[LRPG Canvas] Canvas initialized successfully');
+            console.log('[Super Canvas] ✅ 画布初始化完成');
         } catch (error) {
-            console.error('[LRPG Canvas] Failed to initialize canvas:', error);
+            console.error('[Super Canvas] ❌ 画布初始化失败:', error);
             this.destroyFaceTools(); // 清理面部工具
             this.showError(error.message);
         }
@@ -2125,8 +2126,11 @@ class LRPGCanvas {
     markCanvasChanged() {
         // // console.log('[LRPG Canvas] 画布内容已改变');
         
-        // 发送画布变化通知到后端 - 完全复制lg_tools的做法
+        // 发送画布变化通知到后端并保存状态
         if (this.node && this.node.id) {
+            // 保存当前状态
+            this.saveCanvasState();
+            
             fetch('/lrpg_canvas_clear_cache', {
                 method: 'POST',
                 headers: {
@@ -2136,7 +2140,7 @@ class LRPGCanvas {
                     node_id: this.node.id.toString()
                 })
             }).catch(err => {
-                // // console.log('[LRPG Canvas] 清除缓存请求失败:', err.message);
+                console.warn('[Super Canvas] 清除缓存请求失败:', err.message);
             });
         }
     }
@@ -2534,141 +2538,6 @@ class LRPGCanvas {
         }
     }
 
-    async restoreCanvasState() {
-        if (!this.canvas || !this.node || !this.node.id) return;
-        
-        try {
-            // 调用后端API获取保存的画布数据
-            const response = await fetch('/lrpg_canvas_get_data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    node_id: this.node.id.toString()
-                })
-            });
-
-            if (!response.ok) {
-                console.log('[LRPG Canvas] 未找到保存的画布数据，使用默认状态');
-                return;
-            }
-
-            const result = await response.json();
-            
-            if (result.status === 'success' && result.transform_data) {
-                console.log('[LRPG Canvas] 开始恢复画布状态...');
-                
-                // 清空当前画布
-                this.canvas.clear();
-                this.canvas.backgroundColor = '#ffffff';
-                
-                // 恢复画布尺寸
-                if (result.canvas_size) {
-                    this.originalSize.width = result.canvas_size.width;
-                    this.originalSize.height = result.canvas_size.height;
-                    this.currentSize = { ...this.originalSize };
-                    
-                    this.canvas.setDimensions({
-                        width: this.originalSize.width,
-                        height: this.originalSize.height
-                    });
-                    
-                    // 重新计算显示尺寸
-                    const scaledSize = this.calculateScaledSize(
-                        this.originalSize.width, 
-                        this.originalSize.height, 
-                        this.maxDisplaySize
-                    );
-                    this.updateCanvasSize(scaledSize.width, scaledSize.height);
-                }
-                
-                // 恢复图层对象
-                await this.restoreCanvasObjects(result.transform_data);
-                
-                console.log('[LRPG Canvas] 画布状态恢复完成');
-            } else if (result.status === 'not_found') {
-                console.log('[LRPG Canvas] 该节点没有保存的画布数据');
-            }
-        } catch (error) {
-            console.error('[LRPG Canvas] 恢复画布状态失败:', error);
-        }
-    }
-
-    async restoreCanvasObjects(transformData) {
-        if (!transformData || !this.canvas) return;
-        
-        // 遍历所有保存的对象数据，跳过背景
-        for (const [objId, objData] of Object.entries(transformData)) {
-            if (objId === 'background') continue;
-            
-            try {
-                if (objData.type === 'image' && objData.thumbnail) {
-                    // 从原始图像数据重新创建图像对象
-                    const img = await this.createImageFromThumbnail(objData.thumbnail);
-                    if (img) {
-                        // 计算原始尺寸（考虑到保存时可能的缩放）
-                        const originalWidth = objData.width || img.width;
-                        const originalHeight = objData.height || img.height;
-                        
-                        // 设置对象的位置和变换，使用保存的位置信息
-                        img.set({
-                            left: objData.centerX - (originalWidth * objData.scaleX) / 2,
-                            top: objData.centerY - (originalHeight * objData.scaleY) / 2,
-                            scaleX: objData.scaleX || 1,
-                            scaleY: objData.scaleY || 1,
-                            angle: objData.angle || 0,
-                            opacity: objData.opacity || 1,
-                            visible: objData.visible !== false,
-                            // 确保图像保持原始尺寸
-                            width: originalWidth,
-                            height: originalHeight
-                        });
-                        
-                        this.canvas.add(img);
-                        console.log(`[LRPG Canvas] 恢复图像对象: ${originalWidth}x${originalHeight}, scale: ${objData.scaleX}x${objData.scaleY}`);
-                    }
-                }
-            } catch (error) {
-                console.error(`[LRPG Canvas] 恢复对象 ${objId} 失败:`, error);
-            }
-        }
-        
-        // 重新渲染画布
-        this.canvas.renderAll();
-        this.updateLayerList();
-    }
-
-    async createImageFromThumbnail(imageData) {
-        return new Promise((resolve, reject) => {
-            if (!imageData) {
-                resolve(null);
-                return;
-            }
-            
-            const img = new Image();
-            img.onload = () => {
-                // 创建Fabric图像对象，保持原始分辨率
-                const fabricImg = new fabric.Image(img, {
-                    selectable: true,
-                    moveCursor: 'move',
-                    hoverCursor: 'move',
-                    // 确保图像以原始尺寸显示
-                    width: img.naturalWidth || img.width,
-                    height: img.naturalHeight || img.height
-                });
-                
-                console.log(`[LRPG Canvas] 创建图像对象: ${fabricImg.width}x${fabricImg.height}`);
-                resolve(fabricImg);
-            };
-            img.onerror = (e) => {
-                console.error('[LRPG Canvas] 图像加载失败:', e);
-                resolve(null);
-            };
-            img.src = imageData;
-        });
-    }
-
     extractTransformData() {
         const objects = this.canvas.getObjects();
         const layer_transforms = {
@@ -2691,8 +2560,8 @@ class LRPGCanvas {
                 scaleX: obj.scaleX || 1,
                 scaleY: obj.scaleY || 1,
                 angle: obj.angle || 0,
-                width: obj.getScaledWidth ? obj.getScaledWidth() : (obj.width || 100),
-                height: obj.getScaledHeight ? obj.getScaledHeight() : (obj.height || 100),
+                width: obj.width || 100,
+                height: obj.height || 100,
                 flipX: obj.flipX || false,
                 flipY: obj.flipY || false,
                 visible: obj.visible !== false, // 默认为true
@@ -2709,32 +2578,12 @@ class LRPGCanvas {
 
     generateObjectThumbnailData(obj) {
         try {
-            if (obj.type === 'image') {
-                // 对于图像对象，保存原始分辨率的数据而不是缩略图
-                const element = obj.getElement();
-                if (element) {
-                    // 创建临时画布，使用图像的原始尺寸
-                    const tempCanvas = document.createElement('canvas');
-                    const ctx = tempCanvas.getContext('2d');
-                    
-                    // 使用原始图像尺寸
-                    tempCanvas.width = element.naturalWidth || element.width;
-                    tempCanvas.height = element.naturalHeight || element.height;
-                    
-                    // 绘制原始图像
-                    ctx.drawImage(element, 0, 0);
-                    
-                    // 返回原始分辨率的base64数据
-                    return tempCanvas.toDataURL('image/png');
-                }
-            }
-            
-            // 对于其他类型对象，生成高质量缩略图
+            // 创建临时画布用于生成缩略图
             const tempCanvas = document.createElement('canvas');
             const ctx = tempCanvas.getContext('2d');
             
-            // 使用更高的缩略图尺寸以保持质量
-            const thumbSize = 256;
+            // 设置缩略图尺寸
+            const thumbSize = 64;
             tempCanvas.width = thumbSize;
             tempCanvas.height = thumbSize;
             
@@ -2748,12 +2597,12 @@ class LRPGCanvas {
             ctx.scale(scale, scale);
             ctx.translate(-bounds.width / 2, -bounds.height / 2);
             
-            // 渲染对象
-            if (obj.type === 'text') {
-                // 文字对象渲染逻辑
-                ctx.font = `${obj.fontSize || 16}px ${obj.fontFamily || 'Arial'}`;
-                ctx.fillStyle = obj.fill || '#000000';
-                ctx.fillText(obj.text || '', 0, obj.fontSize || 16);
+            // 渲染对象到缩略图
+            if (obj.type === 'image') {
+                const element = obj.getElement();
+                if (element) {
+                    ctx.drawImage(element, 0, 0, bounds.width, bounds.height);
+                }
             }
             
             ctx.restore();
@@ -2761,7 +2610,7 @@ class LRPGCanvas {
             // 返回base64数据
             return tempCanvas.toDataURL('image/png');
         } catch (e) {
-            console.warn('生成图像数据失败:', e);
+            console.warn('生成缩略图失败:', e);
             return null;
         }
     }
@@ -3323,6 +3172,9 @@ class LRPGCanvas {
                     // 更新图层列表
                     this.updateLayerList();
                     
+                    // 保存画布状态
+                    this.markCanvasChanged();
+                    
                     console.log(`[Canvas] 输入图像已加载为可编辑图层（尺寸: ${this.originalSize.width}x${this.originalSize.height}）`);
                 }, {
                     crossOrigin: 'anonymous'
@@ -3364,6 +3216,9 @@ class LRPGCanvas {
                     
                     // 更新图层列表
                     this.updateLayerList();
+                    
+                    // 保存画布状态
+                    this.markCanvasChanged();
                     
                     console.log(`[Canvas] 输入图像已从文件加载为可编辑图层: ${imageWidget.value}`);
                 }, {
@@ -3419,7 +3274,80 @@ class LRPGCanvas {
         // // console.log(`[LRPG Canvas] 通用节点没有可用的图像数据`);
     }
 
+    async saveCanvasState() {
+        if (!this.canvas || !this.node) return;
+        
+        try {
+            console.log('[Super Canvas] 💾 保存画布状态，节点ID:', this.node.id);
+            
+            // 获取画布数据
+            const canvasJSON = this.canvas.toJSON();
+            const transformData = this.extractTransformData();
+            
+            // 保存到localStorage作为主要存储
+            const STORAGE_KEY = `super_canvas_state_${this.node.id}`;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                canvas_json: canvasJSON,
+                transform_data: transformData,
+                canvas_size: this.originalSize,
+                timestamp: Date.now()
+            }));
+            
+            console.log('[Super Canvas] ✅ 画布状态已保存到localStorage');
+            
+        } catch (error) {
+            console.error('[Super Canvas] ❌ 保存画布状态错误:', error);
+        }
+    }
+    
+    async restoreCanvasState() {
+        if (!this.canvas || !this.node) return;
+        
+        try {
+            console.log('[Super Canvas] 🔍 尝试恢复画布状态，节点ID:', this.node.id);
+            
+            // 从localStorage恢复
+            const STORAGE_KEY = `super_canvas_state_${this.node.id}`;
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                console.log('[Super Canvas] 📅 找到保存的状态，时间戳:', new Date(state.timestamp));
+                
+                // 恢复画布尺寸
+                if (state.canvas_size) {
+                    this.originalSize = state.canvas_size;
+                    this.currentSize = { ...state.canvas_size };
+                    
+                    // 更新画布显示尺寸
+                    const scaledSize = this.calculateScaledSize(
+                        state.canvas_size.width,
+                        state.canvas_size.height,
+                        this.maxDisplaySize
+                    );
+                    this.updateCanvasSize(scaledSize.width, scaledSize.height);
+                }
+                
+                // 恢复画布内容
+                if (state.canvas_json) {
+                    this.canvas.loadFromJSON(state.canvas_json, () => {
+                        this.canvas.renderAll();
+                        console.log('[Super Canvas] ✅ 画布内容恢复完成');
+                    });
+                }
+            } else {
+                console.log('[Super Canvas] ℹ️ 没有找到保存的画布状态');
+            }
+            
+        } catch (error) {
+            console.error('[Super Canvas] ❌ 恢复画布状态错误:', error);
+        }
+    }
+    
     cleanup() {
+        // 在清理前保存状态
+        this.saveCanvasState();
+        
         if (this.canvas) {
             this.canvas.dispose();
         }
@@ -3445,6 +3373,15 @@ app.registerExtension({
                 const result = onNodeCreated?.apply(this, arguments);
                 
                 return result;
+            };
+            
+            nodeType.prototype.onRemoved = function() {
+                // 节点被移除时保存画布状态
+                if (this.canvasInstance) {
+                    console.log('[Super Canvas] 🗑️ 节点被移除，保存画布状态');
+                    this.canvasInstance.saveCanvasState();
+                    this.canvasInstance.cleanup();
+                }
             };
             
             nodeType.prototype.onAdded = function() {
