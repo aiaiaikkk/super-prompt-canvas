@@ -4,6 +4,8 @@ import numpy as np
 import base64
 import cv2
 import time
+import json
+import os
 from PIL import Image, ImageOps
 from io import BytesIO
 from threading import Event
@@ -30,6 +32,48 @@ def get_canvas_cache():
     if not hasattr(PromptServer.instance, '_kontext_canvas_node_cache'):
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
+
+def get_canvas_storage_dir():
+    """获取画布数据存储目录"""
+    storage_dir = os.path.join(os.path.dirname(__file__), "..", "user_data", "canvas_states")
+    os.makedirs(storage_dir, exist_ok=True)
+    return storage_dir
+
+def save_canvas_data_to_disk(node_id, data):
+    """将画布数据保存到磁盘"""
+    try:
+        storage_dir = get_canvas_storage_dir()
+        file_path = os.path.join(storage_dir, f"{node_id}.json")
+        
+        # 添加时间戳
+        data['saved_at'] = time.time()
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        print(f"[LRPG Canvas] 画布数据已保存到磁盘: {file_path}")
+        return True
+    except Exception as e:
+        print(f"[LRPG Canvas] 保存画布数据到磁盘失败: {str(e)}")
+        return False
+
+def load_canvas_data_from_disk(node_id):
+    """从磁盘加载画布数据"""
+    try:
+        storage_dir = get_canvas_storage_dir()
+        file_path = os.path.join(storage_dir, f"{node_id}.json")
+        
+        if not os.path.exists(file_path):
+            return None
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        print(f"[LRPG Canvas] 从磁盘加载画布数据: {file_path}")
+        return data
+    except Exception as e:
+        print(f"[LRPG Canvas] 从磁盘加载画布数据失败: {str(e)}")
+        return None
 
 def base64_to_tensor(base64_string):
     """将 base64 图像数据转换为 tensor"""
@@ -141,7 +185,7 @@ async def handle_canvas_data(request):
 
         # 存储到缓存中，供其他节点使用
         canvas_cache = get_canvas_cache()
-        canvas_cache[node_id] = {
+        canvas_data = {
             'transform_data': transform_data,
             'canvas_size': {
                 'width': transform_data.get('background', {}).get('width', 500),
@@ -149,7 +193,12 @@ async def handle_canvas_data(request):
             },
             'timestamp': time.time()
         }
+        canvas_cache[node_id] = canvas_data
         print(f"[LRPG Canvas] 已将节点 {node_id} 的数据存储到缓存")
+        
+        # 同时保存到磁盘进行持久化
+        save_canvas_data_to_disk(node_id, canvas_data)
+        print(f"[LRPG Canvas] 节点 {node_id} 的数据已持久化到磁盘")
 
         waiting_node.processed_data = processed_data
         waiting_node.response_event.set()
@@ -214,7 +263,20 @@ async def get_canvas_data(request):
                 "canvas_size": stored_data.get('canvas_size', {'width': 500, 'height': 500})
             })
         
-        print(f"[LRPG Canvas] 未找到节点 {node_id} 的数据")
+        # 尝试从磁盘加载数据
+        disk_data = load_canvas_data_from_disk(node_id)
+        if disk_data:
+            print(f"[LRPG Canvas] 从磁盘获取到节点 {node_id} 的数据")
+            # 将磁盘数据加载到内存缓存中
+            canvas_cache[node_id] = disk_data
+            canvas_storage[node_id] = disk_data
+            return web.json_response({
+                "status": "success",
+                "transform_data": disk_data.get('transform_data', {}),
+                "canvas_size": disk_data.get('canvas_size', {'width': 500, 'height': 500})
+            })
+        
+        print(f"[LRPG Canvas] 未找到节点 {node_id} 的数据（内存和磁盘都没有）")
         return web.json_response({
             "status": "not_found",
             "message": "No data found for the specified node"
