@@ -324,7 +324,7 @@ class KontextSuperPrompt:
                 ollama_settings = config_manager.get_ollama_settings()
                 ui_settings = config_manager.get_ui_settings()
             except Exception as e:
-                print(f"[Kontext Super Prompt] Failed to load settings: {e}")
+                pass
         
         return {
             "required": {
@@ -416,7 +416,7 @@ class KontextSuperPrompt:
             try:
                 self._auto_fill_saved_settings()
             except Exception as e:
-                print(f"[Kontext] 自动填充设置失败: {e}")
+                pass
     
     def _auto_fill_saved_settings(self):
         """自动填充保存的设置"""
@@ -436,7 +436,6 @@ class KontextSuperPrompt:
             saved_key = get_api_key(provider)
             if saved_key and (not api_key_widget.value or api_key_widget.value.strip() == ""):
                 api_key_widget.value = saved_key
-                print(f"[Kontext] 自动填充 {provider} API密钥")
     
     @classmethod
     def IS_CHANGED(cls, **kwargs):
@@ -512,7 +511,6 @@ class KontextSuperPrompt:
                     if tab_mode == "api":
                         if api_key and api_key.strip():
                             save_api_key(api_provider, api_key.strip())
-                            print(f"[Kontext] API密钥已保存为 {api_provider}")
                         
                         save_api_settings(api_provider, api_model, api_editing_intent, api_processing_style)
                         
@@ -521,7 +519,6 @@ class KontextSuperPrompt:
                             saved_key = get_api_key(api_provider)
                             if saved_key:
                                 api_key = saved_key
-                                print(f"[Kontext] 已加载 {api_provider} 的保存的API密钥")
                     
                     # 如果是Ollama模式，保存Ollama设置
                     elif tab_mode == "ollama":
@@ -532,7 +529,7 @@ class KontextSuperPrompt:
                         )
                         
                 except Exception as e:
-                    print(f"[Kontext] 保存设置失败: {e}")
+                    pass
             
             # 根据选项卡模式处理
             if tab_mode == "api" and generated_prompt and generated_prompt.strip():
@@ -587,7 +584,6 @@ class KontextSuperPrompt:
             return (image, final_generated_prompt)
             
         except Exception as e:
-            print(f"[Kontext Super Prompt] 处理错误: {str(e)}")
             import traceback
             traceback.print_exc()
             
@@ -832,7 +828,6 @@ REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
             
             # 二次验证：确保没有中文
             if cleaned_response and any('\u4e00' <= char <= '\u9fff' for char in cleaned_response):
-                print(f"[Kontext Super Prompt] ⚠️ 清理后仍包含中文，使用备用英文")
                 # 根据描述生成备用英文
                 if 'color' in description.lower() or '颜色' in description:
                     return "Transform the selected area to the specified color with natural blending"
@@ -848,7 +843,6 @@ REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
             return cleaned_response if cleaned_response else "Apply professional editing to the marked area"
                 
         except Exception as e:
-            print(f"[Kontext Super Prompt] API模式处理错误: {e}")
             return f"API处理错误: {description or '无描述'}"
     
     def process_ollama_mode(self, layer_info, description, ollama_url, ollama_model, 
@@ -914,7 +908,6 @@ REMEMBER: ENGLISH ONLY OUTPUT."""
                 return f"Ollama request failed: {description}"
                 
         except Exception as e:
-            print(f"[Kontext Super Prompt] Ollama模式处理错误: {e}")
             # 返回英文fallback
             return f"Apply editing to marked area: {description}"
     
@@ -931,7 +924,6 @@ REMEMBER: ENGLISH ONLY OUTPUT."""
         
         # 如果包含中文，进行强力处理
         if has_chinese:
-            print(f"[Kontext Super Prompt] ⚠️ API返回包含中文，强制转换为英文")
             
             # 尝试提取所有英文句子
             english_sentences = re.findall(r'[A-Z][a-zA-Z\s,\.\-;:]+[\.]', response)

@@ -467,7 +467,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
             self.save_user_guidance_data(user_data)
             return True
         except Exception as e:
-            print(f"❌ 保存自定义引导话术失败: {str(e)}")
             return False
     
     def load_user_guidance(self, name: str) -> Optional[str]:
@@ -478,7 +477,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
                 return user_data[name]["guidance"]
             return None
         except Exception as e:
-            print(f"❌ 加载自定义引导话术失败: {str(e)}")
             return None
     
     def delete_user_guidance(self, name: str) -> bool:
@@ -491,7 +489,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
                 return True
             return False
         except Exception as e:
-            print(f"❌ 删除自定义引导话术失败: {str(e)}")
             return False
     
     def list_user_guidance(self) -> List[str]:
@@ -500,7 +497,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
             user_data = self.load_user_guidance_data()
             return list(user_data.keys())
         except Exception as e:
-            print(f"❌ 获取自定义引导话术列表失败: {str(e)}")
             return []
     
     def load_user_guidance_data(self) -> Dict:
@@ -511,7 +507,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
                     return json.load(f)
             return {}
         except Exception as e:
-            print(f"❌ 加载用户数据失败: {str(e)}")
             return {}
     
     def save_user_guidance_data(self, data: Dict):
@@ -520,7 +515,6 @@ One ENGLISH sentence instruction. No Chinese. No other languages. English only."
             with open(USER_GUIDANCE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"❌ 保存用户数据失败: {str(e)}")
             raise
 
 # 全局引导管理器实例

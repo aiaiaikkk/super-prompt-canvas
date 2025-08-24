@@ -21,7 +21,6 @@ class APIKeyManager {
             
             async nodeCreated(node) {
                 if (node.type === "KontextSuperPrompt" || node.comfyClass === "KontextSuperPrompt") {
-                    console.log("[APIKeyManager] KontextSuperPrompt节点创建，提供localStorage支持");
                     setTimeout(() => {
                         self.enhanceNode(node);
                     }, 100);
@@ -56,7 +55,6 @@ class APIKeyManager {
                     if (apiKeyWidget.callback) {
                         apiKeyWidget.callback(savedKey);
                     }
-                    console.log(`[APIKeyManager] 自动填充 ${value} 的保存密钥`);
                 }
             }
         };
@@ -71,7 +69,6 @@ class APIKeyManager {
             if (value && value.trim()) {
                 const provider = apiProviderWidget.value || "siliconflow";
                 this.saveKey(provider, value.trim());
-                console.log(`[APIKeyManager] 已保存 ${provider} 密钥`);
             }
         };
         
@@ -89,7 +86,6 @@ class APIKeyManager {
         const savedProvider = this.getSavedProvider();
         if (savedProvider && (!apiProviderWidget.value || apiProviderWidget.value === "siliconflow")) {
             apiProviderWidget.value = savedProvider;
-            console.log(`[APIKeyManager] 恢复provider: ${savedProvider}`);
         }
         
         // 恢复密钥（只在为空时）
@@ -98,7 +94,6 @@ class APIKeyManager {
             const savedKey = this.getKey(currentProvider);
             if (savedKey) {
                 apiKeyWidget.value = savedKey;
-                console.log(`[APIKeyManager] 恢复 ${currentProvider} 密钥`);
             }
         }
     }
@@ -152,4 +147,3 @@ class APIKeyManager {
 // 创建全局实例
 window.kontextAPIManager = new APIKeyManager();
 
-console.log("[APIKeyManager] 简化版API密钥管理器已加载 - 基于ComfyUI原生状态保存");

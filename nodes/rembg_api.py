@@ -14,7 +14,6 @@ try:
     REMBG_AVAILABLE = True
 except ImportError:
     REMBG_AVAILABLE = False
-    print("⚠️  rembg库未安装，将使用备用算法")
 
 class RemBGProcessor:
     """背景移除处理器"""
@@ -42,9 +41,8 @@ class RemBGProcessor:
             # ISNet - 适合高分辨率图像
             self.sessions['isnet'] = new_session('isnet-general-use')
             
-            print("✅ rembg模型会话初始化完成")
         except Exception as e:
-            print(f"⚠️  部分rembg模型初始化失败: {e}")
+            pass
     
     def remove_background(self, input_image, model_name='u2net', alpha_matting=False):
         """
@@ -76,7 +74,6 @@ class RemBGProcessor:
             # 获取会话
             session = self.sessions.get(model_name)
             if session is None:
-                print(f"⚠️  模型 {model_name} 不可用，使用 u2net")
                 session = self.sessions.get('u2net')
                 if session is None:
                     return self._fallback_remove_background(input_image)
@@ -99,7 +96,6 @@ class RemBGProcessor:
             return output_image
             
         except Exception as e:
-            print(f"❌ rembg背景移除失败: {e}")
             return self._fallback_remove_background(input_image)
     
     def _apply_alpha_matting(self, original_image, mask_image):
@@ -141,7 +137,6 @@ class RemBGProcessor:
             return Image.fromarray(result, 'RGBA')
             
         except Exception as e:
-            print(f"⚠️  Alpha Matting失败，返回原始结果: {e}")
             return mask_image
     
     def _detect_edges(self, alpha):
@@ -227,7 +222,6 @@ class RemBGProcessor:
             return Image.fromarray(result, 'RGBA')
             
         except Exception as e:
-            print(f"❌ 备用背景移除算法失败: {e}")
             # 返回原图像，添加完全不透明的alpha通道
             img_array = np.array(input_image)
             alpha = np.full((img_array.shape[0], img_array.shape[1]), 255, dtype=np.uint8)
@@ -279,4 +273,3 @@ def remove_background_api(image_data, model_name='u2net', alpha_matting=False):
 if __name__ == '__main__':
     # 测试代码
     processor = RemBGProcessor()
-    print("可用模型:", processor.get_available_models())

@@ -60,12 +60,10 @@ class OllamaServiceManager:
         try:
             # 检测当前服务状态
             status = self.check_ollama_status()
-            print(f"[Ollama Service Manager] 当前状态: {status}")
             
             return (f"Ollama服务状态: {status}",)
             
         except Exception as e:
-            print(f"[Ollama Service Manager] 错误: {str(e)}")
             return (f"错误: {str(e)}",)
     
     @classmethod
@@ -225,7 +223,7 @@ class OllamaServiceManager:
                     else:
                         return {"success": True, "message": "当前没有加载的模型"}
             except Exception as api_error:
-                print(f"[Ollama Manager] API卸载失败: {api_error}")
+                pass
             
             # 方法2: 通用卸载API
             try:
@@ -237,10 +235,8 @@ class OllamaServiceManager:
                 if response.status_code == 200:
                     return {"success": True, "message": "所有模型内存已释放"}
             except Exception as api_error:
-                print(f"[Ollama Manager] 通用API释放失败: {api_error}")
             
             # 方法3: 仅在前两种方法都失败时才重启服务
-            print("[Ollama Manager] API方法失败，尝试通过重启服务释放内存...")
             stop_result = cls.stop_ollama_service()
             if not stop_result["success"]:
                 return {"success": False, "message": f"停止服务失败: {stop_result['message']}"}
@@ -323,18 +319,14 @@ if WEB_AVAILABLE:
                             if 'name' in model:
                                 model_names.append(model['name'])
                     
-                    print(f"[Ollama API] 成功获取到 {len(model_names)} 个模型")
                     return web.json_response(model_names)
                 else:
-                    print(f"[Ollama API] 请求失败: {response.status_code}")
                     return web.json_response([])
                     
             except Exception as api_error:
-                print(f"[Ollama API] 连接失败: {str(api_error)}")
                 return web.json_response([])
                 
         except Exception as e:
-            print(f"[Ollama API] 处理请求失败: {str(e)}")
             return web.json_response([], status=500)
 
 # 注册节点
@@ -346,4 +338,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OllamaServiceManager": "🦙 Ollama Service Manager",
 }
 
-print("[Ollama Service Manager] Ollama Service Manager node registered")

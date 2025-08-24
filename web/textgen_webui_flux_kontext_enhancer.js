@@ -13,7 +13,6 @@ app.registerExtension({
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "TextGenWebUIFluxKontextEnhancer") {
-            console.log("🌐 Registering TextGen WebUI Flux Kontext Enhancer frontend support");
             
             // Store the original nodeCreated function
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -24,7 +23,6 @@ app.registerExtension({
                     onNodeCreated.apply(this, arguments);
                 }
                 
-                console.log("🌐 TextGen WebUI Flux Kontext Enhancer node created");
                 
                 // Set node colors to match Ollama enhancer (purple theme with original rounded corners)
                 this.color = "#673AB7";     // Main color - deep purple
@@ -64,7 +62,6 @@ app.registerExtension({
                         }
                         // Insert after model widget
                         this.widgets.splice(modelIndex + 1, 0, refreshButton);
-                        console.log("✅ Refresh button positioned after model widget");
                     }
                 }
                 
@@ -103,7 +100,6 @@ app.registerExtension({
             
             // Add refresh models functionality
             nodeType.prototype.refreshModels = async function() {
-                console.log("🔄 Refreshing TextGen WebUI models...");
                 
                 try {
                     const urlWidget = this.widgets.find(w => w.name === "url");
@@ -127,7 +123,6 @@ app.registerExtension({
                     
                     if (response.ok) {
                         const models = await response.json();
-                        console.log("✅ Received models from TextGen WebUI:", models);
                         
                         if (Array.isArray(models) && models.length > 0) {
                             // Add refresh option
@@ -137,7 +132,6 @@ app.registerExtension({
                             modelWidget.options.values = refreshedModels;
                             modelWidget.value = models[0]; // Set to first actual model
                             
-                            console.log("✅ Model list updated successfully");
                             app.canvas.setDirty(true, true);
                         } else {
                             console.warn("⚠️ No models found or empty response");
@@ -160,12 +154,10 @@ app.registerExtension({
                 // Check if refresh was requested
                 const modelWidget = this.widgets.find(w => w.name === "model");
                 if (modelWidget && modelWidget.value === "🔄 Refresh model list") {
-                    console.log("🔄 Model refresh requested via selection");
                     this.refreshModels();
                 }
             };
             
-            console.log("✅ TextGen WebUI Flux Kontext Enhancer frontend support registered");
         }
     }
 });
@@ -186,10 +178,8 @@ function addGlobalNodeStyles() {
         }
     `;
     document.head.appendChild(style);
-    console.log("🎨 TextGen WebUI purple theme global styles added");
 }
 
 // Apply styles immediately
 addGlobalNodeStyles();
 
-console.log("🌐 TextGen WebUI Flux Kontext Enhancer frontend extension loaded");

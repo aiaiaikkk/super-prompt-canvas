@@ -99,7 +99,6 @@ class AdvancedBackgroundRemoval:
             return (result_batch, mask_batch)
             
         except Exception as e:
-            print(f"❌ 背景移除失败: {e}")
             # 返回原图像和全白掩膜
             white_mask = torch.ones((batch_size, image.shape[1], image.shape[2]), dtype=torch.float32)
             return (image, white_mask)
@@ -140,7 +139,6 @@ class AdvancedBackgroundRemoval:
             return result
             
         except Exception as e:
-            print(f"⚠️  后处理失败: {e}")
             return image
     
     def _feather_edges(self, alpha, feather_amount):

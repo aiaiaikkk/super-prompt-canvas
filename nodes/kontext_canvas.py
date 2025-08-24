@@ -14,20 +14,13 @@ from aiohttp import web
 try:
     from server import PromptServer
     routes = PromptServer.instance.routes
-    print("[Super Canvas] 🎨 Server imports successful")
 except ImportError as e:
-    print(f"[Super Canvas] ❌ Failed to import server: {e}")
+    pass
 
 CATEGORY_TYPE = "🎨 Super Canvas"
 
-def get_canvas_storage():
-    """获取Super Canvas节点的数据存储"""
-    if not hasattr(PromptServer.instance, '_kontext_canvas_node_data'):
-        PromptServer.instance._kontext_canvas_node_data = {}
-    return PromptServer.instance._kontext_canvas_node_data
-
 def get_canvas_cache():
-    """获取Super Canvas节点的缓存存储"""
+    """获取Super Canvas节点的临时缓存"""
     if not hasattr(PromptServer.instance, '_kontext_canvas_node_cache'):
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
@@ -59,11 +52,9 @@ def base64_to_tensor(base64_string):
                 # 确保图像格式正确 [B, H, W, C]
                 image_np = np.expand_dims(image_np, axis=0)
                 tensor = torch.from_numpy(image_np).float()
-                print(f"[LRPG Canvas] Converted image to tensor: {tensor.shape}")
                 return tensor
     
     except Exception as e:
-        print(f"[LRPG Canvas] Failed to convert base64 to tensor: {str(e)}")
         raise
 
 def toBase64ImgUrl(img):
@@ -95,8 +86,7 @@ def tensor_to_base64(tensor):
         if success:
             return f"data:image/png;base64,{base64.b64encode(buffer).decode('utf-8')}"
     except Exception as e:
-        print(f"[LRPG Canvas] Error encoding image: {e}")
-        print(f"Array shape: {array.shape}, dtype: {array.dtype}")
+        pass
     
     return None
 
@@ -106,57 +96,33 @@ async def handle_canvas_data(request):
         data = await request.json()
         node_id = data.get('node_id')
         
-        print(f"[Super Canvas] 📤 接收到画布数据上传请求 - 节点ID: {node_id}")
-        print(f"[Super Canvas] 📊 数据内容: 主图像={data.get('main_image') is not None}, 遮罩={data.get('main_mask') is not None}")
-        print(f"[Super Canvas] 🔄 Transform数据: {data.get('layer_transforms', {})}")
         
         if not node_id:
-            print("[Super Canvas] ❌ Missing node_id")
             return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
 
-        print(f"[Super Canvas] 📝 当前活动节点总数: {len(LRPGCanvas.active_nodes)}")
         
         waiting_node = None
-        print(f"[LRPG Canvas] 开始查找节点 {node_id} 的等待状态")
         
         for i, node in enumerate(LRPGCanvas.active_nodes):
             event_status = "等待中" if node.waiting_for_response else "已响应"
             node_id_str = getattr(node, 'node_id', '未知')
-            print(f"[Super Canvas] 🔍 节点[{i}] - ID: {node_id_str}, 状态: {event_status}")
             
             if node.waiting_for_response and node.node_id == node_id:
                 waiting_node = node
-                print(f"[Super Canvas] ✅ 找到等待响应的节点: {node_id_str}")
                 break
 
         if not waiting_node:
-            print(f"[Super Canvas] ⚠️ 没有找到等待响应的节点")
-            print(f"[Super Canvas] 📌 请求的节点ID: {node_id}")
-            print(f"[Super Canvas] 📋 活动节点列表: {[getattr(node, 'node_id', '未知') for node in LRPGCanvas.active_nodes]}")
-            
-            # 即使没有等待的节点，也保存数据到存储中
-            transform_data = data.get('layer_transforms', {})
-            canvas_storage = get_canvas_storage()
-            canvas_storage[node_id] = {
-                'transform_data': transform_data,
-                'canvas_size': {
-                    'width': transform_data.get('background', {}).get('width', 500),
-                    'height': transform_data.get('background', {}).get('height', 500)
-                },
-                'timestamp': time.time()
-            }
-            print(f"[Super Canvas] 💾 数据已保存到持久化存储（节点不在等待状态）")
+            # 没有等待的节点，直接返回成功
             return web.Response(status=200)
             
-        print(f"[Super Canvas] ✅ 成功找到等待节点，准备处理数据")
         transform_data = data.get('layer_transforms', {})
         main_image = array_to_tensor(data.get('main_image'), "image")
         main_mask = array_to_tensor(data.get('main_mask'), "mask")
         
         if main_image is not None:
-            print(f"[Super Canvas] 🖼️ 主图像处理完成: {main_image.shape}")
+            pass
         if main_mask is not None:
-            print(f"[Super Canvas] 🎭 遮罩处理完成: {main_mask.shape}")
+            pass
 
         processed_data = {
             'image': main_image,
@@ -164,107 +130,20 @@ async def handle_canvas_data(request):
             'transform_data': transform_data
         }
 
-        # 存储到缓存中，供其他节点使用
-        canvas_cache = get_canvas_cache()
-        canvas_cache[node_id] = {
-            'transform_data': transform_data,
-            'canvas_size': {
-                'width': transform_data.get('background', {}).get('width', 500),
-                'height': transform_data.get('background', {}).get('height', 500)
-            },
-            'timestamp': time.time()
-        }
-        print(f"[Super Canvas] 🗂️ 已将节点 {node_id} 的数据存储到缓存")
-        
-        # 同时保存到持久化存储
-        canvas_storage = get_canvas_storage()
-        canvas_storage[node_id] = canvas_cache[node_id]
-        print(f"[Super Canvas] 💾 已将节点 {node_id} 的数据存储到持久化存储")
+        # 暂存transform_data供后续使用
+        waiting_node.transform_data = transform_data
 
         waiting_node.processed_data = processed_data
         waiting_node.response_event.set()
-        print(f"[Super Canvas] ✅ 已完成数据处理并通知节点 {node_id}")
 
         return web.json_response({"status": "success"})
 
     except Exception as e:
-        print(f"[Super Canvas] ❌ 处理失败: {str(e)}")
         import traceback
         traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-@routes.post("/lrpg_canvas_clear_cache")
-async def clear_canvas_cache(request):
-    """画布内容变化通知（保持API兼容性，但简化实现）"""
-    try:
-        data = await request.json()
-        node_id = data.get('node_id')
-        print(f"[Super Canvas] 🔄 收到画布内容变化通知 - 节点ID: {node_id}")
-        
-        if not node_id:
-            return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
-        
-        print(f"[Super Canvas] 📝 节点 {node_id} 画布内容已变化")
-        return web.json_response({"status": "success"})
-        
-    except Exception as e:
-        print(f"[LRPG Canvas] 处理画布变化通知失败: {str(e)}")
-        return web.json_response({"status": "error", "message": str(e)}, status=500)
-
-@routes.post("/lrpg_canvas_get_data")
-async def get_canvas_data(request):
-    """获取指定节点的画布数据"""
-    try:
-        data = await request.json()
-        node_id = data.get('node_id')
-        
-        print(f"[Super Canvas] 🔍 获取画布数据请求 - 节点ID: {node_id}")
-        
-        if not node_id:
-            print(f"[Super Canvas] ❌ Missing node_id")
-            return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
-        
-        print(f"[Super Canvas] 📂 尝试获取节点 {node_id} 的画布数据")
-        
-        # 从节点数据存储中获取
-        canvas_storage = get_canvas_storage()
-        canvas_cache = get_canvas_cache()
-        
-        # 检查缓存中是否有数据
-        if node_id in canvas_cache:
-            cached_data = canvas_cache[node_id]
-            print(f"[Super Canvas] ✅ 从缓存获取到节点 {node_id} 的数据")
-            print(f"[Super Canvas] 📊 缓存数据: {cached_data}")
-            return web.json_response({
-                "status": "success",
-                "transform_data": cached_data.get('transform_data', {}),
-                "canvas_size": cached_data.get('canvas_size', {'width': 500, 'height': 500})
-            })
-        
-        # 检查存储中是否有数据
-        if node_id in canvas_storage:
-            stored_data = canvas_storage[node_id]
-            print(f"[Super Canvas] ✅ 从持久化存储获取到节点 {node_id} 的数据")
-            print(f"[Super Canvas] 📊 存储数据: {stored_data}")
-            return web.json_response({
-                "status": "success",
-                "transform_data": stored_data.get('transform_data', {}),
-                "canvas_size": stored_data.get('canvas_size', {'width': 500, 'height': 500})
-            })
-        
-        print(f"[Super Canvas] ⚠️ 未找到节点 {node_id} 的数据")
-        print(f"[Super Canvas] 📋 缓存键列表: {list(canvas_cache.keys())}")
-        print(f"[Super Canvas] 📋 存储键列表: {list(canvas_storage.keys())}")
-        return web.json_response({
-            "status": "not_found",
-            "message": "No data found for the specified node"
-        })
-        
-    except Exception as e:
-        print(f"[Super Canvas] ❌ 获取画布数据失败: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return web.json_response({"status": "error", "message": str(e)}, status=500)
+# 删除冗余的API端点，前端已有localStorage持久化
 
 class LRPGCanvas:
     # 将活动节点列表移到类属性 - 复制lg_tools的做法
@@ -275,11 +154,11 @@ class LRPGCanvas:
         self.processed_data = None
         self.node_id = None
         self.waiting_for_response = False
+        self.transform_data = None  # 临时存储transform数据
         
         # 清理已有节点并添加自己 - 完全复制lg_tools的做法
         LRPGCanvas.clean_nodes()
         LRPGCanvas.active_nodes.append(self)
-        print(f"[Super Canvas] 🎆 新节点已创建，当前活动节点数: {len(LRPGCanvas.active_nodes)}")
 
 
     @classmethod
@@ -323,11 +202,8 @@ class LRPGCanvas:
             if self not in LRPGCanvas.active_nodes:
                 LRPGCanvas.active_nodes.append(self)
             
-            print(f"[Super Canvas] 🕐 节点 {unique_id} 开始等待响应")
-            print(f"[Super Canvas] 📝 当前活动节点数: {len(LRPGCanvas.active_nodes)}")
 
             # 移除lrpg_data逻辑，直接获取画布状态
-            print(f"[Super Canvas] 📡 发送获取画布状态请求，节点ID: {unique_id}")
             PromptServer.instance.send_sync(
                 "lrpg_canvas_get_state", {
                     "node_id": unique_id
@@ -335,8 +211,6 @@ class LRPGCanvas:
             )
 
             if not self.response_event.wait(timeout=30):
-                print(f"[Super Canvas] ⏱️ 等待前端响应超时")
-                print(f"[Super Canvas] 📝 活动节点列表: {[getattr(node, 'node_id', '未知') for node in LRPGCanvas.active_nodes]}")
                 self.waiting_for_response = False
                 LRPGCanvas.clean_nodes()
                 # 返回默认值而不是None
@@ -368,7 +242,7 @@ class LRPGCanvas:
             if self.processed_data:
                 image = self.processed_data.get('image')
                 mask = self.processed_data.get('mask')
-                transform_data = self.processed_data.get('transform_data', {})
+                transform_data = getattr(self, 'transform_data', {})
                 
                 if image is not None:
                     bg_height, bg_width = image.shape[1:3]
@@ -425,7 +299,6 @@ class LRPGCanvas:
                 return (empty_image, empty_layer_info)
 
         except Exception as e:
-            print(f"[Super Canvas] ❌ 处理过程发生异常: {str(e)}")
             import traceback
             traceback.print_exc()
             self.waiting_for_response = False
@@ -455,7 +328,6 @@ class LRPGCanvas:
         # 确保从活动节点列表中删除 - 完全复制lg_tools的做法
         if self in LRPGCanvas.active_nodes:
             LRPGCanvas.active_nodes.remove(self)
-            print(f"[LRPG Canvas] 节点 {self.node_id} 已移除，剩余节点数: {len(LRPGCanvas.active_nodes)}")
 
 def array_to_tensor(array_data, data_type):
     try:
@@ -483,7 +355,6 @@ def array_to_tensor(array_data, data_type):
         return None
 
     except Exception as e:
-        print(f"[LRPG Canvas] Error in array_to_tensor: {str(e)}")
         return None
 
 # 节点注册
@@ -495,5 +366,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LRPGCanvas": "🖼️ Super Canvas",
 }
 
-print("[Super Canvas] 🎨 Super Canvas节点已注册")
-print("[Super Canvas] 📌 API路由: /lrpg_canvas, /lrpg_canvas_clear_cache, /lrpg_canvas_get_data")

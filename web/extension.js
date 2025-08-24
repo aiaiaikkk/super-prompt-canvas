@@ -29,7 +29,6 @@ app.registerExtension({
     name: "Kontext.VisualPromptWindow",
     
     init() {
-        console.log("🚀 Kontext Visual Prompt Window extension initialized");
         
         // 添加全局样式
         this.addGlobalStyles();
@@ -93,7 +92,6 @@ app.registerExtension({
         // 监听工作流执行事件
         app.graphToPrompt = ((original) => {
             return function(...args) {
-                console.log("🔄 Kontext workflow execution started");
                 return original.apply(this, args);
             };
         })(app.graphToPrompt);
@@ -220,4 +218,3 @@ app.registerExtension({
 
 // 新的Kontext节点系统已启用
 
-console.log("🎨 Kontext Visual Prompt Window main extension loaded");

@@ -408,8 +408,6 @@ Your instruction:"""
                 }
             }
             
-            print(f"[Ollama Kontext] 发送请求到: {api_url}")
-            print(f"[Ollama Kontext] 完整提示词: {user_prompt[:100]}...")
             
             response = requests.post(api_url, json=payload, timeout=60)
             response.raise_for_status()
@@ -417,21 +415,16 @@ Your instruction:"""
             result = response.json()
             generated_text = result.get('response', '').strip()
             
-            print(f"[Ollama Kontext] 原始响应: '{generated_text}'")
-            print(f"[Ollama Kontext] 响应长度: {len(generated_text)}")
             
             if not generated_text:
-                print(f"[Ollama Kontext] 警告: 模型返回空响应，完整结果: {result}")
                 raise Exception(f"模型返回空响应: {result}")
             
             # 清理响应
             cleaned_text = self._clean_response(generated_text)
-            print(f"[Ollama Kontext] 清理后响应: '{cleaned_text}'")
             
             return cleaned_text
             
         except Exception as e:
-            print(f"[Ollama Kontext] API调用失败: {e}")
             # 返回备用模板
             return self._get_fallback_prompt(prompt)
     
@@ -442,7 +435,6 @@ Your instruction:"""
         if not response:
             return "Apply professional editing to the selected area with high quality results"
         
-        print(f"[Ollama Kontext] 清理前原始响应: {response[:200]}...")
         
         # 1. 处理 <think> 标签 - 提取思考后的内容
         if '<think>' in response:
@@ -452,7 +444,6 @@ Your instruction:"""
                 after_think = response[think_end + 8:].strip()
                 if after_think:
                     response = after_think
-                    print(f"[Ollama Kontext] 提取</think>后内容: {response[:100]}...")
                 else:
                     # 如果 </think> 后没有内容，尝试提取 <think> 内的最后一句
                     think_content = response[response.find('<think>') + 7:think_end]
@@ -460,7 +451,6 @@ Your instruction:"""
                     sentences = re.findall(r'[A-Z][^.!?]*[.!?]', think_content)
                     if sentences:
                         response = sentences[-1].strip()
-                        print(f"[Ollama Kontext] 从<think>内提取: {response}")
         
         # 2. 提取英文编辑指令句子
         # 查找以动词开头的完整英文句子
@@ -479,7 +469,6 @@ Your instruction:"""
             matches = re.findall(pattern, response, re.IGNORECASE)
             if matches:
                 instruction = matches[0].strip()
-                print(f"[Ollama Kontext] 提取编辑指令: {instruction}")
                 return instruction
         
         # 3. fallback - 查找任何完整的英文句子
@@ -488,7 +477,6 @@ Your instruction:"""
             # 选择最长的句子
             longest = max(english_sentences, key=len)
             if len(longest) > 15:
-                print(f"[Ollama Kontext] 使用最长英文句子: {longest}")
                 return longest.strip()
         
         # 4. 最终清理
@@ -498,7 +486,6 @@ Your instruction:"""
         cleaned = re.sub(r'\s+', ' ', cleaned)          # 合并多余空格
         
         result = cleaned.strip()
-        print(f"[Ollama Kontext] 最终清理结果: {result}")
         return result if result else "Apply professional editing to the selected area with high quality results"
     
     def _get_fallback_prompt(self, description: str) -> str:
@@ -524,8 +511,6 @@ Your instruction:"""
                        custom_guidance: str = "", ollama_url: str = "http://127.0.0.1:11434"):
         """生成Kontext提示词"""
         try:
-            print(f"[Ollama Kontext] 开始生成提示词...")
-            print(f"[Ollama Kontext] 模型: {ollama_model}, 意图: {editing_intent}, 场景: {application_scenario}")
             
             # 构建完整的提示词
             if custom_guidance:
@@ -553,12 +538,10 @@ Your instruction:"""
                 ollama_url=ollama_url
             )
             
-            print(f"[Ollama Kontext] 提示词生成完成: {generated_prompt[:50]}...")
             
             return (generated_prompt,)
             
         except Exception as e:
-            print(f"[Ollama Kontext] 生成失败: {e}")
             # 返回备用提示词
             fallback_prompt = self._get_fallback_prompt(description)
             return (fallback_prompt,)
@@ -572,4 +555,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "OllamaKontextPromptGenerator": "🦙 Ollama Kontext Prompt Generator",
 }
 
-print("[Ollama Kontext] Ollama Kontext Prompt Generator node registered")

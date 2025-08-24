@@ -92,7 +92,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     return model_names
             except Exception as e:
                 if not silent:
-                    print(f"[ERROR] Failed to get models via Ollama API: {str(e)}")
+                    pass
                 return []
         
         def try_native_api(api_url):
@@ -117,12 +117,11 @@ class TextGenWebUIFluxKontextEnhancer:
                     return [model_name] if model_name else []
             except Exception as e:
                 if not silent:
-                    print(f"[ERROR] Failed to parse model list: {str(e)}")
+                    pass
                 return []
         
         # Start model detection process
         if not silent:
-            print(f"[INFO] Starting model detection for URL: {url}")
         
         # Try multiple URL formats
         urls_to_try = [url]
@@ -148,7 +147,6 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(openai_models)
                     successful_url = test_url
                     if not silent:
-                        print(f"[OK] Found {len(openai_models)} models via OpenAI API at {test_url}")
                 
                 # Method 2: Native API (fallback)
                 native_models = try_native_api(test_url)
@@ -156,7 +154,6 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(native_models)
                     successful_url = test_url
                     if not silent:
-                        print(f"[OK] Found {len(native_models)} models via Native API at {test_url}")
                 
                 # Exit early if models found
                 if all_models:
@@ -164,7 +161,6 @@ class TextGenWebUIFluxKontextEnhancer:
                     
             except Exception as e:
                 if not silent:
-                    print(f"[ERROR] Failed to get models from {test_url}: {str(e)}")
                 continue
         
         # Convert to sorted list
@@ -172,7 +168,6 @@ class TextGenWebUIFluxKontextEnhancer:
         
         if model_list:
             if not silent:
-                print(f"[OK] Found {len(model_list)} models: {model_list}")
             
             # Update cache
             cls._cached_models = model_list
@@ -180,16 +175,13 @@ class TextGenWebUIFluxKontextEnhancer:
             if successful_url:
                 cls._last_successful_url = successful_url
             if not silent:
-                print(f"[OK] Successfully cached {len(model_list)} models")
             
             return model_list
         
         # If no models detected, return fallback
         if not silent:
-            print(f"[WARN] No models found, using fallback")
         fallback_models = ["textgen-webui-model-not-found"]
         if not silent:
-            print(f"[WARN] Returning fallback model: {fallback_models[0]}")
         
         # Cache fallback to avoid repeated error detection
         cls._cached_models = fallback_models
@@ -905,7 +897,6 @@ CRITICAL: Output in ENGLISH ONLY. Never use Chinese, Japanese, or any other lang
                 
         except Exception as e:
             error_msg = f"TextGen WebUI generation exception: {str(e)}"
-            # print(f"Error: {error_msg}")
             self._log_debug(f"❌ {error_msg}", debug_mode)
             return None
 
@@ -1022,7 +1013,6 @@ CRITICAL: Output in ENGLISH ONLY. Never use Chinese, Japanese, or any other lang
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] {message}"
             self.debug_logs.append(log_message)
-            print(log_message)
     
     def _create_fallback_output(self, error_msg: str, debug_mode: bool) -> Tuple[str, str]:
         """Creates fallback output when errors occur"""
@@ -1057,15 +1047,12 @@ if WEB_AVAILABLE:
             
             # Special handling for cloud environments
             if "127.0.0.1" in url or "localhost" in url:
-                print(f"[INFO] Cloud environment detected, using local URL: {url}")
             
             # Use the same model detection logic as main node
             model_names = TextGenWebUIFluxKontextEnhancer.get_available_models(url=url, force_refresh=True, silent=False)
             
             if model_names:
-                print(f"[OK] Found {len(model_names)} models")
             else:
-                print(f"[WARN] No models found")
             
             return web.json_response(model_names)
             

@@ -4330,26 +4330,21 @@ class KontextSuperPrompt {
                 }
             }
             
-            // 方式3: 从nodeData存储获取
-            if (!layerInfo && window.PromptServer) {
-                // 尝试获取已存储的画布数据
-                fetch('/lrpg_canvas_get_data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ node_id: sourceNode.id.toString() })
-                }).then(response => response.json())
-                .then(data => {
-                    if (data && data.transform_data) {
-                        const realLayerInfo = this.buildLayerInfoFromTransformData(data.transform_data, sourceNode);
-                        if (realLayerInfo && realLayerInfo.layers && realLayerInfo.layers.length > 0) {
-                            // 检查递归防护：只有在非递归状态下才调用updateLayerInfo
-                            if (!this._updateLayerInfoInProgress) {
-                                this.updateLayerInfo(realLayerInfo);
-                            }
+            // 方式3: 从localStorage获取（前端持久化）
+            if (!layerInfo) {
+                try {
+                    const storageKey = `kontext_canvas_state_${sourceNode.id}`;
+                    const savedState = localStorage.getItem(storageKey);
+                    if (savedState) {
+                        const state = JSON.parse(savedState);
+                        if (state && state.canvasData) {
+                            // 从保存的画布数据构建图层信息
+                            layerInfo = this.extractLayerInfoFromCanvasData(state.canvasData);
                         }
                     }
-                }).catch(err => {
-                });
+                } catch (err) {
+                    // 忽略localStorage错误
+                }
             }
             
             // 如果还没有获取到，使用测试数据

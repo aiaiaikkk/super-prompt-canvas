@@ -62,7 +62,5 @@ if os.path.exists(nodes_dir):
             traceback.print_exc()
 
 # 输出加载信息
-print(f"[Kontext-Super-Prompt] v{__version__} 加载完成")
-print(f"[Kontext-Super-Prompt] 已注册节点: {list(NODE_CLASS_MAPPINGS.keys())}")
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

@@ -39,7 +39,6 @@ class GuidanceManager:
                 json.dump({"name": name, "content": content}, f, ensure_ascii=False, indent=4)
             return True
         except Exception as e:
-            print(f"Error saving guidance '{name}': {e}")
             return False
 
     def load_guidance(self, name: str) -> Dict:
@@ -57,7 +56,7 @@ class GuidanceManager:
                 with open(path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"Error loading guidance '{name}': {e}")
+                pass
         return {}
 
     def delete_guidance(self, name: str) -> bool:
@@ -75,7 +74,6 @@ class GuidanceManager:
                 os.remove(path)
                 return True
             except Exception as e:
-                print(f"Error deleting guidance '{name}': {e}")
         return False
 
     def list_guidance(self) -> List[str]:
@@ -91,7 +89,6 @@ class GuidanceManager:
                 name = os.path.splitext(file_name)[0]
                 names.append(name)
             except Exception as e:
-                print(f"Error parsing guidance name from file '{file_name}': {e}")
         
         return sorted(names)
 

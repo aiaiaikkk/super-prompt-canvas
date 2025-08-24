@@ -42,8 +42,6 @@ class OllamaModelConverter:
         self.import_dir.mkdir(parents=True, exist_ok=True)
         self.modelfiles_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"[Ollama Converter] 模型导入目录: {self.import_dir}")
-        print(f"[Ollama Converter] Modelfile目录: {self.modelfiles_dir}")
     
     def scan_gguf_models(self) -> List[Dict]:
         """扫描目录中的GGUF模型文件"""
@@ -66,11 +64,9 @@ class OllamaModelConverter:
                     }
                     models.append(model_info)
             
-            print(f"[Ollama Converter] 扫描到 {len(models)} 个GGUF模型")
             return models
             
         except Exception as e:
-            print(f"[Ollama Converter] 扫描模型失败: {e}")
             return []
     
     def check_if_converted(self, model_name: str) -> bool:
@@ -89,7 +85,7 @@ class OllamaModelConverter:
                 return ollama_name in result.stdout
             
         except Exception as e:
-            print(f"[Ollama Converter] 检查转换状态失败: {e}")
+            pass
         
         return False
     
@@ -148,11 +144,9 @@ Assistant: {{{{ .Response }}}}
             with open(modelfile_path, 'w', encoding='utf-8') as f:
                 f.write(modelfile_content)
             
-            print(f"[Ollama Converter] Modelfile创建成功: {modelfile_path}")
             return True
             
         except Exception as e:
-            print(f"[Ollama Converter] Modelfile创建失败: {e}")
             return False
     
     def convert_model(self, model_info: Dict) -> Tuple[bool, str]:
@@ -166,7 +160,6 @@ Assistant: {{{{ .Response }}}}
             modelfile_path = model_info['modelfile_path']
             ollama_name = model_info['ollama_name']
             
-            print(f"[Ollama Converter] 开始转换模型: {ollama_name}")
             
             result = subprocess.run(
                 ["ollama", "create", ollama_name, "-f", modelfile_path],
@@ -176,17 +169,14 @@ Assistant: {{{{ .Response }}}}
             )
             
             if result.returncode == 0:
-                print(f"[Ollama Converter] 模型转换成功: {ollama_name}")
                 return True, f"模型 {ollama_name} 转换成功"
             else:
                 error_msg = result.stderr or result.stdout or "未知错误"
-                print(f"[Ollama Converter] 模型转换失败: {error_msg}")
                 return False, f"转换失败: {error_msg}"
                 
         except subprocess.TimeoutExpired:
             return False, "转换超时（5分钟）"
         except Exception as e:
-            print(f"[Ollama Converter] 模型转换异常: {e}")
             return False, f"转换异常: {str(e)}"
     
     def get_available_models(self) -> List[Dict]:
@@ -239,6 +229,4 @@ if WEB_AVAILABLE:
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
     
-    print("[Ollama Converter] API endpoints registered")
 else:
-    print("[Ollama Converter] Web server not available, API endpoints disabled")
