@@ -209,7 +209,7 @@ KSP_NS.constants.OPERATION_TEMPLATES = {
     'replace_object': { template: 'replace {object} with {target}', label: '替换物体', category: 'local' },
     'add_object': { template: 'add {target} to {object}', label: '添加物体', category: 'local' },
     'remove_object': { template: 'seamlessly eliminate {object} while preserving scene integrity', label: '无缝移除', category: 'local' },
-    'face_swap': { template: 'replace avatar with {target} face, place it naturally with perfect skin tone matching', label: '换脸', category: 'local' },
+    'face_swap': { template: 'replace avatar with {target}, seamless integration', label: '换脸', category: 'local' },
     'change_texture': { template: 'transform {object} surface to {target} texture', label: '纹理增强', category: 'local' },
     'change_pose': { template: 'guide {object} into {target} pose', label: '姿态调整', category: 'local' },
     'change_expression': { template: 'inspire {object} with {target} expression', label: '表情增强', category: 'local' },
@@ -5208,7 +5208,7 @@ class KontextSuperPrompt {
             'background_blur': 'professional depth of field effect',
             
             // 人像编辑
-            'face_swap': 'replace avatar naturally with seamless integration',
+            'face_swap': 'replace avatar seamlessly',
             'portrait_enhancement': 'enhanced facial features with natural look',
             'age_modification': 'age-appropriate changes with realistic details',
             'hair_change': 'new hairstyle that suits the face',
