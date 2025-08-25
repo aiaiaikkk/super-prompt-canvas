@@ -122,6 +122,7 @@ class TextGenWebUIFluxKontextEnhancer:
         
         # Start model detection process
         if not silent:
+            pass
         
         # Try multiple URL formats
         urls_to_try = [url]
@@ -147,6 +148,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(openai_models)
                     successful_url = test_url
                     if not silent:
+                        pass
                 
                 # Method 2: Native API (fallback)
                 native_models = try_native_api(test_url)
@@ -154,6 +156,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     all_models.update(native_models)
                     successful_url = test_url
                     if not silent:
+                        pass
                 
                 # Exit early if models found
                 if all_models:
@@ -161,6 +164,7 @@ class TextGenWebUIFluxKontextEnhancer:
                     
             except Exception as e:
                 if not silent:
+                    pass
                 continue
         
         # Convert to sorted list
@@ -168,6 +172,7 @@ class TextGenWebUIFluxKontextEnhancer:
         
         if model_list:
             if not silent:
+                pass
             
             # Update cache
             cls._cached_models = model_list
@@ -175,13 +180,16 @@ class TextGenWebUIFluxKontextEnhancer:
             if successful_url:
                 cls._last_successful_url = successful_url
             if not silent:
+                pass
             
             return model_list
         
         # If no models detected, return fallback
         if not silent:
+            pass
         fallback_models = ["textgen-webui-model-not-found"]
         if not silent:
+            pass
         
         # Cache fallback to avoid repeated error detection
         cls._cached_models = fallback_models
@@ -1047,12 +1055,15 @@ if WEB_AVAILABLE:
             
             # Special handling for cloud environments
             if "127.0.0.1" in url or "localhost" in url:
+                pass
             
             # Use the same model detection logic as main node
             model_names = TextGenWebUIFluxKontextEnhancer.get_available_models(url=url, force_refresh=True, silent=False)
             
             if model_names:
+                pass
             else:
+                pass
             
             return web.json_response(model_names)
             

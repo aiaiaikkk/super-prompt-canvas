@@ -74,6 +74,7 @@ class GuidanceManager:
                 os.remove(path)
                 return True
             except Exception as e:
+                pass
         return False
 
     def list_guidance(self) -> List[str]:
@@ -89,6 +90,7 @@ class GuidanceManager:
                 name = os.path.splitext(file_name)[0]
                 names.append(name)
             except Exception as e:
+                pass
         
         return sorted(names)
 

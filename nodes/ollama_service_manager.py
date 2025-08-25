@@ -235,6 +235,7 @@ class OllamaServiceManager:
                 if response.status_code == 200:
                     return {"success": True, "message": "所有模型内存已释放"}
             except Exception as api_error:
+                pass
             
             # 方法3: 仅在前两种方法都失败时才重启服务
             stop_result = cls.stop_ollama_service()

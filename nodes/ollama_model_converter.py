@@ -230,3 +230,4 @@ if WEB_AVAILABLE:
             return web.json_response({"error": str(e)}, status=500)
     
 else:
+    pass

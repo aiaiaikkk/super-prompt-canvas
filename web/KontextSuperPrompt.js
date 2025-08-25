@@ -160,7 +160,7 @@ KSP_NS.constants.OPERATION_CATEGORIES = {
         name: '🎯 局部编辑',
         description: 'Local object-specific editing operations',
         templates: [
-            'add_object', 'change_color', 'change_style', 'replace_object', 'remove_object',
+            'add_object', 'change_color', 'change_style', 'replace_object', 'remove_object', 'face_swap',
             'change_texture', 'change_pose', 'change_expression', 'change_clothing', 'change_background',
             'enhance_quality', 'blur_background', 'adjust_lighting', 'resize_object', 'enhance_skin_texture',
             'character_expression', 'character_hair', 'character_accessories'
@@ -209,6 +209,7 @@ KSP_NS.constants.OPERATION_TEMPLATES = {
     'replace_object': { template: 'replace {object} with {target}', label: '替换物体', category: 'local' },
     'add_object': { template: 'add {target} to {object}', label: '添加物体', category: 'local' },
     'remove_object': { template: 'seamlessly eliminate {object} while preserving scene integrity', label: '无缝移除', category: 'local' },
+    'face_swap': { template: 'replace avatar with {target} face, place it naturally with perfect skin tone matching', label: '换脸', category: 'local' },
     'change_texture': { template: 'transform {object} surface to {target} texture', label: '纹理增强', category: 'local' },
     'change_pose': { template: 'guide {object} into {target} pose', label: '姿态调整', category: 'local' },
     'change_expression': { template: 'inspire {object} with {target} expression', label: '表情增强', category: 'local' },
@@ -294,6 +295,13 @@ KSP_NS.constants.CONSTRAINT_PROMPTS = {
         '保持个人面部特征和骨骼结构特征',
         '确保表情变化遵循现实的面部解剖约束',
         '保持眼神接触方向和注视焦点与原始一致'
+    ],
+    
+    'face_swap': [
+        '精确替换头像时保持面部特征点（双眼、鼻子、嘴巴）的自然对齐',
+        '替换的头像必须严格匹配原始人物的肤色调性，确保无缝融合',
+        '保持替换头像的姿态、角度和透视与原始一致，适应场景光照',
+        '确保新头像边缘与原始轮廓完美融合，place it自然无痕迹'
     ],
     
     'change_clothing': [
@@ -508,6 +516,56 @@ KSP_NS.constants.CONSTRAINT_PROMPTS = {
         '确保修补效果无缝融入整体'
     ],
     
+    // === 🌍 全局编辑约束 ===
+    'global_brightness_contrast': [
+        '在调整过程中保持肤色和重要物体的自然色彩准确性',
+        '避免过度曝光导致细节丢失和色彩失真',
+        '维持阴影区域和高光区域的细节可见性和层次感',
+        '确保对比度调整符合场景的自然光照规律'
+    ],
+    'global_hue_saturation': [
+        '保持色彩变化的自然真实性，避免不现实的色彩偏移',
+        '维持不同材质表面的色彩关系和相对饱和度',
+        '确保饱和度调整不会破坏图像的整体色彩和谐',
+        '避免过度饱和导致色彩溢出和细节损失'
+    ],
+    'global_sharpen_blur': [
+        '避免过度锐化产生的不自然边缘光晕和锯齿效应',
+        '保持锐化处理的自然质感，避免人工处理痕迹',
+        '在模糊处理时保持重要细节和结构的完整性',
+        '确保锐化/模糊效果与图像内容和拍摄条件匹配'
+    ],
+    'global_noise_reduction': [
+        '在降噪过程中保持重要纹理细节和表面质感',
+        '避免过度降噪导致的塑料质感和细节模糊',
+        '保持噪点去除的自然性，避免产生人工平滑效果',
+        '确保降噪处理不会影响图像的整体锐度和清晰度'
+    ],
+    'global_enhance': [
+        '保持图像增强的自然真实性，避免过度处理的人工感',
+        '在提升质量时维持原始图像的色彩准确性和风格',
+        '确保增强效果不会破坏图像的原始构图和比例关系',
+        '避免全局增强导致的噪点放大和伪影产生'
+    ],
+    'global_filter': [
+        '确保滤镜效果与图像内容和主题风格相协调',
+        '避免滤镜处理破坏图像的基本可读性和识别度',
+        '保持滤镜应用的适度性，避免过度艺术化处理',
+        '维持滤镜效果的一致性，确保整体视觉和谐'
+    ],
+    'character_age': [
+        '保持年龄调整的生理真实性和人体解剖学正确性',
+        '确保面部特征变化符合自然衰老或年轻化规律',
+        '维持个人面部特征的识别性和独特性',
+        '避免年龄调整产生的不自然扭曲和比例失调'
+    ],
+    'camera_operation': [
+        '保持镜头运动的自然物理规律和空间连续性',
+        '确保变焦或视角调整不会破坏场景的比例关系',
+        '维持摄影透视的几何正确性和视觉逻辑',
+        '避免镜头操作产生的不现实空间扭曲和比例失调'
+    ],
+    
     // 通用约束
     'general': ['自然外观', '技术精度', '视觉连贯性', '质量控制']
 };
@@ -562,6 +620,12 @@ KSP_NS.constants.DECORATIVE_PROMPTS = {
         '通过细微改进增强自然面部吸引力',
         '发展传达引人注目个性的表现深度',
         '优化面部和谐与对称性以获得最大视觉吸引力'
+    ],
+    'face_swap': [
+        '实现专业级avatar替换效果，完美保留原始表情和场景融合',
+        '创造超真实的头像替换，replace avatar时精确匹配肤色和光照',
+        '优化place it的自然度，确保头像与身体的完美衔接',
+        '增强avatar替换的真实感，达到影视级别的无缝换脸质量'
     ],
     'change_clothing': [
         '应用时尚设计原则以实现风格精致',
@@ -637,48 +701,6 @@ KSP_NS.constants.DECORATIVE_PROMPTS = {
         '通过风格应用增强文化和艺术意义',
         '在保持构图卓越的同时优化创意表达'
     ],
-    'global_brightness_contrast': [
-        '完美的曝光平衡',
-        '戏剧性对比',
-        '增强的动态范围',
-        '专业质量'
-    ],
-    'global_hue_saturation': [
-        '充满活力但仍自然的颜色',
-        '和谐的调色板',
-        '丰富的饱和度',
-        '色彩准确的结果'
-    ],
-    'global_sharpen_blur': [
-        '水晶般清晰的锐度',
-        '艺术性模糊效果',
-        '增强的清晰度',
-        '专业处理'
-    ],
-    'global_noise_reduction': [
-        '干净平滑的结果',
-        '无伪影的图像',
-        '原始质量',
-        '专业清理'
-    ],
-    'global_enhance': [
-        '惊人的视觉冲击力',
-        '增强的美感',
-        '杰作品质',
-        '专业精修'
-    ],
-    'global_filter': [
-        '艺术滤镜效果',
-        '风格增强',
-        '创意转换',
-        '视觉吸引力'
-    ],
-    'character_age': [
-        '年龄适当的外观',
-        '自然衰老过程',
-        '永恒之美',
-        '真实的性格'
-    ],
     'detail_enhance': [
         '微观纹理细节增强（皮肤毛孔、织物纹理、木材纹理）',
         '边缘锐度优化保持自然柔和过渡',
@@ -728,10 +750,10 @@ KSP_NS.constants.DECORATIVE_PROMPTS = {
         '专业级清理效果'
     ],
     'camera_operation': [
-        '专业构图',
-        '电影级构图',
-        '完美透视',
-        '艺术视角'
+        '保持镜头运动的自然物理规律和空间连续性',
+        '确保变焦或视角调整不会破坏场景的比例关系',
+        '维持摄影透视的几何正确性和视觉逻辑',
+        '避免镜头操作产生的不现实空间扭曲和比例失调'
     ],
     'relight_scene': [
         '自然光照',
@@ -924,6 +946,56 @@ KSP_NS.constants.DECORATIVE_PROMPTS = {
         '发展具有时尚前瞻性的配饰美学'
     ],
     
+    // === 🌍 全局编辑修饰 ===
+    'global_brightness_contrast': [
+        '创造视觉冲击力强的光影对比效果',
+        '增强图像的动态范围和层次感',
+        '优化曝光平衡实现专业摄影质量',
+        '营造戏剧性的明暗过渡和情绪氛围'
+    ],
+    'global_hue_saturation': [
+        '实现鲜明但自然的色彩饱和度增强',
+        '创造和谐统一的色调调色板',
+        '增强色彩的视觉冲击力和情感表达',
+        '优化色彩平衡达到影视级别的色彩分级'
+    ],
+    'global_sharpen_blur': [
+        '实现水晶般清澈的锐化效果',
+        '创造具有艺术美感的模糊和散景效果',
+        '增强图像清晰度和细节层次',
+        '优化焦点控制营造专业摄影质感'
+    ],
+    'global_noise_reduction': [
+        '实现干净无损的降噪效果',
+        '保持原始细节的同时消除干扰噪点',
+        '创造平滑自然的图像表面质感',
+        '达到专业级别的图像纯净度'
+    ],
+    'global_enhance': [
+        '全面提升图像的视觉质量和美感',
+        '创造令人惊叹的整体视觉效果',
+        '增强图像的艺术价值和观赏性',
+        '实现杰作级别的专业图像品质'
+    ],
+    'global_filter': [
+        '应用富有创意的艺术滤镜效果',
+        '创造独特的视觉风格和美学表现',
+        '增强图像的艺术感染力和视觉吸引力',
+        '实现个性化的创意视觉转换'
+    ],
+    'character_age': [
+        '自然真实的年龄特征调整',
+        '保持人物魅力的同时展现时间痕迹',
+        '创造符合年龄特点的面部特征变化',
+        '实现优雅自然的年龄过渡效果'
+    ],
+    'camera_operation': [
+        '实现专业级别的镜头运镜效果',
+        '创造电影化的视觉构图和透视',
+        '增强画面的空间深度和层次感',
+        '营造具有艺术价值的拍摄视角'
+    ],
+    
     // 通用修饰
     'general': [
         '增强质量',
@@ -1038,6 +1110,16 @@ KSP_NS.constants.PROMPT_TRANSLATION_MAP = {
     '分析周围图案和纹理以进行连贯重建': 'analyze surrounding patterns and textures for coherent reconstruction',
     '保持连续的透视线和消失点': 'maintain continuous perspective lines and vanishing points',
     '在填充区域保持光照梯度和阴影图案': 'preserve lighting gradients and shadow patterns in the filled area',
+    
+    // face_swap 换脸相关翻译
+    '精确替换头像时保持面部特征点（双眼、鼻子、嘴巴）的自然对齐': 'maintain natural alignment of facial features (eyes, nose, mouth) when replacing avatar',
+    '替换的头像必须严格匹配原始人物的肤色调性，确保无缝融合': 'replaced avatar must strictly match original skin tone for seamless integration',
+    '保持替换头像的姿态、角度和透视与原始一致，适应场景光照': 'maintain avatar pose, angle and perspective consistent with original, adapting to scene lighting',
+    '确保新头像边缘与原始轮廓完美融合，place it自然无痕迹': 'ensure new avatar edges blend perfectly with original contour, place it naturally without traces',
+    '实现专业级avatar替换效果，完美保留原始表情和场景融合': 'achieve professional-grade avatar replacement, perfectly preserving original expression and scene integration',
+    '创造超真实的头像替换，replace avatar时精确匹配肤色和光照': 'create hyper-realistic avatar replacement, precisely match skin tone and lighting when replace avatar',
+    '优化place it的自然度，确保头像与身体的完美衔接': 'optimize natural placement, ensure perfect avatar-body connection when place it',
+    '增强avatar替换的真实感，达到影视级别的无缝换脸质量': 'enhance avatar replacement realism, achieve cinematic-level seamless face swap quality',
     '避免创造不可能的空间配置': 'avoid creating impossible spatial configurations',
     '在缩放过程中保持像素质量并避免插值伪影': 'maintain pixel quality and avoid interpolation artifacts during scaling',
     '按比例调整阴影大小和投射角度到新比例': 'adjust shadow size and casting angle proportionally to the new scale',
@@ -1323,7 +1405,89 @@ KSP_NS.constants.PROMPT_TRANSLATION_MAP = {
     '创造与整体风格完美协调的配饰设计': 'stylistically matching',
     '确保配饰的尺寸和佩戴方式完全贴合': 'perfectly fitted',
     '实现配饰与人物形象的自然融合': 'naturally integrated',
-    '发展具有时尚前瞻性的配饰美学': 'fashion-forward design'
+    '发展具有时尚前瞻性的配饰美学': 'fashion-forward design',
+    
+    // === 🌍 全局编辑约束性提示词翻译 ===
+    '在调整过程中保持肤色和重要物体的自然色彩准确性': 'maintain natural skin tone and color accuracy of important objects during adjustment',
+    '避免过度曝光导致细节丢失和色彩失真': 'avoid overexposure that causes detail loss and color distortion',
+    '维持阴影区域和高光区域的细节可见性和层次感': 'maintain detail visibility and depth in shadow and highlight areas',
+    '确保对比度调整符合场景的自然光照规律': 'ensure contrast adjustments follow natural lighting patterns of the scene',
+    
+    '保持色彩变化的自然真实性，避免不现实的色彩偏移': 'maintain natural authenticity of color changes, avoid unrealistic color shifts',
+    '维持不同材质表面的色彩关系和相对饱和度': 'maintain color relationships and relative saturation of different material surfaces',
+    '确保饱和度调整不会破坏图像的整体色彩和谐': 'ensure saturation adjustments do not disrupt overall color harmony',
+    '避免过度饱和导致色彩溢出和细节损失': 'avoid oversaturation causing color bleeding and detail loss',
+    
+    '避免过度锐化产生的不自然边缘光晕和锯齿效应': 'avoid unnatural edge halos and aliasing from over-sharpening',
+    '保持锐化处理的自然质感，避免人工处理痕迹': 'maintain natural texture in sharpening, avoid artificial processing artifacts',
+    '在模糊处理时保持重要细节和结构的完整性': 'preserve important details and structure integrity during blur processing',
+    '确保锐化/模糊效果与图像内容和拍摄条件匹配': 'ensure sharpening/blur effects match image content and shooting conditions',
+    
+    '在降噪过程中保持重要纹理细节和表面质感': 'preserve important texture details and surface quality during noise reduction',
+    '避免过度降噪导致的塑料质感和细节模糊': 'avoid plastic texture and detail blur from excessive noise reduction',
+    '保持噪点去除的自然性，避免产生人工平滑效果': 'maintain natural noise removal, avoid artificial smoothing effects',
+    '确保降噪处理不会影响图像的整体锐度和清晰度': 'ensure noise reduction does not affect overall sharpness and clarity',
+    
+    '保持图像增强的自然真实性，避免过度处理的人工感': 'maintain natural authenticity in image enhancement, avoid artificial over-processing',
+    '在提升质量时维持原始图像的色彩准确性和风格': 'maintain color accuracy and style of original image during quality enhancement',
+    '确保增强效果不会破坏图像的原始构图和比例关系': 'ensure enhancement does not disrupt original composition and proportional relationships',
+    '避免全局增强导致的噪点放大和伪影产生': 'avoid noise amplification and artifact generation from global enhancement',
+    
+    '确保滤镜效果与图像内容和主题风格相协调': 'ensure filter effects harmonize with image content and thematic style',
+    '避免滤镜处理破坏图像的基本可读性和识别度': 'avoid filter processing that destroys basic readability and recognition',
+    '保持滤镜应用的适度性，避免过度艺术化处理': 'maintain moderation in filter application, avoid excessive artistic processing',
+    '维持滤镜效果的一致性，确保整体视觉和谐': 'maintain consistency in filter effects, ensure overall visual harmony',
+    
+    '保持年龄调整的生理真实性和人体解剖学正确性': 'maintain physiological authenticity and anatomical correctness in age adjustment',
+    '确保面部特征变化符合自然衰老或年轻化规律': 'ensure facial feature changes follow natural aging or rejuvenation patterns',
+    '维持个人面部特征的识别性和独特性': 'maintain recognizability and uniqueness of individual facial features',
+    '避免年龄调整产生的不自然扭曲和比例失调': 'avoid unnatural distortion and proportional imbalance from age adjustment',
+    
+    '保持镜头运动的自然物理规律和空间连续性': 'maintain natural physics and spatial continuity of camera movement',
+    '确保变焦或视角调整不会破坏场景的比例关系': 'ensure zoom or viewpoint adjustments do not disrupt scene proportions',
+    '维持摄影透视的几何正确性和视觉逻辑': 'maintain geometric correctness and visual logic of photographic perspective',
+    '避免镜头操作产生的不现实空间扭曲和比例失调': 'avoid unrealistic spatial distortion and proportional imbalance from camera operations',
+    
+    // === 🌍 全局编辑修饰性提示词翻译 ===
+    '创造视觉冲击力强的光影对比效果': 'create visually striking light-shadow contrast effects',
+    '增强图像的动态范围和层次感': 'enhance image dynamic range and depth perception',
+    '优化曝光平衡实现专业摄影质量': 'optimize exposure balance for professional photography quality',
+    '营造戏剧性的明暗过渡和情绪氛围': 'create dramatic light-dark transitions and emotional atmosphere',
+    
+    '实现鲜明但自然的色彩饱和度增强': 'achieve vivid yet natural color saturation enhancement',
+    '创造和谐统一的色调调色板': 'create harmonious unified tonal palette',
+    '增强色彩的视觉冲击力和情感表达': 'enhance visual impact and emotional expression of colors',
+    '优化色彩平衡达到影视级别的色彩分级': 'optimize color balance for cinematic-grade color grading',
+    
+    '实现水晶般清澈的锐化效果': 'achieve crystal-clear sharpening effects',
+    '创造具有艺术美感的模糊和散景效果': 'create aesthetically beautiful blur and bokeh effects',
+    '增强图像清晰度和细节层次': 'enhance image clarity and detail hierarchy',
+    '优化焦点控制营造专业摄影质感': 'optimize focus control for professional photography texture',
+    
+    '实现干净无损的降噪效果': 'achieve clean lossless noise reduction effects',
+    '保持原始细节的同时消除干扰噪点': 'eliminate noise while preserving original details',
+    '创造平滑自然的图像表面质感': 'create smooth natural image surface texture',
+    '达到专业级别的图像纯净度': 'achieve professional-grade image purity',
+    
+    '全面提升图像的视觉质量和美感': 'comprehensively enhance visual quality and aesthetic appeal',
+    '创造令人惊叹的整体视觉效果': 'create stunning overall visual effects',
+    '增强图像的艺术价值和观赏性': 'enhance artistic value and visual appeal of images',
+    '实现杰作级别的专业图像品质': 'achieve masterpiece-level professional image quality',
+    
+    '应用富有创意的艺术滤镜效果': 'apply creative artistic filter effects',
+    '创造独特的视觉风格和美学表现': 'create unique visual style and aesthetic expression',
+    '增强图像的艺术感染力和视觉吸引力': 'enhance artistic impact and visual appeal of images',
+    '实现个性化的创意视觉转换': 'achieve personalized creative visual transformation',
+    
+    '自然真实的年龄特征调整': 'natural authentic age feature adjustment',
+    '保持人物魅力的同时展现时间痕迹': 'maintain character charm while showing signs of time',
+    '创造符合年龄特点的面部特征变化': 'create age-appropriate facial feature changes',
+    '实现优雅自然的年龄过渡效果': 'achieve elegant natural age transition effects',
+    
+    '实现专业级别的镜头运镜效果': 'achieve professional-grade camera movement effects',
+    '创造电影化的视觉构图和透视': 'create cinematic visual composition and perspective',
+    '增强画面的空间深度和层次感': 'enhance spatial depth and layered perception of the frame',
+    '营造具有艺术价值的拍摄视角': 'create artistically valuable shooting perspectives'
 };
 
 // 将中文提示词转换为英文
@@ -5020,6 +5184,58 @@ class KontextSuperPrompt {
         
         return result;
     }
+
+    getDefaultTargetForOperation(operationType) {
+        // 为不同操作类型提供合适的默认目标描述
+        const operationDefaults = {
+            // 图像编辑操作
+            'inpainting': 'natural, seamless blending',
+            'outpainting': 'expanded scene with consistent style',
+            'img2img': 'enhanced version with improved details',
+            
+            // 对象操作
+            'add_object': 'new object placed naturally',
+            'remove_object': 'clean removal with natural background',
+            'replace_object': 'replacement object that fits perfectly',
+            'modify_object': 'modified object with enhanced details',
+            'move_object': 'repositioned object in natural placement',
+            
+            // 风格和效果
+            'style_transfer': 'artistic style applied seamlessly',
+            'color_change': 'natural color transition',
+            'lighting_adjustment': 'improved lighting and shadows',
+            'background_change': 'new background that complements the subject',
+            'background_blur': 'professional depth of field effect',
+            
+            // 人像编辑
+            'face_swap': 'replace avatar naturally with seamless integration',
+            'portrait_enhancement': 'enhanced facial features with natural look',
+            'age_modification': 'age-appropriate changes with realistic details',
+            'hair_change': 'new hairstyle that suits the face',
+            'makeup_application': 'subtle makeup enhancement',
+            
+            // 图像质量
+            'upscale': 'high-resolution enhancement with sharp details',
+            'denoising': 'clean image with preserved details',
+            'restoration': 'restored image with improved clarity',
+            'super_resolution': 'enhanced resolution with crisp details',
+            
+            // 构图和变换
+            'crop': 'perfectly framed composition',
+            'resize': 'proportionally adjusted image',
+            'rotation': 'properly oriented image',
+            'flip': 'mirrored image with maintained quality',
+            
+            // 特殊效果
+            'artistic_filter': 'creative artistic effect applied tastefully',
+            'vintage_effect': 'nostalgic vintage appearance',
+            'black_white': 'elegant monochrome conversion',
+            'sepia': 'warm sepia tone effect',
+            'hdr': 'enhanced dynamic range with balanced exposure'
+        };
+
+        return operationDefaults[operationType] || 'enhanced result with professional quality';
+    }
     
     generateSuperPrompt() {
         
@@ -5067,10 +5283,11 @@ class KontextSuperPrompt {
                         .replace('{style}', 'desired style');
                     generatedPromptParts.push(templateWithDescription);
                 } else {
-                    // 如果没有描述，使用默认值
+                    // 如果没有描述，使用更合适的默认值
+                    let defaultTarget = this.getDefaultTargetForOperation(operationType);
                     let defaultTemplate = template.template
                         .replace('{object}', 'selected area')
-                        .replace('{target}', 'desired effect');
+                        .replace('{target}', defaultTarget);
                     generatedPromptParts.push(defaultTemplate);
                 }
             }

@@ -1457,79 +1457,150 @@ class DualFaceAlignment {
     }
     
     /**
-     * 眼部优先对齐算法 - 核心实现
+     * 眼部优先对齐算法 - 改进版核心实现
      * 策略：
-     * 1. 首先基于双眼对齐确定旋转和缩放
-     * 2. 然后使用鼻子或嘴巴进行精细调整
+     * 1. 第一优先级：通过旋转让两只眼睛在同一水平线上
+     * 2. 第二优先级：通过缩放匹配眼距
+     * 3. 第三优先级：使用鼻子或嘴巴进行微调
      * @param {Object} refKeypoints 参考脸关键点
      * @param {Object} srcKeypoints 源脸关键点
      * @returns {Object} 对齐参数
      * @private
      */
     _calculateEyesFirstAlignment(refKeypoints, srcKeypoints) {
-        // 第一步：计算眼部基本信息
+        console.log('🎯 开始眼部优先对齐算法');
+        
+        // 第一步：获取双眼的具体位置
+        const refLeftEye = refKeypoints.leftEye;
+        const refRightEye = refKeypoints.rightEye;
+        const srcLeftEye = srcKeypoints.leftEye;
+        const srcRightEye = srcKeypoints.rightEye;
+        
+        if (!refLeftEye || !refRightEye || !srcLeftEye || !srcRightEye) {
+            throw new Error('缺少必要的双眼关键点');
+        }
+        
+        // 计算眼部中心点
         const refEyeCenter = this._calculateEyeCenter(refKeypoints);
         const srcEyeCenter = this._calculateEyeCenter(srcKeypoints);
         
-        const refEyeDistance = this._calculateEyeDistance(refKeypoints);
-        const srcEyeDistance = this._calculateEyeDistance(srcKeypoints);
+        // ========== 步骤1：旋转对齐 - 让双眼在同一水平线上 ==========
+        // 计算双眼连线的角度
+        const refEyeLineAngle = Math.atan2(
+            refRightEye.y - refLeftEye.y,
+            refRightEye.x - refLeftEye.x
+        ) * 180 / Math.PI;
         
-        const refEyeAngle = this._calculateEyeAngle(refKeypoints);
-        const srcEyeAngle = this._calculateEyeAngle(srcKeypoints);
+        const srcEyeLineAngle = Math.atan2(
+            srcRightEye.y - srcLeftEye.y,
+            srcRightEye.x - srcLeftEye.x
+        ) * 180 / Math.PI;
         
+        // 计算需要的旋转角度，让源脸双眼与参考脸双眼平行
+        let rotationAngle = this._normalizeAngle(refEyeLineAngle - srcEyeLineAngle);
         
-        // 第二步：基于眼部计算初始旋转和缩放
-        let initialRotation = this._normalizeAngle(refEyeAngle - srcEyeAngle);
-        let initialScale = refEyeDistance / srcEyeDistance;
+        // 限制旋转角度，避免过度旋转
+        const maxRotation = 30;
+        if (Math.abs(rotationAngle) > maxRotation) {
+            console.warn(`⚠️ 旋转角度${rotationAngle.toFixed(1)}°超过限制，限制为±${maxRotation}°`);
+            rotationAngle = Math.sign(rotationAngle) * maxRotation;
+        }
         
-        // 限制初始变换范围，避免极端值
-        initialRotation = Math.max(-30, Math.min(30, initialRotation));
-        initialScale = Math.max(0.5, Math.min(2.0, initialScale));
+        console.log(`📐 双眼水平对齐：参考角度=${refEyeLineAngle.toFixed(1)}°, 源角度=${srcEyeLineAngle.toFixed(1)}°, 需旋转=${rotationAngle.toFixed(1)}°`);
         
+        // ========== 步骤2：缩放对齐 - 匹配眼距 ==========
+        // 计算眼距
+        const refEyeDistance = Math.sqrt(
+            Math.pow(refRightEye.x - refLeftEye.x, 2) + 
+            Math.pow(refRightEye.y - refLeftEye.y, 2)
+        );
         
-        // 第三步：使用第三个特征点进行精细调整
-        let finalRotation = initialRotation;
-        let finalScale = initialScale;
+        const srcEyeDistance = Math.sqrt(
+            Math.pow(srcRightEye.x - srcLeftEye.x, 2) + 
+            Math.pow(srcRightEye.y - srcLeftEye.y, 2)
+        );
         
-        // 尝试使用鼻子进行精细调整
+        // 计算缩放比例，让眼距匹配
+        let scaleRatio = refEyeDistance / srcEyeDistance;
+        
+        // 限制缩放范围
+        const minScale = 0.5;
+        const maxScale = 2.0;
+        if (scaleRatio < minScale || scaleRatio > maxScale) {
+            console.warn(`⚠️ 缩放比例${scaleRatio.toFixed(2)}超出范围[${minScale}, ${maxScale}]`);
+            scaleRatio = Math.max(minScale, Math.min(maxScale, scaleRatio));
+        }
+        
+        console.log(`📏 眼距缩放对齐：参考眼距=${refEyeDistance.toFixed(1)}px, 源眼距=${srcEyeDistance.toFixed(1)}px, 缩放比=${scaleRatio.toFixed(2)}`);
+        
+        // ========== 步骤3：基于第三特征点的微调 ==========
+        let finalRotation = rotationAngle;
+        let finalScale = scaleRatio;
+        
+        // 如果有鼻子，用鼻子位置进行验证和微调
         if (refKeypoints.nose && srcKeypoints.nose) {
-            const noseAdjustment = this._calculateNoseBasedAdjustment(
-                refKeypoints, srcKeypoints, 
-                refEyeCenter, srcEyeCenter,
-                initialRotation, initialScale
-            );
+            console.log('👃 使用鼻子进行微调');
             
-            finalRotation = this._blendAngles(initialRotation, noseAdjustment.rotation, 0.3);
-            finalScale = this._blendScales(initialScale, noseAdjustment.scale, 0.2);
+            // 计算鼻子相对于双眼中心的向量
+            const refNoseVector = {
+                x: refKeypoints.nose.x - refEyeCenter.x,
+                y: refKeypoints.nose.y - refEyeCenter.y
+            };
             
+            const srcNoseVector = {
+                x: srcKeypoints.nose.x - srcEyeCenter.x,
+                y: srcKeypoints.nose.y - srcEyeCenter.y
+            };
+            
+            // 鼻子到眼部中心的距离（用于缩放微调）
+            const refNoseDist = Math.sqrt(refNoseVector.x * refNoseVector.x + refNoseVector.y * refNoseVector.y);
+            const srcNoseDist = Math.sqrt(srcNoseVector.x * srcNoseVector.x + srcNoseVector.y * srcNoseVector.y);
+            
+            if (refNoseDist > 10 && srcNoseDist > 10) {
+                // 基于鼻子的缩放微调（权重较小）
+                const noseScaleRatio = refNoseDist / srcNoseDist;
+                const noseScaleWeight = 0.2; // 20%权重给鼻子
+                finalScale = scaleRatio * (1 - noseScaleWeight) + noseScaleRatio * noseScaleWeight;
+                
+                console.log(`  鼻子缩放微调：鼻子缩放比=${noseScaleRatio.toFixed(2)}, 最终缩放=${finalScale.toFixed(2)}`);
+            }
         }
-        // 如果没有鼻子，尝试使用嘴巴
+        // 如果没有鼻子但有嘴巴，用嘴巴进行微调
         else if (refKeypoints.mouth && srcKeypoints.mouth) {
-            const mouthAdjustment = this._calculateMouthBasedAdjustment(
-                refKeypoints, srcKeypoints,
-                refEyeCenter, srcEyeCenter,
-                initialRotation, initialScale
-            );
+            console.log('👄 使用嘴巴进行微调');
             
-            finalRotation = this._blendAngles(initialRotation, mouthAdjustment.rotation, 0.2);
-            finalScale = this._blendScales(initialScale, mouthAdjustment.scale, 0.15);
+            // 计算嘴巴相对于双眼中心的向量
+            const refMouthVector = {
+                x: refKeypoints.mouth.x - refEyeCenter.x,
+                y: refKeypoints.mouth.y - refEyeCenter.y
+            };
             
+            const srcMouthVector = {
+                x: srcKeypoints.mouth.x - srcEyeCenter.x,
+                y: srcKeypoints.mouth.y - srcEyeCenter.y
+            };
+            
+            // 嘴巴到眼部中心的距离（用于缩放微调）
+            const refMouthDist = Math.sqrt(refMouthVector.x * refMouthVector.x + refMouthVector.y * refMouthVector.y);
+            const srcMouthDist = Math.sqrt(srcMouthVector.x * srcMouthVector.x + srcMouthVector.y * srcMouthVector.y);
+            
+            if (refMouthDist > 10 && srcMouthDist > 10) {
+                // 基于嘴巴的缩放微调（权重更小）
+                const mouthScaleRatio = refMouthDist / srcMouthDist;
+                const mouthScaleWeight = 0.15; // 15%权重给嘴巴
+                finalScale = scaleRatio * (1 - mouthScaleWeight) + mouthScaleRatio * mouthScaleWeight;
+                
+                console.log(`  嘴巴缩放微调：嘴巴缩放比=${mouthScaleRatio.toFixed(2)}, 最终缩放=${finalScale.toFixed(2)}`);
+            }
         }
         
-        // 第四步：计算位置偏移（考虑旋转和缩放后的眼部中心位置）
-        // 我们需要计算应用旋转和缩放后，源眼部中心应该移动到哪里才能与参考眼部中心对齐
+        // ========== 步骤4：计算位置偏移 ==========
+        // 假设变换是围绕源眼部中心进行的，计算变换后需要的平移
+        const offsetX = refEyeCenter.x - srcEyeCenter.x;
+        const offsetY = refEyeCenter.y - srcEyeCenter.y;
         
-        // 预测应用旋转和缩放后，源眼部中心的新位置
-        // 这里我们假设变换是围绕当前源眼部中心进行的
-        const predictedSrcEyeCenter = {
-            x: srcEyeCenter.x,  // 如果以眼部中心为变换中心，眼部中心位置不变
-            y: srcEyeCenter.y
-        };
-        
-        // 计算需要的偏移量，使变换后的源眼部中心对齐到参考眼部中心
-        const offsetX = refEyeCenter.x - predictedSrcEyeCenter.x;
-        const offsetY = refEyeCenter.y - predictedSrcEyeCenter.y;
-        
+        console.log(`📍 位置偏移：X=${offsetX.toFixed(1)}px, Y=${offsetY.toFixed(1)}px`);
+        console.log('✅ 眼部优先对齐计算完成');
         
         return {
             rotation: finalRotation,
@@ -1537,19 +1608,27 @@ class DualFaceAlignment {
             offsetX: offsetX,
             offsetY: offsetY,
             
-            // 返回眼部信息用于调试
+            // 返回详细的眼部信息用于调试
             refEyeCenter: refEyeCenter,
             srcEyeCenter: srcEyeCenter,
-            refEyeAngle: refEyeAngle,
-            srcEyeAngle: srcEyeAngle,
+            refEyeAngle: refEyeLineAngle,
+            srcEyeAngle: srcEyeLineAngle,
             refEyeDistance: refEyeDistance,
             srcEyeDistance: srcEyeDistance,
             
+            // 具体的眼部位置
+            refLeftEye: refLeftEye,
+            refRightEye: refRightEye,
+            srcLeftEye: srcLeftEye,
+            srcRightEye: srcRightEye,
+            
             debug: {
-                initialRotation: initialRotation,
-                initialScale: initialScale,
+                initialRotation: rotationAngle,
+                initialScale: scaleRatio,
                 hasNose: !!(refKeypoints.nose && srcKeypoints.nose),
-                hasMouth: !!(refKeypoints.mouth && srcKeypoints.mouth)
+                hasMouth: !!(refKeypoints.mouth && srcKeypoints.mouth),
+                finalRotation: finalRotation,
+                finalScale: finalScale
             }
         };
     }

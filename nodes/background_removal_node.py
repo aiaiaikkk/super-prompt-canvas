@@ -9,7 +9,19 @@ import numpy as np
 from PIL import Image, ImageOps
 import io
 
-from .rembg_api import get_processor
+try:
+    # Import from same directory
+    import sys
+    import os
+    sys.path.append(os.path.dirname(__file__))
+    from rembg_api import get_processor
+except ImportError:
+    try:
+        from rembg_api import get_processor
+    except ImportError:
+        # Fallback if rembg_api is not available
+        def get_processor(*args, **kwargs):
+            return None
 
 class AdvancedBackgroundRemoval:
     """高质量背景移除节点"""
