@@ -25,6 +25,18 @@ def get_canvas_cache():
         PromptServer.instance._kontext_canvas_node_cache = {}
     return PromptServer.instance._kontext_canvas_node_cache
 
+def get_canvas_state_cache():
+    """获取画布状态缓存，用于检测内容变化"""
+    if not hasattr(PromptServer.instance, '_kontext_canvas_state_cache'):
+        PromptServer.instance._kontext_canvas_state_cache = {}
+    return PromptServer.instance._kontext_canvas_state_cache
+
+def get_canvas_output_cache():
+    """获取画布输出缓存，存储上次的计算结果"""
+    if not hasattr(PromptServer.instance, '_kontext_canvas_output_cache'):
+        PromptServer.instance._kontext_canvas_output_cache = {}
+    return PromptServer.instance._kontext_canvas_output_cache
+
 
 def base64_to_tensor(base64_string):
     """将 base64 图像数据转换为 tensor"""
@@ -96,6 +108,15 @@ async def handle_canvas_data(request):
         data = await request.json()
         node_id = data.get('node_id')
         
+        # 存储画布状态用于变化检测
+        canvas_state = data.get('canvas_state', None)
+        if canvas_state and node_id:
+            state_cache = get_canvas_state_cache()
+            state_cache[node_id] = canvas_state
+            
+            # 如果只是状态更新（没有图像数据），直接返回
+            if data.get('main_image') is None:
+                return web.json_response({"status": "success", "message": "State updated"})
         
         if not node_id:
             return web.json_response({"status": "error", "message": "Missing node_id"}, status=400)
@@ -187,12 +208,39 @@ class LRPGCanvas:
 
     @classmethod
     def IS_CHANGED(cls, unique_id, image=None):
-        # 强制每次都重新执行 - 关键解决方案
+        # 检查画布状态是否改变
+        state_cache = get_canvas_state_cache()
+        output_cache = get_canvas_output_cache()
+        
+        # 获取当前画布状态
+        current_state = state_cache.get(unique_id, None)
+        
+        # 获取上次缓存的状态
+        last_cached_state = output_cache.get(f"{unique_id}_state", None)
+        
+        # 如果状态没有变化，返回False表示不需要重新执行
+        if current_state and last_cached_state and current_state == last_cached_state:
+            return False
+        
+        # 状态有变化或没有缓存，需要重新执行
         import time
         return float(time.time())
 
     def canvas_execute(self, unique_id, image=None):
         try:
+            # 检查是否有缓存的输出
+            state_cache = get_canvas_state_cache()
+            output_cache = get_canvas_output_cache()
+            
+            current_state = state_cache.get(unique_id, None)
+            last_cached_state = output_cache.get(f"{unique_id}_state", None)
+            
+            # 如果状态没有变化，直接返回缓存的结果
+            if current_state and last_cached_state and current_state == last_cached_state:
+                cached_output = output_cache.get(f"{unique_id}_output", None)
+                if cached_output:
+                    return cached_output
+            
             self.node_id = unique_id
             self.response_event.clear()
             self.processed_data = None
@@ -275,7 +323,17 @@ class LRPGCanvas:
                 # 按z_index排序
                 layer_info['layers'].sort(key=lambda x: x.get('z_index', 0))
                 
-                return image, layer_info
+                # 缓存输出结果和状态
+                output_result = (image, layer_info)
+                state_cache = get_canvas_state_cache()
+                output_cache = get_canvas_output_cache()
+                
+                current_state = state_cache.get(unique_id, None)
+                if current_state:
+                    output_cache[f"{unique_id}_state"] = current_state
+                    output_cache[f"{unique_id}_output"] = output_result
+                
+                return output_result
             
             # 没有处理数据时返回默认值
             if image is not None:

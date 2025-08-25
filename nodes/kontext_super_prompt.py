@@ -532,22 +532,54 @@ class KontextSuperPrompt:
                     pass
             
             # 根据选项卡模式处理
-            if tab_mode == "api" and generated_prompt and generated_prompt.strip():
-                final_generated_prompt = generated_prompt.strip()
-            elif tab_mode == "api" and api_key:
-                final_generated_prompt = self.process_api_mode(
-                    layer_info, description, api_provider, api_key, api_model,
-                    api_editing_intent, api_processing_style, api_seed, 
-                    api_custom_guidance, image
-                )
-            elif tab_mode == "ollama" and ollama_model:
-                final_generated_prompt = self.process_ollama_mode(
-                    layer_info, description, ollama_url, ollama_model, ollama_temperature,
-                    ollama_editing_intent, ollama_processing_style, ollama_seed,
-                    ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
-                )
+            if tab_mode == "api":
+                # API模式：优先使用api_generated_prompt，然后是generated_prompt，最后是实时生成
+                if api_generated_prompt and api_generated_prompt.strip():
+                    # 清理api_generated_prompt，去除调试信息
+                    print(f"[DEBUG] API模式 - 收到api_generated_prompt")
+                    print(f"[DEBUG] 内容前100字符: {api_generated_prompt[:100]}...")
+                    final_generated_prompt = self._extract_clean_prompt_from_api_output(api_generated_prompt.strip())
+                    print(f"[DEBUG] 提取后的结果: {final_generated_prompt}")
+                elif generated_prompt and generated_prompt.strip():
+                    # generated_prompt也可能包含调试信息，需要清理
+                    print(f"[DEBUG] API模式 - 使用generated_prompt")
+                    print(f"[DEBUG] 内容前100字符: {generated_prompt[:100]}...")
+                    final_generated_prompt = self._extract_clean_prompt_from_api_output(generated_prompt.strip())
+                    print(f"[DEBUG] 清理后: {final_generated_prompt}")
+                elif api_key:
+                    final_generated_prompt = self.process_api_mode(
+                        layer_info, description, api_provider, api_key, api_model,
+                        api_editing_intent, api_processing_style, api_seed, 
+                        api_custom_guidance, image
+                    )
+                else:
+                    final_generated_prompt = ""
+            elif tab_mode == "ollama":
+                # Ollama模式：优先使用ollama_generated_prompt，然后是generated_prompt，最后是实时生成
+                if ollama_generated_prompt and ollama_generated_prompt.strip():
+                    # 清理ollama_generated_prompt，去除调试信息
+                    final_generated_prompt = self._extract_clean_prompt_from_ollama_output(ollama_generated_prompt.strip())
+                elif generated_prompt and generated_prompt.strip():
+                    # generated_prompt也可能包含调试信息，需要清理
+                    final_generated_prompt = self._extract_clean_prompt_from_ollama_output(generated_prompt.strip())
+                elif ollama_model:
+                    final_generated_prompt = self.process_ollama_mode(
+                        layer_info, description, ollama_url, ollama_model, ollama_temperature,
+                        ollama_editing_intent, ollama_processing_style, ollama_seed,
+                        ollama_custom_guidance, ollama_enable_visual, ollama_auto_unload, image
+                    )
+                else:
+                    final_generated_prompt = ""
             elif generated_prompt and generated_prompt.strip():
-                final_generated_prompt = generated_prompt.strip()
+                # 非API/Ollama模式，但generated_prompt可能仍包含调试信息
+                print(f"[DEBUG] 使用generated_prompt (非API/Ollama模式)")
+                print(f"[DEBUG] 内容前100字符: {generated_prompt[:100]}...")
+                # 尝试清理，如果包含调试信息
+                if '✅' in generated_prompt or '生成的提示词' in generated_prompt:
+                    final_generated_prompt = self._extract_clean_prompt_from_api_output(generated_prompt.strip())
+                    print(f"[DEBUG] 清理后: {final_generated_prompt}")
+                else:
+                    final_generated_prompt = generated_prompt.strip()
             else:
                 # 解析图层信息
                 parsed_layer_info = self.parse_layer_info(layer_info)
@@ -992,6 +1024,81 @@ REMEMBER: ENGLISH ONLY OUTPUT."""
             return response.strip()
         
         return cleaned.strip()
+    
+    def _extract_clean_prompt_from_api_output(self, api_output):
+        """从API输出中提取纯净的提示词"""
+        
+        # 调试输出
+        print(f"[DEBUG] 开始提取，输入长度: {len(api_output)}")
+        
+        # 方法1: 查找"生成的提示词:"并提取之后的所有内容
+        markers = ['生成的提示词:', '生成的提示词：']
+        for marker in markers:
+            if marker in api_output:
+                # 找到标记的位置
+                idx = api_output.index(marker)
+                # 提取标记后的所有内容
+                after_marker = api_output[idx + len(marker):].strip()
+                
+                # 如果有内容，处理并返回
+                if after_marker:
+                    # 按行分割，取第一个非空行（通常就是提示词）
+                    lines = after_marker.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line and not line.startswith('✅'):
+                            # 去除可能的引号
+                            clean = line.strip('"').strip("'").strip()
+                            print(f"[DEBUG] 提取成功: {clean}")
+                            return clean
+        
+        # 方法2: 提取最后一个有意义的行
+        lines = api_output.strip().split('\n')
+        for line in reversed(lines):
+            line = line.strip()
+            # 跳过调试信息行
+            if (line and 
+                not line.startswith('✅') and 
+                not line.startswith('模型:') and 
+                not line.startswith('输入:') and
+                len(line) > 20):  # 确保是实际的提示词，不是短标签
+                clean = line.strip('"').strip("'").strip()
+                print(f"[DEBUG] 通过最后一行提取: {clean}")
+                return clean
+        
+        # 如果都失败了，返回原始内容
+        print(f"[DEBUG] 提取失败，返回原始内容")
+        return api_output.strip()
+    
+    def _extract_clean_prompt_from_ollama_output(self, ollama_output):
+        """从Ollama输出中提取纯净的提示词"""
+        import re
+        
+        # 与_extract_clean_prompt_from_api_output类似的逻辑
+        if '生成的提示词:' in ollama_output or '生成的提示词\uff1a' in ollama_output:
+            pattern = r'生成的提示词[:：]\s*\n?(.+?)$'
+            match = re.search(pattern, ollama_output, re.DOTALL)
+            if match:
+                clean_prompt = match.group(1).strip()
+                clean_prompt = clean_prompt.strip('"').strip("'").strip()
+                return clean_prompt
+        
+        if 'generated prompt:' in ollama_output.lower() or 'prompt:' in ollama_output.lower():
+            pattern = r'(?:generated prompt:|prompt:)\s*(.+?)(?:\n\n|$)'
+            match = re.search(pattern, ollama_output, re.IGNORECASE | re.DOTALL)
+            if match:
+                clean_prompt = match.group(1).strip()
+                clean_prompt = clean_prompt.strip('"').strip("'").strip()
+                return clean_prompt
+        
+        # 提取最后一行有效内容
+        lines = ollama_output.strip().split('\n')
+        for line in reversed(lines):
+            line = line.strip()
+            if line and not line.startswith('✅') and not line.startswith('模型:') and not line.startswith('输入:'):
+                return line.strip('"').strip("'").strip()
+        
+        return ollama_output.strip()
 
 
 # 注册节点

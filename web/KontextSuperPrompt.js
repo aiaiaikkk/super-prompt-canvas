@@ -5561,13 +5561,15 @@ class KontextSuperPrompt {
             this.updateCurrentTabPreview();
             
             // 获取API配置
-            const apiKey = this.apiConfig?.keyInput?.value || '';
+            const apiKey = (this.apiConfig?.keyInput?.value || '').trim();
             const editingIntent = this.apiConfig?.intentSelect?.value || 'general_editing';
             const processingStyle = this.apiConfig?.styleSelect?.value || 'auto_smart';
-            const customGuidance = this.apiConfig?.guidanceTextarea?.value || '';
+            const customGuidance = (this.apiConfig?.guidanceTextarea?.value || '').trim();
             
             // 根据提供商构建API请求
-            let apiUrl, headers, requestBody;
+            let apiUrl = '';
+            let headers = {};
+            let requestBody = {};
             
             // 获取引导词 - 所有API提供商统一使用
             const intentGuide = this.getIntentGuidance(editingIntent);
@@ -5723,9 +5725,18 @@ Please generate a professional English prompt that is creative and unique. Outpu
             this.updateCurrentTabPreview();
             
             // 调用远程API
+            // 确保headers只包含ASCII字符
+            const safeHeaders = {};
+            for (const [key, value] of Object.entries(headers)) {
+                // 确保键和值都只包含ASCII字符
+                if (key && value) {
+                    safeHeaders[key] = String(value).replace(/[^\x00-\x7F]/g, '');
+                }
+            }
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: headers,
+                headers: safeHeaders,
                 body: JSON.stringify(requestBody)
             });
             

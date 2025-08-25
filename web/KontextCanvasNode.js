@@ -18,6 +18,7 @@ class LRPGCanvas {
     constructor(node, initialSize = null) {
         this.node = node;
         this.lastCanvasState = null; 
+        this.lastCanvasStateHash = null; // 用于检测画布内容变化
         this.isSendingData = false; // 防重复发送标志
         this.customEventsActive = false; // 自定义事件监听器状态标志
         
@@ -279,6 +280,9 @@ class LRPGCanvas {
             
             // 尝试恢复之前保存的画布状态
             await this.restoreCanvasState();
+            
+            // 初始化后发送一次状态更新
+            this.sendCanvasStateUpdate();
 
         } catch (error) {
             console.error('[Super Canvas] ❌ 画布初始化失败:', error);
@@ -2093,10 +2097,49 @@ class LRPGCanvas {
     }
 
     markCanvasChanged() {
-        // 仅保存到localStorage，不再调用后端API
+        // 保存到localStorage
         if (this.node && this.node.id) {
             // 保存当前状态到localStorage
             this.saveCanvasState();
+            
+            // 发送状态更新到后端以供变化检测
+            this.sendCanvasStateUpdate();
+        }
+    }
+    
+    async sendCanvasStateUpdate() {
+        // 发送轻量级状态更新，仅用于变化检测
+        if (!this.canvas) return;
+        
+        try {
+            const canvasJSON = this.canvas.toJSON();
+            const layer_transforms = this.extractTransformData();
+            const stateString = JSON.stringify({
+                objects: canvasJSON.objects,
+                background: canvasJSON.background,
+                transforms: layer_transforms
+            });
+            const stateHash = this.hashString(stateString);
+            
+            // 只发送状态哈希，不发送图像数据
+            await fetch('/lrpg_canvas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    node_id: this.node.id.toString(),
+                    canvas_state: stateHash,
+                    layer_transforms: {},
+                    main_image: null,
+                    main_mask: null
+                })
+            });
+            
+            this.lastCanvasStateHash = stateHash;
+        } catch (error) {
+            // 静默失败，不影响用户操作
+            console.debug('[LRPG Canvas] State update failed:', error);
         }
     }
 
@@ -2446,6 +2489,15 @@ class LRPGCanvas {
             
             const layer_transforms = this.extractTransformData();
             
+            // 生成画布状态哈希用于变化检测
+            const canvasJSON = this.canvas.toJSON();
+            const stateString = JSON.stringify({
+                objects: canvasJSON.objects,
+                background: canvasJSON.background,
+                transforms: layer_transforms
+            });
+            const stateHash = this.hashString(stateString);
+            
             // 获取画布图像数据（包含背景）
             const canvasDataURL = this.canvas.toDataURL({
                 format: 'png',
@@ -2472,9 +2524,13 @@ class LRPGCanvas {
                     node_id: this.node.id.toString(),
                     layer_transforms: layer_transforms,
                     main_image: Array.from(uint8Array),
-                    main_mask: null
+                    main_mask: null,
+                    canvas_state: stateHash  // 添加状态哈希
                 })
             });
+            
+            // 更新最后的状态哈希
+            this.lastCanvasStateHash = stateHash;
 
             if (response.ok) {
             } else {
@@ -2486,6 +2542,18 @@ class LRPGCanvas {
             // 确保标志被重置
             this.isSendingData = false;
         }
+    }
+    
+    // 简单的字符串哈希函数
+    hashString(str) {
+        let hash = 0;
+        if (str.length === 0) return hash;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash.toString(36);
     }
 
     extractTransformData() {
@@ -3250,6 +3318,8 @@ class LRPGCanvas {
                 if (state.canvas_json) {
                     this.canvas.loadFromJSON(state.canvas_json, () => {
                         this.canvas.renderAll();
+                        // 恢复后发送状态更新
+                        this.sendCanvasStateUpdate();
                     });
                 }
             } else {
