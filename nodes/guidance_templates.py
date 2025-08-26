@@ -140,6 +140,18 @@ INTENT_GUIDANCE = {
     "lighting_adjustment": {
         "name": "Lighting Adjustment",
         "prompt": "Adjust lighting naturally, balance shadows and highlights professionally."
+    },
+    "face_swap": {
+        "name": "Face Swap",
+        "prompt": "Place face on target, make it natural, keep face unchanged, fix the edges."
+    },
+    "face_preservation": {
+        "name": "Face Preservation",
+        "prompt": "Keep face unchanged, maintain face features, preserve face shape."
+    },
+    "character_consistency": {
+        "name": "Character Consistency", 
+        "prompt": "Keep face features unchanged, maintain face appearance, preserve identity."
     }
 }
 
@@ -176,6 +188,18 @@ STYLE_GUIDANCE = {
     "beauty": {
         "name": "Beauty Style",
         "prompt": "Natural skin tones, soft lighting, subtle enhancements maintaining authenticity."
+    },
+    "face_swap_natural": {
+        "name": "Natural Face Swap Style",
+        "prompt": "Seamless face swapping with natural integration, preserving facial characteristics and authentic appearance."
+    },
+    "portrait_preservation": {
+        "name": "Portrait Preservation Style", 
+        "prompt": "Maintain original facial features and identity while applying professional portrait enhancements."
+    },
+    "character_maintained": {
+        "name": "Character Maintained Style",
+        "prompt": "Preserve distinctive character traits, personality expressions, and recognizable features during modifications."
     }
 }
 
@@ -359,6 +383,126 @@ Requirements:
 - Emotional impact
 
 Output: Memorable event moment enhancement."""
+    },
+    
+    "face_swap_preserve": {
+        "name": "Face Swap - Preserve Identity",
+        "description": "Face swapping while maintaining original facial characteristics",
+        "prompt": """Face swap specialist: Place face on target while keeping face unchanged.
+
+REQUIREMENTS:
+- Keep face unchanged
+- Make edges smooth
+- Fix skin tone
+- Keep face features
+- Make it look natural
+- Fix the lighting
+
+KEYWORDS:
+- "keep face unchanged"
+- "make edges smooth" 
+- "fix skin tone"
+- "make it natural"
+- "keep face shape"
+- "fix the edges"
+
+Output: Place face naturally with unchanged features."""
+    },
+    
+    "face_swap_seamless": {
+        "name": "Face Swap - Seamless Blend",
+        "description": "Professional face swapping with perfect integration",
+        "prompt": """Professional face swap specialist: Place face and make it look real.
+
+REQUIREMENTS:
+- Fix skin tone
+- Make edges smooth
+- Fix the lighting
+- Make it look real
+- Keep background unchanged
+- Make it natural
+
+QUALITY MARKERS:
+- "make edges smooth"
+- "fix lighting"
+- "fix skin tone"
+- "make it look real"
+- "keep unchanged"
+- "make it natural"
+
+Output: Place face naturally with smooth edges."""
+    },
+    
+    "face_swap_character": {
+        "name": "Face Swap - Character Consistency",
+        "description": "Face swapping while maintaining character appearance",
+        "prompt": """Character consistency specialist: Place face while keeping character unchanged.
+
+CHARACTER PRESERVATION:
+- Keep face unchanged
+- Make expression natural
+- Keep face features
+- Make it look consistent
+- Keep face appearance
+- Make it look real
+
+KEYWORDS:
+- "keep face unchanged"
+- "keep face features"
+- "make it natural"
+- "keep appearance"
+- "make it consistent"
+- "keep unchanged"
+
+Output: Place face naturally keeping character consistent."""
+    },
+    
+    "face_enhancement_preserve": {
+        "name": "Face Enhancement - Natural Preservation",
+        "description": "Facial enhancement while keeping natural appearance",
+        "prompt": """Natural enhancement specialist: Make face better while keeping it unchanged.
+
+NATURAL PRESERVATION:
+- Make face better
+- Keep face unchanged
+- Make skin smoother
+- Make it look natural
+- Keep face shape
+- Make quality better
+
+ENHANCEMENT KEYWORDS:
+- "make face better"
+- "keep unchanged"
+- "make skin smooth"
+- "make it natural"
+- "keep face shape"
+- "make quality better"
+
+Output: Make face better while keeping it natural."""
+    },
+    
+    "portrait_face_consistent": {
+        "name": "Portrait Face - Consistent Features",
+        "description": "Portrait editing with consistent facial characteristics",
+        "prompt": """Portrait consistency specialist: Edit portrait while keeping face unchanged.
+
+FACIAL CONSISTENCY:
+- Keep face unchanged
+- Make skin natural
+- Keep face shape
+- Keep face features
+- Make it consistent
+- Keep face appearance
+
+CONSISTENCY MARKERS:
+- "keep face unchanged"
+- "make skin natural"
+- "keep face shape"
+- "keep face features"
+- "make it consistent"
+- "keep appearance"
+
+Output: Edit portrait keeping face completely unchanged."""
     }
 }
 

@@ -169,11 +169,11 @@ class OllamaKontextPromptGenerator:
                 "intelligent scene replacement with automatic color grading"
             ],
             "换脸": [
-                "advanced facial replacement with expression preservation",
-                "seamless face swapping with skin tone matching",
-                "professional identity transfer with natural blending",
-                "intelligent facial substitution with feature alignment",
-                "realistic face exchange with age and lighting adaptation"
+                "place face on target, make it natural",
+                "place face and fix skin tone",
+                "put face on image, make edges smooth",
+                "place face and keep face unchanged",
+                "put face naturally and fix the edges"
             ],
             "质量增强": [
                 "professional upscaling with detail enhancement and noise reduction",
