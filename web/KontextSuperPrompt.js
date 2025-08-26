@@ -205,24 +205,24 @@ KSP_NS.constants.OPERATION_CATEGORIES = {
 };
 
 KSP_NS.constants.OPERATION_TEMPLATES = {
-    'change_color': { template: 'make {object} {target} color', label: '颜色变换', category: 'local' },
-    'change_style': { template: 'make {object} {target} style', label: '风格重构', category: 'local' },
+    'change_color': { template: 'transform {object} color to {target}', label: '颜色变换', category: 'local' },
+    'change_style': { template: 'reimagine {object} in {target} aesthetic', label: '风格重构', category: 'local' },
     'replace_object': { template: 'replace {object} with {target}', label: '替换物体', category: 'local' },
     'add_object': { template: 'add {target} to {object}', label: '添加物体', category: 'local' },
-    'remove_object': { template: 'remove {object}', label: '无缝移除', category: 'local' },
-    'face_swap': { template: 'place {object} face on {target}, make it natural', label: '换脸', category: 'local' },
-    'change_texture': { template: 'make {object} {target} texture', label: '纹理增强', category: 'local' },
-    'change_pose': { template: 'make {object} {target} pose', label: '姿态调整', category: 'local' },
-    'change_expression': { template: 'make {object} {target} expression', label: '表情增强', category: 'local' },
-    'change_clothing': { template: 'make {object} wear {target}', label: '服装造型', category: 'local' },
-    'change_background': { template: 'make the background {target}', label: '背景更改', category: 'local' },
-    'enhance_quality': { template: 'make {object} better quality', label: '质量增强', category: 'local' },
-    'blur_background': { template: 'make the background blurred behind {object}', label: '背景虚化', category: 'local' },
-    'adjust_lighting': { template: 'make lighting {target} on {object}', label: '光照调整', category: 'local' },
+    'remove_object': { template: 'seamlessly eliminate {object} while preserving scene integrity', label: '无缝移除', category: 'local' },
+    'face_swap': { template: 'face it', label: '换脸', category: 'local' },
+    'change_texture': { template: 'transform {object} surface to {target} texture', label: '纹理增强', category: 'local' },
+    'change_pose': { template: 'guide {object} into {target} pose', label: '姿态调整', category: 'local' },
+    'change_expression': { template: 'inspire {object} with {target} expression', label: '表情增强', category: 'local' },
+    'change_clothing': { template: 'dress {object} in {target} attire', label: '服装造型', category: 'local' },
+    'change_background': { template: 'change the background to {target}', label: '背景更改', category: 'local' },
+    'enhance_quality': { template: 'enhance {object} quality', label: '质量增强', category: 'local' },
+    'blur_background': { template: 'blur the background behind {object}', label: '背景虚化', category: 'local' },
+    'adjust_lighting': { template: 'adjust lighting on {object}', label: '光照调整', category: 'local' },
     'resize_object': { template: 'make {object} {target} size', label: '大小调整', category: 'local' },
-    'enhance_skin_texture': { template: 'make skin texture {target}', label: '皮肤纹理增强', category: 'local' },
-    'character_expression': { template: 'make character expression {target}', label: '角色表情', category: 'local' },
-    'character_hair': { template: 'make character hair {target}', label: '角色发型', category: 'local' },
+    'enhance_skin_texture': { template: 'enhance skin texture while {target}', label: '皮肤纹理增强', category: 'local' },
+    'character_expression': { template: 'change character expression to {target}', label: '角色表情', category: 'local' },
+    'character_hair': { template: 'change character hair to {target}', label: '角色发型', category: 'local' },
     'character_accessories': { template: 'add {target} accessories to character', label: '角色配饰', category: 'local' },
     
     'global_color_grade': { template: 'apply {target} color grading to entire image', label: '色彩分级', category: 'global' },
@@ -271,101 +271,101 @@ KSP_NS.constants.OPERATION_TEMPLATES = {
 KSP_NS.constants.CONSTRAINT_PROMPTS = {
     // === 🎨 外观转换约束 ===
     'change_color': [
-        '保持纹理不变',
-        '保持光照一致',
-        '避免颜色渗漏',
-        '保持亮度自然'
+        '保持原始材质纹理（织物编织、皮肤毛孔、表面粗糙度）',
+        '保持重新着色表面的一致性光照反射和阴影',
+        '避免颜色渗入相邻物体或区域',
+        '保持相对于场景光照的相同饱和度和亮度水平'
     ],
     
     'replace_object': [
-        '保持透视角度',
-        '光照要一致',
-        '大小要合适',
-        '阴影要自然'
+        '匹配原始物体的精确透视角度和观察方向',
+        '复制场景中的光照方向、强度和色温',
+        '缩放替换物以保持现实的比例关系',
+        '集成与场景光照条件匹配的投射阴影'
     ],
     
     'change_style': [
-        '保持基本形状',
-        '保持主要特征',
-        '风格要协调',
-        '边缘要平滑'
+        '保持物体的基本几何结构和比例',
+        '在应用风格元素时保持可识别的关键特征',
+        '确保风格变化不与周围的真实环境冲突',
+        '保持边缘过渡平滑以避免刺眼的视觉断裂'
     ],
 
     'change_expression': [
-        '保持面部对称',
-        '保持脸型不变',
-        '表情要自然',
-        '保持眼神方向'
+        '保持双侧面部对称和自然的肌肉运动模式',
+        '保持个人面部特征和骨骼结构特征',
+        '确保表情变化遵循现实的面部解剖约束',
+        '保持眼神接触方向和注视焦点与原始一致'
     ],
     
     'face_swap': [
-        '保持脸型不变',
-        '边缘要平滑',
-        '肤色要匹配',
-        '保持五官位置'
+        '保持人物原始身份特征，确保面部骨骼结构和独特特征的完整性',
+        '实现无缝融合效果，边缘过渡自然无痕迹，光照色调完美匹配',
+        '保留自然表情和微表情，维持原始情感表达和个性特征',
+        '精确对齐面部特征点，确保双眼、鼻子、嘴巴位置的自然协调'
     ],
     
     'change_clothing': [
-        '服装要合身',
-        '风格要合适',
-        '颜色要配合',
-        '保持身材比例'
+        '确保织物悬垂遵循现实物理和身体轮廓',
+        '将服装风格与个人的年龄、体型和场合背景相匹配',
+        '保持与肤色和周围环境的适当色彩和谐',
+        '保持通过服装可见的原始身体比例'
     ],
     
     'change_texture': [
-        '保持材质特性',
-        '纹理要贴合',
-        '比例要正确',
-        '光照要匹配'
+        '保持原始表面材质的物理光学属性（反射率、粗糙度、折射率）',
+        '确保新纹理与原始几何形状和曲面完美贴合',
+        '维持纹理映射的透视正确性和比例一致性',
+        '避免纹理替换造成的光照不匹配或阴影异常'
     ],
     
     'change_pose': [
-        '姿势要自然',
-        '保持身体平衡',
-        '肅体要协调',
-        '背景要合适'
+        '遵循人体解剖关节限制和自然的运动范围',
+        '保持现实的重量分布和平衡点',
+        '在姿势变化过程中保持肌肉张力一致性',
+        '确保新姿势在环境背景中逻辑合理'
     ],
 
     'change_background': [
-        '保持深度效果',
-        '光照要一致',
-        '边缘要自然',
-        '比例要协调'
+        '匹配大气透视深度线索（色温、对比度淡化）',
+        '使光照方向和色温与新环境对齐',
+        '保持主体和背景之间的边缘质量和自然互动',
+        '保持前景和背景元素之间一致的比例关系'
     ],
     
     'add_object': [
-        '尺寸要正确',
-        '光照要匹配',
-        '位置要合理',
-        '风格要一致'
+        '根据场景中的距离和透视计算正确尺寸',
+        '复制包括阴影和反射的现有光照条件',
+        '确保添加的物体不违反物理空间占用',
+        '匹配现有场景元素的视觉风格和质量水平'
     ],
     
     'remove_object': [
-        '填补要自然',
-        '透视要连续',
-        '光照要一致',
-        '空间要合理'
+        '分析周围图案和纹理以进行连贯重建',
+        '保持连续的透视线和消失点',
+        '在填充区域保持光照梯度和阴影图案',
+        '避免创造不可能的空间配置'
     ],
 
     'resize_object': [
-        '保持图像质量',
-        '调整阴影大小',
-        '保持空间关系',
-        '比例要自然'
+        '在缩放过程中保持像素质量并避免插值伪影',
+        '按比例调整阴影大小和投射角度到新比例',
+        '在场景的空间层次中保持相对定位',
+        '确保调整大小的物体不会创造不现实的比例关系'
     ],
     
     'adjust_lighting': [
-        '保持材质特性',
-        '色温要一致',
-        '阴影要真实',
-        '保持表面细节'
+        '尊重物体的表面材质属性（反射率、半透明性）',
+        '保持与场景中其他光源一致的色温',
+        '基于新的光照方向计算真实的阴影投射',
+        '在调整整体光照时保持精细的表面细节'
     ],
 
     'global_color_grade': [
-        '肤色要自然',
-        '细节要清晰',
-        '色彩要和谐',
-        '对比度要适中'
+        '在所有人类主体中保持自然的肤色准确性',
+        '在阴影和高光中保持重要细节的可见性',
+        '保持色彩关系和谐并避免不现实的色彩偏移',
+        '保持足够的对比度以获得视觉清晰度和深度感知'
     ],
     
     'global_style_transfer': [
@@ -575,94 +575,94 @@ KSP_NS.constants.CONSTRAINT_PROMPTS = {
 KSP_NS.constants.DECORATIVE_PROMPTS = {
     // 局部编辑修饰 (L01-L18)
     'change_color': [
-        '使颜色更加鲜艳',
-        '保持颜色自然',
-        '使颜色过渡平滑',
-        '使颜色平衡协调'
+        '应用色彩和谐原理（互补、类似或三角色彩方案）',
+        '在保持自然外观的同时增强色彩活力',
+        '创造带有微妙渐变效果的平滑色彩过渡',
+        '优化色彩平衡以创造视觉兴趣和焦点强调'
     ],
     'change_style': [
-        '应用艺术风格',
-        '使风格更加突出',
-        '保持风格一致',
-        '增加风格细节'
+        '运用精湛技巧应用复杂的艺术诠释',
+        '创造增强艺术吸引力的视觉冲击风格适应',
+        '保持风格化和可识别性之间的优雅平衡',
+        '通过风格应用发展丰富的视觉纹理和深度'
     ],
     'replace_object': [
-        '使替换物看起来自然',
-        '调整大小和位置',
-        '保持场景和谐',
-        '使效果逼真'
+        '确保替换物增强整体构图平衡',
+        '创造自然的视觉流动和眼睛在场景中的移动',
+        '优化大小和位置以获得黄金比例关系',
+        '增强场景的叙事连贯性和情感冲击力'
     ],
     'add_object': [
-        '使新物体看起来自然',
-        '调整物体大小',
-        '保持空间平衡',
-        '使整体协调'
+        '增强构图兴趣和视觉叙事丰富性',
+        '创造自然的焦点层次和眼睛移动引导',
+        '通过深思熟虑的物体选择发展情境叙事',
+        '优化空间关系以获得最大视觉和谐'
     ],
     'remove_object': [
-        '使移除区域看起来自然',
-        '填补空白区域',
-        '保持背景连续',
-        '使效果无缝'
+        '创造更清晰、更集中的构图强调',
+        '增强视觉简洁性和优雅的极简主义',
+        '优化空间流动和负空间关系',
+        '发展改进的视觉层次和焦点清晰度'
     ],
     'change_texture': [
-        '使纹理更加清晰',
-        '增加纹理细节',
-        '使纹理看起来真实',
-        '保持纹理自然'
+        '高分辨率材质细节渲染（织物编织、皮革纹理、木材年轮、金属划痕）',
+        '物理基于渲染的材质光学属性（反射、折射、次表面散射）',
+        '真实感表面微凹凸和法线映射效果',
+        '专业级材质质感和触觉视觉体验'
     ],
     'change_pose': [
-        '使姿势看起来自然',
-        '保持身体比例',
-        '使动作流畅',
-        '增强表现力'
+        '创造动态能量和优雅的运动流动',
+        '增强肢体语言沟通和情感表达',
+        '优化比例关系以获得最大视觉吸引力',
+        '发展增强叙事冲击力的引人注目的姿态语言'
     ],
     'change_expression': [
-        '使表情看起来自然',
-        '保持面部和谐',
-        '增强表情效果',
-        '使表情更加生动'
+        '创造真实的情感共鸣和人类连接',
+        '通过细微改进增强自然面部吸引力',
+        '发展传达引人注目个性的表现深度',
+        '优化面部和谐与对称性以获得最大视觉吸引力'
     ],
     'face_swap': [
-        '保持面部特征不变',
-        '使边缘平滑自然',
-        '修正肤色匹配',
-        '让效果看起来真实'
+        '保持人物原始身份特征，确保面部骨骼结构和独特特征的完整性',
+        '实现无缝融合效果，边缘过渡自然无痕迹，光照色调完美匹配',
+        '保留自然表情和微表情，维持原始情感表达和个性特征',
+        '达到影视级换脸质量，专业级皮肤纹理匹配和阴影渲染'
     ],
     'change_clothing': [
-        '使服装看起来自然',
-        '保持服装合身',
-        '使颜色配合',
-        '增加织物纹理'
+        '应用时尚设计原则以实现风格精致',
+        '增强身体轮廓和比例吸引力',
+        '创造与肤色和环境相辅相成的色彩协调',
+        '发展纹理丰富度和织物真实性以获得视觉奢华感'
     ],
     'change_background': [
-        '使背景看起来自然',
-        '保持背景平衡',
-        '增强背景深度',
-        '使背景配合主体'
+        '创造大气深度和环境情绪增强',
+        '通过环境设计发展丰富的情境叙事',
+        '优化构图框架和负空间利用',
+        '通过环境心理学原理增强情感共鸣'
     ],
     'enhance_quality': [
-        '使图像更加清晰',
-        '增强图像细节',
-        '使质量更好',
-        '提高清晰度'
+        '达到水晶般清晰的专业摄影标准',
+        '增强精细细节定义以获得最大视觉清晰度',
+        '发展丰富的纹理深度和触觉视觉质量',
+        '优化动态范围以获得惊人的视觉冲击力'
     ],
     'blur_background': [
-        '使背景模糊',
-        '保持主体清晰',
-        '使模糊效果自然',
-        '增强焦点效果'
+        '创造具有美学质量的复杂散景效果',
+        '通过选择性焦点控制增强主体分离',
+        '发展具有平滑衰减的自然深度渐进',
+        '通过战略性散焦优化构图强调'
     ],
     'adjust_lighting': [
-        '使光照更加自然',
-        '增强光影效果',
-        '使亮度平衡',
-        '优化光照质量'
+        '创造戏剧性的明暗对比效果以获得情感深度',
+        '增强三维形态建模和雕塑品质',
+        '通过精密的光照设计发展大气情绪',
+        '优化高光和阴影关系以获得最大视觉冲击力'
     ],
     'resize_object': [
-        '使大小比例自然',
-        '保持整体平衡',
-        '调整物体大小',
-        '使尺寸合适'
+        '优化比例关系以获得黄金比例和谐',
+        '增强视觉重量分布和构图平衡',
+        '通过战略性尺寸创造改进的焦点强调',
+        '发展更好的空间节奏和视觉流动模式'
     ],
     'enhance_skin_texture': [
         '实现具有真实微纹理的自然皮肤外观',
@@ -1127,116 +1127,6 @@ KSP_NS.constants.PROMPT_TRANSLATION_MAP = {
     
     // face_swap 换脸相关翻译
     '精确替换头像时保持面部特征点（双眼、鼻子、嘴巴）的自然对齐': 'maintain natural alignment of facial features (eyes, nose, mouth) when replacing avatar',
-    
-    // 新增优化后的提示词翻译 - 修饰性提示词
-    '保持面部特征不变': 'keep face features unchanged',
-    '使边缘平滑自然': 'make edges smooth and natural',
-    '修正肤色匹配': 'fix skin tone matching',
-    '让效果看起来真实': 'make the effect look real',
-    '使颜色更加鲜艳': 'make color more vivid',
-    '保持颜色自然': 'keep color natural',
-    '使颜色过渡平滑': 'make color transition smooth',
-    '使颜色平衡协调': 'make color balanced and harmonious',
-    '应用艺术风格': 'apply artistic style',
-    '使风格更加突出': 'make style more prominent',
-    '保持风格一致': 'keep style consistent',
-    '增加风格细节': 'add style details',
-    '使替换物看起来自然': 'make replacement look natural',
-    '调整大小和位置': 'adjust size and position',
-    '保持场景和谐': 'keep scene harmonious',
-    '使效果逼真': 'make effect realistic',
-    '使新物体看起来自然': 'make new object look natural',
-    '保持空间平衡': 'maintain spatial balance',
-    '使整体协调': 'make overall harmonious',
-    '使移除区域看起来自然': 'make removed area look natural',
-    '填补空白区域': 'fill blank areas',
-    '保持背景连续': 'maintain background continuity',
-    '使效果无缝': 'make effect seamless',
-    '使纹理更加清晰': 'make texture clearer',
-    '增加纹理细节': 'add texture details',
-    '使纹理看起来真实': 'make texture look realistic',
-    '保持纹理自然': 'keep texture natural',
-    '使姿势看起来自然': 'make pose look natural',
-    '保持身体比例': 'maintain body proportions',
-    '使动作流畅': 'make movement fluid',
-    '增强表现力': 'enhance expressiveness',
-    '保持面部和谐': 'maintain facial harmony',
-    '增强表情效果': 'enhance expression effect',
-    '使表情更加生动': 'make expression more vivid',
-    '使服装看起来自然': 'make clothing look natural',
-    '保持服装合身': 'keep clothing fitting',
-    '使颜色配合': 'make colors match',
-    '增加织物纹理': 'add fabric texture',
-    '保持背景平衡': 'maintain background balance',
-    '增强背景深度': 'enhance background depth',
-    '使背景配合主体': 'make background match subject',
-    '使图像更加清晰': 'make image clearer',
-    '增强图像细节': 'enhance image details',
-    '使质量更好': 'make quality better',
-    '提高清晰度': 'improve clarity',
-    '使背景模糊': 'make background blurred',
-    '保持主体清晰': 'keep subject clear',
-    '使模糊效果自然': 'make blur effect natural',
-    '增强焦点效果': 'enhance focus effect',
-    '使光照更加自然': 'make lighting more natural',
-    '增强光影效果': 'enhance light and shadow effect',
-    '使亮度平衡': 'make brightness balanced',
-    '优化光照质量': 'optimize lighting quality',
-    '使大小比例自然': 'make size proportion natural',
-    '保持整体平衡': 'maintain overall balance',
-    '调整物体大小': 'adjust object size',
-    '使尺寸合适': 'make size appropriate',
-    
-    // 约束性提示词翻译
-    '保持脸型不变': 'keep face shape unchanged',
-    '边缘要平滑': 'edges should be smooth',
-    '肤色要匹配': 'skin tone should match',
-    '保持五官位置': 'keep facial features position',
-    '保持纹理不变': 'keep texture unchanged',
-    '保持光照一致': 'maintain consistent lighting',
-    '避免颜色渗漏': 'avoid color bleeding',
-    '保持亮度自然': 'maintain natural brightness',
-    '保持透视角度': 'maintain perspective angle',
-    '光照要一致': 'lighting should be consistent',
-    '大小要合适': 'size should be appropriate',
-    '阴影要自然': 'shadows should be natural',
-    '保持基本形状': 'maintain basic shape',
-    '保持主要特征': 'maintain main features',
-    '风格要协调': 'style should be coordinated',
-    '边缘要平滑': 'edges should be smooth',
-    '保持面部对称': 'maintain facial symmetry',
-    '保持脸型不变': 'keep face shape unchanged',
-    '表情要自然': 'expression should be natural',
-    '保持眼神方向': 'maintain eye direction',
-    '服装要合身': 'clothing should fit',
-    '风格要合适': 'style should be appropriate',
-    '颜色要配合': 'colors should match',
-    '保持身材比例': 'maintain body proportions',
-    '保持材质特性': 'maintain material properties',
-    '纹理要贴合': 'texture should fit',
-    '比例要正确': 'proportion should be correct',
-    '光照要匹配': 'lighting should match',
-    '姿势要自然': 'pose should be natural',
-    '肃体要协调': 'limbs should be coordinated',
-    '背景要合适': 'background should be appropriate',
-    '保持深度效果': 'maintain depth effect',
-    '边缘要自然': 'edges should be natural',
-    '比例要协调': 'proportions should be coordinated',
-    '尺寸要正确': 'size should be correct',
-    '位置要合理': 'position should be reasonable',
-    '风格要一致': 'style should be consistent',
-    '填补要自然': 'filling should be natural',
-    '透视要连续': 'perspective should be continuous',
-    '空间要合理': 'space should be reasonable',
-    '保持图像质量': 'maintain image quality',
-    '调整阴影大小': 'adjust shadow size',
-    '保持空间关系': 'maintain spatial relationships',
-    '比例要自然': 'proportions should be natural',
-    '保持表面细节': 'maintain surface details',
-    '肤色要自然': 'skin tone should be natural',
-    '细节要清晰': 'details should be clear',
-    '色彩要和谐': 'colors should be harmonious',
-    '对比度要适中': 'contrast should be moderate',
     '替换的头像必须严格匹配原始人物的肤色调性，确保无缝融合': 'replaced avatar must strictly match original skin tone for seamless integration',
     '保持替换头像的姿态、角度和透视与原始一致，适应场景光照': 'maintain avatar pose, angle and perspective consistent with original, adapting to scene lighting',
     '确保新面部边缘与原始轮廓完美融合，自然无痕迹': 'ensure new face edges blend perfectly with original contour, naturally without traces',
@@ -2875,6 +2765,7 @@ class KontextSuperPrompt {
             { value: 'siliconflow', text: 'SiliconFlow (DeepSeek)' },
             { value: 'deepseek', text: 'DeepSeek 官方' },
             { value: 'qianwen', text: '千问 (阿里云)' },
+            { value: 'modelscope', text: 'ModelScope (魔搭)' },
             { value: 'zhipu', text: '智谱AI (GLM)' },
             { value: 'moonshot', text: 'Moonshot (Kimi)' },
             { value: 'gemini', text: 'Google Gemini' },
@@ -2899,7 +2790,7 @@ class KontextSuperPrompt {
         const keyInput = document.createElement('input');
         keyInput.className = 'api-key-input';
         keyInput.type = 'password';
-        keyInput.placeholder = '输入API密钥...';
+        keyInput.placeholder = '输入API密钥/访问令牌...';
         keyInput.style.cssText = `
             flex: 1; background: #2a2a2a; color: #fff; border: 1px solid #555;
             border-radius: 3px; padding: 4px 8px; font-size: 11px;
@@ -2924,6 +2815,7 @@ class KontextSuperPrompt {
             'siliconflow': ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1'],
             'deepseek': ['deepseek-chat'],
             'qianwen': ['qwen-turbo', 'qwen-plus', 'qwen-max'],
+            'modelscope': ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen2.5-72b-instruct', 'qwen2-72b-instruct'],
             'zhipu': ['glm-4', 'glm-4-flash', 'glm-4-plus', 'glm-4v', 'glm-4v-plus'],
             'moonshot': ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
             'gemini': ['gemini-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
@@ -5337,12 +5229,7 @@ class KontextSuperPrompt {
             '裁剪': 'crop'
         };
         
-        // 优先使用全局翻译映射表
-        if (KSP_NS.constants.PROMPT_TRANSLATION_MAP[chineseText]) {
-            return KSP_NS.constants.PROMPT_TRANSLATION_MAP[chineseText];
-        }
-        
-        // 检查局部翻译表
+        // 检查是否有直接的翻译
         if (translations[chineseText]) {
             return translations[chineseText];
         }
@@ -5352,17 +5239,10 @@ class KontextSuperPrompt {
             return chineseText;
         }
         
-        // 尝试全局映射表部分匹配
+        // 尝试部分匹配和转换
         let result = chineseText;
-        for (const [chinese, english] of Object.entries(KSP_NS.constants.PROMPT_TRANSLATION_MAP)) {
-            if (chineseText.includes(chinese)) {
-                result = result.replace(chinese, english);
-            }
-        }
-        
-        // 尝试局部翻译表部分匹配
         for (const [chinese, english] of Object.entries(translations)) {
-            if (result.includes(chinese)) {
+            if (chineseText.includes(chinese)) {
                 result = result.replace(chinese, english);
             }
         }
@@ -6096,6 +5976,43 @@ class KontextSuperPrompt {
                     max_tokens: 500,  // 确保有足够空间生成完整提示词
                     top_p: 0.95
                 };
+            } else if (provider === 'modelscope') {
+                // ModelScope API配置 (尝试OpenAI兼容格式)
+                apiUrl = 'https://api-inference.modelscope.cn/v1/chat/completions';
+                headers = {
+                    'Authorization': `Bearer ${apiKey}`,  // 尝试使用Bearer token格式
+                    'Content-Type': 'application/json'
+                };
+                requestBody = {
+                    model: model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are an expert image editing assistant. Generate optimized editing prompts in English.
+                            
+Your task:
+1. Generate a clear, professional English prompt (60-120 words)
+2. Include specific technical requirements
+3. Use proper editing terminology
+4. Be creative and unique in each generation`
+                        },
+                        {
+                            role: 'user',
+                            content: `Generate an image editing prompt for: ${description}
+
+Editing guidance:
+- Intent: ${intentGuide}
+- Style: ${styleGuide}
+${customGuidance ? `- Additional: ${customGuidance}` : ''}
+
+Output a single, detailed English prompt without any explanations or formatting.`
+                        }
+                    ],
+                    temperature: 0.7 + (Math.random() * 0.2),
+                    max_tokens: 500,
+                    top_p: 0.95,
+                    stream: false
+                };
             } else if (provider === 'gemini') {
                 // 添加随机性确保每次生成不同结果
                 const randomSeed = Math.floor(Math.random() * 1000000);
@@ -6131,7 +6048,7 @@ Please generate a professional English prompt that is creative and unique. Outpu
             } else {
                 // 对于不支持直接调用的提供商，显示说明
                 this.tabData.api.generatedPrompt = `ℹ️ ${provider} 提供商暂不支持前端直接调用\n\n由于浏览器CORS限制，某些API提供商无法直接从前端调用。\n\n请使用支持的提供商：\n- 智谱AI (zhipu)\n- Moonshot (moonshot) 
-- SiliconFlow (siliconflow)\n- DeepSeek (deepseek)\n- Google Gemini (gemini)\n\n或者联系开发者添加对 ${provider} 的支持。`;
+- SiliconFlow (siliconflow)\n- DeepSeek (deepseek)\n- ModelScope (modelscope)\n- Google Gemini (gemini)\n\n或者联系开发者添加对 ${provider} 的支持。`;
                 this.updateCurrentTabPreview();
                 this.isGeneratingAPI = false;
                 return;
@@ -6165,7 +6082,19 @@ Please generate a professional English prompt that is creative and unique. Outpu
             
             // 提取生成的内容
             let generatedContent = '';
-            if (provider === 'gemini') {
+            if (provider === 'modelscope') {
+                // ModelScope/DashScope API使用不同的响应格式
+                if (result.output && result.output.choices && result.output.choices[0]) {
+                    generatedContent = result.output.choices[0].message?.content || result.output.text || '';
+                } else if (result.output && result.output.text) {
+                    generatedContent = result.output.text;
+                } else if (result.choices && result.choices[0]) {
+                    // 兼容OpenAI格式
+                    generatedContent = result.choices[0].message?.content || result.choices[0].text || '';
+                } else {
+                    generatedContent = '未能获取到有效的ModelScope响应';
+                }
+            } else if (provider === 'gemini') {
                 // Gemini API使用不同的响应格式
                 if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts) {
                     generatedContent = result.candidates[0].content.parts[0].text;
@@ -6846,7 +6775,7 @@ Create English editing prompt:`;
 
     // 检查API提供商是否支持动态模型获取
     supportsDynamicModels(provider) {
-        const dynamicProviders = ['openai', 'gemini', 'siliconflow', 'deepseek', 'qianwen', 'zhipu', 'moonshot', 'claude'];
+        const dynamicProviders = ['openai', 'gemini', 'siliconflow', 'deepseek', 'qianwen', 'modelscope', 'zhipu', 'moonshot', 'claude'];
         return dynamicProviders.includes(provider);
     }
 
@@ -6896,6 +6825,7 @@ Create English editing prompt:`;
                     'siliconflow': 'https://api.siliconflow.cn/v1',
                     'deepseek': 'https://api.deepseek.com/v1',
                     'qianwen': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                    'modelscope': 'https://api-inference.modelscope.cn/v1',
                     'zhipu': 'https://open.bigmodel.cn/api/paas/v4',
                     'moonshot': 'https://api.moonshot.cn/v1'
                 };
