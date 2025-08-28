@@ -740,7 +740,8 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                         { id: 'reality_conversion', name: '真实化处理', example: 'make this real photo' },
                         { id: 'virtual_processing', name: '虚拟化处理', example: 'digital art' },
                         { id: 'material_conversion', name: '材质转换', example: 'cinematic quality' },
-                        { id: 'concept_reconstruction', name: '概念重构', example: 'geometric elements' }
+                        { id: 'concept_reconstruction', name: '概念重构', example: 'geometric elements' },
+                        { id: 'upscale_enhancement', name: '高清化', example: 'high quality detailed 4K' }
                     ]
                 },
                 artistic_style: {
@@ -1004,7 +1005,8 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                 '🎬 状态关键词：输入 "realistic", "cartoon", "painting", "sketch", "3D"',
                 '💡 质量描述：输入 "high quality", "professional", "cinematic", "detailed"',
                 '🔄 转换类型：输入 "real photo", "digital art", "oil painting", "pencil drawing"',
-                '✨ 风格指定：输入 "photorealistic", "artistic", "stylized", "abstract"'
+                '✨ 风格指定：输入 "photorealistic", "artistic", "stylized", "abstract"',
+                '📈 高清化：输入 "4K", "8K", "ultra HD", "sharp", "crisp", "upscaled"'
             ],
             artistic_style: [
                 '🎨 艺术风格：输入 "impressionist", "renaissance", "modern", "abstract"',
@@ -1437,6 +1439,82 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                 }
             },
             
+            // 全局状态转换模式
+            state_transformation: {
+                reality_conversion: (keywords, self) => {
+                    const subject = self.detectSubject(keywords) || 'image';
+                    const quality = keywords.find(k => ['photo', 'realistic', 'real'].includes(k)) ? 'realistic photo' : 'real';
+                    return `make ${subject} ${quality}`;
+                },
+                virtual_processing: (keywords, self) => {
+                    const style = keywords.find(k => ['digital', 'art', 'cartoon', '3d'].includes(k)) || 'digital art';
+                    return `convert to ${style} style`;
+                },
+                material_conversion: (keywords, self) => {
+                    const material = keywords.find(k => ['cinematic', 'professional', 'artistic'].includes(k)) || keywords[0];
+                    return `convert to ${material} quality`;
+                },
+                concept_reconstruction: (keywords, self) => {
+                    const concept = keywords.find(k => ['geometric', 'abstract', 'minimalist'].includes(k)) || keywords[0];
+                    return `convert to ${concept} style`;
+                },
+                upscale_enhancement: (keywords, self) => {
+                    // 基于训练数据集的高清化提示词模式
+                    const qualityKeywords = keywords.filter(k => ['4k', '8k', 'hd', 'uhd', 'high', 'ultra', 'sharp', 'crisp', 'detailed', 'quality'].includes(k));
+                    const basePrompt = qualityKeywords.length > 0 ? qualityKeywords.join(' ') : 'high quality detailed';
+                    
+                    // 根据关键词组合生成优化的高清化提示词
+                    if (keywords.includes('4k') || keywords.includes('8k')) {
+                        return `upscale to ${keywords.includes('8k') ? '8K' : '4K'} ultra high definition, sharp details, crisp quality`;
+                    } else if (keywords.includes('sharp') || keywords.includes('crisp')) {
+                        return `enhance sharpness and detail quality, crisp high definition`;
+                    } else if (keywords.includes('detailed')) {
+                        return `enhance fine details, high quality textures, professional grade`;
+                    } else {
+                        return `upscale to high definition, enhanced detail quality, sharp and crisp`;
+                    }
+                }
+            },
+            
+            // 创意重构转换模式 - 基于Style Reference训练数据
+            scene_building: {
+                // 直接处理完整的关键词短语，不需要具体操作类型
+                default: (keywords, self) => {
+                    const concept = keywords.join(' ');
+                    return `${concept}, fantasy art style, highly detailed, cinematic lighting, masterpiece`;
+                }
+            },
+            style_creation: {
+                default: (keywords, self) => {
+                    const style = keywords.join(' ');
+                    return `artwork in ${style}, professional masterpiece, trending on artstation, highly detailed`;
+                }
+            },
+            character_action: {
+                default: (keywords, self) => {
+                    const action = keywords.join(' ');
+                    return `${action}, dynamic pose, cinematic composition, dramatic lighting, professional photography`;
+                }
+            },
+            media_transformation: {
+                default: (keywords, self) => {
+                    const medium = keywords.join(' ');
+                    return `${medium}, intricate details, professional craftsmanship, museum quality, highly detailed`;
+                }
+            },
+            environment_reconstruction: {
+                default: (keywords, self) => {
+                    const environment = keywords.join(' ');
+                    return `${environment}, epic landscape, atmospheric perspective, highly detailed, cinematic`;
+                }
+            },
+            material_transformation: {
+                default: (keywords, self) => {
+                    const material = keywords.join(' ');
+                    return `${material}, realistic textures, subsurface scattering, physical based rendering, 8k resolution`;
+                }
+            },
+              
             // 默认转换模式
             default: {
                 default: (keywords) => {
@@ -1465,9 +1543,9 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
 
     // 辅助方法：检测主体对象
     detectSubject(keywords) {
-        const subjects = ['him', 'her', 'person', 'man', 'woman', 'character', 'figure'];
+        const subjects = ['person', 'character', 'figure', 'man', 'woman', 'him', 'her'];
         const found = keywords.find(k => subjects.includes(k));
-        return found || 'him';
+        return found || 'subject';
     },
 
     // 辅助方法：检测颜色

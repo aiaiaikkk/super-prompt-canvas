@@ -768,7 +768,7 @@ class KontextSuperPrompt {
                 border: none;
                 color: #888;
                 padding: 8px 16px;
-                font-size: 11px;
+                font-size: 13px;  // 增加2px字体大小
                 cursor: pointer;
                 border-bottom: 2px solid transparent;
                 transition: all 0.2s;
@@ -1067,33 +1067,18 @@ class KontextSuperPrompt {
             overflow-y: auto;
         `;
 
-        // 创意重构警告提示
+        // 简洁的创意重构提示
         const notice = document.createElement('div');
         notice.style.cssText = `
-            background: linear-gradient(135deg, #3a2a4a 0%, #4a3a5a 100%);
-            border: 1px solid #7a6a8a;
-            border-radius: 6px;
-            padding: 12px 16px;
+            background: #2a2a3a;
+            border: 1px solid #4a4a5a;
+            border-radius: 4px;
+            padding: 8px 12px;
             margin: 16px;
-            color: #E6E6FA;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            color: #ccc;
+            font-size: 13px;  // 增加2px字体大小
         `;
-        
-        const warningContent = document.createElement('div');
-        warningContent.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                <span style="font-size: 16px;">🧠</span>
-                <strong>高认知负荷 (5.8分) - 高创造性编辑</strong>
-                <span style="background: #ff4444; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">新功能</span>
-            </div>
-            <div style="font-size: 10px; opacity: 0.9;">
-                需要详细创意描述，效果惊艳。建议使用丰富的想象力和具体的视觉描述。
-            </div>
-        `;
-        notice.appendChild(warningContent);
+        notice.innerHTML = `🎨 创意重构：将图像元素进行艺术性改造和风格转换`;
         panel.appendChild(notice);
 
         // Kontext双下拉框系统 - 创意重构专用
@@ -1110,10 +1095,10 @@ class KontextSuperPrompt {
             panel.appendChild(dropdownContainer);
         }
 
-        // 描述输入 - 创意重构需要更详细的描述
+        // 描述输入 - 创意重构
         const descriptionSection = this.createDescriptionSection('creative', {
-            placeholder: '描述你的创意想法，越详细越好...\n例如: "将小狗变成太阳系中心的太阳，由等离子和火焰组成"',
-            minHeight: '100px'
+            placeholder: '输入创意描述...\n例如: "oil painting style" 或 "metallic texture"',
+            minHeight: '80px'
         });
         panel.appendChild(descriptionSection);
 
@@ -1460,7 +1445,7 @@ class KontextSuperPrompt {
             border: 1px solid #444;
             border-radius: 4px;
             padding: 6px;
-            font-size: 11px;
+            font-size: 13px;  // 增加2px字体大小
             font-family: inherit;
             resize: vertical;
             outline: none;
@@ -1686,13 +1671,13 @@ class KontextSuperPrompt {
         promptPreviewTextarea.placeholder = '生成的超级提示词将在此处显示，可编辑修改...';
         promptPreviewTextarea.style.cssText = `
             width: 100%;
-            height: 220px;
+            height: 198px;  // 减少高度10% (220px - 22px = 198px)
             background: #2a2a2a;
             color: #fff;
             border: 1px solid #444;
             border-radius: 4px;
             padding: 6px;
-            font-size: 11px;
+            font-size: 13px;  // 增加2px字体大小
             resize: vertical;
             font-family: monospace;
             margin-bottom: 12px;
@@ -2478,7 +2463,7 @@ class KontextSuperPrompt {
         guidanceTextarea.style.cssText = `
             width: 100%; height: 80px; background: #2a2a2a; color: #fff; 
             border: 1px solid #555; border-radius: 3px; padding: 4px 8px; 
-            font-size: 11px; resize: vertical; box-sizing: border-box;
+            font-size: 13px;  // 增加2px字体大小 resize: vertical; box-sizing: border-box;
         `;
 
         // 当选择自定义指引时显示文本框
@@ -2983,65 +2968,250 @@ class KontextSuperPrompt {
         section.className = 'creative-prompts-section';
         section.style.cssText = `
             margin: 16px;
-            background: #1a1a2e;
-            border: 1px solid #444;
-            border-radius: 6px;
-            overflow: hidden;
         `;
         
-        const header = document.createElement('div');
-        header.style.cssText = `
-            background: #16213e;
+        // 第一个下拉框：操作类型选择
+        const typeLabel = document.createElement('label');
+        typeLabel.style.cssText = `
+            display: block;
+            color: #ccc;
+            font-size: 13px;  // 增加2px字体大小
+            margin-bottom: 6px;
+        `;
+        typeLabel.textContent = '🎭 创意操作类型';
+        
+        const typeSelect = document.createElement('select');
+        typeSelect.style.cssText = `
+            width: 100%;
             padding: 8px 12px;
-            border-bottom: 1px solid #444;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
             color: #fff;
-            font-size: 10px;
-            font-weight: bold;
-        `;
-        header.textContent = '✨ 创意提示词库';
-        
-        const content = document.createElement('div');
-        content.style.cssText = `
-            padding: 12px;
-            max-height: 150px;
-            overflow-y: auto;
+            font-size: 13px;  // 增加2px字体大小
+            outline: none;
+            margin-bottom: 12px;
         `;
         
-        // 创意提示词示例
-        const creativePrompts = [
-            '奇幻变身: 将对象转换为神话生物或魔法元素',
-            '超现实场景: 创造违背物理定律的有趣画面',  
-            '艺术风格融合: 结合多种艺术流派的特点',
-            '时空穿越: 将现代对象置于古代或未来场景',
-            '材质魔法: 改变对象的物理属性和材质'
+        // 操作类型选项
+        const operationTypes = [
+            { value: '', text: '-- 选择操作类型 --' },
+            { value: 'scene_building', text: '🏗️ 创意场景构建' },
+            { value: 'style_creation', text: '🎨 风格模仿创作' },
+            { value: 'character_action', text: '🎭 角色动作设定' },
+            { value: 'media_transformation', text: '🖼️ 媒介形式转换' },
+            { value: 'environment_reconstruction', text: '🌍 场景环境重构' },
+            { value: 'material_transformation', text: '⚗️ 材质形态转换' }
         ];
         
-        creativePrompts.forEach(prompt => {
-            const promptItem = document.createElement('div');
-            promptItem.style.cssText = `
-                padding: 4px 8px;
-                margin: 2px 0;
-                background: #0f1424;
-                border-radius: 3px;
-                color: #ccc;
-                font-size: 11px;
-                cursor: pointer;
-                transition: background 0.2s;
-            `;
-            promptItem.textContent = prompt;
-            
-            promptItem.addEventListener('click', () => {
-                promptItem.style.background = '#2a4a5a';
-                setTimeout(() => {
-                    promptItem.style.background = '#0f1424';
-                }, 200);
-            });
-            
-            content.appendChild(promptItem);
+        operationTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.value;
+            option.textContent = type.text;
+            typeSelect.appendChild(option);
         });
         
-        section.appendChild(header);
-        section.appendChild(content);
+        // 第二个下拉框：创意模板选择
+        const templateLabel = document.createElement('label');
+        templateLabel.style.cssText = `
+            display: block;
+            color: #ccc;
+            font-size: 13px;  // 增加2px字体大小
+            margin-bottom: 6px;
+        `;
+        templateLabel.textContent = '✨ 创意模板';
+        
+        const templateSelect = document.createElement('select');
+        templateSelect.style.cssText = `
+            width: 100%;
+            padding: 8px 12px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;  // 增加2px字体大小
+            outline: none;
+        `;
+        templateSelect.disabled = true;
+        
+        // 为不同操作类型设计的创意模板 - 天马行空的想象力创意合集
+        const creativeTemplates = {
+            scene_building: [
+                { value: 'celestial library with floating books spilling starlight into cosmic void', text: '📚 流淌星光的 celestial library 书籍漂浮在宇宙虚空中' },
+                { value: 'baroque planetarium with orrery of golden gears orbiting luminescent sun', text: '⚙️ 巴洛克天文台金色齿轮仪轨道环绕发光太阳' },
+                { value: 'surreal dreamscape of crystallized islands floating in lavender haze', text: '🔮 超现实梦境结晶岛屿漂浮在薰衣草雾霭中' },
+                { value: 'upside-down world with cascading waterfalls reflecting twin moons', text: '🌊 倒悬世界瀑布倾泻映照双月' },
+                { value: 'prismatic rainbow bridge materializing from aurora connecting fantasy realms', text: '🌈 极光幻化棱镜彩虹桥连接幻想国度' },
+                { value: 'bioluminescent space whale breaching through stardust with trailing constellations', text: '🐋 生物发光宇宙鲸鱼跃出星尘拖曳星座' },
+                { value: 'enchanted library with ancient tomes blossoming on ethereal trees', text: '📳 魔法图书馆古籍在空灵树上绽放' },
+                { value: 'floating bazaar where merchants trade bottled dreams and memory artifacts', text: '🎪 漂浮集市商人交易瓶装梦境和记忆器物' },
+                { value: 'impossible museum housing paradoxical exhibits like perpetual motion machines', text: '🏛️ 不可能博物馆藏永动机等悖论展品' },
+                { value: 'iridescent soap metropolis with translucent buildings reflecting rainbow hues', text: '🫧 彩虹肥皂都市半透明建筑折射七彩光芒' },
+                { value: 'endless desert of crystalline hourglasses pouring diamond sand in winds', text: '⏳ 无尽水晶沙漠沙漏倾洒钻石沙粒随风' },
+                { value: 'luminous waterfall defying gravity flowing into moon crater with stardust', text: '🌙 发光瀑布逆重力流入月球陨石坑星尘' },
+                { value: 'living labyrinth with walls breathing shifting colors with emotions', text: '🌺 活体迷宫墙壁呼吸随情绪变幻色彩' },
+                { value: 'crystalline cavern with sleeping stories glowing like pulsating fireflies', text: '💎 水晶洞穴沉睡故事如萤火虫脉动发光' },
+                { value: 'ancient turtle island carrying mountain temple with cherry blossoms forever', text: '🐢 古老龟岛承载山间神殿樱花永绽' }
+            ],
+            style_creation: [
+                { value: 'impressionist watercolor dreams with dissolved pigments blooming like flowers', text: '🎨 印象派水彩梦境溶解颜料如花绽放' },
+                { value: 'neon noir ink wash blending eastern and western aesthetics on handmade paper', text: '🔦 霓虹黑墨水墨融合东西方美学手工纸' },
+                { value: 'zero gravity holographic explosion creating iridescent dust motes in darkness', text: '✨ 零重力全息爆炸黑暗中创造虹彩尘埃' },
+                { value: 'bioluminescent microorganism painting living canvas breathing with gentle rhythm', text: '🌿 生物发光微生物绘画活体画布轻柔呼吸' },
+                { value: 'sacred geometry mandala with infinitely recursive golden ratio patterns', text: '🔮 神圣几何曼陀罗无限递归黄金比例图案' },
+                { value: 'avant-garde shadow puppetry with kinetic light sculptures projecting emotions', text: '🎪 先锋皮影戏动态光影雕塑投射情感' },
+                { value: 'prismatic chromatic aberration creating ethereal rainbow halo effects', text: '🌈 棱镜色差创造空灵彩虹光晕效果' },
+                { value: 'vintage daguerreotype capturing contemporary subjects with haunting beauty', text: '📸 古老银版摄影捕捉现代主题幽美' },
+                { value: 'surreal melted crayon sculpture floating in cosmic void with vibrant trails', text: '🖍️ 超现实融化蜡笔雕塑宇宙虚空彩色轨迹' },
+                { value: 'aurora borealis reimagined as dancing brushstrokes across night sky canvas', text: '🌅 北极光重绘为夜空画布舞动画笔' },
+                { value: 'post-Internet glitch art with corrupted data creating beautiful artifacts', text: '👾 后互联网故障艺术损坏数据创造美' },
+                { value: 'synthwave landscape with neon grid mountains reflecting in chrome ocean', text: '🌇 合成波景观霓虹网格山铬合金海洋反射' },
+                { value: 'gothic revival stained glass depicting digital age history with jewel tones', text: '🪟 哥特复兴彩绘玻璃描绘数字时代历史' },
+                { value: 'biomechanical living tattoo with circulatory light pulses beneath skin', text: '🎭 生物机械活体纹身皮下光脉冲循环' },
+                { value: 'celestial constellation map woven with glowing fiber optic nebulae', text: '🌌 天体星座图编织发光光纤星云' }
+            ],
+            character_action: [
+                { value: 'maestro conducting aurora borealis orchestra with baton of pure light', text: '🎭 指挥家挥舞纯光指挥棒指挥北极光交响乐团' },
+                { value: 'mystic weaving cosmic tapestry with threads of captured starlight', text: '🌟 神秘主义者编织捕获星光织就宇宙挂毯' },
+                { value: 'alchemist harvesting moonbeams in crystalline phials under silver sky', text: '🏺 炼金术士银色天空下水晶瓶采集月光' },
+                { value: 'ballerina dancing with mirror reflection creating perfect symmetry', text: '💃 芭蕾舞者与镜中倒影共舞创造完美对称' },
+                { value: 'druid planting seeds of instant growth blossoming into magical flora', text: '🌱 德鲁伊种植瞬间生长种子绽放魔法植物' },
+                { value: 'calligrapher writing with shadow ink that glows ethereally on parchment', text: '✍️ 书法家使用阴影墨水羊皮纸空灵发光' },
+                { value: 'origami master folding paper cranes that transform into living birds', text: '🦯 折纸大师折叠纸鹤化为活鸟飞舞' },
+                { value: 'juggler keeping iridescent soap bubbles aloft with impossible grace', text: '🫧 杂技师以不可能优雅保持彩虹肥皂泡漂浮' },
+                { value: 'bibliomancer summoning luminous butterflies from ancient grimoire pages', text: '📚 书法魔法师从古代魔法书页召唤发光蝴蝶' },
+                { value: 'sculptor breathing life into marble statues with touch of gentle hands', text: '🗿 雕塑家温柔双手赋予大理石雕像生命' },
+                { value: 'light painter creating ephemeral art with fingertips leaving glowing trails', text: '✨ 光画家指尖创造短暂艺术留下发光轨迹' },
+                { value: 'storm conductor orchestrating lightning bolts with dramatic gestures', text: '⚡ 风暴指挥家戏剧性姿态编排闪电' },
+                { value: 'tree whisperer communicating with ancient oaks causing instantaneous bloom', text: '🌳 树语者与古橡树交流促使其瞬间绽放' },
+                { value: 'gravity defier walking on ceiling as if strolling through meadow', text: '🚶 反重力者天花板行走如漫步草地' },
+                { value: 'snow catcher collecting eternal snowflakes that shimmer like diamonds', text: '❄️ 捕雪者收集永恒雪花如钻石闪耀' }
+            ],
+            media_transformation: [
+                { value: 'symphony of sound waves frozen in crystalline glass sculpture singing silently', text: '🎵 声波交响乐水晶玻璃雕塑无声歌唱' },
+                { value: 'artisanal perfume bottle capturing golden hour sunset with swirling colors', text: '🌅 工艺香水瓶捕捉金色时刻日落旋动色彩' },
+                { value: 'avant-garde shadow theater with kinetic light sculptures performing ballet', text: '🎪 先锋影子剧院动态光影雕塑表演芭蕾' },
+                { value: 'magical musical staff with living notes growing into flowering vines', text: '🎼 魔法五线谱活体音符长成开花藤蔓' },
+                { value: 'temporal timepieces displaying precious memories instead of mundane hours', text: '⏰ 时间器物珍贵记忆取代平凡时刻' },
+                { value: 'psychomirror reflecting subconscious dreams rather than physical reality', text: '🪞 心灵镜子反射潜意识梦境非物质现实' },
+                { value: 'collection of bottled messages sent across alternate future timelines', text: '📮 瓶装信集跨越 alternate future timelines' },
+                { value: 'ethereal kite woven from pure imagination soaring through starlit sky', text: '🪁 空灵风筝纯想象力织就星光夜空翱翔' },
+                { value: 'vintage camera developing photographs of forgotten memories in sepia tones', text: '📷 复古相机棕褐色调冲洗被遗忘记忆' },
+                { value: 'vacuum tube radio receiving ethereal signals from parallel dimensions', text: '📻 真空管收音机接收平行维度空灵信号' },
+                { value: 'archaeologist\'s quill pen writing with liquid starlight documenting history', text: '🪶 考古学家羽毛笔液态星光书写历史' },
+                { value: 'intricate snow globe containing entire miniature civilization with moving parts', text: '🏙️ 精密雪花球含整个微型文明活动部件' },
+                { value: 'haunted theater where ghostly actors perform eternal plays automatically', text: '🎭 闹鬼剧院鬼魂演员自动永恒演出' },
+                { value: 'enchanted loom weaving golden fabric from condensed morning sunrise mist', text: '🌫️ 魔法织布机浓缩晨曦金雾编织织物' },
+                { value: 'mystical candle casting colored flame shadows that dance independently', text: '🕯️ 神秘蜡烛彩色火焰阴影独立舞蹈' }
+            ],
+            environment_reconstruction: [
+                { value: 'ancient megalopolis built on colossal world turtle carrying mountain temples', text: '🐢 古代巨城建在巨型世界龟背负山间神殿' },
+                { value: 'sacred garden where all four seasons coexist in perfect harmony', text: '🌸 神圣花园四季共存完美和谐' },
+                { value: 'infinite library with Escher-esque rotating corridors of knowledge', text: '📚 无限图书馆埃舍尔式旋转知识走廊' },
+                { value: 'confectionery wonderland with chocolate rivers and candy cane forests', text: '🍫 糖果仙境巧克力河流拐杖糖森林' },
+                { value: 'celestial cloud city accessible only via hot air balloon journeys', text: '☁️ 天上云城仅热气球旅行可达' },
+                { value: 'bioluminescent underwater cave with self-renewing air bubble ecosystems', text: '🫧 生物发光水下洞穴自新气泡生态系统' },
+                { value: 'endless desert of mirrored dunes reflecting celestial constellations', text: '🌌 无尽镜面沙漠沙丘反射天体星座' },
+                { value: 'enchanted forest where ancient trees whisper forgotten wisdom', text: '🌳 魔法森林古树低语被遗忘智慧' },
+                { value: 'quirky village where gravity reverses direction every midnight', text: '🏘️ 古怪小镇重力每午夜逆转方向' },
+                { value: 'temporal valley where time flows in recursive loops', text: '⭕ 时间山谷时间递归循环流动' },
+                { value: 'floating archipelago defying physics hovering inverted in azure sky', text: '🏝️ 漂浮群岛违抗物理倒悬蔚蓝天空中' },
+                { value: 'rainbow canyon painted by giant brushes with liquid prismatic colors', text: '🎨 彩虹峡谷巨大画笔液态棱镜色彩' },
+                { value: 'mystical swamp where lost memories surface as glowing bubbles', text: '🫧 神秘沼泽失落记忆发光气泡浮现' },
+                { value: 'wind-swept plateau carrying prophetic whispers from ancient spirits', text: '🌬️ 风扫高原古老精灵携带预言低语' },
+                { value: 'mirage oasis where impossible dreams blossom into reality', text: '🌺 海市蜃楼绿洲不可能梦想绽放现实' }
+            ],
+            material_transformation: [
+                { value: 'prismatic rainbow solidified into translucent candy with gem-like clarity', text: '🌈 棱镜彩虹固化半透明糖果宝石般清澈' },
+                { value: 'frozen musical notes forming intricate crystalline structures with harmonic resonance', text: '🎵 冻结音符形成复杂晶体结构谐波共振' },
+                { value: 'handwoven fabric from pure sunlight threads creating golden textile', text: '☀️ 纯阳光线段手工编织金色织物' },
+                { value: 'petrified cosmic stardust containing miniature galaxy formations', text: '✨ 石化宇宙星尘含微型银河系形态' },
+                { value: 'sentient liquid shadow moving with autonomous graceful purpose', text: '🌑 有感知液态阴影自主优雅移动' },
+                { value: 'tangible imagination condensed into physical sculptural forms', text: '💭 有形想象力凝聚物理雕塑形态' },
+                { value: 'iridescent mosaic crafted from butterfly wing scales with prismatic effects', text: '🦋 蝴蝶翅膀鳞片制虹彩马赛克棱镜效果' },
+                { value: 'synesthetic color harmony creating visual symphony of light and form', text: '🎨 通感色彩和谐创造光形视觉交响乐' },
+                { value: 'ethereal cloud spun into gossamer cotton candy with celestial sweetness', text: '☁️ 空灵云纺成蛛网棉花糖天界甜蜜' },
+                { value: 'morning dewdrops encapsulating entire miniature universes within spheres', text: '💧 晨露球体内含整个微型宇宙' },
+                { value: 'pure crystallized laughter forming brilliant gemstones with joyful essence', text: '💎 纯结晶笑声形成灿烂宝石喜悦本质' },
+                { value: 'tears of transformation metamorphosing into graceful living butterflies', text: '🦋 变化眼泪化优雅活蝴蝶' },
+                { value: 'fear transmuted into protective armor through ancient alchemical process', text: '🛡️ 恐惧古老炼金术变保护护甲' },
+                { value: 'pure joy compressed into iridescent bubbles that never pop', text: '🫧 纯喜悦压缩虹彩泡泡永不破裂' },
+                { value: 'cherished memories engraved into translucent ancient wood with golden veins', text: '🪵 珍贵记忆雕刻半透明古木金色纹理' }
+            ]
+        };
+        
+        // 第一个下拉框变化事件
+        typeSelect.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+            
+            // 清空第二个下拉框
+            templateSelect.innerHTML = '';
+            
+            if (selectedType) {
+                // 启用第二个下拉框并添加对应模板
+                templateSelect.disabled = false;
+                
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- 选择创意模板 --';
+                templateSelect.appendChild(defaultOption);
+                
+                const templates = creativeTemplates[selectedType] || [];
+                templates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template.value;
+                    option.textContent = template.text;
+                    templateSelect.appendChild(option);
+                });
+            } else {
+                // 禁用第二个下拉框
+                templateSelect.disabled = true;
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- 请先选择操作类型 --';
+                templateSelect.appendChild(defaultOption);
+            }
+        });
+        
+        // 第二个下拉框选择事件
+        templateSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                // 找到当前活动的描述框并填入选择的提示词
+                const currentPanel = this.tabContents[this.currentCategory];
+                if (currentPanel) {
+                    const actualTabId = this.tabIdMap[this.currentCategory] || this.currentCategory;
+                    const descTextarea = currentPanel.querySelector('textarea[data-tab="' + actualTabId + '"]');
+                    if (descTextarea) {
+                        // 如果描述框为空，直接填入；如果有内容，追加
+                        const currentValue = descTextarea.value.trim();
+                        if (currentValue) {
+                            descTextarea.value = currentValue + ', ' + e.target.value;
+                        } else {
+                            descTextarea.value = e.target.value;
+                        }
+                        
+                        // 触发数据更新
+                        this.currentTabData.description = descTextarea.value;
+                        this.generateSuperPrompt();
+                        
+                        // 重置选择框
+                        e.target.value = '';
+                        typeSelect.value = '';
+                        templateSelect.innerHTML = '';
+                        templateSelect.disabled = true;
+                        const resetOption = document.createElement('option');
+                        resetOption.value = '';
+                        resetOption.textContent = '-- 请先选择操作类型 --';
+                        templateSelect.appendChild(resetOption);
+                    }
+                }
+            }
+        });
+        
+        section.appendChild(typeLabel);
+        section.appendChild(typeSelect);
+        section.appendChild(templateLabel);
+        section.appendChild(templateSelect);
         
         return section;
     }
@@ -3446,7 +3616,7 @@ class KontextSuperPrompt {
                 border-radius: 3px;
                 cursor: pointer;
                 border: 1px solid transparent;
-                font-size: 11px;
+                font-size: 13px;  // 增加2px字体大小
                 transition: all 0.2s ease;
                 user-select: none;
                 margin-bottom: 1px;
@@ -3467,7 +3637,7 @@ class KontextSuperPrompt {
             text.style.cssText = `
                 flex: 1;
                 color: #ccc;
-                font-size: 11px;
+                font-size: 13px;  // 增加2px字体大小
                 line-height: 1.1;
                 white-space: nowrap;
                 overflow: hidden;
@@ -3552,7 +3722,7 @@ class KontextSuperPrompt {
                 border-radius: 3px;
                 cursor: pointer;
                 border: 1px solid transparent;
-                font-size: 11px;
+                font-size: 13px;  // 增加2px字体大小
                 transition: all 0.2s ease;
                 user-select: none;
                 margin-bottom: 1px;
@@ -3573,7 +3743,7 @@ class KontextSuperPrompt {
             text.style.cssText = `
                 flex: 1;
                 color: #ccc;
-                font-size: 11px;
+                font-size: 13px;  // 增加2px字体大小
                 line-height: 1.1;
                 white-space: nowrap;
                 overflow: hidden;
@@ -5599,7 +5769,44 @@ class KontextSuperPrompt {
                     const contextualPrompt = this.integrateLayerContext(convertedPrompt, selectedLayerDescription, operationType);
                     generatedPromptParts.push(contextualPrompt);
                 } else {
-                    generatedPromptParts.push(convertedPrompt);
+                    // 没有选择图层时，使用简单的模板
+                    let simplePrompt = convertedPrompt;
+                    
+                    // 根据操作类型调整模板
+                    if (operationType === 'color_modification') {
+                        // 简化颜色修改的提示词
+                        simplePrompt = `make ${description.trim()} orange`;
+                    } else if (operationType === 'add_operations') {
+                        // 简化添加对象的提示词
+                        simplePrompt = `add ${description.trim()}`;
+                    } else if (operationType === 'object_removal') {
+                        // 简化移除对象的提示词
+                        simplePrompt = `remove ${description.trim()}`;
+                    } else if (operationType === 'object_replacement') {
+                        // 简化替换对象的提示词
+                        simplePrompt = `replace with ${description.trim()}`;
+                    } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
+                        // 简化文字操作的提示词 - 直接使用转换后的提示词
+                        simplePrompt = convertedPrompt;
+                    } else if (operationType === 'scene_building' || operationType === 'style_creation' || operationType === 'character_action' || operationType === 'media_transformation') {
+                        // 创意重构操作 - 直接使用转换后的提示词
+                        simplePrompt = convertedPrompt;
+                    } else if (operationType === 'geometric_warp' || operationType === 'perspective_transform' || operationType === 'blur_sharpen' || 
+                              operationType === 'local_deformation' || operationType === 'composition_adjustment' || operationType === 'general_editing' ||
+                              operationType === 'ecommerce' || operationType === 'portrait' || operationType === 'architecture' || 
+                              operationType === 'product' || operationType === 'automotive' || operationType === 'fashion' ||
+                              operationType === 'food' || operationType === 'real_estate' || operationType === 'medical' ||
+                              operationType === 'technical_processing' || operationType === 'color_accuracy' || operationType === 'background_clean' ||
+                              operationType === 'detail_enhance' || operationType === 'defect_remove' || operationType === 'skin_natural' ||
+                              operationType === 'feature_preserve' || operationType === 'background_pro' || operationType === 'lighting_opt') {
+                        // 专业操作 - 直接使用描述，不需要 change to 前缀
+                        simplePrompt = description.trim();
+                    } else {
+                        // 其他操作使用通用模板
+                        simplePrompt = `change to ${description.trim()}`;
+                    }
+                    
+                    generatedPromptParts.push(simplePrompt);
                 }
             }
         } else if (description && description.trim()) {
@@ -5612,7 +5819,37 @@ class KontextSuperPrompt {
                 const contextualPrompt = this.integrateLayerContext(englishDescription, selectedLayerDescription, operationType);
                 generatedPromptParts.push(contextualPrompt);
             } else {
-                generatedPromptParts.push(englishDescription);
+                // 没有选择图层时，使用简单的模板
+                let simplePrompt = englishDescription;
+                
+                // 根据操作类型调整模板
+                if (operationType === 'color_modification') {
+                    simplePrompt = `make ${description.trim()} orange`;
+                } else if (operationType === 'add_operations') {
+                    simplePrompt = `add ${description.trim()}`;
+                } else if (operationType === 'object_removal') {
+                    simplePrompt = `remove ${description.trim()}`;
+                } else if (operationType === 'object_replacement') {
+                    simplePrompt = `replace with ${description.trim()}`;
+                } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
+                    simplePrompt = englishDescription;
+                } else if (operationType === 'scene_building' || operationType === 'style_creation' || operationType === 'character_action' || operationType === 'media_transformation') {
+                    simplePrompt = englishDescription;
+                } else if (operationType === 'geometric_warp' || operationType === 'perspective_transform' || operationType === 'blur_sharpen' || 
+                          operationType === 'local_deformation' || operationType === 'composition_adjustment' || operationType === 'general_editing' ||
+                          operationType === 'ecommerce' || operationType === 'portrait' || operationType === 'architecture' || 
+                          operationType === 'product' || operationType === 'automotive' || operationType === 'fashion' ||
+                          operationType === 'food' || operationType === 'real_estate' || operationType === 'medical' ||
+                          operationType === 'technical_processing' || operationType === 'color_accuracy' || operationType === 'background_clean' ||
+                          operationType === 'detail_enhance' || operationType === 'defect_remove' || operationType === 'skin_natural' ||
+                          operationType === 'feature_preserve' || operationType === 'background_pro' || operationType === 'lighting_opt') {
+                    // 专业操作 - 直接使用描述，不需要 change to 前缀
+                    simplePrompt = englishDescription;
+                } else {
+                    simplePrompt = `change to ${description.trim()}`;
+                }
+                
+                generatedPromptParts.push(simplePrompt);
             }
         }
         
