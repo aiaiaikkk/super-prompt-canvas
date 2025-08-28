@@ -48,11 +48,22 @@ class OllamaModelConverter:
         models = []
         
         try:
-            for file_path in self.import_dir.glob("*.gguf"):
+            for file_path in self.import_dir.glob("**/*.gguf"):
                 if file_path.is_file():
                     # 检查是否已经转换
                     model_name = file_path.stem
                     is_converted = self.check_if_converted(model_name)
+                    
+                    # 检查同目录下是否存在Modelfile
+                    model_dir = file_path.parent
+                    existing_modelfile = model_dir / "Modelfile"
+                    has_existing_modelfile = existing_modelfile.exists() and existing_modelfile.is_file()
+                    
+                    # 确定使用的Modelfile路径
+                    if has_existing_modelfile:
+                        modelfile_path = str(existing_modelfile)
+                    else:
+                        modelfile_path = str(self.modelfiles_dir / f"{model_name}.modelfile")
                     
                     model_info = {
                         'name': model_name,
@@ -60,7 +71,8 @@ class OllamaModelConverter:
                         'file_size': file_path.stat().st_size,
                         'is_converted': is_converted,
                         'ollama_name': f"custom-{model_name}",
-                        'modelfile_path': str(self.modelfiles_dir / f"{model_name}.modelfile")
+                        'modelfile_path': modelfile_path,
+                        'has_existing_modelfile': has_existing_modelfile
                     }
                     models.append(model_info)
             
@@ -152,9 +164,14 @@ Assistant: {{{{ .Response }}}}
     def convert_model(self, model_info: Dict) -> Tuple[bool, str]:
         """转换模型到Ollama格式"""
         try:
-            # 首先创建Modelfile
-            if not self.create_modelfile(model_info):
-                return False, "Modelfile创建失败"
+            # 检查是否使用现有Modelfile
+            if model_info.get('has_existing_modelfile', False):
+                # 使用现有的Modelfile，无需重新创建
+                pass
+            else:
+                # 创建新的Modelfile
+                if not self.create_modelfile(model_info):
+                    return False, "Modelfile创建失败"
             
             # 执行ollama create命令
             modelfile_path = model_info['modelfile_path']

@@ -116,6 +116,74 @@ export const guidanceLibraryA = {
             "professional post-processing with workflow automation",
             "adaptive editing with content-aware optimization",
             "flexible enhancement pipeline with customizable parameters"
+        ],
+        
+        // 基于1026条数据分析的新增高频操作类型 - 状态转换操作 (17.5%覆盖率)
+        identity_conversion: [
+            "seamless identity transformation maintaining scene coherence",
+            "complete species conversion with proper anatomical proportions",
+            "character role transformation with appropriate costume changes", 
+            "object type conversion preserving environmental context",
+            "natural identity morphing with smooth transition effects"
+        ],
+        
+        wearable_assignment: [
+            "natural wearable addition with proper fit and proportion",
+            "realistic accessory placement with gravity and physics accuracy",
+            "clothing item integration with existing wardrobe coordination",
+            "headwear and facial feature assignment with anatomical correctness",
+            "functional equipment addition with realistic material properties"
+        ],
+        
+        positional_placement: [
+            "precise spatial positioning with gravitational logic",
+            "natural pose adjustment with proper balance points",
+            "object placement with accurate support and contact surfaces",
+            "sitting and standing position control with realistic posture",
+            "spatial relationship management with perspective accuracy"
+        ],
+        
+        // 描述性创意指令处理 - 业界首创无动词创意指令 (8.9%覆盖率)
+        narrative_scene: [
+            "cinematic scene construction from descriptive text",
+            "historical period recreation with authentic visual details",
+            "story-telling composition with dramatic character positioning",
+            "temporal context visualization with era-appropriate elements",
+            "narrative atmosphere creation through lighting and mood"
+        ],
+        
+        style_temporal: [
+            "precise historical art style recreation with period accuracy",
+            "artistic technique simulation with authentic brushwork",
+            "cross-temporal fusion maintaining style integrity",
+            "classic art movement interpretation with modern subjects",
+            "museum-quality artistic transformation with cultural authenticity"
+        ],
+        
+        // 复合操作处理 - 多步骤复杂操作 (4.7%覆盖率)
+        multi_step_editing: [
+            "coordinated multi-operation execution with dependency management",
+            "complex workflow processing with quality consistency",
+            "sequential operation coordination with transition handling",
+            "compound editing with holistic composition optimization",
+            "multi-phase transformation with progressive quality control"
+        ],
+        
+        // 技术专业操作 - 新兴高价值技术 (4.4%覆盖率)  
+        depth_processing: [
+            "professional depth map generation with accurate spatial information",
+            "3D reconstruction preparation with precise depth quantification",
+            "depth-based layer separation with clean object boundaries",
+            "spatial analysis support with distance measurement capability",
+            "AR/VR content preparation with depth-aware processing"
+        ],
+        
+        digital_art_effects: [
+            "pixel art conversion with precise color quantization",
+            "neon lighting effects with authentic glow characteristics",
+            "cyberpunk aesthetic application with futuristic elements",
+            "modern digital art style with high saturation enhancement",
+            "retro gaming visual effects with authentic pixel precision"
         ]
     },
     

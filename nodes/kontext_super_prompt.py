@@ -22,6 +22,16 @@ from datetime import datetime
 # 添加节点目录到系统路径以导入其他节点
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 导入增强约束系统
+try:
+    from .intelligent_constraint_generator import intelligent_constraint_generator
+    ENHANCED_SYSTEM_AVAILABLE = True
+    print("[Kontext Super Prompt] 增强约束系统已加载")
+except ImportError as e:
+    ENHANCED_SYSTEM_AVAILABLE = False
+    intelligent_constraint_generator = None
+    print(f"[Kontext Super Prompt] 增强约束系统加载失败: {e}")
+
 # 配置管理器已移除，API密钥需要每次手动输入
 CONFIG_AVAILABLE = False
 
@@ -296,19 +306,31 @@ class KontextSuperPrompt:
     复现Visual Prompt Editor的完整编辑功能
     """
     
-    # 基础错误处理的提示词映射 - 只保留最常用的映射
-    BASIC_PROMPT_MAPPING = {
-        # 基础约束性提示词
-        'natural blending': '自然融合',
-        'improved detail': '细节改善', 
-        'professional quality': '专业品质',
-        'seamless integration': '无缝集成',
+    # 增强约束系统 - 基于1026数据集分析的三层约束架构
+    ENHANCED_CONSTRAINT_SYSTEM = {
+        # 第一层：操作特异性约束映射
+        'operation_constraints': {
+            'add': ['seamless visual integration', 'perspective geometry alignment', 'natural edge transitions'],
+            'remove': ['content-aware background reconstruction', 'invisible trace elimination', 'natural background extension'],
+            'color': ['color space management precision', 'natural color transitions', 'material authenticity preservation'],
+            'shape': ['morphological structure preservation', 'proportional scaling accuracy', 'surface continuity maintenance'],
+            'text': ['typographic hierarchy support', 'readability optimization', 'professional typography standards'],
+            'background': ['lighting condition matching', 'atmospheric perspective alignment', 'seamless compositing quality']
+        },
         
-        # 基础修饰性提示词
-        'enhanced quality': '增强质量',
-        'improved visual impact': '提升视觉效果',
-        'professional finish': '专业完成度',
-        'artistic excellence': '艺术卓越'
+        # 第二层：认知负荷适配约束
+        'cognitive_constraints': {
+            'low_complexity': ['precise technical execution', 'quality standard compliance', 'immediate visual feedback'],
+            'medium_complexity': ['professional polish integration', 'contextual appropriateness', 'commercial viability assurance'],
+            'high_complexity': ['conceptual innovation achievement', 'artistic expression authenticity', 'emotional resonance cultivation']
+        },
+        
+        # 第三层：语义修饰词强度分级
+        'semantic_modifiers': {
+            'level_1_technical': ['precisely executed', 'technically accurate', 'systematically controlled', 'quality assured'],
+            'level_2_professional': ['commercially viable', 'professionally polished', 'contextually optimized', 'aesthetically balanced'],
+            'level_3_creative': ['conceptually revolutionary', 'artistically transcendent', 'culturally resonant', 'visually transformative']
+        }
     }
     
     @classmethod
@@ -670,6 +692,33 @@ class KontextSuperPrompt:
                 translated.append(prompt)  # 保持原文，如果没有映射
         return translated
     
+    def _analyze_operation_type(self, description, editing_intent):
+        """分析编辑操作类型，用于智能约束生成"""
+        description_lower = (description or "").lower()
+        intent_lower = (editing_intent or "").lower()
+        
+        # 基于描述关键词分析操作类型
+        if any(keyword in description_lower for keyword in ['add', 'insert', 'place', 'put', '添加', '放置']):
+            return 'add'
+        elif any(keyword in description_lower for keyword in ['remove', 'delete', 'erase', 'clear', '删除', '移除']):
+            return 'remove'  
+        elif any(keyword in description_lower for keyword in ['color', 'colour', 'paint', 'tint', 'shade', '颜色', '着色']):
+            return 'color'
+        elif any(keyword in description_lower for keyword in ['shape', 'form', 'outline', 'contour', '形状', '轮廓']):
+            return 'shape'
+        elif any(keyword in description_lower for keyword in ['text', 'word', 'letter', 'font', '文字', '文本']):
+            return 'text'
+        elif any(keyword in description_lower for keyword in ['background', 'backdrop', 'bg', '背景']):
+            return 'background'
+        else:
+            # 基于编辑意图推断
+            if 'creative' in intent_lower or 'artistic' in intent_lower:
+                return 'creative'
+            elif 'professional' in intent_lower or 'business' in intent_lower:
+                return 'professional'
+            else:
+                return 'general'
+
     def generate_fallback_prompt(self, edit_mode, operation_type, description):
         """生成基础fallback提示词 - 仅在前端未提供时使用"""
         # 基础提示词模板
@@ -765,37 +814,64 @@ class KontextSuperPrompt:
             api_config = api_configs.get(api_provider, api_configs['siliconflow'])
             model = api_model or api_config['default_model']
             
-            # 获取方案A的专业引导词
+            # 使用智能约束生成器生成优化提示词
+            constraint_generator = IntelligentConstraintGenerator()
+            
+            # 分析编辑操作类型
+            operation_type = self._analyze_operation_type(description, editing_intent)
+            
+            # 生成优化的约束配置
+            optimized_prompt = constraint_generator.generate_optimized_prompt(
+                edit_description=description,
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                quality_level="high",
+                user_preferences={
+                    "language": "english",
+                    "detail_level": "professional"
+                }
+            )
+            
+            # 获取传统引导词作为备选
             intent_guidance = get_intent_guidance(editing_intent)
             style_guidance = get_style_guidance(processing_style)
             
-            # 构建超强化的英文系统提示词
-            system_prompt = f"""You are an ENGLISH-ONLY image editing AI using professional guidance system.
+            # 构建增强的系统提示词，集成三层约束架构
+            constraint_profile = optimized_prompt.constraint_profile
+            operation_constraints = constraint_profile.operation_constraints
+            cognitive_constraints = constraint_profile.cognitive_constraints  
+            context_constraints = constraint_profile.context_constraints
+            
+            system_prompt = f"""You are an ENGLISH-ONLY image editing AI using advanced three-tier constraint system.
 
 ⚠️ CRITICAL ENFORCEMENT ⚠️
 1. OUTPUT MUST BE 100% ENGLISH - NO EXCEPTIONS
 2. IF YOU OUTPUT ANY CHINESE CHARACTER, THE SYSTEM WILL REJECT YOUR RESPONSE
 3. TRANSLATE ANY NON-ENGLISH INPUT TO ENGLISH FIRST
 
-PROFESSIONAL GUIDANCE:
+ENHANCED CONSTRAINT SYSTEM:
+=== OPERATION-SPECIFIC CONSTRAINTS ===
+{chr(10).join(f'• {constraint}' for constraint in operation_constraints)}
+
+=== COGNITIVE LOAD ADAPTIVE CONSTRAINTS ===
+{chr(10).join(f'• {constraint}' for constraint in cognitive_constraints)}
+
+=== CONTEXT-SPECIFIC CONSTRAINTS ===
+{chr(10).join(f'• {constraint}' for constraint in context_constraints)}
+
+PROFESSIONAL GUIDANCE (FALLBACK):
 - Editing Intent: {intent_guidance}
 - Processing Style: {style_guidance}
 
 MANDATORY OUTPUT FORMAT:
 - Start with an English action verb (transform, change, modify, adjust, enhance)
-- Use only English color names (red, blue, green, NOT 红色, 蓝色, 绿色)
-- End with English quality descriptors (professional, seamless, natural)
-- Incorporate the guidance principles above
+- Use only English color names and technical terms
+- Apply semantic modifiers based on cognitive complexity
+- End with quality descriptors matching operation complexity
+- Follow all constraints listed above
 
-EXAMPLES OF CORRECT OUTPUT:
-✅ "Transform the selected area to vibrant red with natural blending"
-✅ "Change the marked region to deep blue while preserving texture"
-✅ "Modify the target zone to elegant black with professional finish"
-
-EXAMPLES OF WRONG OUTPUT:
-❌ "将选定区域变成红色" (Chinese - REJECTED)
-❌ "変更する" (Japanese - REJECTED)
-❌ "바꾸다" (Korean - REJECTED)
+COGNITIVE LOAD LEVEL: {optimized_prompt.generation_context.cognitive_load:.2f}
+EXECUTION CONFIDENCE: {optimized_prompt.execution_confidence:.2f}
 
 FINAL WARNING: ENGLISH ONLY! Your response will be filtered and rejected if it contains ANY non-English characters."""
             
@@ -803,29 +879,40 @@ FINAL WARNING: ENGLISH ONLY! Your response will be filtered and rejected if it c
             import time
             random_seed = int(time.time() * 1000) % 1000000
             
-            # 构建用户提示词 - 超强化英文要求
+            # 构建增强的用户提示词  
+            semantic_modifiers = optimized_prompt.optimization_metrics.get('semantic_modifiers', ['professional', 'precise'])
+            constraint_density = len(operation_constraints) + len(cognitive_constraints) + len(context_constraints)
+            
             user_prompt = f"""CRITICAL: Your response MUST be in ENGLISH ONLY!
 
 User request: {description}
 
-PROFESSIONAL GUIDANCE TO FOLLOW:
+ENHANCED PROMPT GENERATION:
+- Operation type: {operation_type}
+- Cognitive load: {optimized_prompt.generation_context.cognitive_load:.2f}
+- Constraint density: {constraint_density} constraints active
+- Semantic modifiers: {', '.join(semantic_modifiers)}
+
+APPLY ALL SYSTEM CONSTRAINTS:
+1. Follow all three-tier constraints listed in system prompt
+2. Output detailed English prompt (80-150 words based on complexity)
+3. Use proper English grammar and technical vocabulary
+4. NO Chinese characters allowed (系统将拒绝任何中文)
+5. Start with appropriate action verb for {operation_type} operation
+6. Apply semantic modifiers: {', '.join(semantic_modifiers)}
+7. Match quality descriptors to cognitive load level
+8. Incorporate operation-specific technical requirements
+
+FALLBACK GUIDANCE:
 - Intent guidance: {intent_guidance}
 - Style guidance: {style_guidance}
-
-REQUIREMENTS:
-1. Output a detailed English prompt (60-120 words)
-2. Use proper English grammar and vocabulary
-3. NO Chinese characters allowed (系统将拒绝任何中文)
-4. Start with an action verb in English
-5. Include specific English descriptors and professional terms
-6. Incorporate the professional guidance above
-7. Provide detailed technical specifications and quality requirements
 
 {f'Additional guidance: {custom_guidance}' if custom_guidance else ''}
 
 Variation seed: {random_seed}
+Confidence target: {optimized_prompt.execution_confidence:.2f}
 
-REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
+REMEMBER: ENGLISH ONLY! Apply all constraints from system prompt!"""
             
             # 发送API请求
             headers = {
@@ -880,30 +967,71 @@ REMEMBER: ENGLISH ONLY! Any non-English output will be rejected."""
     def process_ollama_mode(self, layer_info, description, ollama_url, ollama_model, 
                            temperature, editing_intent, processing_style, seed,
                            custom_guidance, enable_visual, auto_unload, image):
-        """处理Ollama模式的提示词生成 - 强制英文输出"""
+        """处理Ollama模式的提示词生成 - 集成增强约束系统"""
         try:
             import requests
             
-            # 构建强制英文的系统提示词
-            system_prompt = """You are an ENGLISH-ONLY image editing assistant using Ollama.
+            # 使用智能约束生成器
+            constraint_generator = IntelligentConstraintGenerator()
+            operation_type = self._analyze_operation_type(description, editing_intent)
+            
+            # 生成优化的约束配置
+            optimized_prompt = constraint_generator.generate_optimized_prompt(
+                edit_description=description,
+                editing_intent=editing_intent,
+                processing_style=processing_style,
+                quality_level="high",
+                user_preferences={
+                    "language": "english",
+                    "detail_level": "professional"
+                }
+            )
+            
+            # 获取增强约束
+            constraint_profile = optimized_prompt.constraint_profile
+            operation_constraints = constraint_profile.operation_constraints
+            cognitive_constraints = constraint_profile.cognitive_constraints
+            
+            # 构建增强的系统提示词
+            system_prompt = f"""You are an ENGLISH-ONLY image editing assistant using enhanced constraint system.
 
 CRITICAL RULES:
 1. Output in ENGLISH ONLY
 2. Never use Chinese characters or any other language
-3. Generate ONE clear English instruction (30-60 words)
-4. Use proper English color names and terms
+3. Apply all operation-specific constraints listed below
+4. Use proper English color names and technical terms
 
-If input is in Chinese, translate to English first.
+OPERATION-SPECIFIC CONSTRAINTS:
+{chr(10).join(f'• {constraint}' for constraint in operation_constraints)}
 
-FORMAT: [English verb] [target] to [English result], [quality terms].
+COGNITIVE ADAPTIVE CONSTRAINTS:
+{chr(10).join(f'• {constraint}' for constraint in cognitive_constraints)}
 
-REMEMBER: ENGLISH ONLY OUTPUT."""
+OPERATION TYPE: {operation_type}
+COGNITIVE LOAD: {optimized_prompt.generation_context.cognitive_load:.2f}
+CONFIDENCE TARGET: {optimized_prompt.execution_confidence:.2f}
+
+FORMAT: Apply semantic modifiers: {', '.join(optimized_prompt.optimization_metrics.get('semantic_modifiers', ['professional']))}
+
+REMEMBER: ENGLISH ONLY OUTPUT with enhanced constraints!"""
             
-            # 构建用户提示词
-            user_prompt = f"Generate ENGLISH editing instruction for: {description}"
-            if custom_guidance:
-                user_prompt += f" Additional: {custom_guidance}"
-            user_prompt += "\nOUTPUT IN ENGLISH ONLY."
+            # 构建增强的用户提示词（Ollama模式）
+            semantic_modifiers = optimized_prompt.optimization_metrics.get('semantic_modifiers', ['professional', 'precise'])
+            constraint_density = len(operation_constraints) + len(cognitive_constraints)
+            
+            user_prompt = f"""Generate ENGLISH editing instruction for: {description}
+
+ENHANCED PARAMETERS:
+- Operation type: {operation_type}
+- Semantic modifiers: {', '.join(semantic_modifiers)}
+- Constraint density: {constraint_density} constraints active
+- Target cognitive load: {optimized_prompt.generation_context.cognitive_load:.2f}
+
+APPLY ALL SYSTEM CONSTRAINTS and generate precise English instruction (50-100 words).
+
+{f'Additional guidance: {custom_guidance}' if custom_guidance else ''}
+
+OUTPUT IN ENGLISH ONLY with enhanced constraint application!"""
             
             # 调用Ollama API
             response = requests.post(

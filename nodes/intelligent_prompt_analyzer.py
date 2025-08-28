@@ -1,12 +1,35 @@
 """
-智能提示分析器
+智能提示分析器 - Enhanced Version
 根据编辑意图和具体描述，动态生成深度的、针对性的AI提示
+新增: Kontext遗漏操作类型支持，复合操作解析，创意指令处理
+Version: 2.0.0 - 完整操作覆盖
 """
 
 import re
 import json
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+from .guidance_templates import KONTEXT_EDITING_TYPES
+
+# 导入新增的操作处理器
+try:
+    from .state_transformation_operations import StateTransformationOperations, StateTransformationType
+    from .descriptive_creative_handler import DescriptiveCreativeHandler, CreativeInstructionType
+    from .compound_operations_parser import CompoundOperationsParser, CompoundComplexity
+    from .technical_professional_operations import TechnicalProfessionalOperations, TechnicalOperationType
+    from .new_operation_types_guidance import (
+        STATE_TRANSFORMATION_GUIDANCE,
+        DESCRIPTIVE_CREATIVE_GUIDANCE, 
+        COMPOUND_OPERATIONS_GUIDANCE,
+        TECHNICAL_PROFESSIONAL_GUIDANCE
+    )
+except ImportError as e:
+    print(f"Warning: Some new operation modules not available: {e}")
+    # 提供备用方案
+    STATE_TRANSFORMATION_GUIDANCE = {}
+    DESCRIPTIVE_CREATIVE_GUIDANCE = {}
+    COMPOUND_OPERATIONS_GUIDANCE = {}
+    TECHNICAL_PROFESSIONAL_GUIDANCE = {}
 
 @dataclass
 class OperationContext:
@@ -16,6 +39,8 @@ class OperationContext:
     target_attribute: str  # 目标属性：颜色、形状、材质等
     spatial_info: str    # 空间信息：位置、区域等
     quality_requirements: List[str]  # 质量要求
+    editing_category: str = ""  # Kontext编辑类别
+    cognitive_load: float = 0.0  # 认知负荷
 
 @dataclass
 class SceneConstraints:
@@ -27,31 +52,76 @@ class SceneConstraints:
     environmental_factors: List[str]
 
 class IntelligentPromptAnalyzer:
-    """智能提示分析器"""
+    """智能提示分析器 - Enhanced Version with Complete Operation Coverage"""
     
     def __init__(self):
         self.operation_patterns = self._init_operation_patterns()
         self.intent_constraints = self._init_intent_constraints()
         self.quality_modifiers = self._init_quality_modifiers()
+        
+        # 初始化新增的操作处理器
+        try:
+            self.state_transformer = StateTransformationOperations()
+            self.creative_handler = DescriptiveCreativeHandler()
+            self.compound_parser = CompoundOperationsParser()
+            self.technical_processor = TechnicalProfessionalOperations()
+            self.enhanced_support = True
+        except:
+            self.enhanced_support = False
+            print("Running in basic mode - enhanced operation support not available")
+        
+        # 操作模式映射 
+        self.operation_patterns = self._init_operation_patterns()
+        self.intent_constraints = self._init_intent_constraints()
+        self.quality_modifiers = self._init_quality_modifiers()
     
     def _init_operation_patterns(self) -> Dict[str, List[str]]:
-        """初始化操作模式识别"""
+        """初始化操作模式识别 - 基于Kontext数据集完整分析"""
         return {
-            "add": ["add", "insert", "place", "put", "include", "添加", "放置", "插入"],
-            "remove": ["remove", "delete", "erase", "eliminate", "删除", "移除", "去掉"],
-            "change": ["change", "modify", "alter", "transform", "更改", "修改", "改变"],
-            "adjust": ["adjust", "tune", "enhance", "improve", "调整", "优化", "增强"],
-            "replace": ["replace", "substitute", "swap", "exchange", "替换", "更换"],
-            "color": ["color", "hue", "shade", "tint", "颜色", "色调", "色彩"],
-            "resize": ["resize", "scale", "enlarge", "shrink", "缩放", "放大", "缩小"],
-            "move": ["move", "relocate", "position", "shift", "移动", "重新定位"],
-            # 新增：来自kontext-presets的操作类型
-            "relight": ["relight", "lighting", "illuminate", "light", "重新照明", "照明", "打光"],
-            "zoom": ["zoom", "focus", "close-up", "wide", "缩放", "聚焦", "特写"],
-            "teleport": ["teleport", "relocate", "transport", "context", "场景切换", "重新定位", "传送"],
-            "colorize": ["colorize", "restore", "enhance color", "着色", "上色", "色彩增强"],
-            "stylize": ["stylize", "cartoon", "artistic", "style", "风格化", "卡通化", "艺术化"],
-            "professional": ["professional", "product", "catalog", "commercial", "专业化", "产品", "商业"]
+            # 基础操作类型 (原有)
+            "add": ["add", "insert", "place", "put", "include", "添加", "放置", "插入", "增加"],
+            "remove": ["remove", "delete", "erase", "eliminate", "删除", "移除", "去掉", "清除"],
+            "change": ["change", "modify", "alter", "transform", "更改", "修改", "改变", "转换"],
+            "adjust": ["adjust", "tune", "enhance", "improve", "调整", "优化", "增强", "完善"],
+            "replace": ["replace", "substitute", "swap", "exchange", "替换", "更换", "换成"],
+            
+            # 状态转换操作 (新增 - 基于Kontext发现的遗漏模式)
+            "turn": ["turn", "convert", "make into", "become", "transform into", "转变", "变成"],
+            "wear": ["wear", "put on", "have on", "dressed in", "穿着", "戴着", "佩戴"],
+            "give": ["give", "grant", "provide", "equip with", "赋予", "给予", "配备"],
+            "sit": ["sit", "seat", "position on", "place on", "坐", "坐在", "放置于"],
+            "stand": ["stand", "position", "place upright", "站", "站立", "竖立"],
+            "put": ["put", "place", "set", "position", "放", "置于", "摆放"],
+            
+            # 描述性创意指令 (新增 - 无动词模式)
+            "descriptive": ["this", "image of", "picture of", "scene of", "painting of"],
+            "temporal_style": ["era", "period", "style", "in the style of", "风格", "时代"],
+            
+            # 复合操作连接词 (新增)
+            "compound_connectors": ["and", "then", "also", "additionally", "afterwards", "next"],
+            
+            # 技术专业操作 (新增)
+            "technical": ["depth", "3d", "model", "wireframe", "topology", "pixel art", "neon"],
+            
+            # 来自Kontext高频操作 (基于1026样本分析)
+            "shape_transformation": ["变形", "变成", "转换", "变为", "变化成", "shape", "transform", "morph", "reshape"],
+            "color_modification": ["改色", "变色", "换色", "调色", "着色", "上色", "color", "colorize", "recolor"],
+            "text_operation": ["文字", "文本", "字体", "标题", "修改文字", "text", "font", "typography", "字"],
+            "background_replacement": ["背景", "换背景", "背景替换", "场景", "background", "backdrop", "环境"],
+            "object_removal": ["去除", "移除", "删掉", "擦除", "消除", "hide", "eliminate", "erase"],
+            "style_transfer": ["风格", "艺术化", "风格转换", "画风", "style", "artistic", "stylize"],
+            
+            # 专业场景操作
+            "relight": ["重新照明", "打光", "照明", "光线", "lighting", "illuminate", "relight"],
+            "zoom": ["缩放", "聚焦", "特写", "放大", "缩小", "zoom", "focus", "close-up", "wide"],
+            "teleport": ["场景切换", "传送", "重新定位", "背景切换", "teleport", "context", "relocate"],
+            "professional": ["专业化", "产品", "商业", "目录", "professional", "product", "catalog", "commercial"],
+            
+            # 创意重构操作 (高认知负荷)
+            "scene_building": ["场景构建", "创建场景", "建立环境", "创造世界", "构建", "建造", "创作场景"],
+            "style_creation": ["风格创作", "创造风格", "艺术创作", "独特风格", "新风格", "原创风格"],
+            "conceptual_transformation": ["概念转换", "抽象化", "象征化", "概念艺术", "思想转化", "哲学表达"],
+            "creative_fusion": ["创意融合", "混合创作", "超现实", "梦幻", "想象", "创意", "融合", "幻想"]
         }
     
     def _init_intent_constraints(self) -> Dict[str, Dict]:
@@ -120,7 +190,7 @@ class IntelligentPromptAnalyzer:
         }
     
     def analyze_operation_context(self, edit_description: str, annotation_data: str = "") -> OperationContext:
-        """分析操作上下文"""
+        """分析操作上下文 - 增强版，集成Kontext分析"""
         # 识别操作类型
         operation_type = self._identify_operation_type(edit_description)
         
@@ -136,12 +206,21 @@ class IntelligentPromptAnalyzer:
         # 生成质量要求
         quality_requirements = self._generate_quality_requirements(operation_type, target_object)
         
+        # 新增：Kontext编辑类别识别
+        editing_category = self._identify_kontext_editing_category(operation_type, edit_description)
+        
+        # 新增：计算认知负荷
+        cognitive_load = self._calculate_cognitive_load(operation_type, edit_description, editing_category)
+        
+        
         return OperationContext(
             operation_type=operation_type,
             target_object=target_object,
             target_attribute=target_attribute,
             spatial_info=spatial_info,
-            quality_requirements=quality_requirements
+            quality_requirements=quality_requirements,
+            editing_category=editing_category,
+            cognitive_load=cognitive_load
         )
     
     def _identify_operation_type(self, description: str) -> str:
@@ -463,3 +542,156 @@ class IntelligentPromptAnalyzer:
 请确保指令具有可执行性、专业性和完整性，并遵循专业化指令的要求。"""
         
         return enhanced_prompt
+    
+    # 新增：Kontext集成方法
+    def _identify_kontext_editing_category(self, operation_type: str, description: str) -> str:
+        """识别Kontext编辑类别"""
+        
+        # 创意重构检测 (高认知负荷)
+        creative_indicators = [
+            "创意", "想象", "梦幻", "超现实", "魔法", "变成", "化身", "转化",
+            "创造", "构建场景", "风格创作", "概念", "抽象", "象征", "哲学"
+        ]
+        
+        description_lower = description.lower()
+        creative_score = sum(1 for indicator in creative_indicators if indicator in description)
+        
+        if creative_score >= 2 or operation_type in ["scene_building", "style_creation", "conceptual_transformation", "creative_fusion"]:
+            return "creative_reconstruction"
+        
+        # 局部编辑检测 (最高频使用)
+        local_indicators = [
+            "局部", "部分", "某个", "这里", "那里", "选中", "标记", "区域", "位置"
+        ]
+        local_score = sum(1 for indicator in local_indicators if indicator in description)
+        
+        if local_score > 0 or operation_type in ["shape_transformation", "color_modification", "object_removal"]:
+            return "local_editing"
+        
+        # 全局编辑检测 (全局处理)  
+        global_indicators = [
+            "整体", "全部", "所有", "整个", "全局", "总体", "完全", "全面"
+        ]
+        global_score = sum(1 for indicator in global_indicators if indicator in description)
+        
+        if global_score > 0 or operation_type in ["background_replacement", "style_transfer", "relight"]:
+            return "global_editing"
+        
+        # 文字编辑检测 (文字专用)
+        if operation_type == "text_operation" or any(word in description for word in ["文字", "文本", "字体", "标题"]):
+            return "text_editing"
+        
+        # 专业操作检测
+        if operation_type == "professional":
+            return "professional_operations"
+        
+        # 默认返回局部编辑（最高频）
+        return "local_editing"
+    
+    def _calculate_cognitive_load(self, operation_type: str, description: str, editing_category: str) -> float:
+        """计算认知负荷 - 基于Kontext数据集"""
+        
+        # Kontext数据集中的平均认知负荷
+        category_loads = {
+            "local_editing": 2.695,
+            "global_editing": 3.229, 
+            "creative_reconstruction": 5.794,
+            "text_editing": 3.457,
+            "professional_operations": 3.8
+        }
+        
+        base_load = category_loads.get(editing_category, 3.0)
+        
+        # 基于操作类型的调整因子
+        operation_modifiers = {
+            "scene_building": 1.8,
+            "style_creation": 1.5,
+            "conceptual_transformation": 2.0,
+            "creative_fusion": 1.6,
+            "shape_transformation": 0.8,
+            "color_modification": 0.5,
+            "text_operation": 0.7,
+            "background_replacement": 1.0,
+            "object_removal": 0.6,
+            "style_transfer": 1.2
+        }
+        
+        modifier = operation_modifiers.get(operation_type, 1.0)
+        
+        # 基于描述复杂度的调整
+        complexity_indicators = ["复杂", "详细", "精细", "多层", "深度", "高级", "专业"]
+        complexity_score = sum(1 for indicator in complexity_indicators if indicator in description)
+        complexity_adjustment = complexity_score * 0.3
+        
+        final_load = base_load * modifier + complexity_adjustment
+        return round(min(10.0, final_load), 2)
+    
+    def analyze_with_creative_engine(self, description: str) -> Dict:
+        """结合创意重构引擎进行分析"""
+        
+        # 先进行基础分析
+        context = self.analyze_operation_context(description)
+        
+        # 如果是创意重构类型，使用创意引擎
+        if context.editing_category == "creative_reconstruction":
+            try:
+                creative_engine = get_creative_engine()
+                creative_analysis = creative_engine.analyze_creative_request(description, context.operation_type)
+                
+                return {
+                    "basic_analysis": context,
+                    "creative_analysis": creative_analysis,
+                    "recommendation": "建议使用创意重构引擎进行处理",
+                    "complexity_warning": context.cognitive_load >= 5.0
+                }
+            except Exception as e:
+                print(f"创意引擎分析失败: {e}")
+                return {
+                    "basic_analysis": context,
+                    "creative_analysis": None,
+                    "recommendation": "使用基础分析结果",
+                    "complexity_warning": False
+                }
+        else:
+            return {
+                "basic_analysis": context,
+                "creative_analysis": None,
+                "recommendation": "使用标准编辑流程",
+                "complexity_warning": False
+            }
+    
+    def get_operation_statistics(self, operation_type: str = None, editing_category: str = None) -> Dict:
+        """获取操作统计信息"""
+        
+        stats = {
+            "total_operations": len(self.operation_patterns),
+            "categories": {
+                "local_editing": {"cognitive_load": 2.695},
+                "global_editing": {"cognitive_load": 3.229},
+                "creative_reconstruction": {"cognitive_load": 5.794},
+                "text_editing": {"cognitive_load": 3.457},
+                "professional_operations": {"cognitive_load": 3.8}
+            }
+        }
+        
+        if editing_category and editing_category in stats["categories"]:
+            return {
+                "category": editing_category,
+                "info": stats["categories"][editing_category],
+                "recommended_operations": self._get_recommended_operations(editing_category)
+            }
+        
+        return stats
+    
+    def _get_recommended_operations(self, editing_category: str) -> List[str]:
+        """获取推荐操作"""
+        
+        recommendations = {
+            "local_editing": ["shape_transformation", "color_modification", "object_removal", "text_operation", "attribute_adjustment", "size_scale", "position_movement", "texture_material"],
+            "global_editing": ["state_transformation", "artistic_style"], 
+            "creative_reconstruction": ["scene_building", "style_creation", "character_action"],
+            "text_editing": ["text_operation"],
+            "professional_operations": ["professional"]
+        }
+        
+        return recommendations.get(editing_category, [])

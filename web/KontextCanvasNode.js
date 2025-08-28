@@ -826,9 +826,17 @@ class LRPGCanvas {
      * 设置键盘事件监听器
      */
     setupKeyboardListeners() {
+        // 初始化Shift键状态
+        this.isShiftPressed = false;
+        
         // 存储键盘事件处理器的引用，以便后续清理
         if (!this._keydownHandler) {
             this._keydownHandler = (e) => {
+                // 跟踪Shift键状态
+                if (e.key === 'Shift') {
+                    this.isShiftPressed = true;
+                }
+                
                 // 检查是否在输入框中（避免在输入时删除）
                 const activeElement = document.activeElement;
                 const isInputting = activeElement && (
@@ -900,8 +908,17 @@ class LRPGCanvas {
                 }
             };
             
+            // keyup事件处理器
+            this._keyupHandler = (e) => {
+                // 跟踪Shift键释放
+                if (e.key === 'Shift') {
+                    this.isShiftPressed = false;
+                }
+            };
+            
             // 添加事件监听器
             document.addEventListener('keydown', this._keydownHandler);
+            document.addEventListener('keyup', this._keyupHandler);
         }
     }
     
@@ -1156,8 +1173,8 @@ class LRPGCanvas {
         
         const tools = [
             { id: 'select', icon: '⚡', title: '选择工具' },
-            { id: 'rectangle', icon: '▭', title: '矩形' },
-            { id: 'circle', icon: '○', title: '圆形' },
+            { id: 'rectangle', icon: '▭', title: '矩形 (Shift+矩形=正方形)' },
+            { id: 'circle', icon: '○', title: '圆形/椭圆 (Shift+圆形=正圆)' },
             { id: 'text', icon: 'T', title: '文字' },
             { id: 'freehand', icon: '✎', title: '画笔' },
             { id: 'crop', icon: '✂', title: '裁切' }
@@ -1846,14 +1863,17 @@ class LRPGCanvas {
         
         // 监听对象变化事件，强制清除缓存
         this.canvas.on('object:added', () => {
+            // Debug: 检测到对象添加事件
             this.markCanvasChanged();
         });
         
         this.canvas.on('object:removed', () => {
+            // Debug: 检测到对象移除事件
             this.markCanvasChanged();
         });
         
         this.canvas.on('object:modified', () => {
+            // Debug: 检测到对象修改事件
             this.markCanvasChanged();
         });
     }
@@ -1987,11 +2007,15 @@ class LRPGCanvas {
                 selectable: false  // 绘制时不可选择
             });
         } else if (type === 'circle') {
-            this.drawingObject = new fabric.Circle({
+            // 初始创建为椭圆，根据shift键决定是否为正圆
+            this.drawingObject = new fabric.Ellipse({
                 left: pointer.x,
                 top: pointer.y,
-                radius: 1,
+                rx: 1,
+                ry: 1,
                 ...this.drawingOptions,
+                originX: 'left',
+                originY: 'top',
                 selectable: false  // 绘制时不可选择
             });
         }
@@ -2006,20 +2030,49 @@ class LRPGCanvas {
         const deltaX = pointer.x - this.startPoint.x;
         const deltaY = pointer.y - this.startPoint.y;
         
+        // 检查是否按住了Shift键
+        const shiftPressed = this.isShiftPressed;
+        
         if (this.drawingObject.type === 'rect') {
+            let width = Math.abs(deltaX);
+            let height = Math.abs(deltaY);
+            
+            // 如果按住Shift键，绘制正方形
+            if (shiftPressed) {
+                const size = Math.min(width, height);
+                width = size;
+                height = size;
+            }
+            
             this.drawingObject.set({
-                left: deltaX > 0 ? this.startPoint.x : pointer.x,
-                top: deltaY > 0 ? this.startPoint.y : pointer.y,
-                width: Math.abs(deltaX),
-                height: Math.abs(deltaY)
+                left: deltaX > 0 ? this.startPoint.x : this.startPoint.x - width,
+                top: deltaY > 0 ? this.startPoint.y : this.startPoint.y - height,
+                width: width,
+                height: height
             });
-        } else if (this.drawingObject.type === 'circle') {
-            const radius = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / 2;
-            this.drawingObject.set({
-                left: this.startPoint.x - radius,
-                top: this.startPoint.y - radius,
-                radius: radius
-            });
+        } else if (this.drawingObject.type === 'ellipse') {
+            const radiusX = Math.abs(deltaX) / 2;
+            const radiusY = Math.abs(deltaY) / 2;
+            
+            if (shiftPressed) {
+                // 按住Shift键绘制正圆，使用较短的边作为直径
+                const size = Math.min(Math.abs(deltaX), Math.abs(deltaY));
+                const radius = size / 2;
+                this.drawingObject.set({
+                    left: deltaX > 0 ? this.startPoint.x : this.startPoint.x - size,
+                    top: deltaY > 0 ? this.startPoint.y : this.startPoint.y - size,
+                    rx: radius,
+                    ry: radius
+                });
+            } else {
+                // 默认绘制椭圆
+                this.drawingObject.set({
+                    left: deltaX > 0 ? this.startPoint.x : this.startPoint.x - Math.abs(deltaX),
+                    top: deltaY > 0 ? this.startPoint.y : this.startPoint.y - Math.abs(deltaY),
+                    rx: radiusX,
+                    ry: radiusY
+                });
+            }
         }
         
         this.canvas.renderAll();
@@ -2121,8 +2174,9 @@ class LRPGCanvas {
             });
             const stateHash = this.hashString(stateString);
             
-            // 只发送状态哈希，不发送图像数据
-            await fetch('/lrpg_canvas', {
+            
+            // 发送状态哈希和图层数据给SuperPrompt节点同步
+            const response = await fetch('/lrpg_canvas', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2130,17 +2184,164 @@ class LRPGCanvas {
                 body: JSON.stringify({
                     node_id: this.node.id.toString(),
                     canvas_state: stateHash,
-                    layer_transforms: {},
+                    layer_transforms: layer_transforms, // 发送实际的图层数据
                     main_image: null,
                     main_mask: null
                 })
             });
             
+            // Debug: 状态更新响应
             this.lastCanvasStateHash = stateHash;
+            
+            // 广播图层更新事件到所有连接的Super Prompt节点
+            this.broadcastLayerUpdate(layer_transforms);
+            
         } catch (error) {
             // 静默失败，不影响用户操作
             console.debug('[LRPG Canvas] State update failed:', error);
         }
+    }
+
+    broadcastLayerUpdate(layer_transforms) {
+        // 找到所有连接的Super Prompt节点并通知它们更新
+        if (!this.node || !this.node.graph) {
+            console.warn('[LRPG Canvas] 广播失败: 缺少node或graph');
+            return;
+        }
+        
+        try {
+            const graph = this.node.graph;
+            let foundPromptNodes = 0;
+            let connectedNodes = 0;
+            
+            // 遍历所有节点，找到连接到此Canvas节点的Super Prompt节点
+            for (let nodeId in graph._nodes) {
+                const node = graph._nodes[nodeId];
+                
+                // 检查是否是Super Prompt节点
+                if (node.type === "KontextSuperPrompt") {
+                    foundPromptNodes++;
+                    
+                    // 检查是否连接到此Canvas节点
+                    if (this.isNodeConnectedToCanvas(node)) {
+                        connectedNodes++;
+                        
+                        // 构建图层信息
+                        const layerInfo = this.buildLayerInfoForPromptNode(layer_transforms);
+                        
+                        // 尝试多种方式通知Super Prompt节点
+                        let updateSuccess = false;
+                        
+                        // 方式1: 通过canvasInstance.kontextSuperPrompt
+                        if (node.canvasInstance && node.canvasInstance.kontextSuperPrompt) {
+                            // Debug: 通过canvasInstance更新Super Prompt节点
+                            node.canvasInstance.kontextSuperPrompt.updateLayerInfo(layerInfo);
+                            updateSuccess = true;
+                        }
+                        
+                        // 方式2: 直接调用节点的updateLayerInfo方法
+                        if (!updateSuccess && node.updateLayerInfo) {
+                            node.updateLayerInfo();
+                            updateSuccess = true;
+                        }
+                        
+                        // 方式3: 通过发送事件
+                        if (!updateSuccess) {
+                            // Debug: 通过事件更新Super Prompt节点
+                            // 发送自定义事件，触发Super Prompt节点更新
+                            const event = new CustomEvent('canvas_layer_update', {
+                                detail: { 
+                                    canvasNodeId: this.node.id, 
+                                    layerInfo: layerInfo 
+                                }
+                            });
+                            window.dispatchEvent(event);
+                            updateSuccess = true;
+                        }
+                        
+                        if (!updateSuccess) {
+                            console.warn(`[LRPG Canvas] 无法更新Super Prompt节点: ${node.id}`);
+                        }
+                    } else {
+                        // Debug: Super Prompt节点未连接到此Canvas
+                    }
+                }
+            }
+            
+            
+        } catch (error) {
+            console.warn('[LRPG Canvas] 广播图层更新失败:', error);
+        }
+    }
+
+    isNodeConnectedToCanvas(promptNode) {
+        // 检查Super Prompt节点是否连接到此Canvas节点
+        
+        if (!promptNode.inputs) {
+            // Debug: 连接检查失败: Prompt节点没有inputs
+            return false;
+        }
+        
+        const layerInfoInput = promptNode.inputs.find(input => input.name === 'layer_info');
+        // Debug: layer_info输入
+        
+        if (!layerInfoInput || !layerInfoInput.link) {
+            // Debug: 连接检查失败: 没有layer_info输入或没有链接
+            return false;
+        }
+        
+        const link = promptNode.graph.links[layerInfoInput.link];
+        // Debug: 链接信息
+        
+        if (!link) {
+            // Debug: 连接检查失败: 找不到链接对象
+            return false;
+        }
+        
+        const isConnected = link.origin_id === this.node.id;
+        return isConnected;
+    }
+
+    buildLayerInfoForPromptNode(layer_transforms) {
+        // 构建符合Super Prompt节点期望的图层信息格式
+        const layers = [];
+        
+        // 防护：检查 layer_transforms 是否有效
+        if (!layer_transforms || typeof layer_transforms !== 'object') {
+            console.warn('[LRPG Canvas] layer_transforms 无效，返回空图层信息');
+            return {
+                layers: [],
+                canvas_size: { width: 512, height: 512 },
+                transform_data: { background: { width: 512, height: 512 } }
+            };
+        }
+        
+        // 从变换数据构建图层列表
+        for (const [layerId, transform] of Object.entries(layer_transforms)) {
+            if (layerId !== 'background') {
+                layers.push({
+                    id: layerId,
+                    type: transform.type || 'image',
+                    name: transform.name || `Layer ${layers.length + 1}`,
+                    visible: transform.visible !== false,
+                    selected: transform.selected || false,
+                    transform: transform,
+                    z_index: transform.z_index || 0
+                });
+            }
+        }
+        
+        // 按z_index排序
+        layers.sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
+        
+        return {
+            layers: layers,
+            canvas_size: {
+                width: layer_transforms.background?.width || 512,
+                height: layer_transforms.background?.height || 512
+            },
+            transform_data: layer_transforms
+        };
     }
 
     showError(message) {
@@ -2557,22 +2758,57 @@ class LRPGCanvas {
     }
 
     extractTransformData() {
+        // 防护：检查画布和原始尺寸是否存在
+        if (!this.canvas) {
+            console.warn('[LRPG Canvas] 画布未初始化，返回默认变换数据');
+            return {
+                background: {
+                    width: 512,
+                    height: 512
+                }
+            };
+        }
+        
         const objects = this.canvas.getObjects();
+        const defaultSize = { width: 512, height: 512 };
+        const actualSize = this.originalSize || defaultSize;
+        
         const layer_transforms = {
             background: {
-                width: this.originalSize.width,
-                height: this.originalSize.height
+                width: actualSize.width,
+                height: actualSize.height
             }
         };
 
+        // 获取当前选中的对象
+        const activeObject = this.canvas.getActiveObject();
+        const activeObjects = this.canvas.getActiveObjects ? this.canvas.getActiveObjects() : (activeObject ? [activeObject] : []);
+
         objects.forEach((obj, index) => {
-            const objId = `object_${Date.now()}_${index}`;
+            // 为对象提供稳定的ID，避免每次调用都生成新ID导致界面不断刷新
+            if (!obj.id) {
+                obj.id = `object_${Date.now()}_${index}`;
+            }
+            const objId = obj.id;
             
             // LRPG核心：使用getCenterPoint获取精确坐标
             const centerPoint = obj.getCenterPoint();
             
+            // 获取实际的形状类型
+            let shapeType = 'image';
+            if (obj.type === 'rect') shapeType = 'rect';
+            else if (obj.type === 'circle') shapeType = 'circle';  
+            else if (obj.type === 'ellipse') shapeType = 'ellipse';
+            else if (obj.type === 'polygon') shapeType = 'polygon';
+            else if (obj.type === 'line') shapeType = 'line';
+            else if (obj.type === 'path') shapeType = 'path';
+            else if (obj.type === 'text' || obj.type === 'textbox' || obj.type === 'i-text') shapeType = 'text';
+
+            // 检查选中状态 - 改进的检测逻辑
+            const isSelected = activeObjects.includes(obj) || obj === activeObject;
+
             layer_transforms[objId] = {
-                type: 'image',
+                type: shapeType,
                 centerX: centerPoint.x,
                 centerY: centerPoint.y,
                 scaleX: obj.scaleX || 1,
@@ -2584,8 +2820,13 @@ class LRPGCanvas {
                 flipY: obj.flipY || false,
                 visible: obj.visible !== false, // 默认为true
                 locked: obj.selectable === false, // locked状态通过selectable判断
+                selected: isSelected, // 改进的选中状态检测
                 z_index: index, // 图层层级
                 name: obj.name || `图层 ${index + 1}`, // 图层名称
+                // 添加颜色信息
+                stroke: obj.stroke || null,
+                fill: obj.fill || null,
+                strokeWidth: obj.strokeWidth || null,
                 // 添加缩略图数据用于后续重构
                 thumbnail: this.generateObjectThumbnailData(obj)
             };
@@ -3342,6 +3583,9 @@ class LRPGCanvas {
         }
         if (this._keydownHandler) {
             document.removeEventListener('keydown', this._keydownHandler);
+        }
+        if (this._keyupHandler) {
+            document.removeEventListener('keyup', this._keyupHandler);
         }
     }
 }

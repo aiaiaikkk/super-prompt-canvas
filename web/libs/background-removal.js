@@ -54,7 +54,7 @@ class BackgroundRemovalLibrary {
             // 尝试加载现代WebAssembly背景移除方案
             await this._loadModernWebBgRemoval();
         } catch (error) {
-            console.log('现代Web背景移除加载失败，使用增强传统方案...', error.message);
+            // Debug: 现代Web背景移除加载失败
             await this._loadFallback();
         }
     }
@@ -64,33 +64,33 @@ class BackgroundRemovalLibrary {
      * @private
      */
     async _loadModernWebBgRemoval() {
-        console.log('🔄 正在加载现代Web背景移除方案...');
+        // Debug: 正在加载现代Web背景移除方案
         
         // 方案1：尝试加载MediaPipe Selfie Segmentation
         try {
             await this._loadMediaPipeSegmentation();
-            console.log('✅ MediaPipe背景分割加载成功');
+            // Debug: MediaPipe背景分割加载成功
             return;
         } catch (error) {
-            console.log('MediaPipe不可用:', error.message);
+            // Debug: MediaPipe不可用
         }
         
         // 方案2：尝试加载TensorFlow.js BodyPix模型
         try {
             await this._loadTensorFlowBodyPix();
-            console.log('✅ TensorFlow.js BodyPix加载成功');
+            // Debug: TensorFlow.js BodyPix加载成功
             return;
         } catch (error) {
-            console.log('TensorFlow.js BodyPix不可用:', error.message);
+            // Debug: TensorFlow.js BodyPix不可用
         }
         
         // 方案3：尝试加载@imgly/background-removal
         try {
             await this._loadImglyBackgroundRemoval();
-            console.log('✅ @imgly/background-removal加载成功');
+            // Debug: @imgly/background-removal加载成功
             return;
         } catch (error) {
-            console.log('@imgly/background-removal不可用:', error.message);
+            // Debug: @imgly/background-removal不可用
         }
         
         throw new Error('所有现代Web背景移除方案都不可用');
@@ -356,7 +356,7 @@ class BackgroundRemovalLibrary {
                     return result;
                 }
             } catch (error) {
-                console.log('服务端背景移除不可用，使用客户端算法...', error.message);
+                // Debug: 服务端背景移除不可用
             }
             
             // 回退到客户端算法
@@ -430,7 +430,7 @@ class BackgroundRemovalLibrary {
                 
                 if (response.ok) {
                     const resultBlob = await response.blob();
-                    console.log('✅ 使用服务端rembg成功移除背景');
+                    // Debug: 使用服务端rembg成功移除背景
                     return resultBlob;
                 }
             } catch (error) {
@@ -509,7 +509,7 @@ class BackgroundRemovalLibrary {
      * @private
      */
     _applyAdvancedBackgroundRemoval(canvas, ctx) {
-        console.log('🔄 使用增强客户端背景移除算法...');
+        // Debug: 使用增强客户端背景移除算法
         
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
@@ -563,7 +563,7 @@ class BackgroundRemovalLibrary {
         this._advancedPostProcessing(data, width, height, finalMask);
         
         ctx.putImageData(imageData, 0, 0);
-        console.log('✅ 增强客户端背景移除完成');
+        // Debug: 增强客户端背景移除完成
     }
     
     /**
@@ -571,7 +571,7 @@ class BackgroundRemovalLibrary {
      * @private
      */
     _intelligentBackgroundAnalysis(data, width, height) {
-        console.log('🔍 执行超级智能背景分析...');
+        // Debug: 执行超级智能背景分析
         
         // 1. 多层次区域采样
         const backgroundAnalysis = this._multiTierBackgroundSampling(data, width, height);
@@ -587,7 +587,7 @@ class BackgroundRemovalLibrary {
             backgroundAnalysis, textureAnalysis, continuityAnalysis
         );
         
-        console.log('✅ 检测到背景色:', finalBackgroundColors.length, '组');
+        // Debug: 检测到背景色
         
         return {
             colors: finalBackgroundColors,
@@ -1308,7 +1308,7 @@ class BackgroundRemovalLibrary {
      * @private
      */
     _advancedPostProcessing(data, width, height, mask) {
-        console.log('🔄 开始超级后处理优化...');
+        // Debug: 开始超级后处理优化
         
         // 1. 多级抗锯齿处理
         this._multiLevelAntiAliasing(data, width, height, mask);
@@ -1325,7 +1325,7 @@ class BackgroundRemovalLibrary {
         // 5. 最终优化
         this._finalOptimization(data, width, height);
         
-        console.log('✅ 超级后处理完成');
+        // Debug: 超级后处理完成
     }
     
     /**

@@ -110,12 +110,37 @@ async def handle_canvas_data(request):
         
         # 存储画布状态用于变化检测
         canvas_state = data.get('canvas_state', None)
+        transform_data = data.get('layer_transforms', {})
+        
         if canvas_state and node_id:
             state_cache = get_canvas_state_cache()
             state_cache[node_id] = canvas_state
             
-            # 如果只是状态更新（没有图像数据），直接返回
+            # 同时存储图层变换数据，即使没有图像数据也要处理
+            canvas_cache = get_canvas_cache()
+            if transform_data:
+                canvas_cache[f"{node_id}_transform_data"] = transform_data
+            
+            # 如果只是状态更新（没有图像数据），也要处理可能的等待节点
             if data.get('main_image') is None:
+                # 检查是否有等待的节点，如果有则处理图层数据
+                waiting_node = None
+                for node in LRPGCanvas.active_nodes:
+                    if node.waiting_for_response and node.node_id == node_id:
+                        waiting_node = node
+                        break
+                
+                if waiting_node and transform_data:
+                    # 处理图层数据但不处理图像
+                    waiting_node.transform_data = transform_data
+                    processed_data = {
+                        'image': None,
+                        'mask': None,
+                        'transform_data': transform_data
+                    }
+                    waiting_node.processed_data = processed_data
+                    waiting_node.response_event.set()
+                
                 return web.json_response({"status": "success", "message": "State updated"})
         
         if not node_id:
@@ -136,7 +161,7 @@ async def handle_canvas_data(request):
             # 没有等待的节点，直接返回成功
             return web.Response(status=200)
             
-        transform_data = data.get('layer_transforms', {})
+        # transform_data 已在上面处理
         main_image = array_to_tensor(data.get('main_image'), "image")
         main_mask = array_to_tensor(data.get('main_mask'), "mask")
         
@@ -163,6 +188,27 @@ async def handle_canvas_data(request):
         import traceback
         traceback.print_exc()
         return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+# 新增 API 端点用于获取缓存的图层数据
+@routes.post("/get_canvas_transform_data")
+async def get_canvas_transform_data(request):
+    try:
+        data = await request.json()
+        node_id = data.get('node_id')
+        
+        if not node_id:
+            return web.json_response({"error": "Missing node_id"}, status=400)
+        
+        canvas_cache = get_canvas_cache()
+        transform_data = canvas_cache.get(f"{node_id}_transform_data", {})
+        
+        return web.json_response({
+            "status": "success",
+            "transform_data": transform_data
+        })
+        
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
 
 # 删除冗余的API端点，前端已有localStorage持久化
 
@@ -314,6 +360,12 @@ class LRPGCanvas:
                     if layer_id != 'background':
                         layer_info['layers'].append({
                             'id': layer_id,
+                            'type': layer_data.get('type', 'image'),
+                            'selected': layer_data.get('selected', False),
+                            'stroke': layer_data.get('stroke'),
+                            'fill': layer_data.get('fill'),
+                            'strokeWidth': layer_data.get('strokeWidth'),
+                            'name': layer_data.get('name', f'Layer {len(layer_info["layers"]) + 1}'),
                             'transform': layer_data,
                             'visible': layer_data.get('visible', True),
                             'locked': layer_data.get('locked', False),
