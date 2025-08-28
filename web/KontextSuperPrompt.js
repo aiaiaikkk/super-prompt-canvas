@@ -5388,7 +5388,9 @@ class KontextSuperPrompt {
             '背景': 'background',
             '前景': 'foreground',
             '边框': 'border',
-            '填充': 'fill'
+            '填充': 'fill',
+            '图片': 'image',
+            '图像': 'image'
         };
         
         let translatedName = chineseName;
