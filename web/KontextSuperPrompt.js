@@ -5129,31 +5129,59 @@ class KontextSuperPrompt {
                 console.log('[Layer Context] Layer type:', layer.type, 'fill:', layer.fill, 'stroke:', layer.stroke);
                 
                 const shape = this.getShapeDescription(layer);
+                console.log('[Layer Context] Shape description:', shape, '(from type:', layer.type, ')');
                 
                 // 优化颜色检测：优先检查 stroke 属性（边框色）- 对于空心形状
                 let colorValue = null;
                 
+                // 添加更多调试信息
+                console.log('[Layer Context] Full layer object for color detection:', JSON.stringify(layer, null, 2));
+                
                 // 1. 优先检查 stroke 属性（边框色）- 对于空心形状
                 if (layer.stroke && layer.stroke !== 'transparent' && layer.stroke !== '' && layer.stroke !== null) {
                     colorValue = layer.stroke;
+                    console.log('[Layer Context] Color from stroke:', colorValue);
                 }
                 // 2. 检查 fill 属性（填充色）
                 else if (layer.fill && layer.fill !== 'transparent' && layer.fill !== '' && layer.fill !== null) {
                     colorValue = layer.fill;
+                    console.log('[Layer Context] Color from fill:', colorValue);
                 }
                 // 3. 检查 backgroundColor 属性（某些情况下）
                 else if (layer.backgroundColor && layer.backgroundColor !== 'transparent') {
                     colorValue = layer.backgroundColor;
+                    console.log('[Layer Context] Color from backgroundColor:', colorValue);
                 }
                 // 4. 检查 transform 中的颜色（对于某些特殊形状）
                 else if (layer.transform && layer.transform.stroke) {
                     colorValue = layer.transform.stroke;
+                    console.log('[Layer Context] Color from transform.stroke:', colorValue);
                 }
                 else if (layer.transform && layer.transform.fill) {
                     colorValue = layer.transform.fill;
+                    console.log('[Layer Context] Color from transform.fill:', colorValue);
+                }
+                
+                // 5. 如果还是找不到颜色，检查其他可能的属性
+                if (!colorValue) {
+                    // 检查是否有其他颜色相关的属性
+                    if (layer.color) {
+                        colorValue = layer.color;
+                        console.log('[Layer Context] Color from color property:', colorValue);
+                    }
+                    // 检查 Fabric.js 特定的属性
+                    if (layer._stroke && layer._stroke !== 'transparent') {
+                        colorValue = layer._stroke;
+                        console.log('[Layer Context] Color from _stroke:', colorValue);
+                    }
+                    if (layer._fill && layer._fill !== 'transparent') {
+                        colorValue = layer._fill;
+                        console.log('[Layer Context] Color from _fill:', colorValue);
+                    }
                 }
                 
                 const color = this.getColorDescription(colorValue);
+                console.log('[Layer Context] Final color description:', color, '(from value:', colorValue, ')');
                 
                 // 图层名称处理：转换为英文，去除编号
                 let name = '';
@@ -5288,7 +5316,20 @@ class KontextSuperPrompt {
                 }
             } else if (operationType === 'object_replacement' || lowerPrompt.includes('replace')) {
                 // 替换操作：将...替换为...
-                contextualPrompt = `replace the ${layerDescription} with ${originalPrompt}`;
+                // 检查originalPrompt是否已经包含replace指令
+                if (lowerPrompt.startsWith('replace ')) {
+                    // 如果已经包含replace，检查是否包含"selected object"
+                    if (lowerPrompt.includes('selected object')) {
+                        // 将"selected object"替换为实际的图层描述
+                        contextualPrompt = originalPrompt.replace(/selected object/g, layerDescription);
+                    } else {
+                        // 如果不包含"selected object"，直接使用
+                        contextualPrompt = originalPrompt;
+                    }
+                } else {
+                    // 如果不包含replace，添加完整的替换指令
+                    contextualPrompt = `replace the ${layerDescription} with ${originalPrompt}`;
+                }
             } else if (operationType === 'color_modification' || lowerPrompt.includes('change') || lowerPrompt.includes('color')) {
                 // 颜色修改：将...改为...
                 contextualPrompt = `change the ${layerDescription} to ${originalPrompt}`;
@@ -5784,7 +5825,28 @@ class KontextSuperPrompt {
                         simplePrompt = `remove ${description.trim()}`;
                     } else if (operationType === 'object_replacement') {
                         // 简化替换对象的提示词
-                        simplePrompt = `replace with ${description.trim()}`;
+                        // 检查是否是 "A to B" 或 "A-B" 格式
+                        let sourceObj, targetObj;
+                        
+                        if (description.includes(' to ')) {
+                            const parts = description.split(' to ');
+                            if (parts.length === 2) {
+                                sourceObj = parts[0].trim();
+                                targetObj = parts[1].trim();
+                            }
+                        } else if (description.includes('-')) {
+                            const parts = description.split('-');
+                            if (parts.length === 2) {
+                                sourceObj = parts[0].trim();
+                                targetObj = parts[1].trim();
+                            }
+                        }
+                        
+                        if (sourceObj && targetObj) {
+                            simplePrompt = `replace ${sourceObj} with ${targetObj}`;
+                        } else {
+                            simplePrompt = `replace with ${description.trim()}`;
+                        }
                     } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
                         // 简化文字操作的提示词 - 直接使用转换后的提示词
                         simplePrompt = convertedPrompt;
@@ -5830,7 +5892,29 @@ class KontextSuperPrompt {
                 } else if (operationType === 'object_removal') {
                     simplePrompt = `remove ${description.trim()}`;
                 } else if (operationType === 'object_replacement') {
-                    simplePrompt = `replace with ${description.trim()}`;
+                    // 简化替换对象的提示词
+                    // 检查是否是 "A to B" 或 "A-B" 格式
+                    let sourceObj, targetObj;
+                    
+                    if (description.includes(' to ')) {
+                        const parts = description.split(' to ');
+                        if (parts.length === 2) {
+                            sourceObj = parts[0].trim();
+                            targetObj = parts[1].trim();
+                        }
+                    } else if (description.includes('-')) {
+                        const parts = description.split('-');
+                        if (parts.length === 2) {
+                            sourceObj = parts[0].trim();
+                            targetObj = parts[1].trim();
+                        }
+                    }
+                    
+                    if (sourceObj && targetObj) {
+                        simplePrompt = `replace ${sourceObj} with ${targetObj}`;
+                    } else {
+                        simplePrompt = `replace with ${description.trim()}`;
+                    }
                 } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
                     simplePrompt = englishDescription;
                 } else if (operationType === 'scene_building' || operationType === 'style_creation' || operationType === 'character_action' || operationType === 'media_transformation') {
