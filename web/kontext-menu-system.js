@@ -466,9 +466,45 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                     priority: 1,
                     badge: '⭐',
                     specifics: [
-                        { id: 'body_posture', name: '身体姿态调整', example: 'make her dance' },
-                        { id: 'hand_gesture', name: '手势动作修改', example: 'do heart hands' },
-                        { id: 'facial_expression', name: '表情状态变化', example: 'change expression' },
+                        { 
+                            id: 'body_posture', 
+                            name: '身体姿态调整', 
+                            example: 'make her dance',
+                            presets: [
+                                { id: 'dancing', name: '跳舞动作', prompt: 'make character dance', description: '让角色开始跳舞' },
+                                { id: 'sitting', name: '坐下姿势', prompt: 'make character sit down', description: '让角色坐下' },
+                                { id: 'standing', name: '站立姿势', prompt: 'make character stand up', description: '让角色站起来' },
+                                { id: 'jumping', name: '跳跃动作', prompt: 'make character jump', description: '让角色跳跃' },
+                                { id: 'running', name: '跑步动作', prompt: 'make character run', description: '让角色跑步' },
+                                { id: 'lying_down', name: '躺下姿势', prompt: 'make character lie down', description: '让角色躺下' }
+                            ]
+                        },
+                        { 
+                            id: 'hand_gesture', 
+                            name: '手势动作修改', 
+                            example: 'do heart hands',
+                            presets: [
+                                { id: 'heart_hands', name: '比心手势', prompt: 'do heart hands', description: '双手组成心形手势' },
+                                { id: 'thumbs_up', name: '竖大拇指', prompt: 'give thumbs up', description: '向上竖起大拇指' },
+                                { id: 'peace_sign', name: '比耶手势', prompt: 'do peace sign', description: '伸出食指和中指做V字手势' },
+                                { id: 'pointing', name: '指向手势', prompt: 'pointing at camera', description: '手指指向镜头或特定方向' },
+                                { id: 'waving', name: '挥手手势', prompt: 'waving at camera', description: '向镜头挥手打招呼' },
+                                { id: 'ok_sign', name: 'OK手势', prompt: 'make OK sign', description: '拇指和食指组成圆形OK手势' }
+                            ]
+                        },
+                        { 
+                            id: 'facial_expression', 
+                            name: '表情状态变化', 
+                            example: 'change expression',
+                            presets: [
+                                { id: 'smiling', name: '微笑表情', prompt: 'make character smile', description: '让角色微笑' },
+                                { id: 'laughing', name: '大笑表情', prompt: 'make character laugh', description: '让角色大笑' },
+                                { id: 'surprised', name: '惊讶表情', prompt: 'make character look surprised', description: '让角色显得惊讶' },
+                                { id: 'angry', name: '生气表情', prompt: 'make character look angry', description: '让角色显得生气' },
+                                { id: 'sad', name: '悲伤表情', prompt: 'make character look sad', description: '让角色显得悲伤' },
+                                { id: 'serious', name: '严肃表情', prompt: 'make character look serious', description: '让角色显得严肃' }
+                            ]
+                        },
                         { id: 'body_feature', name: '身体特征调整', example: 'make head gigantic' }
                     ]
                 },
@@ -477,7 +513,22 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                     name: '颜色修改',
                     priority: 2,
                     specifics: [
-                        { id: 'single_color', name: '单一颜色变换', example: 'make cat orange' },
+                        { 
+                            id: 'single_color', 
+                            name: '单一颜色变换', 
+                            example: 'make cat orange',
+                            presets: [
+                                { id: 'red', name: '红色', prompt: 'change to bright red', description: '改为明亮的红色' },
+                                { id: 'blue', name: '蓝色', prompt: 'change to deep blue', description: '改为深蓝色' },
+                                { id: 'green', name: '绿色', prompt: 'change to forest green', description: '改为森林绿色' },
+                                { id: 'orange', name: '橙色', prompt: 'change to bright orange', description: '改为明亮的橙色' },
+                                { id: 'purple', name: '紫色', prompt: 'change to royal purple', description: '改为皇家紫色' },
+                                { id: 'yellow', name: '黄色', prompt: 'change to golden yellow', description: '改为金黄色' },
+                                { id: 'black', name: '黑色', prompt: 'change to jet black', description: '改为纯黑色' },
+                                { id: 'white', name: '白色', prompt: 'change to pure white', description: '改为纯白色' },
+                                { id: 'rainbow', name: '彩虹色', prompt: 'rainbow colored', description: '改为彩虹色' }
+                            ]
+                        },
                         { id: 'multi_object', name: '多对象统一颜色', example: 'make all signs green' },
                         { id: 'gradient_color', name: '渐变色彩应用', example: 'rainbow color' },
                         { id: 'texture_preserve', name: '材质颜色保持', example: 'keep texture' }
@@ -590,7 +641,22 @@ window.KontextMenuSystem = window.KontextMenuSystem || {
                     priority: 2,
                     complexity: '高',
                     specifics: [
-                        { id: 'style_transfer', name: '艺术风格迁移', example: 'art in this style of rusted car', complexity: '高' },
+                        { 
+                            id: 'style_transfer', 
+                            name: '艺术风格迁移', 
+                            example: 'art in this style of rusted car', 
+                            complexity: '高',
+                            presets: [
+                                { id: 'anime_style', name: '动漫风格', prompt: 'in the style of anime artwork', description: '转换为日本动漫风格' },
+                                { id: 'realistic_photo', name: '写实照片', prompt: 'make this a real photo', description: '转换为真实照片风格' },
+                                { id: 'charcoal_sketch', name: '炭笔素描', prompt: 'make this into a charcoal sketch', description: '转换为炭笔素描风格' },
+                                { id: 'oil_painting', name: '油画风格', prompt: 'make this into an oil painting', description: '转换为经典油画风格' },
+                                { id: 'watercolor', name: '水彩画', prompt: 'make this into a watercolor painting', description: '转换为水彩画风格' },
+                                { id: 'cinematic', name: '电影风格', prompt: 'make this cinematic', description: '转换为电影风格' },
+                                { id: 'cartoon', name: '卡通风格', prompt: 'make this into a cartoon', description: '转换为卡通风格' },
+                                { id: 'pixel_art', name: '像素艺术', prompt: 'make this into pixel art', description: '转换为像素艺术风格' }
+                            ]
+                        },
                         { id: 'reference_application', name: '参考风格应用', example: 'apply reference style', complexity: '中' },
                         { id: 'style_fusion', name: '主题风格融合', example: 'blend style with theme', complexity: '高' },
                         { id: 'brand_adaptation', name: '品牌风格适配', example: 'brand style adaptation', complexity: '中' }

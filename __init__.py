@@ -1,7 +1,7 @@
 """
 super-prompt-canvas - ComfyUI Custom Nodes
 
-Version: 1.5.0
+Version: 1.5.1
 Author: aiaiaikkk
 Repository: https://github.com/aiaiaikkk/super-prompt-canvas
 License: MIT
@@ -20,7 +20,7 @@ except ImportError as e:
     print("[Kontext-Super-Prompt] 💡 请通过ComfyUI Manager重新安装")
 
 # Version information
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 __author__ = "aiaiaikkk"
 __description__ = "ComfyUI Custom Nodes for Image Editing Prompt Generation"
 

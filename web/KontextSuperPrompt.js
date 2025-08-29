@@ -10,7 +10,7 @@ window.KontextSuperPromptNS = window.KontextSuperPromptNS || {
     instances: new Map(), // 存储所有实例
     constants: {},        // 存储常量
     utils: {},           // 存储工具函数
-    version: '1.3.4',    // 版本信息
+    version: '1.5.1',    // 版本信息
     
     // 注册实例
     registerInstance(nodeId, instance) {
@@ -160,12 +160,13 @@ KSP_NS.constants.SCENE_PROMPTS = {
 KSP_NS.constants.OPERATION_CATEGORIES = {
     local: {
         name: '🎯 局部编辑',
-        description: 'Local object-specific editing operations',
+        description: 'Object-focused editing operations',
         templates: [
-            'add_object', 'change_color', 'change_style', 'replace_object', 'remove_object', 'face_swap',
-            'change_texture', 'change_pose', 'change_expression', 'change_clothing', 'change_background',
-            'enhance_quality', 'blur_background', 'adjust_lighting', 'resize_object', 'enhance_skin_texture',
-            'character_expression', 'character_hair', 'character_accessories'
+            'object_operations',     // 对象操作：添加/移除/替换
+            'character_edit',        // 人物编辑：姿态/表情/服装/发型/lora 换脸
+            'appearance_edit',       // 外观修改：颜色/风格/纹理
+            'background_operations', // 背景处理：更换/虚化
+            'quality_operations'     // 质量优化：提升/光照/尺寸
         ]
     },
     global: {
@@ -206,25 +207,37 @@ KSP_NS.constants.OPERATION_CATEGORIES = {
 };
 
 KSP_NS.constants.OPERATION_TEMPLATES = {
-    'change_color': { template: 'make {object} {target} color', label: '颜色变换', category: 'local' },
-    'change_style': { template: 'make {object} {target} style', label: '风格重构', category: 'local' },
-    'replace_object': { template: 'replace {object} with {target}', label: '替换物体', category: 'local' },
-    'add_object': { template: 'add {target} to {object}', label: '添加物体', category: 'local' },
-    'remove_object': { template: 'remove {object}', label: '无缝移除', category: 'local' },
-    'face_swap': { template: 'place {object} face on {target}, make it natural', label: '换脸', category: 'local' },
-    'change_texture': { template: 'make {object} {target} texture', label: '纹理增强', category: 'local' },
-    'change_pose': { template: 'make {object} {target} pose', label: '姿态调整', category: 'local' },
-    'change_expression': { template: 'make {object} {target} expression', label: '表情增强', category: 'local' },
-    'change_clothing': { template: 'make {object} wear {target}', label: '服装造型', category: 'local' },
-    'change_background': { template: 'make the background {target}', label: '背景更改', category: 'local' },
-    'enhance_quality': { template: 'make {object} better quality', label: '质量增强', category: 'local' },
-    'blur_background': { template: 'make the background blurred behind {object}', label: '背景虚化', category: 'local' },
-    'adjust_lighting': { template: 'make lighting {target} on {object}', label: '光照调整', category: 'local' },
-    'resize_object': { template: 'make {object} {target} size', label: '大小调整', category: 'local' },
-    'enhance_skin_texture': { template: 'make skin texture {target}', label: '皮肤纹理增强', category: 'local' },
-    'character_expression': { template: 'make character expression {target}', label: '角色表情', category: 'local' },
-    'character_hair': { template: 'make character hair {target}', label: '角色发型', category: 'local' },
-    'character_accessories': { template: 'add {target} accessories to character', label: '角色配饰', category: 'local' },
+    // 新的对象导向局部编辑操作类型 (5个)
+    'object_operations': { 
+        template: '{action} {object}', 
+        label: '对象操作 (Object Operations)', 
+        category: 'local',
+        description: '添加、移除、替换对象'
+    },
+    'character_edit': { 
+        template: 'edit {character} {aspect}', 
+        label: '人物编辑 (Character Edit)', 
+        category: 'local',
+        description: '人物姿态、表情、服装、发型、lora 换脸'
+    },
+    'appearance_edit': { 
+        template: 'modify {object} {appearance}', 
+        label: '外观修改 (Appearance Edit)', 
+        category: 'local',
+        description: '颜色、风格、纹理修改'
+    },
+    'background_operations': { 
+        template: '{action} background', 
+        label: '背景处理 (Background Operations)', 
+        category: 'local',
+        description: '背景更换、虚化处理'
+    },
+    'quality_operations': { 
+        template: '{action} {object} {quality_aspect}', 
+        label: '质量优化 (Quality Operations)', 
+        category: 'local',
+        description: '质量、光照、尺寸优化'
+    },
     
     'global_color_grade': { template: 'apply {target} color grading to entire image', label: '色彩分级', category: 'global' },
     'global_style_transfer': { template: 'turn entire image into {target} style', label: '风格转换', category: 'global' },
@@ -376,7 +389,7 @@ class KontextSuperPrompt {
                 generatedPrompt: ''
             },
             global: {
-                operationType: '',
+                operationType: 'global_color_grade',
                 description: '',
                 selectedConstraints: [],
                 selectedDecoratives: [],
@@ -958,28 +971,13 @@ class KontextSuperPrompt {
             overflow-y: auto;
         `;
 
-        // Kontext双下拉框系统
-        if (window.KontextMenuSystem) {
-            const dropdownContainer = document.createElement('div');
-            this.localDropdownUI = window.KontextMenuSystem.createDropdownUI(dropdownContainer, {
-                onOperationChange: (editingType, operationType) => {
-                    this.handleOperationChange('local_editing', operationType);
-                },
-                onSpecificChange: (editingType, operationType, specificOperation) => {
-                    this.handleSpecificOperationChange('local_editing', operationType, specificOperation);
-                }
-            });
-            this.localDropdownUI.setEditingType('local_editing');
-            panel.appendChild(dropdownContainer);
-        } else {
-            // 操作类型选择 - 兼容模式
-            const operationSection = this.createOperationTypeSection('local');
-            panel.appendChild(operationSection);
-        }
+        // 操作类型选择 - 保留操作类型，移除具体操作
+        const operationSection = this.createOperationTypeSection('local');
+        panel.appendChild(operationSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('local');
-        panel.appendChild(descriptionSection);
+        // 填空题模板区域
+        const templateSection = this.createFillInBlankSection('local');
+        panel.appendChild(templateSection);
 
         const constraintSection = this.createConstraintPromptsSection();
         panel.appendChild(constraintSection);
@@ -1020,28 +1018,13 @@ class KontextSuperPrompt {
         notice.textContent = 'ℹ️ 全局编辑将应用于整个图像，无需选择图层';
         panel.appendChild(notice);
 
-        // Kontext双下拉框系统
-        if (window.KontextMenuSystem) {
-            const dropdownContainer = document.createElement('div');
-            this.globalDropdownUI = window.KontextMenuSystem.createDropdownUI(dropdownContainer, {
-                onOperationChange: (editingType, operationType) => {
-                    this.handleOperationChange('global_editing', operationType);
-                },
-                onSpecificChange: (editingType, operationType, specificOperation) => {
-                    this.handleSpecificOperationChange('global_editing', operationType, specificOperation);
-                }
-            });
-            this.globalDropdownUI.setEditingType('global_editing');
-            panel.appendChild(dropdownContainer);
-        } else {
-            // 操作类型选择 - 兼容模式
-            const operationSection = this.createOperationTypeSection('global');
-            panel.appendChild(operationSection);
-        }
+        // 操作类型选择 - 保留操作类型，移除具体操作
+        const operationSection = this.createOperationTypeSection('global');
+        panel.appendChild(operationSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('global');
-        panel.appendChild(descriptionSection);
+        // 填空题模板区域
+        const templateSection = this.createFillInBlankSection('global');
+        panel.appendChild(templateSection);
 
         const constraintSection = this.createConstraintPromptsSection();
         panel.appendChild(constraintSection);
@@ -1081,30 +1064,9 @@ class KontextSuperPrompt {
         notice.innerHTML = `🎨 创意重构：将图像元素进行艺术性改造和风格转换`;
         panel.appendChild(notice);
 
-        // Kontext双下拉框系统 - 创意重构专用
-        if (window.KontextMenuSystem) {
-            const dropdownContainer = document.createElement('div');
-            this.creativeDropdownUI = window.KontextMenuSystem.createDropdownUI(dropdownContainer, {
-                onOperationChange: (editingType, operationType) => {
-                    this.handleOperationChange('creative_reconstruction', operationType);
-                },
-                onSpecificChange: (editingType, operationType, specificOperation) => {
-                    this.handleSpecificOperationChange('creative_reconstruction', operationType, specificOperation);
-                }
-            });
-            panel.appendChild(dropdownContainer);
-        }
-
-        // 描述输入 - 创意重构
-        const descriptionSection = this.createDescriptionSection('creative', {
-            placeholder: '输入创意描述...\n例如: "oil painting style" 或 "metallic texture"',
-            minHeight: '80px'
-        });
-        panel.appendChild(descriptionSection);
-
-        // 创意提示词库
-        const creativePromptsSection = this.createCreativePromptsSection();
-        panel.appendChild(creativePromptsSection);
+        // 直接的创意操作选择器 - 无需复杂的操作类型和语法模板
+        const creativeOperationSection = this.createDirectCreativeOperationSection();
+        panel.appendChild(creativeOperationSection);
 
         // 生成按钮
         const generateSection = this.createGenerateSection('creative');
@@ -1138,28 +1100,13 @@ class KontextSuperPrompt {
         notice.textContent = '⚠️ 文字编辑需要选择包含文字的图层';
         panel.appendChild(notice);
 
-        // Kontext双下拉框系统
-        if (window.KontextMenuSystem) {
-            const dropdownContainer = document.createElement('div');
-            this.textDropdownUI = window.KontextMenuSystem.createDropdownUI(dropdownContainer, {
-                onOperationChange: (editingType, operationType) => {
-                    this.handleOperationChange('text_editing', operationType);
-                },
-                onSpecificChange: (editingType, operationType, specificOperation) => {
-                    this.handleSpecificOperationChange('text_editing', operationType, specificOperation);
-                }
-            });
-            this.textDropdownUI.setEditingType('text_editing');
-            panel.appendChild(dropdownContainer);
-        } else {
-            // 操作类型选择 - 兼容模式
-            const operationSection = this.createOperationTypeSection('text');
-            panel.appendChild(operationSection);
-        }
+        // 操作类型选择 - 保留操作类型，移除具体操作
+        const operationSection = this.createOperationTypeSection('text');
+        panel.appendChild(operationSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('text');
-        panel.appendChild(descriptionSection);
+        // 填空题模板区域
+        const templateSection = this.createFillInBlankSection('text');
+        panel.appendChild(templateSection);
 
         const constraintSection = this.createConstraintPromptsSection();
         panel.appendChild(constraintSection);
@@ -1200,28 +1147,13 @@ class KontextSuperPrompt {
         notice.textContent = '🔧 专业操作支持全局和局部编辑，可选择性使用图层';
         panel.appendChild(notice);
 
-        // Kontext双下拉框系统
-        if (window.KontextMenuSystem) {
-            const dropdownContainer = document.createElement('div');
-            this.professionalDropdownUI = window.KontextMenuSystem.createDropdownUI(dropdownContainer, {
-                onOperationChange: (editingType, operationType) => {
-                    this.handleOperationChange('professional_operations', operationType);
-                },
-                onSpecificChange: (editingType, operationType, specificOperation) => {
-                    this.handleSpecificOperationChange('professional_operations', operationType, specificOperation);
-                }
-            });
-            this.professionalDropdownUI.setEditingType('professional_operations');
-            panel.appendChild(dropdownContainer);
-        } else {
-            // 操作类型选择 - 兼容模式
-            const operationSection = this.createOperationTypeSection('professional');
-            panel.appendChild(operationSection);
-        }
+        // 操作类型选择 - 保留操作类型，移除具体操作
+        const operationSection = this.createOperationTypeSection('professional');
+        panel.appendChild(operationSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('professional');
-        panel.appendChild(descriptionSection);
+        // 填空题模板区域
+        const templateSection = this.createFillInBlankSection('professional');
+        panel.appendChild(templateSection);
 
         const constraintSection = this.createConstraintPromptsSection();
         panel.appendChild(constraintSection);
@@ -1266,8 +1198,8 @@ class KontextSuperPrompt {
         const apiConfigSection = this.createAPIConfigSection();
         panel.appendChild(apiConfigSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('api');
+        // 简单描述输入 (API模式保持传统文本框)
+        const descriptionSection = this.createSimpleDescriptionSection('api');
         panel.appendChild(descriptionSection);
 
         // 生成按钮
@@ -1314,8 +1246,8 @@ class KontextSuperPrompt {
         const ollamaConfigSection = this.createOllamaConfigSection();
         panel.appendChild(ollamaConfigSection);
 
-        // 描述输入
-        const descriptionSection = this.createDescriptionSection('ollama');
+        // 简单描述输入 (Ollama模式保持传统文本框)
+        const descriptionSection = this.createSimpleDescriptionSection('ollama');
         panel.appendChild(descriptionSection);
 
         // 生成按钮
@@ -1362,7 +1294,6 @@ class KontextSuperPrompt {
         defaultOption.value = '';
         defaultOption.textContent = '请选择操作类型...';
         defaultOption.disabled = true;
-        // 不设置 selected = true，让初始化代码来设置正确的选项
         operationSelect.appendChild(defaultOption);
 
         // 添加操作选项
@@ -1390,134 +1321,1676 @@ class KontextSuperPrompt {
         return section;
     }
 
-    createDescriptionSection(tabId) {
+    createFillInBlankSection(tabId) {
+        return this.createGrammarTemplateSelector(tabId);
+    }
+    
+    createGrammarTemplateSelector(tabId) {
         const section = document.createElement('div');
-        section.className = 'description-section';
+        section.className = 'grammar-template-section';
         section.style.cssText = `
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #222;
+            border-radius: 6px;
+            border: 1px solid #444;
         `;
 
-        // 标题容器
-        const titleContainer = document.createElement('div');
-        titleContainer.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        `;
-        
+        // 标题
         const title = document.createElement('div');
         title.style.cssText = `
             color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        `;
+        title.textContent = '🎯 语法模板选择器';
+        
+        // 模板选择下拉框
+        const templateSelect = document.createElement('select');
+        templateSelect.className = 'grammar-template-select';
+        templateSelect.style.cssText = `
+            width: 100%;
+            padding: 6px;
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        `;
+        
+        // 添加模板选项
+        this.addGrammarTemplateOptions(templateSelect, tabId);
+        
+        // 填空区域
+        const fillBlankContainer = document.createElement('div');
+        fillBlankContainer.className = 'fill-blank-container';
+        fillBlankContainer.style.cssText = `
+            margin-top: 6px;
+            opacity: 0.7;
+        `;
+        
+        // 模板变化事件
+        templateSelect.addEventListener('change', () => {
+            this.updateFillBlankTemplate(templateSelect.value, fillBlankContainer, tabId);
+        });
+        
+        // 默认选择第一个模板
+        if (templateSelect.options.length > 0) {
+            templateSelect.selectedIndex = 0;
+            this.updateFillBlankTemplate(templateSelect.value, fillBlankContainer, tabId);
+        }
+        
+        section.appendChild(title);
+        section.appendChild(templateSelect);
+        section.appendChild(fillBlankContainer);
+        
+        return section;
+    }
+    
+    addGrammarTemplateOptions(selectElement, tabId) {
+        
+        // 全语法模板库 - 基于数据集分析的完整模式覆盖 (中英双语)
+        const allTemplates = {
+            // 基础模式 (Level 1-2)
+            'basic_verb_object': { 
+                text: '基础: 动词+对象 (Basic: Verb+Object)', 
+                level: 1, 
+                operations: ['local_editing', 'text_editing'] 
+            },
+            'verb_object_detail': { 
+                text: '描述: 动词+对象+详情 (Descriptive: Verb+Object+Detail)', 
+                level: 2, 
+                operations: ['local_editing', 'text_editing'] 
+            },
+            'object_replacement': { 
+                text: '替换: replace+原对象+with+新对象 (Replace: replace+original+with+new)', 
+                level: 2, 
+                operations: ['local_editing'] 
+            },
+            'text_editing': { 
+                text: '文字: 动词+对象+say/to+引号 (Text: Verb+object+say/to+"content")', 
+                level: 2, 
+                operations: ['text_editing', 'local_editing'] 
+            },
+            
+            // 位置和状态模式 (Level 2-3)
+            'location_editing': { 
+                text: '位置: 动词+对象+位置介词 (Location: Verb+object+preposition)', 
+                level: 3, 
+                operations: ['local_editing'] 
+            },
+            'state_transition': { 
+                text: '状态: make+对象+形容词 (State: make+object+adjective)', 
+                level: 3, 
+                operations: ['local_editing', 'global_editing'] 
+            },
+            'compound_verbs': { 
+                text: '复合: make it more+形容词 (Compound: make it more+adjective)', 
+                level: 2, 
+                operations: ['local_editing', 'global_editing'] 
+            },
+            'quality_enhancement': { 
+                text: '提升: improve/enhance+对象+质量 (Quality: improve/enhance+object+quality)', 
+                level: 2, 
+                operations: ['local_editing', 'professional_operations'] 
+            },
+            
+            // 全局转换模式 (Level 2-4)
+            'global_transform': { 
+                text: '全局: make this into+目标 (Global: make this into+target)', 
+                level: 2, 
+                operations: ['global_editing'] 
+            },
+            'turn_transform': { 
+                text: 'turn转换: turn+对象+into+目标 (Turn: turn+object+into+target)', 
+                level: 2, 
+                operations: ['local_editing', 'global_editing', 'creative_reconstruction'] 
+            },
+            'turn_style': { 
+                text: 'turn风格: turn+对象+into+风格 (Turn Style: turn+object+into+style)', 
+                level: 3, 
+                operations: ['global_editing', 'creative_reconstruction'] 
+            },
+            'style_reference': { 
+                text: '风格: make art in style of+内容 (Style: make art in style of+content)', 
+                level: 3, 
+                operations: ['global_editing', 'creative_reconstruction'] 
+            },
+            'environment_change': { 
+                text: '环境: 动词+场景+氛围 (Environment: verb+scene+atmosphere)', 
+                level: 4, 
+                operations: ['global_editing', 'creative_reconstruction'] 
+            },
+            'color_grading': { 
+                text: '调色: 颜色+调整+方向 (Color: color+adjustment+direction)', 
+                level: 2, 
+                operations: ['global_editing'] 
+            },
+            
+            // 创意和风格模式 (Level 3-5)
+            'character_reference': { 
+                text: '角色: 动词+角色+动作/环境 (Character: verb+character+action/environment)', 
+                level: 4, 
+                operations: ['creative_reconstruction'] 
+            },
+            'artistic_transformation': { 
+                text: '艺术: 转换+艺术形式 (Artistic: transform+art form)', 
+                level: 5, 
+                operations: ['creative_reconstruction'] 
+            },
+            'conceptual_editing': { 
+                text: '概念: 抽象+概念+具体化 (Conceptual: abstract+concept+concretization)', 
+                level: 5, 
+                operations: ['creative_reconstruction'] 
+            },
+            'style_descriptor_complex': { 
+                text: '风格复合: in style of X but Y (Style Complex: in style of X but Y)', 
+                level: 4, 
+                operations: ['creative_reconstruction', 'global_editing'] 
+            },
+            'special_markers': { 
+                text: '标记: it looks like+描述 (Marker: it looks like+description)', 
+                level: 3, 
+                operations: ['creative_reconstruction', 'local_editing'] 
+            },
+            
+            // 文字专用模式 (Level 2-3)
+            'text_style': { 
+                text: '样式: 文字+风格+属性 (Text Style: text+style+attributes)', 
+                level: 3, 
+                operations: ['text_editing'] 
+            },
+            'font_adjustment': { 
+                text: '字体: adjust+字体+属性 (Font: adjust+font+attributes)', 
+                level: 2, 
+                operations: ['text_editing'] 
+            },
+            'colored_text_addition': { 
+                text: '颜色文字: 添加+颜色+文字内容 (Colored Text: add+color+text+content)', 
+                level: 2, 
+                operations: ['text_editing'] 
+            },
+            'text_replacement': { 
+                text: '文字替换: replace+原文字+with+新文字 (Text Replace: replace+original+with+new)', 
+                level: 2, 
+                operations: ['text_editing'] 
+            },
+            
+            // 专业精准模式 (Level 4-5)
+            'complex_conditional': { text: '条件: if X then Y otherwise Z (如: if person visible then enhance lighting)', level: 5, operations: ['professional_operations', 'global_editing'] },
+            'multi_step': { text: '多步: first X, then Y, finally Z (如: first enhance subject then adjust background)', level: 4, operations: ['professional_operations', 'global_editing'] },
+            'technical_precision': { text: '精准: 技术动词+参数+值 (如: adjust brightness by 20%)', level: 4, operations: ['professional_operations'] },
+            'positional_complex': { 
+                text: '位置复合: make X [position] Y (Positional: make X [position] Y)', 
+                level: 3, 
+                operations: ['professional_operations', 'local_editing'] 
+            },
+            'comparative_editing': { 
+                text: '比较: more X than Y (Comparative: more X than Y)', 
+                level: 3, 
+                operations: ['professional_operations', 'local_editing'] 
+            },
+            'sequential_actions': { 
+                text: '序列: 动词1+then+动词2+finally+动词3 (Sequential: verb1+then+verb2+finally+verb3)', 
+                level: 4, 
+                operations: ['professional_operations'] 
+            },
+            
+            // 颜色变换专用模板
+            'object_color_change': { 
+                text: '对象颜色: make [对象] [颜色] color (Object Color: make [object] [color] color)', 
+                level: 2, 
+                operations: ['local_editing'] 
+            },
+            'simple_color_change': { 
+                text: '简单颜色: change [对象] to [颜色] (Simple Color: change [object] to [color])', 
+                level: 1, 
+                operations: ['local_editing'] 
+            },
+            'precise_color_control': { 
+                text: '精确颜色: adjust [对象] color to [颜色] with [强度] (Precise Color: adjust [object] color to [color] with [intensity])', 
+                level: 3, 
+                operations: ['local_editing', 'professional_operations'] 
+            },
+            
+            // lora 换脸专用模板
+            'face_swap_template': { 
+                text: 'lora 换脸: swap face with target (Lora Face Swap: swap face with target)', 
+                level: 3, 
+                operations: ['local_editing'] 
+            },
+            'face_replacement': { 
+                text: '面部替换: replace face with target face (Face Replacement: replace face with target)', 
+                level: 3, 
+                operations: ['local_editing'] 
+            },
+            
+            // 新增高级模式 - 基于深度数据集分析
+            // 专业领域模式 (Level 4-5)
+            'technical_specification': { 
+                text: '技术规格: show as 3d model with topology (Technical: show as [tool] with [specs])', 
+                level: 5, 
+                operations: ['professional_operations', 'creative_reconstruction'] 
+            },
+            'artistic_render': { 
+                text: '艺术渲染: restyle as octane render (Artistic: restyle as [style] with [quality])', 
+                level: 4, 
+                operations: ['creative_reconstruction', 'global_editing'] 
+            },
+            'depth_map_processing': { 
+                text: '深度图: convert to 3d model from depth map (Depth: convert to [target] from depth map)', 
+                level: 4, 
+                operations: ['professional_operations', 'global_editing'] 
+            },
+            'multi_panel_creation': { 
+                text: '多面板: create 4 panel showing seasons (Multi-panel: create [number] panel showing [content])', 
+                level: 5, 
+                operations: ['professional_operations', 'creative_reconstruction'] 
+            },
+            
+            // 高级复合结构 (Level 4-5)
+            'compound_instructions': { 
+                text: '复合指令: add text then convert (Compound: instruction1 then instruction2)', 
+                level: 4, 
+                operations: ['professional_operations', 'global_editing'] 
+            },
+            'detailed_environment': { 
+                text: '环境细节: change background with details (Environment: [verb] [scene] with [details])', 
+                level: 4, 
+                operations: ['global_editing', 'creative_reconstruction'] 
+            },
+            'advanced_character': { 
+                text: '高级角色: make character dance with details (Advanced Character: make [character] [action] with [details])', 
+                level: 5, 
+                operations: ['creative_reconstruction', 'local_editing'] 
+            },
+            'precise_artistic_control': { 
+                text: '艺术控制: create scifi art using depth map (Artistic Control: create [art type] of [content] using [tool])', 
+                level: 5, 
+                operations: ['creative_reconstruction', 'professional_operations'] 
+            },
+            
+            // 量化控制模式 (Level 4)
+            'quantitative_adjustment': { text: '量化调整: adjust parameter by value (如: adjust brightness by 20%)', level: 4, operations: ['professional_operations', 'global_editing'] },
+            'size_dimension_control': { text: '尺寸控制: make object bigger with specs (如: make object bigger with specific dimensions)', level: 4, operations: ['local_editing', 'professional_operations'] },
+            
+            // 高级标记和描述 (Level 3-4)
+            'visual_description': { text: '视觉描述: show object as visual style (如: show object as 3d grayscale model)', level: 3, operations: ['creative_reconstruction', 'local_editing'] },
+            'contextual_reference': { text: '上下文参考: using context make object state (如: using this context make more realistic)', level: 4, operations: ['global_editing', 'creative_reconstruction'] },
+            
+            // 相机控制模板 (Level 2-3)
+            'camera_zoom': { 
+                text: '缩放: zoom+方向+to show+对象 (Camera: zoom+direction+to show+object)', 
+                level: 2, 
+                operations: ['professional_operations', 'global_editing'] 
+            },
+            'camera_view': { 
+                text: '视角: show+视图+of+对象 (Camera View: show+view+of+object)', 
+                level: 3, 
+                operations: ['professional_operations', 'creative_reconstruction'] 
+            },
+            
+            // 角色姿态模板 (Level 2-3)
+            'character_pose': { 
+                text: '姿态: 角色+姿态+位置+活动 (Character Pose: character+pose+location+activity)', 
+                level: 2, 
+                operations: ['creative_reconstruction', 'local_editing'] 
+            },
+            'character_interaction': { 
+                text: '交互: 角色+动作+物品 (Character Interaction: character+action+object)', 
+                level: 3, 
+                operations: ['creative_reconstruction', 'local_editing'] 
+            },
+            
+            // 物品操作模板 (Level 2-3)
+            'object_placement': { 
+                text: '放置: put/place+物品+位置 (Object Placement: put/place+object+location)', 
+                level: 2, 
+                operations: ['local_editing', 'professional_operations'] 
+            },
+            'giving_objects': { 
+                text: '给予: give+角色+物品 (Giving: give+character+object)', 
+                level: 2, 
+                operations: ['creative_reconstruction', 'local_editing'] 
+            },
+            
+            // 风格转换模板 (Level 3-4)
+            'style_conversion': { 
+                text: '转换: convert+对象+to+风格 (Style Conversion: convert+object+to+style)', 
+                level: 3, 
+                operations: ['creative_reconstruction', 'global_editing'] 
+            },
+            'creative_creation': { 
+                text: '创作: create+类型+of+对象+风格 (Creative Creation: create+type+of+object+style)', 
+                level: 4, 
+                operations: ['creative_reconstruction', 'professional_operations'] 
+            },
+            
+            // 上下文使用模板 (Level 3-4)
+            'contextual_usage': { 
+                text: '上下文使用: using+风格+make+对象 (Contextual: using+style+make+object)', 
+                level: 3, 
+                operations: ['global_editing', 'creative_reconstruction'] 
+            }
+        };
+        
+        // 对象导向的局部编辑操作映射 - 重新设计为5大类
+        const operationTypeToTemplates = {
+            // 局部编辑操作类型 - 对象导向合并
+            'object_operations': [
+                'basic_verb_object',      // add/remove/replace object - 基础对象操作
+                'verb_object_detail',     // add red hat to person - 详细对象操作
+                'object_replacement',     // replace A with B - 专门替换操作
+                'object_placement',       // put book on table - 位置性放置
+                'giving_objects'         // give person hat - 给予式添加
+            ],
+            'character_edit': [
+                'character_pose',         // person sitting in chair - 人物姿态
+                'character_interaction',  // person holding object - 人物交互
+                'face_swap_template',     // swap face with target - lora 换脸操作
+                'face_replacement',       // replace face with target - 面部替换
+                'advanced_character',     // character with details - 高级人物编辑
+                'object_replacement'     // replace clothing/hair - 人物属性替换
+            ],
+            'appearance_edit': [
+                'object_color_change',    // make object red color - 对象颜色变换
+                'simple_color_change',    // change object to red - 简单颜色变换
+                'style_reference',        // style reference conversion - 风格参考转换
+                'style_conversion',       // convert to style - 专门风格转换
+                'state_transition'       // make object metallic - 外观状态变化
+            ],
+            'background_operations': [
+                'object_replacement',     // replace background with new - 背景替换
+                'environment_change',     // change background atmosphere - 环境氛围变化
+                'technical_precision',    // technically blur background - 精确背景控制
+                'quantitative_adjustment' // adjust background blur amount - 数值化背景调整
+            ],
+            'quality_operations': [
+                'quality_enhancement',    // enhance object quality - 质量提升
+                'technical_precision',    // technically enhance - 精确技术控制
+                'quantitative_adjustment',// adjust by amount - 数值化调整
+                'size_dimension_control'  // control object size - 尺寸控制
+            ],
+            // 注：原18个细化操作类型已合并为5个对象导向操作类型
+            
+            // 全局编辑操作类型 - 基于全局语义重新设计
+            'global_color_grade': [
+                'color_grading',          // 专门的全局调色模板
+                'quantitative_adjustment' // 数值化调色控制
+            ],
+            'global_style_transfer': [
+                'style_reference',        // make art in style of Van Gogh - 风格参考
+                'artistic_transformation',// transform into art style - 艺术变换
+                'global_transform',      // make this into painting - 全局转换
+                'turn_transform'         // turn image into art - turn转换
+            ],
+            'global_brightness_contrast': [
+                'quantitative_adjustment', // adjust brightness by 20% - 数值化亮度调整
+                'technical_precision'     // technically adjust contrast - 精确对比度控制
+            ],
+            'global_hue_saturation': [
+                'color_grading',          // 专门的色相饱和度调整
+                'quantitative_adjustment' // 数值化色相调整
+            ],
+            'global_sharpen_blur': [
+                'technical_precision',    // technically sharpen image - 精确锐化/模糊控制
+                'quantitative_adjustment' // adjust sharpness by amount - 数值化锐化调整
+            ],
+            'global_noise_reduction': [
+                'technical_precision',    // technically reduce noise - 精确降噪控制
+                'quality_enhancement'     // enhance image quality - 质量提升式降噪
+            ],
+            'global_enhance': [
+                'quality_enhancement',    // enhance entire image - 全局质量提升
+                'technical_precision'     // technically enhance image - 技术性全局提升
+            ],
+            'global_filter': [
+                'style_reference',        // apply filter style - 滤镜风格参考
+                'artistic_transformation' // transform with filter - 滤镜艺术变换
+            ],
+            'scene_transform': [
+                'global_transform',       // make this into different scene - 全局场景转换
+                'environment_change',     // change environment atmosphere - 环境变化
+                'turn_transform'         // turn scene into target - 场景转换
+            ],
+            'character_age': [
+                'state_transition',       // make character younger/older - 年龄状态变化
+                'advanced_character'     // character age modification - 高级年龄调整
+            ],
+            'detail_enhance': [
+                'quality_enhancement',    // enhance image details - 细节质量提升
+                'technical_precision'     // technically enhance details - 精确细节处理
+            ],
+            'realism_enhance': [
+                'quality_enhancement',    // enhance realism - 现实感质量提升
+                'style_reference'        // make more realistic style - 现实主义风格参考
+            ],
+            'camera_operation': [
+                'camera_zoom',           // zoom in to show face - 相机缩放操作
+                'camera_view',           // show aerial view - 相机视角操作
+                'technical_precision'    // technically adjust camera - 精确相机控制
+            ],
+            'global_perspective': [
+                'technical_precision',    // technically adjust perspective - 精确透视控制
+                'quantitative_adjustment' // adjust perspective by amount - 数值化透视调整
+            ],
+            
+            // 文字编辑操作类型 - 专注文字相关模板
+            'text_add': [
+                'text_editing',          // make text say "content" - 专门文字编辑
+                'colored_text_addition', // add red text "Hello" - 颜色文字添加
+                'basic_verb_object'     // add text - 基础文字添加
+            ],
+            'text_remove': [
+                'basic_verb_object',     // remove text - 基础文字移除
+                'text_editing'          // edit text to remove - 文字编辑移除
+            ],
+            'text_edit': [
+                'text_editing',          // 专门文字编辑模板
+                'text_replacement',      // replace text with new - 文字替换
+                'text_style'            // text style modification - 文字样式修改
+            ],
+            'text_resize': [
+                'font_adjustment',       // adjust font size - 字体大小调整
+                'size_dimension_control' // control text dimensions - 文字尺寸控制
+            ],
+            'object_combine': [
+                'compound_instructions', // combine object1 then object2 - 复合指令组合
+                'multi_step'            // first add A, then add B, finally combine - 多步骤组合
+            ],
+            
+            // 创意重构操作类型 - 专注创意艺术模板
+            'style_transfer': [
+                'style_reference',        // make art in style of reference - 风格参考转换
+                'artistic_transformation',// transform into artistic style - 艺术变换
+                'turn_transform',        // turn image into art - turn艺术转换
+                'conceptual_editing'     // conceptual artistic editing - 概念艺术编辑
+            ],
+            
+            // 专业操作类型 - 专注技术精确控制
+            'geometric_warp': [
+                'technical_precision',    // technically warp geometry - 精确几何变形
+                'quantitative_adjustment' // adjust warp by amount - 数值化变形调整
+            ],
+            'advanced_composite': [
+                'compound_instructions', // complex multi-step composite - 复合指令合成
+                'multi_step',           // multi-step composite process - 多步骤合成
+                'technical_precision'   // technically composite - 精确技术合成
+            ],
+            'color_science': [
+                'color_grading',         // scientific color grading - 科学调色
+                'quantitative_adjustment',// quantitative color control - 数值化颜色控制
+                'technical_precision'    // precise color science - 精确色彩科学
+            ],
+            'technical_enhancement': [
+                'quality_enhancement',   // technical quality boost - 技术质量提升
+                'technical_precision'    // precise technical enhancement - 精确技术增强
+            ],
+            'precise_masking': [
+                'technical_precision'    // precise mask control - 精确遮罩控制
+            ],
+            'advanced_lighting': [
+                'technical_precision',    // precisely control lighting - 精确光照控制
+                'quantitative_adjustment' // adjust lighting parameters - 数值化光照调整
+            ],
+            
+            // 专业操作类型补充 - 严格技术语义匹配
+            'perspective_transform': [
+                'technical_precision'    // technically transform perspective - 精确透视变换
+            ],
+            'lens_distortion': [
+                'technical_precision'    // technically correct distortion - 精确畸变校正
+            ],
+            'content_aware_fill': [
+                'technical_precision',    // technically fill content - 精确内容填充
+                'quality_enhancement'    // enhance fill quality - 填充质量提升
+            ],
+            'seamless_removal': [
+                'technical_precision',    // technically remove seamlessly - 精确无缝移除
+                'basic_verb_object'      // remove object seamlessly - 基础无缝移除
+            ],
+            'smart_patch': [
+                'technical_precision',    // technically patch area - 精确智能修补
+                'quality_enhancement'    // enhance patch quality - 修补质量提升
+            ],
+            'style_blending': [
+                'style_reference',        // blend using style reference - 风格参考混合
+                'artistic_transformation' // artistically blend styles - 艺术性风格混合
+            ],
+            'collage_integration': [
+                'artistic_transformation',// transform into collage - 艺术拼贴变换
+                'creative_creation'      // create collage composition - 创意拼贴创作
+            ],
+            'texture_mixing': [
+                'technical_precision'    // technically mix textures - 精确纹理混合
+            ],
+            'precision_cutout': [
+                'technical_precision'    // precisely cut out object - 精确抠图操作
+            ],
+            'alpha_composite': [
+                'technical_precision',    // technically composite with alpha - 精确透明合成
+                'multi_step'            // multi-step alpha composite - 多步骤透明合成
+            ],
+            'mask_feathering': [
+                'technical_precision',    // technically feather mask - 精确遮罩羽化
+                'quantitative_adjustment' // adjust feather amount - 数值化羽化调整
+            ],
+            'depth_composite': [
+                'technical_precision',    // technically composite with depth - 精确深度合成
+                'depth_map_processing'   // process depth map for composite - 深度图处理合成
+            ],
+            'professional_product': [
+                'quality_enhancement',    // enhance for professional product - 专业产品质量提升
+                'technical_precision'     // technically create product shot - 精确产品拍摄
+            ],
+            'zoom_focus': [
+                'camera_zoom',           // zoom focus operation - 相机缩放聚焦
+                'technical_precision'    // technically control focus - 精确聚焦控制
+            ],
+            'stylize_local': [
+                'style_conversion',      // convert local area to style - 局部风格转换
+                'artistic_transformation' // artistically stylize area - 艺术性局部风格化
+            ],
+            'custom': [
+                'basic_verb_object',     // basic custom operation - 基础自定义操作
+                'verb_object_detail'     // detailed custom operation - 详细自定义操作
+            ]
+        };
+        
+        // 根据当前选中的操作类型过滤模板
+        let filteredTemplates;
+        if (this.currentTabData && this.currentTabData.operationType) {
+            const operationType = this.currentTabData.operationType;
+            
+            // 获取该操作类型对应的模板列表
+            const templateKeys = operationTypeToTemplates[operationType] || [];
+            
+            // 过滤出对应的模板
+            filteredTemplates = templateKeys
+                .map(key => ({ value: key, ...allTemplates[key] }))
+                .filter(template => template); // 确保模板存在
+                
+            console.log(`操作类型 ${operationType} 对应模板数量: ${filteredTemplates.length}`);
+        } else {
+            // 如果没有选择操作类型，根据选项卡ID返回默认模板
+            const tabToCategoryMap = {
+                'local': ['local_editing'],
+                'global': ['global_editing'], 
+                'text': ['text_editing'],
+                'creative': ['creative_reconstruction'],
+                'professional': ['professional_operations'],
+                'api': ['local_editing'],
+                'ollama': ['local_editing']
+            };
+            
+            const defaultCategories = tabToCategoryMap[tabId] || ['local_editing'];
+            
+            filteredTemplates = Object.entries(allTemplates)
+                .filter(([key, template]) => template.operations.some(op => defaultCategories.includes(op)))
+                .map(([key, template]) => ({ value: key, ...template }));
+        }
+        
+        // 按复杂度级别排序
+        filteredTemplates.sort((a, b) => a.level - b.level);
+        
+        // 为每个模板分配在列表中的唯一编号
+        filteredTemplates.forEach((template, index) => {
+            const option = document.createElement('option');
+            option.value = template.value;
+            option.textContent = `${template.text}`;
+            selectElement.appendChild(option);
+        });
+    }
+    
+    updateFillBlankTemplate(templateType, container, tabId) {
+        container.innerHTML = '';
+        
+        const templates = {
+            'basic_verb_object': {
+                structure: '[动词] + [对象]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['make', 'add', 'remove', 'change', 'turn', 'replace'], key: 'verb' },
+                    { type: 'input', label: '对象', placeholder: '帽子, 眼镜, 背景...', key: 'object' }
+                ]
+            },
+            'verb_object_detail': {
+                structure: '[动词] + [对象] + [详情描述]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['make', 'add', 'change', 'enhance', 'modify'], key: 'verb' },
+                    { type: 'input', label: '对象', placeholder: '人物, 物体, 背景...', key: 'object' },
+                    { type: 'input', label: '详情', placeholder: '更大, 更明亮, 更清晰...', key: 'detail' }
+                ]
+            },
+            'text_editing': {
+                structure: '[动词] + [文字对象] + [say/to] + ["内容"]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['make', 'change', 'replace'], key: 'verb' },
+                    { type: 'input', label: '文字对象', placeholder: '输入图片中看到的具体文字内容...', key: 'text_object' },
+                    { type: 'dropdown', label: '连接词', options: ['say', 'to'], key: 'connector' },
+                    { type: 'input', label: '内容', placeholder: '"你好", "Welcome"...', key: 'content' }
+                ]
+            },
+            'location_editing': {
+                structure: '[动词] + [对象] + [位置介词] + [位置]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['move', 'place', 'put', 'position'], key: 'verb' },
+                    { type: 'input', label: '对象', placeholder: '人物, 物体...', key: 'object' },
+                    { type: 'dropdown', label: '介词', options: ['to', 'at', 'on', 'in', 'behind', 'beside'], key: 'preposition' },
+                    { type: 'input', label: '位置', placeholder: '左侧, 中心, 顶部...', key: 'location' }
+                ]
+            },
+            'state_transition': {
+                structure: 'make + [对象] + [形容词]',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: '人物, 物体...', key: 'object' },
+                    { type: 'dropdown', label: '状态', options: ['bigger', 'smaller', 'brighter', 'darker', 'transparent', 'visible'], key: 'state' }
+                ]
+            },
+            'global_transform': {
+                structure: 'make this into + [目标状态]',
+                fields: [
+                    { type: 'fixed', label: 'make this into', value: 'make this into' },
+                    { type: 'input', label: '目标', placeholder: '油画, 照片, 卡通...', key: 'target' }
+                ]
+            },
+            'turn_transform': {
+                structure: 'turn + [对象] + into + [目标]',
+                fields: [
+                    { type: 'fixed', label: 'turn', value: 'turn' },
+                    { type: 'input', label: '对象', placeholder: 'person, car, building...', key: 'object' },
+                    { type: 'fixed', label: 'into', value: 'into' },
+                    { type: 'input', label: '目标', placeholder: 'statue, painting, cartoon...', key: 'target' }
+                ]
+            },
+            'turn_style': {
+                structure: 'turn + [对象] + into + [风格]',
+                fields: [
+                    { type: 'fixed', label: 'turn', value: 'turn' },
+                    { type: 'input', label: '对象', placeholder: 'photo, image, picture...', key: 'object' },
+                    { type: 'fixed', label: 'into', value: 'into' },
+                    { type: 'input', label: '风格', placeholder: 'anime style, oil painting, cartoon...', key: 'style' }
+                ]
+            },
+            'style_reference': {
+                structure: 'make art in [this/the] style of + [内容]',
+                fields: [
+                    { type: 'fixed', label: 'make art in', value: 'make art in' },
+                    { type: 'dropdown', label: '限定词', options: ['this', 'the'], key: 'determiner' },
+                    { type: 'fixed', label: 'style of', value: 'style of' },
+                    { type: 'input', label: '风格内容', placeholder: 'Van Gogh, anime, watercolor...', key: 'style_content' }
+                ]
+            },
+            'environment_change': {
+                structure: '[动词] + [场景] + [氛围]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['set', 'make', 'turn', 'change'], key: 'verb' },
+                    { type: 'dropdown', label: '场景', options: ['background', 'environment', 'setting', 'scene'], key: 'scene' },
+                    { type: 'input', label: '氛围', placeholder: 'sunset mood, dark atmosphere...', key: 'atmosphere' }
+                ]
+            },
+            'color_grading': {
+                structure: '[颜色调整] + [强度] + [方向]',
+                fields: [
+                    { type: 'dropdown', label: '调整类型', options: ['warmer', 'cooler', 'more saturated', 'desaturated', 'brighter'], key: 'adjustment' },
+                    { type: 'dropdown', label: '强度', options: ['slightly', 'moderately', 'significantly'], key: 'intensity' }
+                ]
+            },
+            'character_reference': {
+                structure: '[动词] + [角色] + [动作/环境描述]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['make', 'turn', 'transform'], key: 'verb' },
+                    { type: 'input', label: '角色', placeholder: 'superhero, princess, warrior...', key: 'character' },
+                    { type: 'input', label: '动作/环境', placeholder: 'flying in sky, sitting on throne...', key: 'action_env' }
+                ]
+            },
+            'artistic_transformation': {
+                structure: '[转换动词] + [艺术形式] + [风格特征]',
+                fields: [
+                    { type: 'dropdown', label: '转换', options: ['transform into', 'render as', 'stylize as'], key: 'transform' },
+                    { type: 'dropdown', label: '艺术形式', options: ['oil painting', 'watercolor', 'sketch', 'digital art'], key: 'art_form' },
+                    { type: 'input', label: '特征', placeholder: 'with bold strokes, soft colors...', key: 'features' }
+                ]
+            },
+            'text_style': {
+                structure: '[文字] + [风格] + [属性]',
+                fields: [
+                    { type: 'input', label: '文字内容', placeholder: '输入图片中看到的文字...', key: 'text_type' },
+                    { type: 'dropdown', label: '风格', options: ['bold', 'italic', 'elegant', 'modern'], key: 'style' },
+                    { type: 'input', label: '属性', placeholder: 'larger, golden, glowing...', key: 'attributes' }
+                ]
+            },
+            'font_adjustment': {
+                structure: 'adjust + [字体属性] + [调整值]',
+                fields: [
+                    { type: 'fixed', label: 'adjust', value: 'adjust' },
+                    { type: 'dropdown', label: '属性', options: ['font size', 'font weight', 'font color', 'font family'], key: 'font_attr' },
+                    { type: 'input', label: '值', placeholder: 'larger, bold, red, Arial...', key: 'value' }
+                ]
+            },
+            'colored_text_addition': {
+                structure: 'add + [颜色] + [文字对象] + [内容]',
+                fields: [
+                    { type: 'fixed', label: 'add', value: 'add' },
+                    { type: 'dropdown', label: '颜色', options: ['red', 'blue', 'green', 'yellow', 'black', 'white', 'gold', 'silver', 'purple', 'orange', 'pink', 'brown'], key: 'color' },
+                    { type: 'input', label: '文字对象', placeholder: '输入图片中看到的文字内容...', key: 'text_type' },
+                    { type: 'input', label: '内容', placeholder: '"Hello", "Welcome", "2024"...', key: 'content' }
+                ]
+            },
+            'text_replacement': {
+                structure: 'replace + [原文字] + with + [新文字]',
+                fields: [
+                    { type: 'fixed', label: 'replace', value: 'replace' },
+                    { type: 'input', label: '原文字', placeholder: '"Hello", "Sale", "2023"...', key: 'original_text' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '新文字', placeholder: '"Hi", "Discount", "2024"...', key: 'new_text' }
+                ]
+            },
+            'face_swap_template': {
+                structure: 'swap face with [目标面部]',
+                fields: [
+                    { type: 'fixed', label: 'swap', value: 'swap' },
+                    { type: 'fixed', label: 'face', value: 'face' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '目标面部', placeholder: 'celebrity name, character description, specific person...', key: 'target_face' }
+                ]
+            },
+            'face_replacement': {
+                structure: 'replace face with [目标人物] face',
+                fields: [
+                    { type: 'fixed', label: 'replace', value: 'replace' },
+                    { type: 'fixed', label: 'face', value: 'face' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '目标人物', placeholder: 'Tom Cruise, specific character, description...', key: 'target_person' },
+                    { type: 'fixed', label: 'face', value: 'face' }
+                ]
+            },
+            'object_color_change': {
+                structure: 'make [对象] [颜色] color',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: 'hair, clothes, background, object...', key: 'object' },
+                    { type: 'dropdown', label: '颜色', options: ['red', 'blue', 'green', 'yellow', 'black', 'white', 'gold', 'silver', 'purple', 'orange', 'pink', 'brown', 'gray', 'cyan', 'magenta'], key: 'color' },
+                    { type: 'fixed', label: 'color', value: 'color' }
+                ]
+            },
+            'simple_color_change': {
+                structure: 'change [对象] to [颜色]',
+                fields: [
+                    { type: 'fixed', label: 'change', value: 'change' },
+                    { type: 'input', label: '对象', placeholder: 'hair, clothes, background, object...', key: 'object' },
+                    { type: 'fixed', label: 'to', value: 'to' },
+                    { type: 'dropdown', label: '颜色', options: ['red', 'blue', 'green', 'yellow', 'black', 'white', 'gold', 'silver', 'purple', 'orange', 'pink', 'brown', 'gray', 'cyan', 'magenta'], key: 'color' }
+                ]
+            },
+            'precise_color_control': {
+                structure: 'adjust [对象] color to [颜色] with [强度]',
+                fields: [
+                    { type: 'fixed', label: 'adjust', value: 'adjust' },
+                    { type: 'input', label: '对象', placeholder: 'hair, clothes, background, object...', key: 'object' },
+                    { type: 'fixed', label: 'color to', value: 'color to' },
+                    { type: 'dropdown', label: '颜色', options: ['red', 'blue', 'green', 'yellow', 'black', 'white', 'gold', 'silver', 'purple', 'orange', 'pink', 'brown', 'gray', 'cyan', 'magenta'], key: 'color' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'dropdown', label: '强度', options: ['slightly', 'moderately', 'significantly', 'dramatically'], key: 'intensity' }
+                ]
+            },
+            'complex_conditional': {
+                structure: 'if [条件] then [动词] + [对象] + [结果]',
+                fields: [
+                    { type: 'fixed', label: 'if', value: 'if' },
+                    { type: 'input', label: '条件', placeholder: 'person is visible, background is dark...', key: 'condition' },
+                    { type: 'fixed', label: 'then', value: 'then' },
+                    { type: 'dropdown', label: '动词', options: ['enhance', 'adjust', 'modify', 'correct'], key: 'verb' },
+                    { type: 'input', label: '对象', placeholder: 'lighting, contrast, colors...', key: 'object' },
+                    { type: 'input', label: '结果', placeholder: 'to be more visible, natural...', key: 'result' }
+                ]
+            },
+            'multi_step': {
+                structure: 'first [步骤1], then [步骤2], finally [结果]',
+                fields: [
+                    { type: 'fixed', label: 'first', value: 'first' },
+                    { type: 'input', label: '步骤1', placeholder: 'enhance the subject...', key: 'step1' },
+                    { type: 'fixed', label: 'then', value: 'then' },
+                    { type: 'input', label: '步骤2', placeholder: 'adjust the background...', key: 'step2' },
+                    { type: 'fixed', label: 'finally', value: 'finally' },
+                    { type: 'input', label: '结果', placeholder: 'blend everything naturally...', key: 'result' }
+                ]
+            },
+            'technical_precision': {
+                structure: '[技术动词] + [参数] + [精确值]',
+                fields: [
+                    { type: 'dropdown', label: '技术动词', options: ['adjust', 'set', 'modify', 'calibrate'], key: 'tech_verb' },
+                    { type: 'dropdown', label: '参数', options: ['brightness', 'contrast', 'saturation', 'hue', 'gamma'], key: 'parameter' },
+                    { type: 'input', label: '值', placeholder: 'by 20%, to 1.5, +30 units...', key: 'value' }
+                ]
+            },
+            'conceptual_editing': {
+                structure: '[抽象概念] + [具体化动词] + [视觉表现]',
+                fields: [
+                    { type: 'input', label: '抽象概念', placeholder: 'emotion, energy, atmosphere...', key: 'concept' },
+                    { type: 'dropdown', label: '具体化', options: ['visualize as', 'represent through', 'embody in'], key: 'materialize' },
+                    { type: 'input', label: '视觉表现', placeholder: 'warm colors, flowing lines, sharp edges...', key: 'visual' }
+                ]
+            },
+            'object_replacement': {
+                structure: 'replace + [原对象] + with + [新对象]',
+                fields: [
+                    { type: 'fixed', label: 'replace', value: 'replace' },
+                    { type: 'input', label: '原对象', placeholder: 'old hat, background, person...', key: 'old_object' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '新对象', placeholder: 'new hat, forest, different person...', key: 'new_object' }
+                ]
+            },
+            // 新增的高频模式 - 基于数据集分析
+            'compound_verbs': {
+                structure: 'make it + [程度副词] + [形容词]',
+                fields: [
+                    { type: 'fixed', label: 'make it', value: 'make it' },
+                    { type: 'dropdown', label: '程度', options: ['more', 'less', 'much more', 'slightly more', 'way more'], key: 'degree' },
+                    { type: 'dropdown', label: '形容词', options: ['realistic', 'colorful', 'detailed', 'dramatic', 'vibrant', 'subtle'], key: 'adjective' }
+                ]
+            },
+            'special_markers': {
+                structure: 'it looks like + [描述内容]',
+                fields: [
+                    { type: 'fixed', label: 'it looks like', value: 'it looks like' },
+                    { type: 'input', label: '描述', placeholder: 'a painting, a photograph, a dream...', key: 'description' }
+                ]
+            },
+            'quality_enhancement': {
+                structure: '[增强动词] + [对象] + [质量属性]',
+                fields: [
+                    { type: 'dropdown', label: '增强动词', options: ['improve', 'enhance', 'upgrade', 'optimize', 'refine'], key: 'enhance_verb' },
+                    { type: 'input', label: '对象', placeholder: 'image quality, details, clarity...', key: 'object' },
+                    { type: 'dropdown', label: '质量', options: ['significantly', 'dramatically', 'subtly', 'naturally'], key: 'quality_level' }
+                ]
+            },
+            'style_descriptor_complex': {
+                structure: 'in the style of [风格1] but [修饰说明]',
+                fields: [
+                    { type: 'fixed', label: 'in the style of', value: 'in the style of' },
+                    { type: 'input', label: '基础风格', placeholder: 'Van Gogh, anime, photography...', key: 'base_style' },
+                    { type: 'fixed', label: 'but', value: 'but' },
+                    { type: 'input', label: '修饰', placeholder: 'with modern colors, more realistic, simplified...', key: 'modifier' }
+                ]
+            },
+            'positional_complex': {
+                structure: 'make [对象1] [位置关系] [对象2]',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象1', placeholder: 'person, object, element...', key: 'object1' },
+                    { type: 'dropdown', label: '位置关系', options: ['behind', 'in front of', 'above', 'below', 'beside', 'inside'], key: 'position' },
+                    { type: 'input', label: '对象2', placeholder: 'building, tree, another person...', key: 'object2' }
+                ]
+            },
+            'comparative_editing': {
+                structure: 'make [对象] more [属性] than [参照]',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: 'person, background, colors...', key: 'object' },
+                    { type: 'fixed', label: 'more', value: 'more' },
+                    { type: 'dropdown', label: '属性', options: ['realistic', 'dramatic', 'colorful', 'detailed', 'prominent', 'visible'], key: 'attribute' },
+                    { type: 'fixed', label: 'than', value: 'than' },
+                    { type: 'input', label: '参照', placeholder: 'the original, other elements, surroundings...', key: 'reference' }
+                ]
+            },
+            'sequential_actions': {
+                structure: '[动词1] + then + [动词2] + finally + [动词3]',
+                fields: [
+                    { type: 'dropdown', label: '首先', options: ['enhance', 'adjust', 'modify', 'correct'], key: 'action1' },
+                    { type: 'input', label: '目标1', placeholder: 'lighting, subject, background...', key: 'target1' },
+                    { type: 'fixed', label: 'then', value: 'then' },
+                    { type: 'dropdown', label: '然后', options: ['blend', 'harmonize', 'balance', 'integrate'], key: 'action2' },
+                    { type: 'input', label: '目标2', placeholder: 'colors, elements, composition...', key: 'target2' },
+                    { type: 'fixed', label: 'finally', value: 'finally' },
+                    { type: 'dropdown', label: '最后', options: ['finalize', 'perfect', 'complete', 'polish'], key: 'action3' },
+                    { type: 'input', label: '目标3', placeholder: 'overall appearance, final touches...', key: 'target3' }
+                ]
+            },
+            // 新增高级模板定义 - 基于数据集深度分析
+            'technical_specification': {
+                structure: 'show [对象] as [专业工具] with [技术参数]',
+                fields: [
+                    { type: 'fixed', label: 'show', value: 'show' },
+                    { type: 'input', label: '对象', placeholder: 'this object, the subject, character...', key: 'object' },
+                    { type: 'fixed', label: 'as', value: 'as' },
+                    { type: 'dropdown', label: '专业工具', options: ['3d model', 'grayscale model', 'blender render', 'octane render', 'technical drawing'], key: 'tool' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '技术参数', placeholder: 'topology visible, wireframe, specific settings...', key: 'parameters' }
+                ]
+            },
+            'artistic_render': {
+                structure: 'restyle this image as [渲染风格] with [质量要求]',
+                fields: [
+                    { type: 'fixed', label: 'restyle this image as', value: 'restyle this image as' },
+                    { type: 'dropdown', label: '渲染风格', options: ['high quality octane render', 'cinematic render', 'photorealistic render', 'artistic rendering'], key: 'render_style' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '质量要求', placeholder: 'dramatic lighting, detailed textures, specific style...', key: 'quality_requirements' }
+                ]
+            },
+            'depth_map_processing': {
+                structure: 'convert [原图] to [目标] from depth map',
+                fields: [
+                    { type: 'dropdown', label: '转换动词', options: ['convert', 'transform', 'create'], key: 'verb' },
+                    { type: 'input', label: '原图', placeholder: 'this image, the object, subject...', key: 'source' },
+                    { type: 'fixed', label: 'to', value: 'to' },
+                    { type: 'input', label: '目标', placeholder: '3d model, painting, specific style...', key: 'target' },
+                    { type: 'fixed', label: 'from depth map', value: 'from depth map' }
+                ]
+            },
+            'multi_panel_creation': {
+                structure: 'create [数量] panel image showing [内容] in [季节/状态]',
+                fields: [
+                    { type: 'fixed', label: 'create', value: 'create' },
+                    { type: 'dropdown', label: '面板数量', options: ['2', '3', '4', '6'], key: 'panel_count' },
+                    { type: 'fixed', label: 'panel image showing', value: 'panel image showing' },
+                    { type: 'input', label: '内容', placeholder: 'this location, the character, scene...', key: 'content' },
+                    { type: 'fixed', label: 'in', value: 'in' },
+                    { type: 'dropdown', label: '状态', options: ['winter, spring, summer, fall', 'different times, different angles, different styles'], key: 'states' }
+                ]
+            },
+            'compound_instructions': {
+                structure: '[指令1], then [指令2]',
+                fields: [
+                    { type: 'input', label: '指令1', placeholder: 'add text to object, convert to painting...', key: 'instruction1' },
+                    { type: 'fixed', label: 'then', value: 'then' },
+                    { type: 'input', label: '指令2', placeholder: 'enhance quality, adjust lighting...', key: 'instruction2' }
+                ]
+            },
+            'detailed_environment': {
+                structure: '[动词] [场景] with [详细元素]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['change', 'set', 'create', 'make'], key: 'verb' },
+                    { type: 'input', label: '场景', placeholder: 'background, environment, setting...', key: 'scene' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '详细元素', placeholder: 'houses, trees, fence, specific details...', key: 'details' }
+                ]
+            },
+            'advanced_character': {
+                structure: 'make [角色] [动作] with [细节描述]',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '角色', placeholder: 'character, person, woman, man, child...', key: 'character' },
+                    { type: 'dropdown', label: '动作', options: [
+                        // 基础动作
+                        'dance', 'fly', 'sit', 'stand', 'walk', 'run', 'jump', 'sleep', 'wake up',
+                        // 情绪表达
+                        'express joy', 'express sadness', 'express anger', 'express surprise', 'express fear',
+                        'smile', 'laugh', 'cry', 'frown', 'wink', 'look confused', 'look determined',
+                        // 手势动作
+                        'make heart gesture', 'give thumbs up', 'make peace sign', 'wave goodbye',
+                        'point forward', 'make OK sign', 'make stop gesture', 'applaud', 'pray',
+                        // 体育动作
+                        'box', 'do yoga', 'stretch', 'exercise', 'martial arts', 'swim', 'bike',
+                        // 生活动作
+                        'cook', 'eat', 'drink', 'read', 'write', 'paint', 'sing', 'play music'
+                    ], key: 'action' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '细节描述', placeholder: 'happy expression, detailed clothing, specific background...', key: 'details' }
+                ]
+            },
+            'precise_artistic_control': {
+                structure: 'create [艺术类型] of [内容] using [工具]',
+                fields: [
+                    { type: 'fixed', label: 'create', value: 'create' },
+                    { type: 'dropdown', label: '艺术类型', options: ['epic scifi art', 'fantasy art', 'realistic art', 'abstract art'], key: 'art_type' },
+                    { type: 'fixed', label: 'of', value: 'of' },
+                    { type: 'input', label: '内容', placeholder: 'massive vertical space station, dragon, landscape...', key: 'content' },
+                    { type: 'fixed', label: 'using', value: 'using' },
+                    { type: 'input', label: '工具', placeholder: 'this depth map, reference image, specific technique...', key: 'tool' }
+                ]
+            },
+            'quantitative_adjustment': {
+                structure: '[动词] [参数] by [数值]',
+                fields: [
+                    { type: 'dropdown', label: '动词', options: ['adjust', 'increase', 'decrease', 'modify'], key: 'verb' },
+                    { type: 'dropdown', label: '参数', options: ['brightness', 'contrast', 'saturation', 'size', 'quality'], key: 'parameter' },
+                    { type: 'fixed', label: 'by', value: 'by' },
+                    { type: 'input', label: '数值', placeholder: '20%, 1.5, specific amount...', key: 'value' }
+                ]
+            },
+            'size_dimension_control': {
+                structure: 'make [对象] [尺寸] with [具体规格]',
+                fields: [
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: 'object, person, element...', key: 'object' },
+                    { type: 'dropdown', label: '尺寸', options: ['bigger', 'smaller', 'larger', 'tiny', 'massive'], key: 'size' },
+                    { type: 'fixed', label: 'with', value: 'with' },
+                    { type: 'input', label: '具体规格', placeholder: 'specific dimensions, proportions...', key: 'specifications' }
+                ]
+            },
+            'visual_description': {
+                structure: 'show [对象] as [视觉风格]',
+                fields: [
+                    { type: 'fixed', label: 'show', value: 'show' },
+                    { type: 'input', label: '对象', placeholder: 'this object, the character, subject...', key: 'object' },
+                    { type: 'fixed', label: 'as', value: 'as' },
+                    { type: 'dropdown', label: '视觉风格', options: ['3d grayscale model', 'wireframe model', 'technical drawing', 'sketch'], key: 'visual_style' }
+                ]
+            },
+            'contextual_reference': {
+                structure: 'using [上下文] make [对象] [状态]',
+                fields: [
+                    { type: 'fixed', label: 'using', value: 'using' },
+                    { type: 'input', label: '上下文', placeholder: 'this context, reference, specific condition...', key: 'context' },
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: 'object, scene, element...', key: 'object' },
+                    { type: 'dropdown', label: '状态', options: ['more realistic', 'dramatic', 'natural', 'consistent'], key: 'state' }
+                ]
+            },
+            // 相机控制模板
+            'camera_zoom': {
+                structure: 'zoom [方向] to show [对象]',
+                fields: [
+                    { type: 'fixed', label: 'zoom', value: 'zoom' },
+                    { type: 'dropdown', label: '方向', options: ['in', 'out', 'left', 'right', 'up', 'down'], key: 'direction' },
+                    { type: 'fixed', label: 'to show', value: 'to show' },
+                    { type: 'input', label: '对象', placeholder: 'face, building, scene...', key: 'subject' }
+                ]
+            },
+            'camera_view': {
+                structure: 'show [视图] of [对象]',
+                fields: [
+                    { type: 'fixed', label: 'show', value: 'show' },
+                    { type: 'dropdown', label: '视图', options: ['aerial view', 'side view', 'front view', 'top view', 'close-up', 'wide shot'], key: 'view' },
+                    { type: 'fixed', label: 'of', value: 'of' },
+                    { type: 'input', label: '对象', placeholder: 'city, person, object...', key: 'subject' }
+                ]
+            },
+            // 角色姿态模板
+            'character_pose': {
+                structure: '[角色] [姿态/手势] [位置] [活动]',
+                fields: [
+                    { type: 'input', label: '角色', placeholder: 'person, character, woman, man...', key: 'character' },
+                    { type: 'dropdown', label: '姿态/手势', options: [
+                        // 基础姿态
+                        'sitting', 'standing', 'lying', 'crouching', 'leaning', 'kneeling', 'running', 'walking', 'jumping',
+                        // 手势动作
+                        'making heart shape with hands', 'giving thumbs up', 'making peace sign', 'waving', 'pointing',
+                        'making OK sign', 'making finger gun', 'making rock sign', 'making salute', 'clapping',
+                        'making prayer hands', 'making shush gesture', 'making call me gesture', 'making stop sign',
+                        // 情绪姿态
+                        'dancing', 'celebrating', 'thinking', 'laughing', 'crying', 'sleeping', 'meditating',
+                        // 体育动作
+                        'boxing pose', 'yoga pose', 'stretching', 'exercising', 'martial arts pose'
+                    ], key: 'pose' },
+                    { type: 'input', label: '位置', placeholder: 'on chair, in room, at table, outdoors...', key: 'location' },
+                    { type: 'input', label: '活动', placeholder: 'reading, eating, working, playing...', key: 'activity' }
+                ]
+            },
+            'character_interaction': {
+                structure: '[角色] [动作] [物品]',
+                fields: [
+                    { type: 'input', label: '角色', placeholder: 'person, character, woman, man, child...', key: 'character' },
+                    { type: 'dropdown', label: '动作', options: [
+                        // 手部动作
+                        'holding', 'grabbing', 'touching', 'picking up', 'putting down', 'throwing', 'catching',
+                        'giving', 'receiving', 'showing', 'hiding', 'opening', 'closing',
+                        // 身体动作
+                        'wearing', 'carrying', 'using', 'playing with', 'hugging', 'kissing', 'pushing', 'pulling',
+                        // 交互动作
+                        'looking at', 'pointing at', 'talking to', 'listening to', 'following', 'leading',
+                        // 生活动作
+                        'eating', 'drinking', 'cooking', 'cleaning', 'writing', 'reading', 'typing', 'drawing',
+                        'singing', 'dancing', 'playing music', 'exercising', 'working', 'studying'
+                    ], key: 'action' },
+                    { type: 'input', label: '物品/对象', placeholder: 'umbrella, hat, book, phone, guitar, food, another person...', key: 'object' }
+                ]
+            },
+            // 物品操作模板
+            'object_placement': {
+                structure: '[动作] [物品] [位置]',
+                fields: [
+                    { type: 'dropdown', label: '动作', options: ['put', 'place', 'move', 'set'], key: 'action' },
+                    { type: 'input', label: '物品', placeholder: 'book, vase, object...', key: 'object' },
+                    { type: 'input', label: '位置', placeholder: 'on table, in room, at location...', key: 'location' }
+                ]
+            },
+            'giving_objects': {
+                structure: 'give [角色] [物品]',
+                fields: [
+                    { type: 'fixed', label: 'give', value: 'give' },
+                    { type: 'input', label: '角色', placeholder: 'person, cat, character...', key: 'character' },
+                    { type: 'input', label: '物品', placeholder: 'hat, toy, object...', key: 'object' }
+                ]
+            },
+            // 风格转换模板
+            'style_conversion': {
+                structure: 'convert [对象] to [风格]',
+                fields: [
+                    { type: 'fixed', label: 'convert', value: 'convert' },
+                    { type: 'input', label: '对象', placeholder: 'photo, image, picture...', key: 'object' },
+                    { type: 'fixed', label: 'to', value: 'to' },
+                    { type: 'input', label: '风格', placeholder: 'painting, drawing, cartoon...', key: 'style' }
+                ]
+            },
+            'creative_creation': {
+                structure: 'create [类型] of [对象] [风格]',
+                fields: [
+                    { type: 'fixed', label: 'create', value: 'create' },
+                    { type: 'dropdown', label: '类型', options: ['art', 'image', 'picture', 'drawing', 'painting'], key: 'type' },
+                    { type: 'fixed', label: 'of', value: 'of' },
+                    { type: 'input', label: '对象', placeholder: 'landscape, portrait, scene...', key: 'subject' },
+                    { type: 'input', label: '风格', placeholder: 'in style of, with, using...', key: 'style' }
+                ]
+            },
+            // 上下文使用模板
+            'contextual_usage': {
+                structure: 'using [风格] make [对象]',
+                fields: [
+                    { type: 'fixed', label: 'using', value: 'using' },
+                    { type: 'input', label: '风格', placeholder: 'anime style, photo style, this style...', key: 'style' },
+                    { type: 'fixed', label: 'make', value: 'make' },
+                    { type: 'input', label: '对象', placeholder: 'character, art, scene...', key: 'object' }
+                ]
+            }
+        };
+        
+        const template = templates[templateType];
+        if (!template) {
+            console.warn(`未找到模板: ${templateType}`);
+            return;
+        }
+        
+        // 显示结构
+        const structureLabel = document.createElement('div');
+        structureLabel.style.cssText = `
+            color: #9C27B0;
             font-size: 10px;
             font-weight: bold;
+            margin-bottom: 6px;
         `;
-        title.textContent = '✏️ 编辑描述';
+        structureLabel.textContent = `结构: ${template.structure}`;
+        container.appendChild(structureLabel);
         
-        // 翻译按钮
-        const translateBtn = document.createElement('button');
-        translateBtn.textContent = '🌐 中→英';
-        translateBtn.title = '将中文描述翻译为英文';
-        translateBtn.style.cssText = `
-            background: #3a7bc8;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
+        // 生成填空表单
+        const formContainer = document.createElement('div');
+        formContainer.style.cssText = `
+            display: grid;
+            gap: 6px;
         `;
-        translateBtn.onmouseover = () => translateBtn.style.background = '#4a8bd8';
-        translateBtn.onmouseout = () => translateBtn.style.background = '#3a7bc8';
         
-        titleContainer.appendChild(title);
-        titleContainer.appendChild(translateBtn);
-
-        // 输入框
-        const descriptionTextarea = document.createElement('textarea');
-        descriptionTextarea.placeholder = '输入详细的编辑描述（支持中文）...';
-        descriptionTextarea.style.cssText = `
-            width: 100%;
-            height: 48px;
-            background: #2a2a2a;
-            color: white;
-            border: 1px solid #444;
-            border-radius: 4px;
+        template.fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            fieldContainer.style.cssText = `
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            `;
+            
+            const label = document.createElement('label');
+            label.style.cssText = `
+                color: #ccc;
+                font-size: 11px;
+                min-width: 50px;
+            `;
+            label.textContent = field.label + ':';
+            
+            let inputElement;
+            
+            if (field.type === 'dropdown') {
+                inputElement = document.createElement('select');
+                inputElement.style.cssText = `
+                    flex: 1;
+                    padding: 4px;
+                    background: #2a2a2a;
+                    color: #fff;
+                    border: 1px solid #555;
+                    border-radius: 3px;
+                    font-size: 11px;
+                `;
+                
+                field.options.forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option;
+                    optionElement.textContent = option;
+                    inputElement.appendChild(optionElement);
+                });
+                
+            } else if (field.type === 'input') {
+                inputElement = document.createElement('input');
+                inputElement.type = 'text';
+                inputElement.placeholder = field.placeholder;
+                inputElement.style.cssText = `
+                    flex: 1;
+                    padding: 4px 6px;
+                    background: #2a2a2a;
+                    color: #fff;
+                    border: 1px solid #555;
+                    border-radius: 3px;
+                    font-size: 11px;
+                `;
+                
+            } else if (field.type === 'fixed') {
+                inputElement = document.createElement('span');
+                inputElement.textContent = field.value;
+                inputElement.style.cssText = `
+                    color: #9C27B0;
+                    font-weight: bold;
+                    font-size: 11px;
+                `;
+            }
+            
+            if (field.key) {
+                inputElement.setAttribute('data-key', field.key);
+            }
+            
+            // 添加输入变化事件
+            if (field.type !== 'fixed') {
+                inputElement.addEventListener('input', () => {
+                    this.updateGeneratedPromptFromTemplate(container.parentElement, tabId);
+                });
+                inputElement.addEventListener('change', () => {
+                    this.updateGeneratedPromptFromTemplate(container.parentElement, tabId);
+                });
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(inputElement);
+            formContainer.appendChild(fieldContainer);
+        });
+        
+        // 生成预览
+        const previewContainer = document.createElement('div');
+        previewContainer.className = 'template-preview';
+        previewContainer.style.cssText = `
+            margin-top: 8px;
             padding: 6px;
-            font-size: 13px;  // 增加2px字体大小
-            font-family: inherit;
-            resize: vertical;
-            outline: none;
+            background: #1a1a1a;
+            border-radius: 3px;
+            border-left: 3px solid #9C27B0;
         `;
         
-        // 翻译功能
-        translateBtn.addEventListener('click', async () => {
-            const currentText = descriptionTextarea.value;
-            if (!currentText) return;
-            
-            // 显示加载状态
-            translateBtn.textContent = '⏳ 翻译中...';
-            translateBtn.disabled = true;
-            
-            try {
-                // 使用翻译助手
-                const translator = window.translationHelper || new TranslationHelper();
-                const translatedText = await translator.translate(currentText);
-                
-                // 更新文本框
-                descriptionTextarea.value = translatedText;
-                
-                // 触发input事件以更新数据
-                const event = new Event('input', { bubbles: true });
-                descriptionTextarea.dispatchEvent(event);
-                
-                // 恢复按钮状态
-                translateBtn.textContent = '✅ 已翻译';
-                setTimeout(() => {
-                    translateBtn.textContent = '🌐 中→英';
-                }, 2000);
-            } catch (error) {
-                console.error('Translation failed:', error);
-                translateBtn.textContent = '❌ 翻译失败';
-                setTimeout(() => {
-                    translateBtn.textContent = '🌐 中→英';
-                }, 2000);
-            } finally {
-                translateBtn.disabled = false;
+        const previewLabel = document.createElement('div');
+        previewLabel.style.cssText = `
+            color: #9C27B0;
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        `;
+        previewLabel.textContent = '预览:';
+        
+        const previewText = document.createElement('div');
+        previewText.className = 'preview-text';
+        previewText.style.cssText = `
+            color: #fff;
+            font-size: 11px;
+            font-style: italic;
+            min-height: 16px;
+        `;
+        previewText.textContent = '请填入字段以查看预览...';
+        
+        previewContainer.appendChild(previewLabel);
+        previewContainer.appendChild(previewText);
+        
+        container.appendChild(formContainer);
+        container.appendChild(previewContainer);
+    }
+    
+    updateGeneratedPromptFromTemplate(sectionElement, tabId) {
+        const inputs = sectionElement.querySelectorAll('input, select');
+        const values = {};
+        
+        inputs.forEach(input => {
+            const key = input.getAttribute('data-key');
+            if (key && input.value) {
+                values[key] = input.value;
             }
         });
         
-        // 设置选项卡特定的属性标识
-        descriptionTextarea.setAttribute('data-tab', tabId);
+        const previewElement = sectionElement.querySelector('.preview-text');
+        if (!previewElement) return;
         
-        // 为每个描述输入框添加事件监听 - 现在只更新当前选项卡的数据
-        descriptionTextarea.addEventListener('input', (e) => {
-            const newValue = e.target.value;
-            const currentTab = e.target.getAttribute('data-tab');
+        // 根据模板类型生成提示词
+        let generatedPrompt = '';
+        const templateSelect = sectionElement.querySelector('.grammar-template-select');
+        const templateType = templateSelect ? templateSelect.value : '';
+        
+        switch (templateType) {
+            case 'basic_verb_object':
+                if (values.verb && values.object) {
+                    generatedPrompt = `${values.verb} ${values.object}`;
+                }
+                break;
+                
+            case 'verb_object_detail':
+                if (values.verb && values.object) {
+                    generatedPrompt = `${values.verb} ${values.object}${values.detail ? ' ' + values.detail : ''}`;
+                }
+                break;
+                
+            case 'text_editing':
+                if (values.verb && values.text_object && values.connector && values.content) {
+                    generatedPrompt = `${values.verb} ${values.text_object} ${values.connector} "${values.content}"`;
+                }
+                break;
+                
+            case 'location_editing':
+                if (values.verb && values.object && values.preposition && values.location) {
+                    generatedPrompt = `${values.verb} ${values.object} ${values.preposition} ${values.location}`;
+                }
+                break;
+                
+            case 'state_transition':
+                if (values.object && values.state) {
+                    generatedPrompt = `make ${values.object} ${values.state}`;
+                }
+                break;
+                
+            case 'global_transform':
+                if (values.target) {
+                    generatedPrompt = `make this into ${values.target}`;
+                }
+                break;
+                
+            case 'style_reference':
+                if (values.determiner && values.style_content) {
+                    generatedPrompt = `make art in ${values.determiner} style of ${values.style_content}`;
+                }
+                break;
+                
+            case 'environment_change':
+                if (values.verb && values.scene && values.atmosphere) {
+                    generatedPrompt = `${values.verb} ${values.scene} ${values.atmosphere}`;
+                }
+                break;
+                
+            case 'color_grading':
+                if (values.adjustment && values.intensity) {
+                    generatedPrompt = `make it ${values.intensity} ${values.adjustment}`;
+                }
+                break;
+                
+            case 'character_reference':
+                if (values.verb && values.character && values.action_env) {
+                    generatedPrompt = `${values.verb} ${values.character} ${values.action_env}`;
+                }
+                break;
+                
+            case 'artistic_transformation':
+                if (values.transform && values.art_form && values.features) {
+                    generatedPrompt = `${values.transform} ${values.art_form} ${values.features}`;
+                }
+                break;
+                
+            case 'text_style':
+                if (values.text_type && values.style && values.attributes) {
+                    generatedPrompt = `make ${values.text_type} ${values.style} ${values.attributes}`;
+                }
+                break;
+                
+            case 'font_adjustment':
+                if (values.font_attr && values.value) {
+                    generatedPrompt = `adjust ${values.font_attr} ${values.value}`;
+                }
+                break;
+                
+            case 'colored_text_addition':
+                if (values.color && values.text_type && values.content) {
+                    generatedPrompt = `add ${values.color} text "${values.content}" to ${values.text_type}`;
+                }
+                break;
+                
+            case 'text_replacement':
+                if (values.original_text && values.new_text) {
+                    generatedPrompt = `replace "${values.original_text}" with "${values.new_text}"`;
+                }
+                break;
+                
+            case 'complex_conditional':
+                if (values.condition && values.verb && values.object && values.result) {
+                    generatedPrompt = `if ${values.condition} then ${values.verb} ${values.object} ${values.result}`;
+                }
+                break;
+                
+            case 'multi_step':
+                if (values.step1 && values.step2 && values.result) {
+                    generatedPrompt = `first ${values.step1}, then ${values.step2}, finally ${values.result}`;
+                }
+                break;
+                
+            case 'technical_precision':
+                if (values.tech_verb && values.parameter && values.value) {
+                    generatedPrompt = `${values.tech_verb} ${values.parameter} ${values.value}`;
+                }
+                break;
+                
+            case 'conceptual_editing':
+                if (values.concept && values.materialize && values.visual) {
+                    generatedPrompt = `${values.concept} ${values.materialize} ${values.visual}`;
+                }
+                break;
+                
+            case 'object_replacement':
+                if (values.old_object && values.new_object) {
+                    generatedPrompt = `replace ${values.old_object} with ${values.new_object}`;
+                }
+                break;
+                
+            case 'object_color_change':
+                if (values.object && values.color) {
+                    generatedPrompt = `make ${values.object} ${values.color} color`;
+                }
+                break;
+                
+            case 'simple_color_change':
+                if (values.object && values.color) {
+                    generatedPrompt = `change ${values.object} to ${values.color}`;
+                }
+                break;
+                
+            case 'precise_color_control':
+                if (values.object && values.color && values.intensity) {
+                    generatedPrompt = `adjust ${values.object} color to ${values.color} with ${values.intensity}`;
+                }
+                break;
+                
+            case 'face_swap_template':
+                generatedPrompt = 'place it';
+                break;
+                
+            case 'face_replacement':
+                if (values.target_person) {
+                    generatedPrompt = `replace face with ${values.target_person} face`;
+                }
+                break;
+                
+            case 'character_pose':
+                if (values.character && values.pose) {
+                    let prompt = `make ${values.character} ${values.pose}`;
+                    if (values.location) prompt += ` ${values.location}`;
+                    if (values.activity) prompt += ` ${values.activity}`;
+                    generatedPrompt = prompt;
+                }
+                break;
+                
+            case 'character_interaction':
+                if (values.character && values.action && values.object) {
+                    generatedPrompt = `make ${values.character} ${values.action} ${values.object}`;
+                }
+                break;
+                
+            case 'advanced_character':
+                if (values.character && values.action && values.details) {
+                    generatedPrompt = `make ${values.character} ${values.action} with ${values.details}`;
+                }
+                break;
+                
+            case 'object_placement':
+                if (values.action && values.object && values.location) {
+                    generatedPrompt = `${values.action} ${values.object} ${values.location}`;
+                }
+                break;
+                
+            case 'giving_objects':
+                if (values.character && values.object) {
+                    generatedPrompt = `give ${values.character} ${values.object}`;
+                }
+                break;
+                
+            case 'style_conversion':
+                if (values.object && values.style) {
+                    generatedPrompt = `convert ${values.object} to ${values.style}`;
+                }
+                break;
+                
+            case 'contextual_usage':
+                if (values.context && values.object && values.state) {
+                    generatedPrompt = `using ${values.context} make ${values.object} ${values.state}`;
+                }
+                break;
+                
+            case 'style_reference':
+                if (values.style_type && values.content) {
+                    generatedPrompt = `make art in style of ${values.content} ${values.style_type}`;
+                }
+                break;
+                
+            case 'camera_zoom':
+                if (values.direction && values.subject) {
+                    generatedPrompt = `zoom ${values.direction} to show ${values.subject}`;
+                }
+                break;
+                
+            case 'camera_view':
+                if (values.view && values.subject) {
+                    generatedPrompt = `show ${values.view} of ${values.subject}`;
+                }
+                break;
+                
+            case 'turn_transform':
+                if (values.object && values.target) {
+                    generatedPrompt = `turn ${values.object} into ${values.target}`;
+                }
+                break;
+                
+            case 'turn_style':
+                if (values.object && values.style) {
+                    generatedPrompt = `turn ${values.object} into ${values.style}`;
+                }
+                break;
+                
+            case 'compound_verbs':
+                if (values.degree && values.adjective) {
+                    generatedPrompt = `make it ${values.degree} ${values.adjective}`;
+                }
+                break;
+                
+            case 'special_markers':
+                if (values.description) {
+                    generatedPrompt = `it looks like ${values.description}`;
+                }
+                break;
+                
+            case 'quality_enhancement':
+                if (values.enhance_verb && values.object && values.quality_level) {
+                    generatedPrompt = `${values.enhance_verb} ${values.object} ${values.quality_level}`;
+                }
+                break;
+                
+            case 'style_descriptor_complex':
+                if (values.base_style && values.modifier) {
+                    generatedPrompt = `in the style of ${values.base_style} but ${values.modifier}`;
+                }
+                break;
+                
+            case 'positional_complex':
+                if (values.object1 && values.position && values.object2) {
+                    generatedPrompt = `make ${values.object1} ${values.position} ${values.object2}`;
+                }
+                break;
+                
+            case 'comparative_editing':
+                if (values.object && values.attribute && values.reference) {
+                    generatedPrompt = `make ${values.object} more ${values.attribute} than ${values.reference}`;
+                }
+                break;
+                
+            case 'sequential_actions':
+                if (values.action1 && values.target1 && values.action2 && values.target2 && values.action3 && values.target3) {
+                    generatedPrompt = `${values.action1} ${values.target1} then ${values.action2} ${values.target2} finally ${values.action3} ${values.target3}`;
+                }
+                break;
+                
+            case 'technical_specification':
+                if (values.object && values.tool && values.parameters) {
+                    generatedPrompt = `show ${values.object} as ${values.tool} with ${values.parameters}`;
+                }
+                break;
+                
+            case 'artistic_render':
+                if (values.render_style && values.quality_requirements) {
+                    generatedPrompt = `restyle this image as ${values.render_style} with ${values.quality_requirements}`;
+                }
+                break;
+                
+            case 'depth_map_processing':
+                if (values.verb && values.source && values.target) {
+                    generatedPrompt = `${values.verb} ${values.source} to ${values.target} from depth map`;
+                }
+                break;
+                
+            case 'multi_panel_creation':
+                if (values.panel_count && values.content && values.states) {
+                    generatedPrompt = `create ${values.panel_count} panel image showing ${values.content} in ${values.states}`;
+                }
+                break;
+                
+            case 'compound_instructions':
+                if (values.instruction1 && values.instruction2) {
+                    generatedPrompt = `${values.instruction1}, then ${values.instruction2}`;
+                }
+                break;
+                
+            case 'detailed_environment':
+                if (values.verb && values.scene && values.details) {
+                    generatedPrompt = `${values.verb} ${values.scene} with ${values.details}`;
+                }
+                break;
+                
+            case 'precise_artistic_control':
+                if (values.art_type && values.content && values.tool) {
+                    generatedPrompt = `create ${values.art_type} of ${values.content} using ${values.tool}`;
+                }
+                break;
+                
+            case 'quantitative_adjustment':
+                if (values.verb && values.parameter && values.value) {
+                    generatedPrompt = `${values.verb} ${values.parameter} by ${values.value}`;
+                }
+                break;
+                
+            case 'size_dimension_control':
+                if (values.object && values.size && values.specifications) {
+                    generatedPrompt = `make ${values.object} ${values.size} with ${values.specifications}`;
+                }
+                break;
+                
+            case 'visual_description':
+                if (values.object && values.visual_style) {
+                    generatedPrompt = `show ${values.object} as ${values.visual_style}`;
+                }
+                break;
+        }
+        
+        if (generatedPrompt) {
+            previewElement.textContent = generatedPrompt;
+            previewElement.style.color = '#fff';
             
-            // 只更新当前选项卡的数据
-            if (this.tabData[currentTab]) {
-                this.tabData[currentTab].description = newValue;
-                // 更新当前选项卡访问器
-                if (currentTab === this.currentCategory) {
-                    this.currentTabData = this.tabData[currentTab];
-                    // 描述变化时刷新增强约束
-                    setTimeout(() => this.refreshEnhancedConstraints(), 300);
+            // 更新tabData
+            if (this.tabData[tabId]) {
+                this.tabData[tabId].description = generatedPrompt;
+                if (tabId === this.currentCategory) {
+                    this.currentTabData = this.tabData[tabId];
                 }
                 this.notifyNodeUpdate();
             }
-        });
-        
-        // 设置初始值 - 从对应选项卡的数据中获取
-        if (this.tabData[tabId] && this.tabData[tabId].description) {
-            descriptionTextarea.value = this.tabData[tabId].description;
+        } else {
+            previewElement.textContent = '请填入字段以查看预览...';
+            previewElement.style.color = '#666';
         }
-
-        section.appendChild(titleContainer);
-        section.appendChild(descriptionTextarea);
-
-        return section;
     }
 
     createConstraintPromptsSection() {
@@ -2002,7 +3475,7 @@ class KontextSuperPrompt {
             { value: 'object_replacement', text: '物体替换' },
             { value: 'object_addition', text: '物体添加' },
             { value: 'background_change', text: '背景更换' },
-            { value: 'face_swap', text: '换脸' },
+            { value: 'face_swap', text: 'lora 换脸' },
             { value: 'quality_enhancement', text: '质量增强' },
             { value: 'image_restoration', text: '图像修复' },
             { value: 'style_transfer', text: '风格转换' },
@@ -2377,7 +3850,7 @@ class KontextSuperPrompt {
             { value: 'object_replacement', label: '物体替换' },
             { value: 'object_addition', label: '物体添加' },
             { value: 'background_change', label: '背景更换' },
-            { value: 'face_swap', label: '换脸' },
+            { value: 'face_swap', label: 'lora 换脸' },
             { value: 'quality_enhancement', label: '质量增强' },
             { value: 'image_restoration', label: '图像修复' },
             { value: 'style_transfer', label: '风格转换' },
@@ -2863,8 +4336,8 @@ class KontextSuperPrompt {
         }
     }
     
-    // 处理操作类型变化
     handleOperationChange(editingType, operationType) {
+        console.log('[Operation Change]', editingType, operationType);
         
         // 更新内部状态
         this.currentOperationType = operationType;
@@ -2875,346 +4348,352 @@ class KontextSuperPrompt {
             this.currentTabData.operationType = operationType;
         }
         
-        // 可以触发其他UI更新
-        this.updatePromptSuggestions(editingType, operationType);
-        
         // 更新约束和修饰提示词
         this.loadConstraintsForCurrentOperation();
+        
+        // 更新语法模板选择器
+        this.updateGrammarTemplateSelector();
     }
     
-    // 处理具体操作变化
+    // 更新语法模板选择器
+    updateGrammarTemplateSelector() {
+        // 查找当前选项卡的语法模板选择器
+        const currentTabId = this.getCurrentTab();
+        if (!currentTabId) return;
+        
+        const tabPane = document.getElementById(`tab-${currentTabId}`);
+        if (!tabPane) return;
+        
+        // 查找模板选择器
+        const templateSelect = tabPane.querySelector('.grammar-template-select');
+        if (!templateSelect) return;
+        
+        console.log(`更新选项卡 ${currentTabId} 的语法模板选择器，操作类型: ${this.currentTabData.operationType}`);
+        
+        // 清空现有选项
+        templateSelect.innerHTML = '';
+        
+        // 重新添加模板选项
+        this.addGrammarTemplateOptions(templateSelect, currentTabId);
+        
+        // 触发变化事件以更新填空区域
+        if (templateSelect.options.length > 0) {
+            templateSelect.selectedIndex = 0;
+            templateSelect.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    // 废弃方法 - 已由语法模板系统替代
     handleSpecificOperationChange(editingType, operationType, specificOperation) {
-        
-        // 更新内部状态
-        this.currentSpecificOperation = specificOperation;
-        
-        // 保存到当前选项卡数据
-        if (this.currentTabData) {
-            this.currentTabData.specificOperation = specificOperation;
-        }
-        
-        // 获取示例并自动填充
-        this.autoFillExample(editingType, operationType, specificOperation);
-        
-        // 更新约束和修饰提示词
-        this.loadConstraintsForCurrentOperation();
+        return;
     }
     
-    // 更新提示建议
+    // 废弃方法 - 已由填空模板系统替代
     updatePromptSuggestions(editingType, operationType) {
-        if (!window.KontextMenuSystem) return;
-        
-        const tips = window.KontextMenuSystem.getOperationTips(operationType);
-        
-        // 找到提示显示区域并更新
-        const hintElements = document.querySelectorAll('.operation-hint');
-        hintElements.forEach(hint => {
-            if (hint.style.display !== 'none') {
-                // 先移除旧的操作提示，再添加新的
-                const existingTips = hint.querySelector('.operation-tips');
-                if (existingTips) {
-                    existingTips.remove();
-                }
-                
-                const tipsHTML = tips.map(tip => `<li>${tip}</li>`).join('');
-                const tipsDiv = document.createElement('div');
-                tipsDiv.className = 'operation-tips';
-                tipsDiv.innerHTML = `
-                    <div style="margin-top: 8px;">
-                        <strong>操作提示:</strong>
-                        <ul style="
-                            margin: 4px 0 0 0; 
-                            font-size: 12px;
-                            list-style: none;
-                            display: grid;
-                            grid-template-columns: 1fr 1fr;
-                            gap: 4px 8px;
-                            padding: 0;
-                        ">
-                            ${tipsHTML}
-                        </ul>
-                    </div>
-                `;
-                hint.appendChild(tipsDiv);
-            }
-        });
+        // 已移除操作提示区域，现在使用语法模板选择器
+        return;
     }
     
-    // 自动填充示例
+    // 废弃方法 - 已由填空模板系统替代
     autoFillExample(editingType, operationType, specificOperation) {
-        if (!window.KontextMenuSystem) return;
-        
-        const specifics = window.KontextMenuSystem.getSpecificConfig(editingType, operationType);
-        const selectedSpecific = specifics.find(s => s.id === specificOperation);
-        
-        if (selectedSpecific && selectedSpecific.example) {
-            // 自动填充到描述框
-            const descriptionInputs = document.querySelectorAll('textarea[placeholder*="描述"]');
-            descriptionInputs.forEach(textarea => {
-                if (textarea.closest('.edit-panel').style.display !== 'none') {
-                    // 只在当前为空时自动填充示例
-                    if (!textarea.value) {
-                        textarea.value = selectedSpecific.example;
-                        textarea.dispatchEvent(new Event('input'));
-                    }
-                }
-            });
-        }
+        // 自动填充已由语法模板选择器处理
+        return;
     }
     
-    // 创意提示词库方法
-    createCreativePromptsSection() {
+    // 废弃方法 - 预设功能已集成到语法模板中
+    showPresetsForSpecificOperation(editingType, operationType, specificOperation) {
+        return;
+    }
+    
+    // 废弃方法 - 预设功能已集成到语法模板中
+    renderPresetOptions(presets) {
+        return;
+    }
+    
+    // 废弃方法
+    hidePresetOptions() {
+        return;
+    }
+    
+    // 废弃方法
+    applyPreset(prompt) {
+        return;
+    }
+    
+    // 直接创意操作选择器 - 简化界面
+    createDirectCreativeOperationSection() {
         const section = document.createElement('div');
-        section.className = 'creative-prompts-section';
+        section.className = 'direct-creative-operation-section';
         section.style.cssText = `
             margin: 16px;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
         `;
-        
-        // 第一个下拉框：操作类型选择
-        const typeLabel = document.createElement('label');
-        typeLabel.style.cssText = `
-            display: block;
-            color: #ccc;
-            font-size: 13px;  // 增加2px字体大小
-            margin-bottom: 6px;
-        `;
-        typeLabel.textContent = '🎭 创意操作类型';
-        
-        const typeSelect = document.createElement('select');
-        typeSelect.style.cssText = `
-            width: 100%;
-            padding: 8px 12px;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 4px;
+
+        // 标题
+        const title = document.createElement('div');
+        title.style.cssText = `
             color: #fff;
-            font-size: 13px;  // 增加2px字体大小
-            outline: none;
-            margin-bottom: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
         `;
-        
-        // 操作类型选项
-        const operationTypes = [
-            { value: '', text: '-- 选择操作类型 --' },
-            { value: 'scene_building', text: '🏗️ 创意场景构建' },
-            { value: 'style_creation', text: '🎨 风格模仿创作' },
-            { value: 'character_action', text: '🎭 角色动作设定' },
-            { value: 'media_transformation', text: '🖼️ 媒介形式转换' },
-            { value: 'environment_reconstruction', text: '🌍 场景环境重构' },
-            { value: 'material_transformation', text: '⚗️ 材质形态转换' }
+        title.textContent = '🎨 创意操作类型';
+
+        // 创意操作网格
+        const operationsGrid = document.createElement('div');
+        operationsGrid.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            max-height: 320px;
+            overflow-y: auto;
+        `;
+
+        // 创意操作定义 - 按分类组织
+        const creativeCategories = [
+            {
+                title: '🎨 经典艺术',
+                operations: [
+                    { id: 'oil_painting', name: '油画效果', prompt: 'render as realistic oil painting' },
+                    { id: 'watercolor_art', name: '水彩艺术', prompt: 'transform into watercolor painting style' },
+                    { id: 'sketch_style', name: '素描风格', prompt: 'convert to pencil sketch style' },
+                    { id: 'pop_art', name: '波普艺术', prompt: 'transform into pop art style with bold colors and comic elements' },
+                    { id: 'abstract_expr', name: '抽象表现', prompt: 'convert to abstract expressionist style' },
+                    { id: 'surreal_art', name: '超现实主义', prompt: 'recreate in surreal artistic style' },
+                    { id: 'impressionist', name: '印象派', prompt: 'convert to impressionist painting with visible brushstrokes and light effects' },
+                    { id: 'cubist_style', name: '立体主义', prompt: 'transform into cubist style with geometric fragmentation and multiple perspectives' }
+                ]
+            },
+            {
+                title: '🎭 动画风格',
+                operations: [
+                    { id: 'ghibli_style', name: '吉卜力风格', prompt: 'transform into Studio Ghibli animation style with soft colors and magical atmosphere' },
+                    { id: 'anime_conversion', name: '动漫转换', prompt: 'convert to anime/manga art style' },
+                    { id: 'pixar_style', name: '皮克斯风格', prompt: 'convert to Pixar 3D animation style with vibrant characters' },
+                    { id: 'disney_classic', name: '迪士尼经典', prompt: 'style as classic Disney animation with hand-drawn charm' },
+                    { id: 'makoto_shinkai', name: '新海诚风格', prompt: 'transform into Makoto Shinkai style with detailed backgrounds and cinematic lighting' },
+                    { id: 'cel_shading', name: '卡通渲染', prompt: 'apply cel shading technique with flat colors and defined outlines' },
+                    { id: 'dreamworks_style', name: '梦工厂风格', prompt: 'convert to DreamWorks animation style with expressive characters' },
+                    { id: 'stop_motion', name: '定格动画', prompt: 'transform into stop-motion animation style with clay-like textures' }
+                ]
+            },
+            {
+                title: '🌊 网络美学',
+                operations: [
+                    { id: 'vaporwave', name: '蒸汽波', prompt: 'transform into vaporwave aesthetic with neon grids and retro futurism' },
+                    { id: 'synthwave', name: '合成波', prompt: 'convert to synthwave style with neon colors and grid patterns' },
+                    { id: 'y2k_aesthetic', name: 'Y2K美学', prompt: 'transform into Y2K aesthetic with chrome textures and digital effects' },
+                    { id: 'dreamcore', name: '梦核', prompt: 'convert to dreamcore aesthetic with surreal dream-like quality' },
+                    { id: 'weirdcore', name: '怪异核心', prompt: 'convert to weirdcore aesthetic with unsettling surreal elements' },
+                    { id: 'liminal_space', name: '阈限空间', prompt: 'transform into liminal space aesthetic with surreal emptiness' },
+                    { id: 'glitchcore', name: '故障核心', prompt: 'apply glitchcore aesthetic with digital distortion and pixel corruption' },
+                    { id: 'webcore', name: '网页核心', prompt: 'style as early 2000s webcore with pixelated graphics and web elements' }
+                ]
+            },
+            {
+                title: '📸 摄影风格',
+                operations: [
+                    { id: 'film_grain', name: '胶片颗粒', prompt: 'add vintage film grain and analog photography aesthetic' },
+                    { id: 'polaroid', name: '拍立得', prompt: 'transform into vintage Polaroid photograph style' },
+                    { id: 'lomography', name: 'LOMO摄影', prompt: 'apply lomography effects with color saturation and vignetting' },
+                    { id: 'cinematic', name: '电影质感', prompt: 'enhance with cinematic color grading and dramatic lighting' },
+                    { id: 'golden_hour', name: '黄金时刻', prompt: 'enhance with golden hour lighting and warm cinematic glow' },
+                    { id: 'street_photo', name: '街头摄影', prompt: 'convert to street photography style with urban grit' },
+                    { id: 'black_white', name: '黑白摄影', prompt: 'convert to dramatic black and white photography with high contrast' },
+                    { id: 'cross_process', name: '交叉冲印', prompt: 'apply cross-processing effects with shifted color curves and vintage feel' }
+                ]
+            },
+            {
+                title: '🎮 游戏美学',
+                operations: [
+                    { id: 'pixel_art', name: '像素艺术', prompt: 'convert to pixel art style with 8-bit retro gaming aesthetic' },
+                    { id: 'low_poly', name: '低多边形', prompt: 'transform into low poly 3D style with geometric simplification' },
+                    { id: 'ps1_graphics', name: 'PS1图形', prompt: 'style as PlayStation 1 graphics with low-res textures' },
+                    { id: 'minecraft_style', name: '我的世界', prompt: 'convert to Minecraft blocky voxel style' },
+                    { id: 'zelda_botw', name: '塞尔达风格', prompt: 'transform into Zelda Breath of Wild art style' },
+                    { id: 'genshin_impact', name: '原神风格', prompt: 'style as Genshin Impact anime game aesthetic' },
+                    { id: 'nintendo_style', name: '任天堂风格', prompt: 'convert to classic Nintendo game art style with bright colors' },
+                    { id: 'arcade_cabinet', name: '街机美学', prompt: 'style as retro arcade cabinet game with CRT scanlines and vibrant colors' }
+                ]
+            },
+            {
+                title: '🚀 科技未来',
+                operations: [
+                    { id: 'cyberpunk_style', name: '赛博朋克', prompt: 'transform into cyberpunk aesthetic with neon effects' },
+                    { id: 'sci_fi_transform', name: '科幻改造', prompt: 'transform into futuristic sci-fi style' },
+                    { id: 'holographic', name: '全息效果', prompt: 'add holographic effects with iridescent colors' },
+                    { id: 'digital_glitch', name: '数字故障', prompt: 'apply digital glitch effects and data corruption aesthetics' },
+                    { id: 'neon_noir', name: '霓虹黑色', prompt: 'transform into neon noir style with dramatic lighting' },
+                    { id: 'matrix_style', name: '黑客帝国', prompt: 'convert to Matrix movie style with green digital rain' },
+                    { id: 'tron_legacy', name: '创战纪风格', prompt: 'style as Tron Legacy with glowing circuits and digital landscapes' },
+                    { id: 'blade_runner', name: '银翼杀手', prompt: 'transform into Blade Runner aesthetic with dystopian future atmosphere' }
+                ]
+            },
+            {
+                title: '📱 社交媒体',
+                operations: [
+                    { id: 'instagram_filter', name: 'IG滤镜', prompt: 'apply Instagram-style filter with warm tones and soft lighting' },
+                    { id: 'vsco_aesthetic', name: 'VSCO美学', prompt: 'convert to VSCO photography style with film-like quality' },
+                    { id: 'tiktok_trend', name: 'TikTok风格', prompt: 'style as TikTok trend with vibrant colors and dynamic composition' },
+                    { id: 'pinterest_aesthetic', name: 'Pinterest美学', prompt: 'transform into Pinterest-worthy aesthetic photography' },
+                    { id: 'snapchat_filter', name: 'Snapchat滤镜', prompt: 'apply Snapchat-style AR filter effects' },
+                    { id: 'xiaohongshu', name: '小红书风格', prompt: 'convert to xiaohongshu lifestyle photography style' },
+                    { id: 'douyin_style', name: '抖音风格', prompt: 'style as Douyin short video aesthetic with trendy filters' },
+                    { id: 'influencer_style', name: '网红风格', prompt: 'transform into influencer-style photography with perfect lighting and composition' }
+                ]
+            },
+            {
+                title: '🌸 亚文化核心',
+                operations: [
+                    { id: 'cottagecore', name: '村舍核心', prompt: 'convert to cottagecore aesthetic with rustic charm' },
+                    { id: 'fairycore', name: '仙女核心', prompt: 'transform into fairycore style with magical elements' },
+                    { id: 'dark_academia', name: '黑学院', prompt: 'style as dark academia with vintage books and moody lighting' },
+                    { id: 'light_academia', name: '浅色学院', prompt: 'convert to light academia with cream tones and scholarly elements' },
+                    { id: 'kidcore', name: '童心核心', prompt: 'transform into kidcore style with bright childlike colors' },
+                    { id: 'goblincore', name: '地精核心', prompt: 'style as goblincore with earthy treasures and nature' },
+                    { id: 'cottagecore_dark', name: '黑暗村舍', prompt: 'style as dark cottagecore with gothic rural elements and moody atmosphere' },
+                    { id: 'forestcore', name: '森林核心', prompt: 'convert to forestcore aesthetic with deep woods and natural mysticism' }
+                ]
+            },
+            {
+                title: '🎌 东亚流行',
+                operations: [
+                    { id: 'kawaii_culture', name: '可爱文化', prompt: 'convert to kawaii style with pastel colors and cute elements' },
+                    { id: 'harajuku_fashion', name: '原宿时尚', prompt: 'style as Harajuku fashion with colorful eclectic mix' },
+                    { id: 'kpop_aesthetic', name: 'K-POP美学', prompt: 'transform into K-pop music video aesthetic with vibrant styling' },
+                    { id: 'vtuber_style', name: 'VTuber风格', prompt: 'transform into VTuber character style with vibrant anime aesthetics' },
+                    { id: 'chinese_hanfu', name: '汉服美学', prompt: 'style with traditional Chinese Hanfu clothing aesthetic' },
+                    { id: 'japanese_ukiyo', name: '浮世绘', prompt: 'transform into Japanese ukiyo-e woodblock print style' },
+                    { id: 'jpop_idol', name: 'J-POP偶像', prompt: 'style as J-pop idol aesthetic with bright colors and glossy finish' },
+                    { id: 'korean_webtoon', name: '韩式网漫', prompt: 'transform into Korean webtoon art style with clean lines and soft shading' }
+                ]
+            },
+            {
+                title: '⚡ 复古未来',
+                operations: [
+                    { id: 'vintage_style', name: '复古风格', prompt: 'convert to vintage style with retro elements' },
+                    { id: 'vhs_aesthetic', name: 'VHS美学', prompt: 'add VHS glitch effects and 80s video aesthetic' },
+                    { id: 'retro_poster', name: '复古海报', prompt: 'transform into retro propaganda poster style' },
+                    { id: 'art_deco', name: '装饰艺术', prompt: 'style as art deco with geometric luxury patterns' },
+                    { id: 'steampunk', name: '蒸汽朋克', prompt: 'convert to steampunk style with mechanical elements' },
+                    { id: 'atompunk', name: '原子朋克', prompt: 'transform into atompunk style with atomic age futurism' },
+                    { id: 'dieselpunk', name: '柴油朋克', prompt: 'style as dieselpunk with industrial machinery and 1940s aesthetics' },
+                    { id: 'cassette_futurism', name: '磁带未来主义', prompt: 'transform into cassette futurism with retro tech and beige computers' }
+                ]
+            }
         ];
-        
-        operationTypes.forEach(type => {
-            const option = document.createElement('option');
-            option.value = type.value;
-            option.textContent = type.text;
-            typeSelect.appendChild(option);
-        });
-        
-        // 第二个下拉框：创意模板选择
-        const templateLabel = document.createElement('label');
-        templateLabel.style.cssText = `
-            display: block;
-            color: #ccc;
-            font-size: 13px;  // 增加2px字体大小
-            margin-bottom: 6px;
-        `;
-        templateLabel.textContent = '✨ 创意模板';
-        
-        const templateSelect = document.createElement('select');
-        templateSelect.style.cssText = `
-            width: 100%;
-            padding: 8px 12px;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 13px;  // 增加2px字体大小
-            outline: none;
-        `;
-        templateSelect.disabled = true;
-        
-        // 为不同操作类型设计的创意模板 - 天马行空的想象力创意合集
-        const creativeTemplates = {
-            scene_building: [
-                { value: 'celestial library with floating books spilling starlight into cosmic void', text: '📚 流淌星光的 celestial library 书籍漂浮在宇宙虚空中' },
-                { value: 'baroque planetarium with orrery of golden gears orbiting luminescent sun', text: '⚙️ 巴洛克天文台金色齿轮仪轨道环绕发光太阳' },
-                { value: 'surreal dreamscape of crystallized islands floating in lavender haze', text: '🔮 超现实梦境结晶岛屿漂浮在薰衣草雾霭中' },
-                { value: 'upside-down world with cascading waterfalls reflecting twin moons', text: '🌊 倒悬世界瀑布倾泻映照双月' },
-                { value: 'prismatic rainbow bridge materializing from aurora connecting fantasy realms', text: '🌈 极光幻化棱镜彩虹桥连接幻想国度' },
-                { value: 'bioluminescent space whale breaching through stardust with trailing constellations', text: '🐋 生物发光宇宙鲸鱼跃出星尘拖曳星座' },
-                { value: 'enchanted library with ancient tomes blossoming on ethereal trees', text: '📳 魔法图书馆古籍在空灵树上绽放' },
-                { value: 'floating bazaar where merchants trade bottled dreams and memory artifacts', text: '🎪 漂浮集市商人交易瓶装梦境和记忆器物' },
-                { value: 'impossible museum housing paradoxical exhibits like perpetual motion machines', text: '🏛️ 不可能博物馆藏永动机等悖论展品' },
-                { value: 'iridescent soap metropolis with translucent buildings reflecting rainbow hues', text: '🫧 彩虹肥皂都市半透明建筑折射七彩光芒' },
-                { value: 'endless desert of crystalline hourglasses pouring diamond sand in winds', text: '⏳ 无尽水晶沙漠沙漏倾洒钻石沙粒随风' },
-                { value: 'luminous waterfall defying gravity flowing into moon crater with stardust', text: '🌙 发光瀑布逆重力流入月球陨石坑星尘' },
-                { value: 'living labyrinth with walls breathing shifting colors with emotions', text: '🌺 活体迷宫墙壁呼吸随情绪变幻色彩' },
-                { value: 'crystalline cavern with sleeping stories glowing like pulsating fireflies', text: '💎 水晶洞穴沉睡故事如萤火虫脉动发光' },
-                { value: 'ancient turtle island carrying mountain temple with cherry blossoms forever', text: '🐢 古老龟岛承载山间神殿樱花永绽' }
-            ],
-            style_creation: [
-                { value: 'impressionist watercolor dreams with dissolved pigments blooming like flowers', text: '🎨 印象派水彩梦境溶解颜料如花绽放' },
-                { value: 'neon noir ink wash blending eastern and western aesthetics on handmade paper', text: '🔦 霓虹黑墨水墨融合东西方美学手工纸' },
-                { value: 'zero gravity holographic explosion creating iridescent dust motes in darkness', text: '✨ 零重力全息爆炸黑暗中创造虹彩尘埃' },
-                { value: 'bioluminescent microorganism painting living canvas breathing with gentle rhythm', text: '🌿 生物发光微生物绘画活体画布轻柔呼吸' },
-                { value: 'sacred geometry mandala with infinitely recursive golden ratio patterns', text: '🔮 神圣几何曼陀罗无限递归黄金比例图案' },
-                { value: 'avant-garde shadow puppetry with kinetic light sculptures projecting emotions', text: '🎪 先锋皮影戏动态光影雕塑投射情感' },
-                { value: 'prismatic chromatic aberration creating ethereal rainbow halo effects', text: '🌈 棱镜色差创造空灵彩虹光晕效果' },
-                { value: 'vintage daguerreotype capturing contemporary subjects with haunting beauty', text: '📸 古老银版摄影捕捉现代主题幽美' },
-                { value: 'surreal melted crayon sculpture floating in cosmic void with vibrant trails', text: '🖍️ 超现实融化蜡笔雕塑宇宙虚空彩色轨迹' },
-                { value: 'aurora borealis reimagined as dancing brushstrokes across night sky canvas', text: '🌅 北极光重绘为夜空画布舞动画笔' },
-                { value: 'post-Internet glitch art with corrupted data creating beautiful artifacts', text: '👾 后互联网故障艺术损坏数据创造美' },
-                { value: 'synthwave landscape with neon grid mountains reflecting in chrome ocean', text: '🌇 合成波景观霓虹网格山铬合金海洋反射' },
-                { value: 'gothic revival stained glass depicting digital age history with jewel tones', text: '🪟 哥特复兴彩绘玻璃描绘数字时代历史' },
-                { value: 'biomechanical living tattoo with circulatory light pulses beneath skin', text: '🎭 生物机械活体纹身皮下光脉冲循环' },
-                { value: 'celestial constellation map woven with glowing fiber optic nebulae', text: '🌌 天体星座图编织发光光纤星云' }
-            ],
-            character_action: [
-                { value: 'maestro conducting aurora borealis orchestra with baton of pure light', text: '🎭 指挥家挥舞纯光指挥棒指挥北极光交响乐团' },
-                { value: 'mystic weaving cosmic tapestry with threads of captured starlight', text: '🌟 神秘主义者编织捕获星光织就宇宙挂毯' },
-                { value: 'alchemist harvesting moonbeams in crystalline phials under silver sky', text: '🏺 炼金术士银色天空下水晶瓶采集月光' },
-                { value: 'ballerina dancing with mirror reflection creating perfect symmetry', text: '💃 芭蕾舞者与镜中倒影共舞创造完美对称' },
-                { value: 'druid planting seeds of instant growth blossoming into magical flora', text: '🌱 德鲁伊种植瞬间生长种子绽放魔法植物' },
-                { value: 'calligrapher writing with shadow ink that glows ethereally on parchment', text: '✍️ 书法家使用阴影墨水羊皮纸空灵发光' },
-                { value: 'origami master folding paper cranes that transform into living birds', text: '🦯 折纸大师折叠纸鹤化为活鸟飞舞' },
-                { value: 'juggler keeping iridescent soap bubbles aloft with impossible grace', text: '🫧 杂技师以不可能优雅保持彩虹肥皂泡漂浮' },
-                { value: 'bibliomancer summoning luminous butterflies from ancient grimoire pages', text: '📚 书法魔法师从古代魔法书页召唤发光蝴蝶' },
-                { value: 'sculptor breathing life into marble statues with touch of gentle hands', text: '🗿 雕塑家温柔双手赋予大理石雕像生命' },
-                { value: 'light painter creating ephemeral art with fingertips leaving glowing trails', text: '✨ 光画家指尖创造短暂艺术留下发光轨迹' },
-                { value: 'storm conductor orchestrating lightning bolts with dramatic gestures', text: '⚡ 风暴指挥家戏剧性姿态编排闪电' },
-                { value: 'tree whisperer communicating with ancient oaks causing instantaneous bloom', text: '🌳 树语者与古橡树交流促使其瞬间绽放' },
-                { value: 'gravity defier walking on ceiling as if strolling through meadow', text: '🚶 反重力者天花板行走如漫步草地' },
-                { value: 'snow catcher collecting eternal snowflakes that shimmer like diamonds', text: '❄️ 捕雪者收集永恒雪花如钻石闪耀' }
-            ],
-            media_transformation: [
-                { value: 'symphony of sound waves frozen in crystalline glass sculpture singing silently', text: '🎵 声波交响乐水晶玻璃雕塑无声歌唱' },
-                { value: 'artisanal perfume bottle capturing golden hour sunset with swirling colors', text: '🌅 工艺香水瓶捕捉金色时刻日落旋动色彩' },
-                { value: 'avant-garde shadow theater with kinetic light sculptures performing ballet', text: '🎪 先锋影子剧院动态光影雕塑表演芭蕾' },
-                { value: 'magical musical staff with living notes growing into flowering vines', text: '🎼 魔法五线谱活体音符长成开花藤蔓' },
-                { value: 'temporal timepieces displaying precious memories instead of mundane hours', text: '⏰ 时间器物珍贵记忆取代平凡时刻' },
-                { value: 'psychomirror reflecting subconscious dreams rather than physical reality', text: '🪞 心灵镜子反射潜意识梦境非物质现实' },
-                { value: 'collection of bottled messages sent across alternate future timelines', text: '📮 瓶装信集跨越 alternate future timelines' },
-                { value: 'ethereal kite woven from pure imagination soaring through starlit sky', text: '🪁 空灵风筝纯想象力织就星光夜空翱翔' },
-                { value: 'vintage camera developing photographs of forgotten memories in sepia tones', text: '📷 复古相机棕褐色调冲洗被遗忘记忆' },
-                { value: 'vacuum tube radio receiving ethereal signals from parallel dimensions', text: '📻 真空管收音机接收平行维度空灵信号' },
-                { value: 'archaeologist\'s quill pen writing with liquid starlight documenting history', text: '🪶 考古学家羽毛笔液态星光书写历史' },
-                { value: 'intricate snow globe containing entire miniature civilization with moving parts', text: '🏙️ 精密雪花球含整个微型文明活动部件' },
-                { value: 'haunted theater where ghostly actors perform eternal plays automatically', text: '🎭 闹鬼剧院鬼魂演员自动永恒演出' },
-                { value: 'enchanted loom weaving golden fabric from condensed morning sunrise mist', text: '🌫️ 魔法织布机浓缩晨曦金雾编织织物' },
-                { value: 'mystical candle casting colored flame shadows that dance independently', text: '🕯️ 神秘蜡烛彩色火焰阴影独立舞蹈' }
-            ],
-            environment_reconstruction: [
-                { value: 'ancient megalopolis built on colossal world turtle carrying mountain temples', text: '🐢 古代巨城建在巨型世界龟背负山间神殿' },
-                { value: 'sacred garden where all four seasons coexist in perfect harmony', text: '🌸 神圣花园四季共存完美和谐' },
-                { value: 'infinite library with Escher-esque rotating corridors of knowledge', text: '📚 无限图书馆埃舍尔式旋转知识走廊' },
-                { value: 'confectionery wonderland with chocolate rivers and candy cane forests', text: '🍫 糖果仙境巧克力河流拐杖糖森林' },
-                { value: 'celestial cloud city accessible only via hot air balloon journeys', text: '☁️ 天上云城仅热气球旅行可达' },
-                { value: 'bioluminescent underwater cave with self-renewing air bubble ecosystems', text: '🫧 生物发光水下洞穴自新气泡生态系统' },
-                { value: 'endless desert of mirrored dunes reflecting celestial constellations', text: '🌌 无尽镜面沙漠沙丘反射天体星座' },
-                { value: 'enchanted forest where ancient trees whisper forgotten wisdom', text: '🌳 魔法森林古树低语被遗忘智慧' },
-                { value: 'quirky village where gravity reverses direction every midnight', text: '🏘️ 古怪小镇重力每午夜逆转方向' },
-                { value: 'temporal valley where time flows in recursive loops', text: '⭕ 时间山谷时间递归循环流动' },
-                { value: 'floating archipelago defying physics hovering inverted in azure sky', text: '🏝️ 漂浮群岛违抗物理倒悬蔚蓝天空中' },
-                { value: 'rainbow canyon painted by giant brushes with liquid prismatic colors', text: '🎨 彩虹峡谷巨大画笔液态棱镜色彩' },
-                { value: 'mystical swamp where lost memories surface as glowing bubbles', text: '🫧 神秘沼泽失落记忆发光气泡浮现' },
-                { value: 'wind-swept plateau carrying prophetic whispers from ancient spirits', text: '🌬️ 风扫高原古老精灵携带预言低语' },
-                { value: 'mirage oasis where impossible dreams blossom into reality', text: '🌺 海市蜃楼绿洲不可能梦想绽放现实' }
-            ],
-            material_transformation: [
-                { value: 'prismatic rainbow solidified into translucent candy with gem-like clarity', text: '🌈 棱镜彩虹固化半透明糖果宝石般清澈' },
-                { value: 'frozen musical notes forming intricate crystalline structures with harmonic resonance', text: '🎵 冻结音符形成复杂晶体结构谐波共振' },
-                { value: 'handwoven fabric from pure sunlight threads creating golden textile', text: '☀️ 纯阳光线段手工编织金色织物' },
-                { value: 'petrified cosmic stardust containing miniature galaxy formations', text: '✨ 石化宇宙星尘含微型银河系形态' },
-                { value: 'sentient liquid shadow moving with autonomous graceful purpose', text: '🌑 有感知液态阴影自主优雅移动' },
-                { value: 'tangible imagination condensed into physical sculptural forms', text: '💭 有形想象力凝聚物理雕塑形态' },
-                { value: 'iridescent mosaic crafted from butterfly wing scales with prismatic effects', text: '🦋 蝴蝶翅膀鳞片制虹彩马赛克棱镜效果' },
-                { value: 'synesthetic color harmony creating visual symphony of light and form', text: '🎨 通感色彩和谐创造光形视觉交响乐' },
-                { value: 'ethereal cloud spun into gossamer cotton candy with celestial sweetness', text: '☁️ 空灵云纺成蛛网棉花糖天界甜蜜' },
-                { value: 'morning dewdrops encapsulating entire miniature universes within spheres', text: '💧 晨露球体内含整个微型宇宙' },
-                { value: 'pure crystallized laughter forming brilliant gemstones with joyful essence', text: '💎 纯结晶笑声形成灿烂宝石喜悦本质' },
-                { value: 'tears of transformation metamorphosing into graceful living butterflies', text: '🦋 变化眼泪化优雅活蝴蝶' },
-                { value: 'fear transmuted into protective armor through ancient alchemical process', text: '🛡️ 恐惧古老炼金术变保护护甲' },
-                { value: 'pure joy compressed into iridescent bubbles that never pop', text: '🫧 纯喜悦压缩虹彩泡泡永不破裂' },
-                { value: 'cherished memories engraved into translucent ancient wood with golden veins', text: '🪵 珍贵记忆雕刻半透明古木金色纹理' }
-            ]
-        };
-        
-        // 第一个下拉框变化事件
-        typeSelect.addEventListener('change', (e) => {
-            const selectedType = e.target.value;
+
+        // 渲染分类的创意操作
+        creativeCategories.forEach(category => {
+            // 创建分类标题
+            const categoryHeader = document.createElement('div');
+            categoryHeader.style.cssText = `
+                grid-column: 1 / -1;
+                color: #9C27B0;
+                font-size: 11px;
+                font-weight: bold;
+                margin: 8px 0 4px 0;
+                padding-bottom: 2px;
+                border-bottom: 1px solid #444;
+            `;
+            categoryHeader.textContent = category.title;
+            operationsGrid.appendChild(categoryHeader);
             
-            // 清空第二个下拉框
-            templateSelect.innerHTML = '';
-            
-            if (selectedType) {
-                // 启用第二个下拉框并添加对应模板
-                templateSelect.disabled = false;
+            // 渲染该分类下的操作
+            category.operations.forEach(operation => {
+                const button = document.createElement('button');
+                button.style.cssText = `
+                    padding: 8px 12px;
+                    background: #3a3a3a;
+                    border: 1px solid #555;
+                    border-radius: 4px;
+                    color: #fff;
+                    font-size: 11px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    text-align: center;
+                `;
+                button.textContent = operation.name;
                 
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '-- 选择创意模板 --';
-                templateSelect.appendChild(defaultOption);
-                
-                const templates = creativeTemplates[selectedType] || [];
-                templates.forEach(template => {
-                    const option = document.createElement('option');
-                    option.value = template.value;
-                    option.textContent = template.text;
-                    templateSelect.appendChild(option);
-                });
-            } else {
-                // 禁用第二个下拉框
-                templateSelect.disabled = true;
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '-- 请先选择操作类型 --';
-                templateSelect.appendChild(defaultOption);
-            }
-        });
-        
-        // 第二个下拉框选择事件
-        templateSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                // 找到当前活动的描述框并填入选择的提示词
-                const currentPanel = this.tabContents[this.currentCategory];
-                if (currentPanel) {
-                    const actualTabId = this.tabIdMap[this.currentCategory] || this.currentCategory;
-                    const descTextarea = currentPanel.querySelector('textarea[data-tab="' + actualTabId + '"]');
-                    if (descTextarea) {
-                        // 如果描述框为空，直接填入；如果有内容，追加
-                        const currentValue = descTextarea.value.trim();
-                        if (currentValue) {
-                            descTextarea.value = currentValue + ', ' + e.target.value;
-                        } else {
-                            descTextarea.value = e.target.value;
-                        }
-                        
-                        // 触发数据更新
-                        this.currentTabData.description = descTextarea.value;
-                        this.generateSuperPrompt();
-                        
-                        // 重置选择框
-                        e.target.value = '';
-                        typeSelect.value = '';
-                        templateSelect.innerHTML = '';
-                        templateSelect.disabled = true;
-                        const resetOption = document.createElement('option');
-                        resetOption.value = '';
-                        resetOption.textContent = '-- 请先选择操作类型 --';
-                        templateSelect.appendChild(resetOption);
+                button.addEventListener('click', () => {
+                    // 直接设置生成的提示词
+                    this.tabData.creative = { description: operation.prompt };
+                    this.currentTabData = this.tabData.creative;
+                    
+                    // 更新预览显示
+                    const previewElement = section.querySelector('.prompt-preview');
+                    if (previewElement) {
+                        previewElement.textContent = operation.prompt;
+                        previewElement.style.color = '#fff';
                     }
-                }
-            }
+                    
+                    // 高亮选中的按钮
+                    operationsGrid.querySelectorAll('button').forEach(btn => {
+                        btn.style.background = '#3a3a3a';
+                        btn.style.borderColor = '#555';
+                    });
+                    button.style.background = '#4a5a4a';
+                    button.style.borderColor = '#6a7a6a';
+                    
+                    this.notifyNodeUpdate();
+                });
+                
+                button.addEventListener('mouseenter', () => {
+                    if (button.style.background !== 'rgb(74, 90, 74)') {
+                        button.style.background = '#4a4a4a';
+                    }
+                });
+                
+                button.addEventListener('mouseleave', () => {
+                    if (button.style.background !== 'rgb(74, 90, 74)') {
+                        button.style.background = '#3a3a3a';
+                    }
+                });
+                
+                operationsGrid.appendChild(button);
+            });
         });
-        
-        section.appendChild(typeLabel);
-        section.appendChild(typeSelect);
-        section.appendChild(templateLabel);
-        section.appendChild(templateSelect);
-        
+
+        // 预览区域
+        const previewSection = document.createElement('div');
+        previewSection.style.cssText = `
+            margin-top: 12px;
+            padding: 8px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+        `;
+
+        const previewTitle = document.createElement('div');
+        previewTitle.style.cssText = `
+            color: #888;
+            font-size: 10px;
+            margin-bottom: 4px;
+        `;
+        previewTitle.textContent = '预览：';
+
+        const previewText = document.createElement('div');
+        previewText.className = 'prompt-preview';
+        previewText.style.cssText = `
+            color: #666;
+            font-size: 11px;
+            min-height: 20px;
+        `;
+        previewText.textContent = '选择创意操作类型以查看提示词预览...';
+
+        previewSection.appendChild(previewTitle);
+        previewSection.appendChild(previewText);
+
+        section.appendChild(title);
+        section.appendChild(operationsGrid);
+        section.appendChild(previewSection);
+
         return section;
     }
+    
     
     saveCurrentTabData() {
         // 保存当前选项卡的数据
@@ -3397,24 +4876,11 @@ class KontextSuperPrompt {
         if (this.currentTabData) {
             this.currentTabData.operationType = operationType;
         }
+        
+        // 更新语法模板选择器以反映新的操作类型过滤
+        this.updateGrammarTemplateOptions();
+        
         this.updateOperationButtons();
-        
-        // 获取当前选项卡的容器
-        const currentPanel = this.tabContents[this.currentCategory];
-        if (currentPanel) {
-            const constraintContainer = currentPanel.querySelector('.constraint-prompts-container');
-            const decorativeContainer = currentPanel.querySelector('.decorative-prompts-container');
-            
-            // 更新全局引用
-            this.constraintContainer = constraintContainer;
-            this.decorativeContainer = decorativeContainer;
-            
-            // 重新加载对应操作类型的提示词选项（不自动选中）
-            if (this.constraintContainer && this.decorativeContainer) {
-                this.loadDefaultPrompts();
-            }
-        }
-        
         this.notifyNodeUpdate();
     }
 
@@ -3436,6 +4902,95 @@ class KontextSuperPrompt {
         
         // 触发增强约束系统更新
         this.refreshEnhancedConstraints();
+    }
+    
+    getEditingCategoryFromOperationType(operationType) {
+        // 根据操作类型确定编辑类别
+        const operationMappings = {
+            // 局部编辑操作
+            'add_object': 'local_editing',
+            'change_color': 'local_editing', 
+            'change_style': 'local_editing',
+            'replace_object': 'local_editing',
+            'remove_object': 'local_editing',
+            'face_swap': 'local_editing',
+            'change_texture': 'local_editing',
+            'change_pose': 'local_editing',
+            'change_expression': 'local_editing',
+            'change_clothing': 'local_editing',
+            'enhance_quality': 'local_editing',
+            'blur_background': 'local_editing',
+            'adjust_lighting': 'local_editing',
+            'resize_object': 'local_editing',
+            'enhance_skin_texture': 'local_editing',
+            'character_expression': 'local_editing',
+            'character_hair': 'local_editing',
+            'character_accessories': 'local_editing',
+            
+            // 全局编辑操作
+            'global_color_grade': 'global_editing',
+            'global_style_transform': 'global_editing',
+            'global_mood': 'global_editing',
+            'global_lighting': 'global_editing',
+            'global_composition': 'global_editing',
+            'scene_transform': 'global_editing',
+            'artistic_filter': 'global_editing',
+            'change_background': 'global_editing',
+            
+            // 文字编辑操作
+            'text_add': 'text_editing',
+            'text_edit': 'text_editing', 
+            'text_remove': 'text_editing',
+            'text_style': 'text_editing',
+            'font_change': 'text_editing',
+            
+            // 专业操作
+            'geometric_warp': 'professional_operations',
+            'advanced_composite': 'professional_operations',
+            'color_science': 'professional_operations',
+            'technical_enhancement': 'professional_operations',
+            'precise_masking': 'professional_operations',
+            'advanced_lighting': 'professional_operations',
+            
+            // 创意重构操作
+            'style_transfer': 'creative_reconstruction',
+            'artistic_interpretation': 'creative_reconstruction',
+            'conceptual_transformation': 'creative_reconstruction',
+            'narrative_editing': 'creative_reconstruction'
+        };
+        
+        return operationMappings[operationType] || 'local_editing';
+    }
+    
+    updateGrammarTemplateOptions() {
+        // 更新当前选项卡的语法模板选择器
+        const currentPanel = this.tabContents[this.currentCategory];
+        if (!currentPanel) return;
+        
+        const templateSelect = currentPanel.querySelector('.grammar-template-select');
+        if (!templateSelect) return;
+        
+        // 清空并重新填充选项
+        templateSelect.innerHTML = '';
+        
+        // 添加默认选项
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '选择语法模板...';
+        defaultOption.disabled = true;
+        templateSelect.appendChild(defaultOption);
+        
+        // 添加过滤后的模板选项
+        this.addGrammarTemplateOptions(templateSelect, this.currentCategory);
+        
+        // 重置模板选择
+        templateSelect.selectedIndex = 0;
+        
+        // 清空填空区域
+        const fillBlankContainer = currentPanel.querySelector('.fill-blank-container');
+        if (fillBlankContainer) {
+            fillBlankContainer.innerHTML = '';
+        }
     }
     
     // 刷新增强约束系统 - 使用固定约束
@@ -4180,10 +5735,6 @@ class KontextSuperPrompt {
         this._lastLayerInfoString = layerInfoString;
         
         this.layerInfo = layerInfo;
-        //     layers: layerInfo.layers?.length || 0,
-        //     canvasSize: layerInfo.canvas_size,
-        //     transformData: layerInfo.transform_data ? Object.keys(layerInfo.transform_data).length : 0
-        // });
         
         // 使用防抖动批量渲染
         this.scheduleRender();
@@ -5131,13 +6682,17 @@ class KontextSuperPrompt {
                 const shape = this.getShapeDescription(layer);
                 console.log('[Layer Context] Shape description:', shape, '(from type:', layer.type, ')');
                 
-                // 优化颜色检测：优先检查 stroke 属性（边框色）- 对于空心形状
+                // 对于图片类型，跳过颜色检测
                 let colorValue = null;
-                
-                // 添加更多调试信息
-                console.log('[Layer Context] Full layer object for color detection:', JSON.stringify(layer, null, 2));
-                
-                // 1. 优先检查 stroke 属性（边框色）- 对于空心形状
+                if (layer.type === 'image') {
+                    console.log('[Layer Context] Image type - skipping color detection');
+                    colorValue = null;
+                } else {
+                    // 优化颜色检测：优先检查 stroke 属性（边框色）- 对于空心形状
+                    // 添加更多调试信息
+                    console.log('[Layer Context] Full layer object for color detection:', JSON.stringify(layer, null, 2));
+                    
+                    // 1. 优先检查 stroke 属性（边框色）- 对于空心形状
                 if (layer.stroke && layer.stroke !== 'transparent' && layer.stroke !== '' && layer.stroke !== null) {
                     colorValue = layer.stroke;
                     console.log('[Layer Context] Color from stroke:', colorValue);
@@ -5178,10 +6733,12 @@ class KontextSuperPrompt {
                         colorValue = layer._fill;
                         console.log('[Layer Context] Color from _fill:', colorValue);
                     }
+                } // 非图片类型的颜色检测结束
                 }
                 
                 const color = this.getColorDescription(colorValue);
                 console.log('[Layer Context] Final color description:', color, '(from value:', colorValue, ')');
+                console.log('[Layer Context] Layer type:', layer.type, 'Name:', name, 'Shape:', shape, 'Color:', color);
                 
                 // 图层名称处理：转换为英文，去除编号
                 let name = '';
@@ -5215,18 +6772,21 @@ class KontextSuperPrompt {
                     if (name && name !== 'image') {
                         layerDesc = name;
                     } else {
-                        layerDesc = 'image';
+                        layerDesc = 'selected area';
                     }
-                } else if (name && color) {
-                    layerDesc = `${color} ${name}`;
-                } else if (shape && color) {
-                    layerDesc = `${color} ${shape}`;
-                } else if (color) {
-                    layerDesc = `${color} object`;
-                } else if (shape) {
-                    layerDesc = `${shape}`;
                 } else {
-                    layerDesc = 'selected object';
+                    // 非图片类型才进行颜色检测
+                    if (name && color) {
+                        layerDesc = `${color} ${name}`;
+                    } else if (shape && color) {
+                        layerDesc = `${color} ${shape}`;
+                    } else if (color) {
+                        layerDesc = `${color} object`;
+                    } else if (shape) {
+                        layerDesc = `${shape}`;
+                    } else {
+                        layerDesc = 'selected object';
+                    }
                 }
                 
                 console.log('[Layer Context] Generated description:', layerDesc);
@@ -5244,6 +6804,12 @@ class KontextSuperPrompt {
                 finalDescription = `${descriptions.join(', ')}, and ${lastItem}`;
             }
             
+            // 临时修复：强制替换任何包含 "image" 的描述
+            if (finalDescription.includes('image')) {
+                console.log('[Layer Context] WARNING: Found "image" in description, replacing with "selected area"');
+                finalDescription = finalDescription.replace(/.*image.*/gi, 'selected area');
+            }
+            
             console.log('[Layer Context] Selected layers description:', finalDescription);
             return finalDescription;
         } catch (error) {
@@ -5252,106 +6818,144 @@ class KontextSuperPrompt {
         }
     }
 
+  
     integrateLayerContext(originalPrompt, layerDescription, operationType) {
-        // 将图层上下文整合到提示词中
         if (!layerDescription || !originalPrompt) {
             return originalPrompt;
         }
-
-        // 根据操作类型选择合适的介词和描述方式
-        const operationContextMap = {
-            'add_operations': {
-                preposition: 'on',
-                template: 'add {prompt} on the {layer}',
-                examples: ['add apple on the red rectangle', 'add text on the blue circle']
-            },
-            'object_removal': {
-                preposition: 'from',
-                template: 'remove {prompt} from the {layer}',
-                examples: ['remove object from the red rectangle', 'remove text from the blue area']
-            },
-            'object_replacement': {
-                preposition: 'in',
-                template: 'replace {layer} with {prompt}',
-                examples: ['replace red rectangle with blue circle', 'replace selected area with apple']
-            },
-            'color_modification': {
-                preposition: 'on',
-                template: 'change {layer} to {prompt}',
-                examples: ['change red rectangle to blue', 'change selected area to green']
-            },
-            'shape_operations': {
-                preposition: 'of',
-                template: 'modify {layer} to {prompt}',
-                examples: ['modify red rectangle to circle', 'resize selected area to smaller']
-            }
-        };
-
-        const contextInfo = operationContextMap[operationType] || operationContextMap['add_operations'];
         
-        try {
-            // 智能整合逻辑
-            const lowerPrompt = originalPrompt.toLowerCase();
-            const lowerLayer = layerDescription.toLowerCase();
+        // 模板系统的提示词已经是完整的，只需要添加位置信息
+        const contextualPrompt = `${originalPrompt} on the ${layerDescription}`;
+        
+        console.log(`[Layer Context] Integrated template prompt: "${originalPrompt}" + "${layerDescription}" = "${contextualPrompt}"`);
+        return contextualPrompt;
+    }
+    
+    createSimpleDescriptionSection(tabId) {
+        const section = document.createElement('div');
+        section.className = 'description-section';
+        section.style.cssText = `
+            margin-bottom: 6px;
+        `;
+
+        // 标题容器
+        const titleContainer = document.createElement('div');
+        titleContainer.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        `;
+        
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+        `;
+        title.textContent = '✏️ 编辑描述';
+        
+        // 翻译按钮
+        const translateBtn = document.createElement('button');
+        translateBtn.textContent = '🌐 中→英';
+        translateBtn.title = '将中文描述翻译为英文';
+        translateBtn.style.cssText = `
+            background: #3a7bc8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        `;
+        translateBtn.onmouseover = () => translateBtn.style.background = '#4a8bd8';
+        translateBtn.onmouseout = () => translateBtn.style.background = '#3a7bc8';
+        
+        titleContainer.appendChild(title);
+        titleContainer.appendChild(translateBtn);
+
+        // 输入框
+        const descriptionTextarea = document.createElement('textarea');
+        descriptionTextarea.placeholder = '输入详细的编辑描述（支持中文）...';
+        descriptionTextarea.style.cssText = `
+            width: 100%;
+            height: 48px;
+            background: #2a2a2a;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        `;
+        
+        // 翻译功能
+        translateBtn.addEventListener('click', async () => {
+            const currentText = descriptionTextarea.value;
+            if (!currentText) return;
             
-            // 检查原提示词是否已经包含位置信息
-            const hasLocationWords = /\b(on|at|in|from|to|near|beside|above|below|inside|outside)\b/.test(lowerPrompt);
+            // 显示加载状态
+            translateBtn.textContent = '⏳ 翻译中...';
+            translateBtn.disabled = true;
             
-            if (hasLocationWords) {
-                // 如果已有位置信息，可能需要替换或保持原样
-                return originalPrompt;
+            try {
+                // 使用翻译助手
+                const translator = window.translationHelper || new TranslationHelper();
+                const translatedText = await translator.translate(currentText);
+                
+                // 更新文本框
+                descriptionTextarea.value = translatedText;
+                
+                // 触发input事件以更新数据
+                const event = new Event('input', { bubbles: true });
+                descriptionTextarea.dispatchEvent(event);
+                
+                // 恢复按钮状态
+                translateBtn.textContent = '✅ 已翻译';
+                setTimeout(() => {
+                    translateBtn.textContent = '🌐 中→英';
+                }, 2000);
+            } catch (error) {
+                console.error('Translation failed:', error);
+                translateBtn.textContent = '❌ 翻译失败';
+                setTimeout(() => {
+                    translateBtn.textContent = '🌐 中→英';
+                }, 2000);
+            } finally {
+                translateBtn.disabled = false;
             }
-
-            // 根据操作类型和内容智能生成上下文化提示词
-            let contextualPrompt = '';
+        });
+        
+        // 设置选项卡特定的属性标识
+        descriptionTextarea.setAttribute('data-tab', tabId);
+        
+        // 为每个描述输入框添加事件监听
+        descriptionTextarea.addEventListener('input', (e) => {
+            const newValue = e.target.value;
+            const currentTab = e.target.getAttribute('data-tab');
             
-            if (operationType === 'add_operations' || operationType === 'object_add') {
-                // 添加操作：在...上添加...
-                if (lowerPrompt.startsWith('add ')) {
-                    const objectToAdd = originalPrompt.substring(4); // 去掉 "add "
-                    contextualPrompt = `add ${objectToAdd} on the ${layerDescription}`;
-                } else {
-                    contextualPrompt = `add ${originalPrompt} on the ${layerDescription}`;
+            // 更新对应选项卡的数据
+            if (this.tabData[currentTab]) {
+                this.tabData[currentTab].description = newValue;
+                if (currentTab === this.currentCategory) {
+                    this.currentTabData = this.tabData[currentTab];
                 }
-            } else if (operationType === 'object_removal' || lowerPrompt.includes('remove')) {
-                // 移除操作：从...移除...
-                if (lowerPrompt.startsWith('remove ')) {
-                    const objectToRemove = originalPrompt.substring(7); // 去掉 "remove "
-                    contextualPrompt = `remove ${objectToRemove} from the ${layerDescription}`;
-                } else {
-                    contextualPrompt = `remove ${originalPrompt} from the ${layerDescription}`;
-                }
-            } else if (operationType === 'object_replacement' || lowerPrompt.includes('replace')) {
-                // 替换操作：将...替换为...
-                // 检查originalPrompt是否已经包含replace指令
-                if (lowerPrompt.startsWith('replace ')) {
-                    // 如果已经包含replace，检查是否包含"selected object"
-                    if (lowerPrompt.includes('selected object')) {
-                        // 将"selected object"替换为实际的图层描述
-                        contextualPrompt = originalPrompt.replace(/selected object/g, layerDescription);
-                    } else {
-                        // 如果不包含"selected object"，直接使用
-                        contextualPrompt = originalPrompt;
-                    }
-                } else {
-                    // 如果不包含replace，添加完整的替换指令
-                    contextualPrompt = `replace the ${layerDescription} with ${originalPrompt}`;
-                }
-            } else if (operationType === 'color_modification' || lowerPrompt.includes('change') || lowerPrompt.includes('color')) {
-                // 颜色修改：将...改为...
-                contextualPrompt = `change the ${layerDescription} to ${originalPrompt}`;
-            } else {
-                // 默认：在...处进行...操作
-                contextualPrompt = `${originalPrompt} on the ${layerDescription}`;
+                this.notifyNodeUpdate();
             }
-
-            console.log(`[Layer Context] Integrated prompt: "${originalPrompt}" + "${layerDescription}" = "${contextualPrompt}"`);
-            return contextualPrompt;
-
-        } catch (error) {
-            console.warn('整合图层上下文失败:', error);
-            return originalPrompt; // 失败时返回原始提示词
+        });
+        
+        // 设置初始值
+        if (this.tabData[tabId] && this.tabData[tabId].description) {
+            descriptionTextarea.value = this.tabData[tabId].description;
         }
+
+        section.appendChild(titleContainer);
+        section.appendChild(descriptionTextarea);
+
+        return section;
     }
 
     translateLayerNameToEnglish(chineseName) {
@@ -5428,67 +7032,48 @@ class KontextSuperPrompt {
         // 处理传入字符串的情况（向后兼容）
         const shapeType = typeof layer === 'string' ? layer : layer.type;
         
-        // 将形状类型转换为描述
-        const shapeMap = {
+        // 图层类型映射
+        const layerTypes = {
             'rect': 'box',
-            'rectangle': 'box',
-            '矩形': 'box',
-            '方框': 'box',
+            'rectangle': 'box', 
             'square': 'box',
             'circle': 'circle',
-            '圆形': 'circle',
             'ellipse': 'circle',
-            '椭圆': 'circle',
             'oval': 'circle',
             'polygon': 'polygon',
-            '多边形': 'polygon',
             'line': 'line',
-            '线条': 'line',
             'path': 'path',
-            '路径': 'path',
             'text': 'text area',
-            '文本': 'text area',
             'i-text': 'text area',
             'textbox': 'text area',
-            'image': 'image',
-            '图片': 'image',
-            '图像': 'image'
+            'image': 'selected area'
         };
-        
-        const shapeDescription = shapeMap[shapeType] || shapeType || '';
-        return shapeDescription;
+        return layerTypes[shapeType] || 'object';
     }
 
     getColorDescription(colorValue) {
         // 将颜色值转换为英文描述
         if (!colorValue) return '';
         
-                
         // 标准化颜色值
         const normalizedColor = colorValue.toString().toLowerCase();
         
-        // 精确匹配常用颜色
+        // 颜色映射
         const colorMap = {
-            '#ff0000': 'red', '#f00': 'red', 'red': 'red', 'rgb(255,0,0)': 'red',
-            '#00ff00': 'green', '#0f0': 'green', 'green': 'green', '#008000': 'green', 'rgb(0,255,0)': 'green',
-            '#0000ff': 'blue', '#00f': 'blue', 'blue': 'blue', 'rgb(0,0,255)': 'blue',
-            '#ffff00': 'yellow', '#ff0': 'yellow', 'yellow': 'yellow', 'rgb(255,255,0)': 'yellow',
-            '#ff8000': 'orange', '#ffa500': 'orange', 'orange': 'orange', 'rgb(255,165,0)': 'orange',
-            '#800080': 'purple', '#8000ff': 'purple', 'purple': 'purple', 'rgb(128,0,128)': 'purple',
-            '#000000': 'black', '#000': 'black', 'black': 'black', 'rgb(0,0,0)': 'black',
-            '#ffffff': 'white', '#fff': 'white', 'white': 'white', 'rgb(255,255,255)': 'white',
-            '#808080': 'gray', '#888': 'gray', 'gray': 'gray', 'grey': 'gray', 'rgb(128,128,128)': 'gray',
-            '#ffc0cb': 'pink', 'pink': 'pink', 'rgb(255,192,203)': 'pink',
-            '#a52a2a': 'brown', 'brown': 'brown', 'rgb(165,42,42)': 'brown',
-            '#40e0d0': 'turquoise', 'turquoise': 'turquoise', 'rgb(64,224,208)': 'turquoise',
-            '#ff69b4': 'hotpink', 'rgb(255,105,180)': 'hotpink',
-            '#90ee90': 'lightgreen', 'rgb(144,238,144)': 'lightgreen',
-            '#ffb6c1': 'lightpink', 'rgb(255,182,193)': 'lightpink'
+            '#ff0000': 'red', '#f00': 'red', 'red': 'red',
+            '#00ff00': 'green', '#0f0': 'green', 'green': 'green',
+            '#0000ff': 'blue', '#00f': 'blue', 'blue': 'blue',
+            '#ffff00': 'yellow', '#ff0': 'yellow', 'yellow': 'yellow',
+            '#ff00ff': 'purple', '#f0f': 'purple', 'purple': 'purple',
+            '#00ffff': 'cyan', '#0ff': 'cyan', 'cyan': 'cyan',
+            '#000000': 'black', '#000': 'black', 'black': 'black',
+            '#ffffff': 'white', '#fff': 'white', 'white': 'white',
+            '#808080': 'gray', '#808080': 'gray', 'gray': 'gray',
+            '#ffa500': 'orange', 'orange': 'orange', 'orange': 'orange'
         };
-
-        // 精确匹配
+        
         if (colorMap[normalizedColor]) {
-                        return colorMap[normalizedColor];
+            return colorMap[normalizedColor];
         }
         
         // 处理RGB格式
@@ -5779,173 +7364,26 @@ class KontextSuperPrompt {
         // 生成综合提示词
         let generatedPromptParts = [];
         
-        // 使用新的关键词转换系统
+        // 直接使用模板生成的description，无需复杂转换
         const description = this.currentTabData.description || '';
         
-        // 获取操作类型（优先使用用户手动选择，只有未选择时才自动检测）
-        let operationType = this.currentTabData.operationType || this.currentOperationType;
-        let specificOperation = this.currentTabData.specificOperation || this.currentSpecificOperation;
-        
-        // 只有在用户没有手动选择具体操作时才使用自动检测
-        if ((!operationType || operationType === 'global_color_grade') && 
-            (!specificOperation || specificOperation === 'default') &&
-            description && description.trim() && 
-            window.KontextMenuSystem && window.KontextMenuSystem.autoDetectOperationType) {
-            const detected = window.KontextMenuSystem.autoDetectOperationType(description);
-            operationType = detected.operationType;
-            specificOperation = detected.specificOperation;
-            console.log('[DEBUG] Auto-detected operation:', detected);
-        } else {
-            console.log('[DEBUG] Using user-selected operation:', operationType, specificOperation);
-        }
-        
-        console.log('[DEBUG] Using keyword conversion - operationType:', operationType, 'specificOperation:', specificOperation, 'description:', description);
+        console.log('[DEBUG] Using template-generated description:', description);
         
         // 获取选中图层的描述信息
         const selectedLayerDescription = this.getSelectedLayerDescription();
         console.log('[DEBUG] Selected layer description:', selectedLayerDescription);
-        console.log('[DEBUG] Selected layer description type:', typeof selectedLayerDescription);
-        console.log('[DEBUG] getSelectedLayerDescription method:', this.getSelectedLayerDescription.toString().substring(0, 100) + '...');
         
-        if (description && description.trim() && window.KontextMenuSystem && window.KontextMenuSystem.convertKeywordsToPrompt) {
-            // 使用新的关键词转换系统
-            const convertedPrompt = window.KontextMenuSystem.convertKeywordsToPrompt(
-                operationType, 
-                specificOperation, 
-                description.trim(),
-                this.currentCategory
-            );
-            console.log('[DEBUG] Converted prompt:', convertedPrompt);
-            if (convertedPrompt && convertedPrompt.trim()) {
-                // 如果有选中的图层，整合图层上下文
-                if (selectedLayerDescription) {
-                    const contextualPrompt = this.integrateLayerContext(convertedPrompt, selectedLayerDescription, operationType);
-                    generatedPromptParts.push(contextualPrompt);
-                } else {
-                    // 没有选择图层时，使用简单的模板
-                    let simplePrompt = convertedPrompt;
-                    
-                    // 根据操作类型调整模板
-                    if (operationType === 'color_modification') {
-                        // 简化颜色修改的提示词
-                        simplePrompt = `make ${description.trim()} orange`;
-                    } else if (operationType === 'add_operations') {
-                        // 简化添加对象的提示词
-                        simplePrompt = `add ${description.trim()}`;
-                    } else if (operationType === 'object_removal') {
-                        // 简化移除对象的提示词
-                        simplePrompt = `remove ${description.trim()}`;
-                    } else if (operationType === 'object_replacement') {
-                        // 简化替换对象的提示词
-                        // 检查是否是 "A to B" 或 "A-B" 格式
-                        let sourceObj, targetObj;
-                        
-                        if (description.includes(' to ')) {
-                            const parts = description.split(' to ');
-                            if (parts.length === 2) {
-                                sourceObj = parts[0].trim();
-                                targetObj = parts[1].trim();
-                            }
-                        } else if (description.includes('-')) {
-                            const parts = description.split('-');
-                            if (parts.length === 2) {
-                                sourceObj = parts[0].trim();
-                                targetObj = parts[1].trim();
-                            }
-                        }
-                        
-                        if (sourceObj && targetObj) {
-                            simplePrompt = `replace ${sourceObj} with ${targetObj}`;
-                        } else {
-                            simplePrompt = `replace with ${description.trim()}`;
-                        }
-                    } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
-                        // 简化文字操作的提示词 - 直接使用转换后的提示词
-                        simplePrompt = convertedPrompt;
-                    } else if (operationType === 'scene_building' || operationType === 'style_creation' || operationType === 'character_action' || operationType === 'media_transformation') {
-                        // 创意重构操作 - 直接使用转换后的提示词
-                        simplePrompt = convertedPrompt;
-                    } else if (operationType === 'geometric_warp' || operationType === 'perspective_transform' || operationType === 'blur_sharpen' || 
-                              operationType === 'local_deformation' || operationType === 'composition_adjustment' || operationType === 'general_editing' ||
-                              operationType === 'ecommerce' || operationType === 'portrait' || operationType === 'architecture' || 
-                              operationType === 'product' || operationType === 'automotive' || operationType === 'fashion' ||
-                              operationType === 'food' || operationType === 'real_estate' || operationType === 'medical' ||
-                              operationType === 'technical_processing' || operationType === 'color_accuracy' || operationType === 'background_clean' ||
-                              operationType === 'detail_enhance' || operationType === 'defect_remove' || operationType === 'skin_natural' ||
-                              operationType === 'feature_preserve' || operationType === 'background_pro' || operationType === 'lighting_opt') {
-                        // 专业操作 - 直接使用描述，不需要 change to 前缀
-                        simplePrompt = description.trim();
-                    } else {
-                        // 其他操作使用通用模板
-                        simplePrompt = `change to ${description.trim()}`;
-                    }
-                    
-                    generatedPromptParts.push(simplePrompt);
-                }
-            }
-        } else if (description && description.trim()) {
-            // 备用方案：直接翻译描述
-            let englishDescription = this.translateToEnglish(description.trim());
-            console.log('[DEBUG] Fallback translation:', englishDescription);
+        if (description && description.trim()) {
+            // 模板已生成标准英文提示词，直接使用
+            console.log('[DEBUG] Using template prompt:', description);
             
             // 如果有选中的图层，整合图层上下文
             if (selectedLayerDescription) {
-                const contextualPrompt = this.integrateLayerContext(englishDescription, selectedLayerDescription, operationType);
+                const contextualPrompt = this.integrateLayerContext(description.trim(), selectedLayerDescription, 'template_based');
                 generatedPromptParts.push(contextualPrompt);
             } else {
-                // 没有选择图层时，使用简单的模板
-                let simplePrompt = englishDescription;
-                
-                // 根据操作类型调整模板
-                if (operationType === 'color_modification') {
-                    simplePrompt = `make ${description.trim()} orange`;
-                } else if (operationType === 'add_operations') {
-                    simplePrompt = `add ${description.trim()}`;
-                } else if (operationType === 'object_removal') {
-                    simplePrompt = `remove ${description.trim()}`;
-                } else if (operationType === 'object_replacement') {
-                    // 简化替换对象的提示词
-                    // 检查是否是 "A to B" 或 "A-B" 格式
-                    let sourceObj, targetObj;
-                    
-                    if (description.includes(' to ')) {
-                        const parts = description.split(' to ');
-                        if (parts.length === 2) {
-                            sourceObj = parts[0].trim();
-                            targetObj = parts[1].trim();
-                        }
-                    } else if (description.includes('-')) {
-                        const parts = description.split('-');
-                        if (parts.length === 2) {
-                            sourceObj = parts[0].trim();
-                            targetObj = parts[1].trim();
-                        }
-                    }
-                    
-                    if (sourceObj && targetObj) {
-                        simplePrompt = `replace ${sourceObj} with ${targetObj}`;
-                    } else {
-                        simplePrompt = `replace with ${description.trim()}`;
-                    }
-                } else if (operationType === 'text_operations' || operationType === 'content_replace' || operationType === 'content_add' || operationType === 'style_modify') {
-                    simplePrompt = englishDescription;
-                } else if (operationType === 'scene_building' || operationType === 'style_creation' || operationType === 'character_action' || operationType === 'media_transformation') {
-                    simplePrompt = englishDescription;
-                } else if (operationType === 'geometric_warp' || operationType === 'perspective_transform' || operationType === 'blur_sharpen' || 
-                          operationType === 'local_deformation' || operationType === 'composition_adjustment' || operationType === 'general_editing' ||
-                          operationType === 'ecommerce' || operationType === 'portrait' || operationType === 'architecture' || 
-                          operationType === 'product' || operationType === 'automotive' || operationType === 'fashion' ||
-                          operationType === 'food' || operationType === 'real_estate' || operationType === 'medical' ||
-                          operationType === 'technical_processing' || operationType === 'color_accuracy' || operationType === 'background_clean' ||
-                          operationType === 'detail_enhance' || operationType === 'defect_remove' || operationType === 'skin_natural' ||
-                          operationType === 'feature_preserve' || operationType === 'background_pro' || operationType === 'lighting_opt') {
-                    // 专业操作 - 直接使用描述，不需要 change to 前缀
-                    simplePrompt = englishDescription;
-                } else {
-                    simplePrompt = `change to ${description.trim()}`;
-                }
-                
-                generatedPromptParts.push(simplePrompt);
+                // 没有选择图层时，直接使用模板生成的提示词
+                generatedPromptParts.push(description.trim());
             }
         }
         
@@ -5964,6 +7402,7 @@ class KontextSuperPrompt {
         this.currentTabData.generatedPrompt = generatedPromptParts.join(', ');
         console.log('[DEBUG] Generated prompt parts:', generatedPromptParts);
         console.log('[DEBUG] Final generated prompt:', this.currentTabData.generatedPrompt);
+        console.log('[DEBUG] Generated prompt length:', this.currentTabData.generatedPrompt.length);
         
         // 如果没有生成任何内容，提供一个默认提示
         if (!this.currentTabData.generatedPrompt || this.currentTabData.generatedPrompt.trim() === '') {
