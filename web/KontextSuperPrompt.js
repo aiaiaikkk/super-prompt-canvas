@@ -5210,7 +5210,14 @@ class KontextSuperPrompt {
                 });
                 
                 let layerDesc = '';
-                if (name && color) {
+                // 对于图片类型，优先使用名称或shape，不加颜色前缀
+                if (layer.type === 'image') {
+                    if (name && name !== 'image') {
+                        layerDesc = name;
+                    } else {
+                        layerDesc = 'image';
+                    }
+                } else if (name && color) {
                     layerDesc = `${color} ${name}`;
                 } else if (shape && color) {
                     layerDesc = `${color} ${shape}`;
@@ -5442,7 +5449,10 @@ class KontextSuperPrompt {
             'text': 'text area',
             '文本': 'text area',
             'i-text': 'text area',
-            'textbox': 'text area'
+            'textbox': 'text area',
+            'image': 'image',
+            '图片': 'image',
+            '图像': 'image'
         };
         
         const shapeDescription = shapeMap[shapeType] || shapeType || '';
