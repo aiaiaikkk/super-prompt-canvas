@@ -2308,7 +2308,7 @@ class LRPGCanvas {
         
         // 防护：检查 layer_transforms 是否有效
         if (!layer_transforms || typeof layer_transforms !== 'object') {
-            console.warn('[LRPG Canvas] layer_transforms 无效，返回空图层信息');
+            // Canvas初始化时 layer_transforms 为空是正常的
             return {
                 layers: [],
                 canvas_size: { width: 512, height: 512 },

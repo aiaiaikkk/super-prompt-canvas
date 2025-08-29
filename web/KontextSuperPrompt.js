@@ -379,6 +379,14 @@ class KontextSuperPrompt {
         this.currentCategory = 'local';
         this.autoGenerate = false;  // 默认不自动生成
         
+        // 图层选择状态管理 - 支持上下文感知提示词生成
+        this.layerSelectionState = 'none';  // 'none' | 'annotation' | 'image'
+        this.selectionContext = {
+            annotationData: null,  // 标注图层的几何信息
+            imageContent: null,    // 图像图层的内容分析
+            contentType: 'unknown' // 'portrait' | 'landscape' | 'object' | 'text' | 'unknown'
+        };
+        
         // 为每个选项卡创建独立的数据存储
         this.tabData = {
             local: {
@@ -1912,7 +1920,6 @@ class KontextSuperPrompt {
                 .map(key => ({ value: key, ...allTemplates[key] }))
                 .filter(template => template); // 确保模板存在
                 
-            console.log(`操作类型 ${operationType} 对应模板数量: ${filteredTemplates.length}`);
         } else {
             // 如果没有选择操作类型，根据选项卡ID返回默认模板
             const tabToCategoryMap = {
@@ -2976,6 +2983,11 @@ class KontextSuperPrompt {
         }
         
         if (generatedPrompt) {
+            // 应用上下文感知处理 - 只对局部编辑和文本编辑生效
+            if (tabId === 'local' || tabId === 'text') {
+                generatedPrompt = this.generateContextualPrompt(generatedPrompt);
+            }
+            
             previewElement.textContent = generatedPrompt;
             previewElement.style.color = '#fff';
             
@@ -4337,7 +4349,6 @@ class KontextSuperPrompt {
     }
     
     handleOperationChange(editingType, operationType) {
-        console.log('[Operation Change]', editingType, operationType);
         
         // 更新内部状态
         this.currentOperationType = operationType;
@@ -4368,7 +4379,6 @@ class KontextSuperPrompt {
         const templateSelect = tabPane.querySelector('.grammar-template-select');
         if (!templateSelect) return;
         
-        console.log(`更新选项卡 ${currentTabId} 的语法模板选择器，操作类型: ${this.currentTabData.operationType}`);
         
         // 清空现有选项
         templateSelect.innerHTML = '';
@@ -4854,7 +4864,6 @@ class KontextSuperPrompt {
         if (previewTextarea && this.currentTabData) {
             previewTextarea.value = this.currentTabData.generatedPrompt || '';
         } else {
-            console.log('[DEBUG] Preview update failed - previewTextarea:', !!previewTextarea, 'currentTabData:', !!this.currentTabData);
         }
     }
     
@@ -5057,7 +5066,6 @@ class KontextSuperPrompt {
                 // 使用中文语义修饰词作为修饰性提示词
                 decoratives = enhancedConstraints.display_semantic_modifiers || [];
                 
-                console.log(`[Enhanced AutoAdd] Generated ${constraints.length} constraints, ${decoratives.length} modifiers`);
             } else {
                 // 备用：使用传统约束系统
                 constraints = ['专业质量输出', '无缝集成', '自然外观', '技术精度'];
@@ -5402,9 +5410,8 @@ class KontextSuperPrompt {
             if (descriptionTextarea) {
                 const currentDescription = descriptionTextarea.value;
                 this.description = currentDescription;
-            } else {
-                console.warn("[Kontext Super Prompt] 未找到描述输入框");
             }
+            // 注意：某些面板（如创意操作）可能不需要描述输入框，这是正常的
             
             // 强制更新操作类型 - 从当前活动面板读取下拉框选中的操作类型
             const operationSelect = currentPanel.querySelector('.operation-select');
@@ -5627,14 +5634,14 @@ class KontextSuperPrompt {
     restoreDataToUI() {
         // 将恢复的数据同步到UI组件中
         
-        // 更新当前选项卡的数据访问器
-        this.currentTabData = this.tabData[this.currentCategory];
-        
-        // 检查数据是否存在
-        if (!this.currentTabData) {
-            console.warn('[Kontext Super Prompt] currentTabData is null, skipping UI restore');
+        // 检查基础数据是否存在
+        if (!this.tabData || !this.tabData[this.currentCategory]) {
+            // 初始化期间 tabData 可能还未完全设置，这是正常的
             return;
         }
+        
+        // 更新当前选项卡的数据访问器
+        this.currentTabData = this.tabData[this.currentCategory];
         
         // 恢复当前选项卡的输入框内容
         const currentPanel = this.tabContents[this.currentCategory];
@@ -5842,28 +5849,10 @@ class KontextSuperPrompt {
                 }
             }
             
-            // 如果还没有获取到，使用测试数据
+            // 如果没有获取到图层信息，直接跳过
             if (!layerInfo || !layerInfo.layers || layerInfo.layers.length === 0) {
-                layerInfo = {
-                    layers: [
-                        {
-                            id: "test_layer_1",
-                            name: "测试图层 1 (等待真实数据)",
-                            visible: true,
-                            locked: false,
-                            z_index: 0,
-                            transform: {
-                                name: "测试图层 1",
-                                visible: true,
-                                locked: false
-                            }
-                        }
-                    ],
-                    canvas_size: { width: 500, height: 500 },
-                    transform_data: {
-                        background: { width: 500, height: 500 }
-                    }
-                };
+                console.log('[Layer Info] 未获取到图层信息，等待Canvas节点数据');
+                return;
             }
             
             if (layerInfo) {
@@ -6215,7 +6204,6 @@ class KontextSuperPrompt {
                 // Debug: 使用方式1备用：从DOM元素获取
                 const canvasElement = sourceNode.canvasElement.querySelector('canvas');
                 if (canvasElement && canvasElement.__fabric) {
-                    console.log('[Kontext Super Prompt] 从DOM找到Fabric画布');
                     const fabricCanvas = canvasElement.__fabric;
                     layerInfo = this.extractLayerInfoFromFabricCanvas(fabricCanvas);
                     
@@ -6249,14 +6237,7 @@ class KontextSuperPrompt {
             
             // 如果没有获取到任何层信息，记录调试信息
             if (!layerInfo) {
-                console.log('[Kontext Super Prompt] 未获取到图层信息，源节点状态:', {
-                    hasCanvasInstance: !!sourceNode.canvasInstance,
-                    hasCanvas: !!(sourceNode.canvasInstance && sourceNode.canvasInstance.canvas),
-                    hasCanvasElement: !!sourceNode.canvasElement,
-                    hasExtractMethod: !!(sourceNode.canvasInstance && sourceNode.canvasInstance.extractTransformData)
-                });
             } else {
-                console.log('[Kontext Super Prompt] 成功获取图层信息，层数量:', layerInfo.layers ? layerInfo.layers.length : 0);
             }
         } catch (e) {
             console.warn("[Kontext Super Prompt] 检查图层更新时出错:", e);
@@ -6660,61 +6641,42 @@ class KontextSuperPrompt {
         try {
             // 直接使用 this.selectedLayers，这是通过 checkbox 管理的选中图层
             if (!this.selectedLayers || this.selectedLayers.length === 0) {
-                console.log('[Layer Context] No layers selected');
                 return '';
             }
 
             // 生成图层描述 - 支持多个图层
             const descriptions = [];
             
-            console.log('[Layer Context] Processing selected layers:', this.selectedLayers);
-            
             this.selectedLayers.forEach(selectedItem => {
                 const layer = selectedItem.layer;
                 if (!layer) {
-                    console.log('[Layer Context] Layer data is missing for item:', selectedItem);
                     return;
                 }
                 
-                // 调试：输出关键图层信息
-                console.log('[Layer Context] Layer type:', layer.type, 'fill:', layer.fill, 'stroke:', layer.stroke);
-                
                 const shape = this.getShapeDescription(layer);
-                console.log('[Layer Context] Shape description:', shape, '(from type:', layer.type, ')');
                 
                 // 对于图片类型，跳过颜色检测
                 let colorValue = null;
                 if (layer.type === 'image') {
-                    console.log('[Layer Context] Image type - skipping color detection');
                     colorValue = null;
                 } else {
-                    // 优化颜色检测：优先检查 stroke 属性（边框色）- 对于空心形状
-                    // 添加更多调试信息
-                    console.log('[Layer Context] Full layer object for color detection:', JSON.stringify(layer, null, 2));
+                    // 颜色检测优先级：stroke -> fill -> backgroundColor -> transform
                     
                     // 1. 优先检查 stroke 属性（边框色）- 对于空心形状
                 if (layer.stroke && layer.stroke !== 'transparent' && layer.stroke !== '' && layer.stroke !== null) {
                     colorValue = layer.stroke;
-                    console.log('[Layer Context] Color from stroke:', colorValue);
                 }
-                // 2. 检查 fill 属性（填充色）
                 else if (layer.fill && layer.fill !== 'transparent' && layer.fill !== '' && layer.fill !== null) {
                     colorValue = layer.fill;
-                    console.log('[Layer Context] Color from fill:', colorValue);
                 }
-                // 3. 检查 backgroundColor 属性（某些情况下）
                 else if (layer.backgroundColor && layer.backgroundColor !== 'transparent') {
                     colorValue = layer.backgroundColor;
-                    console.log('[Layer Context] Color from backgroundColor:', colorValue);
                 }
-                // 4. 检查 transform 中的颜色（对于某些特殊形状）
                 else if (layer.transform && layer.transform.stroke) {
                     colorValue = layer.transform.stroke;
-                    console.log('[Layer Context] Color from transform.stroke:', colorValue);
                 }
                 else if (layer.transform && layer.transform.fill) {
                     colorValue = layer.transform.fill;
-                    console.log('[Layer Context] Color from transform.fill:', colorValue);
                 }
                 
                 // 5. 如果还是找不到颜色，检查其他可能的属性
@@ -6722,23 +6684,18 @@ class KontextSuperPrompt {
                     // 检查是否有其他颜色相关的属性
                     if (layer.color) {
                         colorValue = layer.color;
-                        console.log('[Layer Context] Color from color property:', colorValue);
                     }
                     // 检查 Fabric.js 特定的属性
                     if (layer._stroke && layer._stroke !== 'transparent') {
                         colorValue = layer._stroke;
-                        console.log('[Layer Context] Color from _stroke:', colorValue);
                     }
                     if (layer._fill && layer._fill !== 'transparent') {
                         colorValue = layer._fill;
-                        console.log('[Layer Context] Color from _fill:', colorValue);
                     }
                 } // 非图片类型的颜色检测结束
                 }
                 
                 const color = this.getColorDescription(colorValue);
-                console.log('[Layer Context] Final color description:', color, '(from value:', colorValue, ')');
-                console.log('[Layer Context] Layer type:', layer.type, 'Name:', name, 'Shape:', shape, 'Color:', color);
                 
                 // 图层名称处理：转换为英文，去除编号
                 let name = '';
@@ -6754,17 +6711,6 @@ class KontextSuperPrompt {
                     }
                 }
                 
-                // 调试：输出图层信息
-                console.log('[Layer Context] Layer analysis:', {
-                    originalName: layer.name,
-                    translatedName: name,
-                    type: layer.type,
-                    shape: shape,
-                    color: color,
-                    stroke: layer.stroke,
-                    fill: layer.fill,
-                    rawData: layer
-                });
                 
                 let layerDesc = '';
                 // 对于图片类型，优先使用名称或shape，不加颜色前缀
@@ -6789,7 +6735,6 @@ class KontextSuperPrompt {
                     }
                 }
                 
-                console.log('[Layer Context] Generated description:', layerDesc);
                 descriptions.push(layerDesc);
             });
             
@@ -6806,11 +6751,9 @@ class KontextSuperPrompt {
             
             // 临时修复：强制替换任何包含 "image" 的描述
             if (finalDescription.includes('image')) {
-                console.log('[Layer Context] WARNING: Found "image" in description, replacing with "selected area"');
                 finalDescription = finalDescription.replace(/.*image.*/gi, 'selected area');
             }
             
-            console.log('[Layer Context] Selected layers description:', finalDescription);
             return finalDescription;
         } catch (error) {
             console.warn('获取图层描述失败:', error);
@@ -6827,7 +6770,6 @@ class KontextSuperPrompt {
         // 模板系统的提示词已经是完整的，只需要添加位置信息
         const contextualPrompt = `${originalPrompt} on the ${layerDescription}`;
         
-        console.log(`[Layer Context] Integrated template prompt: "${originalPrompt}" + "${layerDescription}" = "${contextualPrompt}"`);
         return contextualPrompt;
     }
     
@@ -7102,15 +7044,12 @@ class KontextSuperPrompt {
                 g = parseInt(matches[2]);
                 b = parseInt(matches[3]);
             } else {
-                console.log('[Color Debug] Invalid RGB format:', normalizedColor);
-                return '';
+                    return '';
             }
         } else {
-            console.log('[Color Debug] Unrecognized color format:', normalizedColor);
             return '';
         }
         
-        console.log('[Color Debug] RGB values:', r, g, b);
         
         // 基于RGB值推断主要颜色
         const max = Math.max(r, g, b);
@@ -7151,25 +7090,18 @@ class KontextSuperPrompt {
     getLayerInfo() {
         // 获取图层信息
         try {
-            console.log('[调试] getLayerInfo开始执行');
-            console.log('[调试] this.node:', this.node);
             
             // 尝试从连接的Canvas节点获取图层信息
             if (this.node && this.node.inputs) {
-                console.log('[调试] 节点输入数量:', this.node.inputs.length);
                 const layerInput = this.node.inputs.find(input => input.name === 'layer_info');
-                console.log('[调试] layer_info输入:', layerInput);
                 
                 if (layerInput && layerInput.link) {
-                    console.log('[调试] 找到layer_info连接:', layerInput.link);
                     
                     // 获取连接的源节点
                     const sourceLink = app.graph.links[layerInput.link];
-                    console.log('[调试] 源连接信息:', sourceLink);
                     
                     if (sourceLink) {
                         const sourceNode = app.graph.getNodeById(sourceLink.origin_id);
-                        console.log('[调试] 源节点:', sourceNode);
                         
                         if (sourceNode && sourceNode.canvasInstance && sourceNode.canvasInstance.extractTransformData) {
                             // 获取变换数据
@@ -7334,17 +7266,13 @@ class KontextSuperPrompt {
     }
     
     generateSuperPrompt() {
-        console.log('[DEBUG] generateSuperPrompt called, currentCategory:', this.currentCategory);
-        console.log('[DEBUG] currentTabData:', this.currentTabData);
         
         // 检查当前选项卡模式 - API和Ollama模式完全独立，不受模板影响
         if (this.currentCategory === 'api') {
-            console.log('[DEBUG] Using API mode');
             // API模式：完全独立，不使用任何模板
             this.generateWithAPI();
             return;
         } else if (this.currentCategory === 'ollama') {
-            console.log('[DEBUG] Using Ollama mode');
             // Ollama模式：完全独立，不使用任何模板
             this.generateWithOllama();
             return;
@@ -7367,15 +7295,12 @@ class KontextSuperPrompt {
         // 直接使用模板生成的description，无需复杂转换
         const description = this.currentTabData.description || '';
         
-        console.log('[DEBUG] Using template-generated description:', description);
         
         // 获取选中图层的描述信息
         const selectedLayerDescription = this.getSelectedLayerDescription();
-        console.log('[DEBUG] Selected layer description:', selectedLayerDescription);
         
         if (description && description.trim()) {
             // 模板已生成标准英文提示词，直接使用
-            console.log('[DEBUG] Using template prompt:', description);
             
             // 如果有选中的图层，整合图层上下文
             if (selectedLayerDescription) {
@@ -7389,28 +7314,21 @@ class KontextSuperPrompt {
         
         // 只使用用户手动选择的约束和修饰词，不自动生成额外约束
         if (constraintPromptsEnglish.length > 0) {
-            console.log('[DEBUG] Adding user-selected constraints:', constraintPromptsEnglish);
             generatedPromptParts.push(...constraintPromptsEnglish);
         }
         
         if (decorativePromptsEnglish.length > 0) {
-            console.log('[DEBUG] Adding user-selected decoratives:', decorativePromptsEnglish);
             generatedPromptParts.push(...decorativePromptsEnglish);
         }
         
         // 生成最终提示词
         this.currentTabData.generatedPrompt = generatedPromptParts.join(', ');
-        console.log('[DEBUG] Generated prompt parts:', generatedPromptParts);
-        console.log('[DEBUG] Final generated prompt:', this.currentTabData.generatedPrompt);
-        console.log('[DEBUG] Generated prompt length:', this.currentTabData.generatedPrompt.length);
         
         // 如果没有生成任何内容，提供一个默认提示
         if (!this.currentTabData.generatedPrompt || this.currentTabData.generatedPrompt.trim() === '') {
             this.currentTabData.generatedPrompt = 'Please describe the changes you want to make or select some options above';
-            console.log('[DEBUG] Using default prompt');
         }
         
-        console.log('[DEBUG] About to call updateCurrentTabPreview()');
         this.updateCurrentTabPreview();
         
         const promptData = {
@@ -9036,6 +8954,325 @@ Create English editing prompt:`;
             this.showNotification(`释放模型失败: ${error.message}`, 'error');
         }
     }
+    
+    // ============== 图层选择状态管理 - 上下文感知提示词生成 ==============
+    
+    /**
+     * 更新图层选择状态
+     * @param {string} selectionState - 选择状态: 'none' | 'annotation' | 'image'
+     * @param {object} contextData - 上下文数据
+     */
+    updateLayerSelectionState(selectionState, contextData = {}) {
+        
+        this.layerSelectionState = selectionState;
+        
+        // 更新选择上下文
+        switch(selectionState) {
+            case 'annotation':
+                this.selectionContext.annotationData = contextData;
+                this.selectionContext.contentType = 'annotation';
+                this.selectionContext.geometryType = this.analyzeAnnotationGeometry(contextData);
+                break;
+                
+            case 'image':
+                this.selectionContext.imageContent = contextData;
+                this.selectionContext.contentType = this.analyzeImageContentType(contextData);
+                this.selectionContext.geometryType = null;
+                break;
+                
+            case 'none':
+            default:
+                this.selectionContext.annotationData = null;
+                this.selectionContext.imageContent = null;
+                this.selectionContext.contentType = 'unknown';
+                this.selectionContext.geometryType = null;
+                break;
+        }
+        
+        // 只对局部编辑和文本编辑标签页进行上下文更新
+        if (this.currentCategory === 'local' || this.currentCategory === 'text') {
+            this.updateContextAwarePrompts();
+        }
+    }
+    
+    /**
+     * 分析图像内容类型
+     */
+    analyzeImageContentType(imageData) {
+        if (!imageData) return 'unknown';
+        
+        // 简单的内容类型判断逻辑
+        // 实际项目中可以基于AI视觉分析或者图像特征
+        const fileName = imageData.fileName || '';
+        const size = imageData.size || {};
+        
+        if (fileName.includes('portrait') || fileName.includes('face')) {
+            return 'portrait';
+        } else if (fileName.includes('landscape') || fileName.includes('scene')) {
+            return 'landscape';
+        } else if (fileName.includes('text') || fileName.includes('caption')) {
+            return 'text';
+        } else {
+            return 'object';
+        }
+    }
+    
+    /**
+     * 分析标注图层的几何类型，包含颜色信息
+     */
+    analyzeAnnotationGeometry(annotationData) {
+        if (!annotationData) return 'area';
+        
+        const { shape, path, width, height, radius, stroke, fill, color } = annotationData;
+        
+        // 提取颜色信息
+        let colorDescription = '';
+        const extractedColor = this.extractColorName(stroke || fill || color);
+        if (extractedColor) {
+            colorDescription = extractedColor + ' ';
+        }
+        
+        // 根据标注类型返回具体的几何描述，包含颜色
+        if (shape === 'rectangle' || (width && height)) {
+            return colorDescription + 'rectangular box';
+        } else if (shape === 'circle' || radius) {
+            return colorDescription + 'circular area';
+        } else if (shape === 'ellipse') {
+            return colorDescription + 'elliptical region';
+        } else if (shape === 'polygon' || (path && path.length > 2)) {
+            return colorDescription + 'polygonal region';
+        } else if (shape === 'freeform' || shape === 'brush') {
+            return colorDescription + 'outlined area';
+        } else {
+            return colorDescription + 'marked region';
+        }
+    }
+    
+    /**
+     * 从颜色值中提取颜色名称
+     */
+    extractColorName(colorValue) {
+        if (!colorValue || colorValue === 'transparent' || colorValue === '') return '';
+        
+        // 标准化颜色值到小写
+        const color = colorValue.toLowerCase();
+        
+        // 颜色映射表
+        const colorMap = {
+            'red': 'red', '#ff0000': 'red', '#f00': 'red', 'rgb(255,0,0)': 'red', 'rgb(255, 0, 0)': 'red',
+            'blue': 'blue', '#0000ff': 'blue', '#00f': 'blue', 'rgb(0,0,255)': 'blue', 'rgb(0, 0, 255)': 'blue',
+            'green': 'green', '#00ff00': 'green', '#0f0': 'green', 'rgb(0,255,0)': 'green', 'rgb(0, 255, 0)': 'green',
+            'yellow': 'yellow', '#ffff00': 'yellow', '#ff0': 'yellow', 'rgb(255,255,0)': 'yellow', 'rgb(255, 255, 0)': 'yellow',
+            'orange': 'orange', '#ffa500': 'orange', 'rgb(255,165,0)': 'orange', 'rgb(255, 165, 0)': 'orange',
+            'purple': 'purple', '#800080': 'purple', 'rgb(128,0,128)': 'purple', 'rgb(128, 0, 128)': 'purple',
+            'pink': 'pink', '#ffc0cb': 'pink', 'rgb(255,192,203)': 'pink', 'rgb(255, 192, 203)': 'pink',
+            'brown': 'brown', '#a52a2a': 'brown', 'rgb(165,42,42)': 'brown', 'rgb(165, 42, 42)': 'brown',
+            'black': 'black', '#000000': 'black', '#000': 'black', 'rgb(0,0,0)': 'black', 'rgb(0, 0, 0)': 'black',
+            'white': 'white', '#ffffff': 'white', '#fff': 'white', 'rgb(255,255,255)': 'white', 'rgb(255, 255, 255)': 'white',
+            'gray': 'gray', 'grey': 'gray', '#808080': 'gray', 'rgb(128,128,128)': 'gray', 'rgb(128, 128, 128)': 'gray',
+            'cyan': 'cyan', '#00ffff': 'cyan', '#0ff': 'cyan', 'rgb(0,255,255)': 'cyan', 'rgb(0, 255, 255)': 'cyan',
+            'magenta': 'magenta', '#ff00ff': 'magenta', '#f0f': 'magenta', 'rgb(255,0,255)': 'magenta', 'rgb(255, 0, 255)': 'magenta'
+        };
+        
+        // 直接匹配
+        if (colorMap[color]) {
+            return colorMap[color];
+        }
+        
+        // 对于hex颜色，进行范围判断
+        if (color.startsWith('#')) {
+            const hex = color.length === 4 ? color.replace(/(.)/g, '$1$1') : color; // 转换简写hex
+            if (hex.length === 7) {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                
+                // 基于RGB值判断颜色
+                if (r > 200 && g < 100 && b < 100) return 'red';
+                if (r < 100 && g < 100 && b > 200) return 'blue';
+                if (r < 100 && g > 200 && b < 100) return 'green';
+                if (r > 200 && g > 200 && b < 100) return 'yellow';
+                if (r > 200 && g < 150 && b > 200) return 'purple';
+                if (r > 200 && g > 150 && b < 150) return 'orange';
+                if (r < 50 && g < 50 && b < 50) return 'black';
+                if (r > 200 && g > 200 && b > 200) return 'white';
+                if (Math.abs(r - g) < 50 && Math.abs(g - b) < 50) return 'gray';
+            }
+        }
+        
+        // 对于rgb()格式进行解析
+        const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgbMatch) {
+            const [, r, g, b] = rgbMatch.map(Number);
+            if (r > 200 && g < 100 && b < 100) return 'red';
+            if (r < 100 && g < 100 && b > 200) return 'blue';
+            if (r < 100 && g > 200 && b < 100) return 'green';
+            if (r > 200 && g > 200 && b < 100) return 'yellow';
+            if (r > 200 && g < 150 && b > 200) return 'purple';
+            if (r > 200 && g > 150 && b < 150) return 'orange';
+            if (r < 50 && g < 50 && b < 50) return 'black';
+            if (r > 200 && g > 200 && b > 200) return 'white';
+            if (Math.abs(r - g) < 50 && Math.abs(g - b) < 50) return 'gray';
+        }
+        
+        return ''; // 如果无法识别颜色，返回空字符串
+    }
+    
+    /**
+     * 更新上下文感知的提示词
+     */
+    updateContextAwarePrompts() {
+        
+        if (this.currentCategory === 'local') {
+            this.updateLocalEditingPrompts();
+        } else if (this.currentCategory === 'text') {
+            this.updateTextEditingPrompts();
+        }
+    }
+    
+    /**
+     * 更新局部编辑的上下文感知提示词
+     */
+    updateLocalEditingPrompts() {
+        // 更新操作类型选择器的提示
+        this.updateOperationTypeHints();
+        
+        // 更新语法模板的上下文前缀
+        this.updateGrammarTemplateContext();
+    }
+    
+    /**
+     * 更新文本编辑的上下文感知提示词
+     */
+    updateTextEditingPrompts() {
+        // 更新文本操作的上下文描述
+        const textOperationSection = document.querySelector('.operation-type-section');
+        if (!textOperationSection) return;
+        
+        const contextHint = this.getTextEditingContextHint();
+        
+        // 更新文本编辑的操作提示
+        const existingHint = textOperationSection.querySelector('.context-hint');
+        if (existingHint) {
+            existingHint.textContent = contextHint;
+        } else {
+            const hintElement = document.createElement('div');
+            hintElement.className = 'context-hint';
+            hintElement.style.cssText = `
+                font-size: 10px;
+                color: #888;
+                margin-top: 4px;
+                padding: 4px;
+                background: #2a2a2a;
+                border-radius: 3px;
+            `;
+            hintElement.textContent = contextHint;
+            textOperationSection.appendChild(hintElement);
+        }
+    }
+    
+    /**
+     * 获取文本编辑的上下文提示
+     */
+    getTextEditingContextHint() {
+        switch(this.layerSelectionState) {
+            case 'annotation':
+                return '💡 将对选定区域内的文本进行编辑';
+            case 'image':
+                return '💡 将对选中图层中的文本进行编辑';
+            case 'none':
+            default:
+                return '💡 将对图像中的文本进行编辑';
+        }
+    }
+    
+    /**
+     * 更新操作类型选择提示
+     */
+    updateOperationTypeHints() {
+        const operationButtons = document.querySelectorAll('.operation-type-section .operation-button');
+        
+        operationButtons.forEach(button => {
+            const operationType = button.getAttribute('data-operation-type');
+            const contextualHint = this.getOperationContextHint(operationType);
+            
+            // 更新按钮的title提示
+            button.title = contextualHint;
+        });
+    }
+    
+    /**
+     * 获取操作类型的上下文提示
+     */
+    getOperationContextHint(operationType) {
+        const baseHints = {
+            'object_operations': '对象操作：添加、移除、替换对象',
+            'character_edit': '人物编辑：编辑人物外观、姿态、表情',
+            'appearance_edit': '外观修改：改变颜色、风格、纹理',
+            'background_operations': '背景处理：更换、虚化背景',
+            'quality_operations': '质量优化：提升质量、调整光照'
+        };
+        
+        const baseHint = baseHints[operationType] || '编辑操作';
+        
+        switch(this.layerSelectionState) {
+            case 'annotation':
+                return `${baseHint} (限定在选定区域内)`;
+            case 'image':
+                const contentType = this.selectionContext.contentType;
+                const contentHints = {
+                    'portrait': '(针对人物内容)',
+                    'landscape': '(针对风景内容)', 
+                    'object': '(针对物体内容)',
+                    'text': '(针对文本内容)'
+                };
+                return `${baseHint} ${contentHints[contentType] || '(针对选中内容)'}`;
+            case 'none':
+            default:
+                return baseHint;
+        }
+    }
+    
+    /**
+     * 更新语法模板的上下文前缀
+     */
+    updateGrammarTemplateContext() {
+        // 当语法模板选择器更新时，自动添加上下文前缀
+        // 这个方法在模板生成时被调用
+    }
+    
+    /**
+     * 生成带上下文的提示词
+     */
+    generateContextualPrompt(basePrompt) {
+        switch(this.layerSelectionState) {
+            case 'annotation':
+                return `${basePrompt} in the selected area`;
+                
+            case 'image':
+                const contentType = this.selectionContext.contentType;
+                const contentPrefixes = {
+                    'portrait': 'edit the character',
+                    'landscape': 'modify the landscape', 
+                    'object': 'adjust the object',
+                    'text': 'process the text content'
+                };
+                
+                const prefix = contentPrefixes[contentType];
+                if (prefix && basePrompt.includes('{')) {
+                    // 如果是模板格式，替换主语
+                    return basePrompt.replace(/^(add|edit|modify|change)/, prefix);
+                } else if (prefix) {
+                    return `${prefix}: ${basePrompt}`;
+                }
+                return basePrompt;
+                
+            case 'none':
+            default:
+                return basePrompt;
+        }
+    }
+    
 }
 
 // 添加动画样式
@@ -9350,8 +9587,7 @@ app.registerExtension({
                                 if (layerInfo) {
                                     this.kontextSuperPrompt.updateLayerInfo(layerInfo);
                                 } else {
-                                    console.warn("[Kontext Super Prompt] 未找到图层信息，显示默认界面");
-                                    // 即使没有图层信息也要确保界面正常显示
+                                    // Canvas节点初始化时没有图层数据是正常的
                                     this.kontextSuperPrompt.updateLayerInfo({ layers: [], canvas_size: { width: 512, height: 512 } });
                                 }
                             }
