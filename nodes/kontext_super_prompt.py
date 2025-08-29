@@ -22,15 +22,10 @@ from datetime import datetime
 # 添加节点目录到系统路径以导入其他节点
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 导入增强约束系统
-try:
-    from .intelligent_constraint_generator import intelligent_constraint_generator
-    ENHANCED_SYSTEM_AVAILABLE = True
-    print("[Kontext Super Prompt] 增强约束系统已加载")
-except ImportError as e:
-    ENHANCED_SYSTEM_AVAILABLE = False
-    intelligent_constraint_generator = None
-    print(f"[Kontext Super Prompt] 增强约束系统加载失败: {e}")
+# 增强约束系统已移除 - 提示词生成改为纯前端实现
+ENHANCED_SYSTEM_AVAILABLE = False
+intelligent_constraint_generator = None
+print("[Kontext Super Prompt] 使用前端提示词生成系统")
 
 # 配置管理器已移除，API密钥需要每次手动输入
 CONFIG_AVAILABLE = False
