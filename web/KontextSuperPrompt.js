@@ -1565,7 +1565,7 @@ class KontextSuperPrompt {
             
             // lora 换脸专用模板
             'face_swap_template': { 
-                text: 'lora 换脸: swap face with target (Lora Face Swap: swap face with target)', 
+                text: 'LoRA换脸: place it', 
                 level: 3, 
                 operations: ['local_editing'] 
             },
@@ -1904,6 +1904,11 @@ class KontextSuperPrompt {
             'custom': [
                 'basic_verb_object',     // basic custom operation - 基础自定义操作
                 'verb_object_detail'     // detailed custom operation - 详细自定义操作
+            ],
+            
+            // LoRA 换脸专用映射 - 固定输出"place it"
+            'face_swap': [
+                'face_swap_template'     // lora 换脸: 固定输出 "place it"
             ]
         };
         
@@ -2095,13 +2100,8 @@ class KontextSuperPrompt {
                 ]
             },
             'face_swap_template': {
-                structure: 'swap face with [目标面部]',
-                fields: [
-                    { type: 'fixed', label: 'swap', value: 'swap' },
-                    { type: 'fixed', label: 'face', value: 'face' },
-                    { type: 'fixed', label: 'with', value: 'with' },
-                    { type: 'input', label: '目标面部', placeholder: 'celebrity name, character description, specific person...', key: 'target_face' }
-                ]
+                structure: 'place it',
+                fields: []
             },
             'face_replacement': {
                 structure: 'replace face with [目标人物] face',
@@ -2633,6 +2633,15 @@ class KontextSuperPrompt {
         
         container.appendChild(formContainer);
         container.appendChild(previewContainer);
+        
+        // 重要修复：对于没有字段的模板（如face_swap_template），也要触发一次更新
+        // 因为没有输入字段就不会有事件监听器来触发updateGeneratedPromptFromTemplate
+        if (template.fields.length === 0) {
+            // 延迟调用，确保DOM元素已经添加完成
+            setTimeout(() => {
+                this.updateGeneratedPromptFromTemplate(container.parentElement, tabId);
+            }, 10);
+        }
     }
     
     updateGeneratedPromptFromTemplate(sectionElement, tabId) {
