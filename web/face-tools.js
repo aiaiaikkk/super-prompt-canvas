@@ -19,6 +19,7 @@ class FaceToolsUI {
         this.isProcessing = false;
         this.currentPreset = 'avatar';
         this.alignmentMode = 'single'; // 'single' or 'dual'
+        this._programmaticUpdate = false; // 标志位，防止程序化更新触发自定义模式
         
         this.loadStyles();
         this.init();
@@ -509,10 +510,19 @@ class FaceToolsUI {
      */
     updateSliderValue(id, value) {
         const slider = this.toolbar.querySelector(`#${id}`);
+        if (!slider) return;
+        
         const suffix = id === 'crop-padding' ? '%' : 'px';
         
+        // 设置程序化更新标志，避免意外触发自定义模式
+        this._programmaticUpdate = true;
         slider.value = value;
         slider.dispatchEvent(new Event('input'));
+        
+        // 延迟重置标志，确保事件处理完成
+        setTimeout(() => {
+            this._programmaticUpdate = false;
+        }, 10);
     }
 
     /**
@@ -1262,9 +1272,13 @@ class FaceToolsUI {
      * 设置改变时触发
      */
     onSettingChange() {
-        // 设置为自定义模式
-        this.toolbar.querySelector('#face-preset').value = 'custom';
-        this.savePreferences();
+        // 只有在用户手动调整高级设置滑块时才切换为自定义模式
+        // 避免在程序化设置预设值时意外切换为自定义
+        const presetSelect = this.toolbar.querySelector('#face-preset');
+        if (presetSelect && !this._programmaticUpdate) {
+            presetSelect.value = 'custom';
+            this.savePreferences();
+        }
     }
 
     /**
@@ -1287,12 +1301,33 @@ class FaceToolsUI {
         try {
             const preferences = JSON.parse(localStorage.getItem('faceToolsPreferences') || '{}');
             
-            if (preferences.preset) {
-                this.toolbar.querySelector('#face-preset').value = preferences.preset;
-                this.applyPreset(preferences.preset);
+            // 只在没有设置为自定义时才自动应用保存的偏好
+            // 这样可以避免用户无法切换模式的问题
+            if (preferences.preset && preferences.preset !== 'custom') {
+                const presetSelect = this.toolbar.querySelector('#face-preset');
+                if (presetSelect && presetSelect.value === 'custom') {
+                    // 如果当前值是 custom 但保存的不是，则应用保存的设置
+                    presetSelect.value = preferences.preset;
+                    this.applyPreset(preferences.preset);
+                }
+            }
+            
+            // 如果没有保存的偏好或者是自定义，则设置默认值为头像模式
+            if (!preferences.preset) {
+                const presetSelect = this.toolbar.querySelector('#face-preset');
+                if (presetSelect) {
+                    presetSelect.value = 'avatar';
+                    this.applyPreset('avatar');
+                }
             }
         } catch (error) {
             console.warn('Failed to load face tools preferences:', error);
+            // 出错时设置为默认的头像模式
+            const presetSelect = this.toolbar.querySelector('#face-preset');
+            if (presetSelect) {
+                presetSelect.value = 'avatar';
+                this.applyPreset('avatar');
+            }
         }
     }
 
