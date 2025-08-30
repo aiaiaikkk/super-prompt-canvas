@@ -1516,7 +1516,7 @@ class KontextSuperPrompt {
                 operations: ['text_editing'] 
             },
             'colored_text_addition': { 
-                text: '颜色文字: 添加+颜色+文字内容 (Colored Text: add+color+text+content)', 
+                text: '颜色文字: add+颜色+内容 (Colored Text: add+color+content)', 
                 level: 2, 
                 operations: ['text_editing'] 
             },
@@ -2078,11 +2078,10 @@ class KontextSuperPrompt {
                 ]
             },
             'colored_text_addition': {
-                structure: 'add + [颜色] + [文字对象] + [内容]',
+                structure: 'add + [颜色] + [内容]',
                 fields: [
                     { type: 'fixed', label: 'add', value: 'add' },
                     { type: 'dropdown', label: '颜色', options: ['red', 'blue', 'green', 'yellow', 'black', 'white', 'gold', 'silver', 'purple', 'orange', 'pink', 'brown'], key: 'color' },
-                    { type: 'input', label: '文字对象', placeholder: '输入图片中看到的文字内容...', key: 'text_type' },
                     { type: 'input', label: '内容', placeholder: '"Hello", "Welcome", "2024"...', key: 'content' }
                 ]
             },
@@ -2657,141 +2656,95 @@ class KontextSuperPrompt {
         
         switch (templateType) {
             case 'basic_verb_object':
-                if (values.verb && values.object) {
-                    generatedPrompt = `${values.verb} ${values.object}`;
-                }
+                generatedPrompt = `${values.verb || '[verb]'} ${values.object || '[object]'}`;
                 break;
                 
             case 'verb_object_detail':
-                if (values.verb && values.object) {
-                    generatedPrompt = `${values.verb} ${values.object}${values.detail ? ' ' + values.detail : ''}`;
-                }
+                generatedPrompt = `${values.verb || '[verb]'} ${values.object || '[object]'}${values.detail ? ' ' + values.detail : ''}`;
                 break;
                 
             case 'text_editing':
-                if (values.verb && values.text_object && values.connector && values.content) {
-                    generatedPrompt = `${values.verb} ${values.text_object} ${values.connector} "${values.content}"`;
-                }
+                generatedPrompt = `${values.verb || '[verb]'} "${values.text_object || '[text]'}" ${values.connector || 'say'} "${values.content || '[content]'}"`;
                 break;
                 
             case 'location_editing':
-                if (values.verb && values.object && values.preposition && values.location) {
-                    generatedPrompt = `${values.verb} ${values.object} ${values.preposition} ${values.location}`;
-                }
+                generatedPrompt = `${values.verb || '[verb]'} ${values.object || '[object]'} ${values.preposition || 'to'} ${values.location || '[location]'}`;
                 break;
                 
             case 'state_transition':
-                if (values.object && values.state) {
-                    generatedPrompt = `make ${values.object} ${values.state}`;
-                }
+                generatedPrompt = `make ${values.object || '[object]'} ${values.state || '[state]'}`;
                 break;
                 
             case 'global_transform':
-                if (values.target) {
-                    generatedPrompt = `make this into ${values.target}`;
-                }
+                generatedPrompt = `make this into ${values.target || '[target]'}`;
                 break;
                 
             case 'style_reference':
-                if (values.determiner && values.style_content) {
-                    generatedPrompt = `make art in ${values.determiner} style of ${values.style_content}`;
-                }
+                generatedPrompt = `make art in ${values.determiner || 'the'} style of ${values.style_content || '[style]'}`;
                 break;
                 
             case 'environment_change':
-                if (values.verb && values.scene && values.atmosphere) {
-                    generatedPrompt = `${values.verb} ${values.scene} ${values.atmosphere}`;
-                }
+                generatedPrompt = `${values.verb || 'set'} ${values.scene || '[scene]'} ${values.atmosphere || '[atmosphere]'}`;
                 break;
                 
             case 'color_grading':
-                if (values.adjustment && values.intensity) {
-                    generatedPrompt = `make it ${values.intensity} ${values.adjustment}`;
-                }
+                generatedPrompt = `make it ${values.intensity || 'more'} ${values.adjustment || '[adjustment]'}`;
                 break;
                 
             case 'character_reference':
-                if (values.verb && values.character && values.action_env) {
-                    generatedPrompt = `${values.verb} ${values.character} ${values.action_env}`;
-                }
+                generatedPrompt = `${values.verb || 'make'} ${values.character || '[character]'} ${values.action_env || '[action]'}`;
                 break;
                 
             case 'artistic_transformation':
-                if (values.transform && values.art_form && values.features) {
-                    generatedPrompt = `${values.transform} ${values.art_form} ${values.features}`;
-                }
+                generatedPrompt = `${values.transform || 'transform into'} ${values.art_form || '[art form]'} ${values.features || '[features]'}`;
                 break;
                 
             case 'text_style':
-                if (values.text_type && values.style && values.attributes) {
-                    generatedPrompt = `make ${values.text_type} ${values.style} ${values.attributes}`;
-                }
+                generatedPrompt = `make ${values.text_type || '[text]'} ${values.style || '[style]'} ${values.attributes || '[attributes]'}`;
                 break;
                 
             case 'font_adjustment':
-                if (values.font_attr && values.value) {
-                    generatedPrompt = `adjust ${values.font_attr} ${values.value}`;
-                }
+                generatedPrompt = `adjust ${values.font_attr || 'font size'} ${values.value || '[value]'}`;
                 break;
                 
             case 'colored_text_addition':
-                if (values.color && values.text_type && values.content) {
-                    generatedPrompt = `add ${values.color} text "${values.content}" to ${values.text_type}`;
-                }
+                generatedPrompt = `add ${values.color || 'red'} "${values.content || '[content]'}"`;
                 break;
                 
             case 'text_replacement':
-                if (values.original_text && values.new_text) {
-                    generatedPrompt = `replace "${values.original_text}" with "${values.new_text}"`;
-                }
+                generatedPrompt = `replace "${values.original_text || '[original]'}" with "${values.new_text || '[new]'}"`;
                 break;
                 
             case 'complex_conditional':
-                if (values.condition && values.verb && values.object && values.result) {
-                    generatedPrompt = `if ${values.condition} then ${values.verb} ${values.object} ${values.result}`;
-                }
+                generatedPrompt = `if ${values.condition || '[condition]'} then ${values.verb || 'enhance'} ${values.object || '[object]'} ${values.result || '[result]'}`;
                 break;
                 
             case 'multi_step':
-                if (values.step1 && values.step2 && values.result) {
-                    generatedPrompt = `first ${values.step1}, then ${values.step2}, finally ${values.result}`;
-                }
+                generatedPrompt = `first ${values.step1 || '[step1]'}, then ${values.step2 || '[step2]'}, finally ${values.result || '[result]'}`;
                 break;
                 
             case 'technical_precision':
-                if (values.tech_verb && values.parameter && values.value) {
-                    generatedPrompt = `${values.tech_verb} ${values.parameter} ${values.value}`;
-                }
+                generatedPrompt = `${values.tech_verb || 'adjust'} ${values.parameter || '[parameter]'} ${values.value || '[value]'}`;
                 break;
                 
             case 'conceptual_editing':
-                if (values.concept && values.materialize && values.visual) {
-                    generatedPrompt = `${values.concept} ${values.materialize} ${values.visual}`;
-                }
+                generatedPrompt = `${values.concept || '[concept]'} ${values.materialize || 'visualize as'} ${values.visual || '[visual]'}`;
                 break;
                 
             case 'object_replacement':
-                if (values.old_object && values.new_object) {
-                    generatedPrompt = `replace ${values.old_object} with ${values.new_object}`;
-                }
+                generatedPrompt = `replace ${values.old_object || '[old object]'} with ${values.new_object || '[new object]'}`;
                 break;
                 
             case 'object_color_change':
-                if (values.object && values.color) {
-                    generatedPrompt = `make ${values.object} ${values.color} color`;
-                }
+                generatedPrompt = `make ${values.object || '[object]'} ${values.color || 'red'} color`;
                 break;
                 
             case 'simple_color_change':
-                if (values.object && values.color) {
-                    generatedPrompt = `change ${values.object} to ${values.color}`;
-                }
+                generatedPrompt = `change ${values.object || '[object]'} to ${values.color || 'red'}`;
                 break;
                 
             case 'precise_color_control':
-                if (values.object && values.color && values.intensity) {
-                    generatedPrompt = `adjust ${values.object} color to ${values.color} with ${values.intensity}`;
-                }
+                generatedPrompt = `adjust ${values.object || '[object]'} color to ${values.color || 'red'} with ${values.intensity || 'moderate'}`;
                 break;
                 
             case 'face_swap_template':
@@ -2799,186 +2752,130 @@ class KontextSuperPrompt {
                 break;
                 
             case 'face_replacement':
-                if (values.target_person) {
-                    generatedPrompt = `replace face with ${values.target_person} face`;
-                }
+                generatedPrompt = `replace face with ${values.target_person || '[person]'} face`;
                 break;
                 
             case 'character_pose':
-                if (values.character && values.pose) {
-                    let prompt = `make ${values.character} ${values.pose}`;
-                    if (values.location) prompt += ` ${values.location}`;
-                    if (values.activity) prompt += ` ${values.activity}`;
-                    generatedPrompt = prompt;
-                }
+                let prompt = `make ${values.character || '[character]'} ${values.pose || '[pose]'}`;
+                if (values.location) prompt += ` ${values.location}`;
+                if (values.activity) prompt += ` ${values.activity}`;
+                generatedPrompt = prompt;
                 break;
                 
             case 'character_interaction':
-                if (values.character && values.action && values.object) {
-                    generatedPrompt = `make ${values.character} ${values.action} ${values.object}`;
-                }
+                generatedPrompt = `make ${values.character || '[character]'} ${values.action || '[action]'} ${values.object || '[object]'}`;
                 break;
                 
             case 'advanced_character':
-                if (values.character && values.action && values.details) {
-                    generatedPrompt = `make ${values.character} ${values.action} with ${values.details}`;
-                }
+                generatedPrompt = `make ${values.character || '[character]'} ${values.action || '[action]'} with ${values.details || '[details]'}`;
                 break;
                 
             case 'object_placement':
-                if (values.action && values.object && values.location) {
-                    generatedPrompt = `${values.action} ${values.object} ${values.location}`;
-                }
+                generatedPrompt = `${values.action || 'place'} ${values.object || '[object]'} ${values.location || '[location]'}`;
                 break;
                 
             case 'giving_objects':
-                if (values.character && values.object) {
-                    generatedPrompt = `give ${values.character} ${values.object}`;
-                }
+                generatedPrompt = `give ${values.character || '[character]'} ${values.object || '[object]'}`;
                 break;
                 
             case 'style_conversion':
-                if (values.object && values.style) {
-                    generatedPrompt = `convert ${values.object} to ${values.style}`;
-                }
+                generatedPrompt = `convert ${values.object || '[object]'} to ${values.style || '[style]'}`;
+                break;
+                
+            case 'creative_creation':
+                generatedPrompt = `create ${values.type || 'art'} of ${values.subject || '[subject]'} ${values.style || ''}`;
                 break;
                 
             case 'contextual_usage':
-                if (values.context && values.object && values.state) {
-                    generatedPrompt = `using ${values.context} make ${values.object} ${values.state}`;
-                }
+                generatedPrompt = `using ${values.style || '[style]'} make ${values.object || '[object]'}`;
                 break;
                 
             case 'style_reference':
-                if (values.style_type && values.content) {
-                    generatedPrompt = `make art in style of ${values.content} ${values.style_type}`;
-                }
+                generatedPrompt = `make art in style of ${values.content || '[content]'} ${values.style_type || '[style type]'}`;
                 break;
                 
             case 'camera_zoom':
-                if (values.direction && values.subject) {
-                    generatedPrompt = `zoom ${values.direction} to show ${values.subject}`;
-                }
+                generatedPrompt = `zoom ${values.direction || 'in'} to show ${values.subject || '[subject]'}`;
                 break;
                 
             case 'camera_view':
-                if (values.view && values.subject) {
-                    generatedPrompt = `show ${values.view} of ${values.subject}`;
-                }
+                generatedPrompt = `show ${values.view || 'close-up'} of ${values.subject || '[subject]'}`;
                 break;
                 
             case 'turn_transform':
-                if (values.object && values.target) {
-                    generatedPrompt = `turn ${values.object} into ${values.target}`;
-                }
+                generatedPrompt = `turn ${values.object || '[object]'} into ${values.target || '[target]'}`;
                 break;
                 
             case 'turn_style':
-                if (values.object && values.style) {
-                    generatedPrompt = `turn ${values.object} into ${values.style}`;
-                }
+                generatedPrompt = `turn ${values.object || '[object]'} into ${values.style || '[style]'}`;
                 break;
                 
             case 'compound_verbs':
-                if (values.degree && values.adjective) {
-                    generatedPrompt = `make it ${values.degree} ${values.adjective}`;
-                }
+                generatedPrompt = `make it ${values.degree || 'more'} ${values.adjective || '[adjective]'}`;
                 break;
                 
             case 'special_markers':
-                if (values.description) {
-                    generatedPrompt = `it looks like ${values.description}`;
-                }
+                generatedPrompt = `it looks like ${values.description || '[description]'}`;
                 break;
                 
             case 'quality_enhancement':
-                if (values.enhance_verb && values.object && values.quality_level) {
-                    generatedPrompt = `${values.enhance_verb} ${values.object} ${values.quality_level}`;
-                }
+                generatedPrompt = `${values.enhance_verb || 'enhance'} ${values.object || '[object]'} ${values.quality_level || '[quality]'}`;
                 break;
                 
             case 'style_descriptor_complex':
-                if (values.base_style && values.modifier) {
-                    generatedPrompt = `in the style of ${values.base_style} but ${values.modifier}`;
-                }
+                generatedPrompt = `in the style of ${values.base_style || '[base style]'} but ${values.modifier || '[modifier]'}`;
                 break;
                 
             case 'positional_complex':
-                if (values.object1 && values.position && values.object2) {
-                    generatedPrompt = `make ${values.object1} ${values.position} ${values.object2}`;
-                }
+                generatedPrompt = `make ${values.object1 || '[object1]'} ${values.position || '[position]'} ${values.object2 || '[object2]'}`;
                 break;
                 
             case 'comparative_editing':
-                if (values.object && values.attribute && values.reference) {
-                    generatedPrompt = `make ${values.object} more ${values.attribute} than ${values.reference}`;
-                }
+                generatedPrompt = `make ${values.object || '[object]'} more ${values.attribute || '[attribute]'} than ${values.reference || '[reference]'}`;
                 break;
                 
             case 'sequential_actions':
-                if (values.action1 && values.target1 && values.action2 && values.target2 && values.action3 && values.target3) {
-                    generatedPrompt = `${values.action1} ${values.target1} then ${values.action2} ${values.target2} finally ${values.action3} ${values.target3}`;
-                }
+                generatedPrompt = `${values.action1 || '[action1]'} ${values.target1 || '[target1]'} then ${values.action2 || '[action2]'} ${values.target2 || '[target2]'} finally ${values.action3 || '[action3]'} ${values.target3 || '[target3]'}`;
                 break;
                 
             case 'technical_specification':
-                if (values.object && values.tool && values.parameters) {
-                    generatedPrompt = `show ${values.object} as ${values.tool} with ${values.parameters}`;
-                }
+                generatedPrompt = `show ${values.object || '[object]'} as ${values.tool || '[tool]'} with ${values.parameters || '[parameters]'}`;
                 break;
                 
             case 'artistic_render':
-                if (values.render_style && values.quality_requirements) {
-                    generatedPrompt = `restyle this image as ${values.render_style} with ${values.quality_requirements}`;
-                }
+                generatedPrompt = `restyle this image as ${values.render_style || '[render style]'} with ${values.quality_requirements || '[quality]'}`;
                 break;
                 
             case 'depth_map_processing':
-                if (values.verb && values.source && values.target) {
-                    generatedPrompt = `${values.verb} ${values.source} to ${values.target} from depth map`;
-                }
+                generatedPrompt = `${values.verb || 'convert'} ${values.source || '[source]'} to ${values.target || '[target]'} from depth map`;
                 break;
                 
             case 'multi_panel_creation':
-                if (values.panel_count && values.content && values.states) {
-                    generatedPrompt = `create ${values.panel_count} panel image showing ${values.content} in ${values.states}`;
-                }
+                generatedPrompt = `create ${values.panel_count || '[count]'} panel image showing ${values.content || '[content]'} in ${values.states || '[states]'}`;
                 break;
                 
             case 'compound_instructions':
-                if (values.instruction1 && values.instruction2) {
-                    generatedPrompt = `${values.instruction1}, then ${values.instruction2}`;
-                }
+                generatedPrompt = `${values.instruction1 || '[instruction1]'}, then ${values.instruction2 || '[instruction2]'}`;
                 break;
                 
             case 'detailed_environment':
-                if (values.verb && values.scene && values.details) {
-                    generatedPrompt = `${values.verb} ${values.scene} with ${values.details}`;
-                }
+                generatedPrompt = `${values.verb || '[verb]'} ${values.scene || '[scene]'} with ${values.details || '[details]'}`;
                 break;
                 
             case 'precise_artistic_control':
-                if (values.art_type && values.content && values.tool) {
-                    generatedPrompt = `create ${values.art_type} of ${values.content} using ${values.tool}`;
-                }
+                generatedPrompt = `create ${values.art_type || 'epic scifi art'} of ${values.content || '[content]'} using ${values.tool || '[tool]'}`;
                 break;
                 
             case 'quantitative_adjustment':
-                if (values.verb && values.parameter && values.value) {
-                    generatedPrompt = `${values.verb} ${values.parameter} by ${values.value}`;
-                }
+                generatedPrompt = `${values.verb || 'adjust'} ${values.parameter || 'brightness'} by ${values.value || '[value]'}`;
                 break;
                 
             case 'size_dimension_control':
-                if (values.object && values.size && values.specifications) {
-                    generatedPrompt = `make ${values.object} ${values.size} with ${values.specifications}`;
-                }
+                generatedPrompt = `make ${values.object || '[object]'} ${values.size || 'bigger'} with ${values.specifications || '[specifications]'}`;
                 break;
                 
             case 'visual_description':
-                if (values.object && values.visual_style) {
-                    generatedPrompt = `show ${values.object} as ${values.visual_style}`;
-                }
+                generatedPrompt = `show ${values.object || '[object]'} as ${values.visual_style || '3d grayscale model'}`;
                 break;
         }
         
